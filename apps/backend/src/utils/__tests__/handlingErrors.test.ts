@@ -2,7 +2,12 @@ import type { APIGatewayProxyEventV2, Context } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock dependencies - must be before imports
-const { mockSentryCaptureException, mockDatabase, mockCommitContextTransactions } = vi.hoisted(() => {
+const {
+  mockSentryCaptureException,
+  mockSentryStartSpan,
+  mockDatabase,
+  mockCommitContextTransactions,
+} = vi.hoisted(() => {
   const db = {
     workspace: { get: vi.fn() },
     "workspace-credit-transactions": { create: vi.fn() },
@@ -10,6 +15,7 @@ const { mockSentryCaptureException, mockDatabase, mockCommitContextTransactions 
   };
   return {
     mockSentryCaptureException: vi.fn(),
+    mockSentryStartSpan: vi.fn(),
     mockDatabase: vi.fn().mockResolvedValue(db),
     mockCommitContextTransactions: vi.fn().mockResolvedValue(undefined),
   };
@@ -29,6 +35,9 @@ vi.mock("../sentry", () => ({
     error instanceof Error ? error : new Error(String(error)),
   Sentry: {
     captureException: mockSentryCaptureException,
+    startSpan: mockSentryStartSpan,
+    setTag: vi.fn(),
+    setContext: vi.fn(),
   },
 }));
 
@@ -48,16 +57,7 @@ vi.mock("../workspaceCreditContext", () => ({
   clearCurrentHTTPContext: vi.fn(),
 }));
 
-vi.mock("@sentry/node", () => ({
-  default: {
-    captureException: vi.fn(),
-  },
-  Sentry: {
-    captureException: vi.fn(),
-  },
-}));
-
-import { handlingErrors } from "../handlingErrors";
+import { handlingErrors, handlingHttpErrors } from "../handlingErrors";
 import { flushPostHog } from "../posthog";
 import { flushSentry } from "../sentry";
 
@@ -108,6 +108,12 @@ describe("handlingErrors", () => {
     vi.clearAllMocks();
     vi.mocked(flushSentry).mockResolvedValue(undefined);
     vi.mocked(flushPostHog).mockResolvedValue(undefined);
+    mockSentryStartSpan.mockImplementation(async (_config, callback) => {
+      if (typeof callback === "function") {
+        return callback();
+      }
+      return undefined;
+    });
   });
 
   afterEach(() => {
@@ -139,6 +145,13 @@ describe("handlingErrors", () => {
         mockContext,
         expect.any(Function)
       );
+      expect(mockSentryStartSpan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          op: "http.server",
+          name: "GET /test",
+        }),
+        expect.any(Function)
+      );
       // Both PostHog and Sentry should be flushed in finally block
       expect(flushPostHog).toHaveBeenCalled();
       expect(flushSentry).toHaveBeenCalled();
@@ -157,6 +170,43 @@ describe("handlingErrors", () => {
       // Both should be flushed in finally block
       expect(flushPostHog).toHaveBeenCalledTimes(1);
       expect(flushSentry).toHaveBeenCalledTimes(1);
+    });
+
+    it("should flush only after handler completes", async () => {
+      const order: string[] = [];
+      const mockHandler = vi.fn().mockImplementation(async () => {
+        order.push("handler");
+        return {
+          statusCode: 200,
+          headers: {},
+          body: "",
+        };
+      });
+
+      mockSentryStartSpan.mockImplementation(async (_config, callback) => {
+        order.push("startSpan");
+        const result = await callback();
+        order.push("endSpan");
+        return result;
+      });
+
+      vi.mocked(flushSentry).mockImplementation(async () => {
+        order.push("flushSentry");
+      });
+      vi.mocked(flushPostHog).mockImplementation(async () => {
+        order.push("flushPostHog");
+      });
+
+      const wrappedHandler = handlingErrors(mockHandler);
+      await wrappedHandler(mockEvent, mockContext, vi.fn());
+
+      expect(order).toContain("handler");
+      expect(order.indexOf("flushSentry")).toBeGreaterThan(
+        order.indexOf("handler")
+      );
+      expect(order.indexOf("flushPostHog")).toBeGreaterThan(
+        order.indexOf("handler")
+      );
     });
 
     it("should handle PostHog flush errors gracefully", async () => {
@@ -343,5 +393,84 @@ describe("handlingErrors", () => {
       const body = JSON.parse(result.body);
       expect(body.statusCode).toBe(500);
     });
+  });
+});
+
+describe("handlingHttpErrors", () => {
+  const mockReq = {
+    method: "GET",
+    path: "/test",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(flushSentry).mockResolvedValue(undefined);
+    vi.mocked(flushPostHog).mockResolvedValue(undefined);
+    mockSentryStartSpan.mockImplementation(async (_config, callback) => {
+      if (typeof callback === "function") {
+        return callback();
+      }
+      return undefined;
+    });
+  });
+
+  it("flushes PostHog and Sentry before responding on success", async () => {
+    const order: string[] = [];
+    vi.mocked(flushSentry).mockImplementation(async () => {
+      order.push("flushSentry");
+    });
+    vi.mocked(flushPostHog).mockImplementation(async () => {
+      order.push("flushPostHog");
+    });
+
+    const res = vi.fn(() => {
+      order.push("res");
+    });
+
+    const wrappedHandler = handlingHttpErrors((req, respond) => {
+      respond({
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+
+    wrappedHandler(mockReq as never, res, vi.fn());
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(flushSentry).toHaveBeenCalledTimes(1);
+    expect(flushPostHog).toHaveBeenCalledTimes(1);
+    expect(res).toHaveBeenCalledTimes(1);
+    expect(order.indexOf("res")).toBeGreaterThan(order.indexOf("flushSentry"));
+    expect(order.indexOf("res")).toBeGreaterThan(order.indexOf("flushPostHog"));
+  });
+
+  it("flushes PostHog and Sentry before responding on error", async () => {
+    const order: string[] = [];
+    vi.mocked(flushSentry).mockImplementation(async () => {
+      order.push("flushSentry");
+    });
+    vi.mocked(flushPostHog).mockImplementation(async () => {
+      order.push("flushPostHog");
+    });
+
+    const res = vi.fn(() => {
+      order.push("res");
+    });
+
+    const wrappedHandler = handlingHttpErrors(() => {
+      throw new Error("Boom");
+    });
+
+    wrappedHandler(mockReq as never, res, vi.fn());
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(flushSentry).toHaveBeenCalledTimes(1);
+    expect(flushPostHog).toHaveBeenCalledTimes(1);
+    expect(res).toHaveBeenCalledTimes(1);
+    expect(order.indexOf("res")).toBeGreaterThan(order.indexOf("flushSentry"));
+    expect(order.indexOf("res")).toBeGreaterThan(order.indexOf("flushPostHog"));
   });
 });

@@ -9,6 +9,7 @@ export interface TrackingProperties {
   workspace_id?: string;
   agent_id?: string;
   user_id?: string;
+  user_email?: string;
   environment?: string;
   subscription_tier?: string;
   [key: string]: unknown;
@@ -21,13 +22,14 @@ export interface TrackingProperties {
  */
 function identifyUserFromRequest(req: {
   userRef?: string;
-  session?: { user?: { id?: string } };
-}): string | undefined {
+  session?: { user?: { id?: string; email?: string | null } };
+}): { userId?: string; userEmail?: string } {
   const userId = extractUserId(req);
+  const userEmail = req.session?.user?.email || undefined;
   if (userId) {
-    identifyUser(userId);
+    identifyUser(userId, userEmail ? { email: userEmail } : undefined);
   }
-  return userId;
+  return { userId, userEmail };
 }
 
 /**
@@ -49,7 +51,7 @@ export function trackEvent(
   properties?: TrackingProperties,
   req?: {
     userRef?: string;
-    session?: { user?: { id?: string } };
+    session?: { user?: { id?: string; email?: string | null } };
   }
 ): void {
   const phClient = getPostHogClient();
@@ -61,11 +63,16 @@ export function trackEvent(
   try {
     // Identify user if request is provided
     let userId: string | undefined;
+    let userEmail: string | undefined;
     if (req) {
-      userId = identifyUserFromRequest(req);
+      ({ userId, userEmail } = identifyUserFromRequest(req));
     } else if (properties?.user_id) {
       // If user_id is in properties, identify user
-      identifyUser(properties.user_id);
+      userEmail = properties.user_email;
+      identifyUser(
+        properties.user_id,
+        userEmail ? { email: userEmail } : undefined
+      );
       userId = properties.user_id;
     }
 
@@ -122,7 +129,7 @@ export function trackBusinessEvent(
   properties?: TrackingProperties,
   req?: {
     userRef?: string;
-    session?: { user?: { id?: string } };
+    session?: { user?: { id?: string; email?: string | null } };
   }
 ): void {
   const eventName = `${feature}_${action}`;
@@ -140,7 +147,7 @@ export function trackError(
   context?: TrackingProperties,
   req?: {
     userRef?: string;
-    session?: { user?: { id?: string } };
+    session?: { user?: { id?: string; email?: string | null } };
   }
 ): void {
   const errorMessage = error instanceof Error ? error.message : error;

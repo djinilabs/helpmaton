@@ -76,7 +76,7 @@ export async function flushPostHog(timeoutMs = 2000): Promise<void> {
  * Identify a user in PostHog
  * Uses consistent `user/${userId}` format to match frontend identification
  * @param userId - User ID (without prefix)
- * @param properties - Optional user properties (non-PII only)
+ * @param properties - Optional user properties (include email for correlation)
  */
 export function identifyUser(
   userId: string,

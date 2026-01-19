@@ -67,10 +67,17 @@ vi.mock("../../../utils/posthog", () => ({
 vi.mock("../../../utils/sentry", () => ({
   flushSentry: vi.fn().mockResolvedValue(undefined),
   ensureError: vi.fn((error) => error),
-}));
-
-vi.mock("@sentry/node", () => ({
-  captureException: vi.fn(),
+  Sentry: {
+    captureException: vi.fn(),
+    startSpan: vi.fn(async (_config, callback) => callback?.()),
+    setTag: vi.fn(),
+    setContext: vi.fn(),
+    withScope: (callback: (scope: { setTag: () => void; setContext: () => void }) => Promise<unknown>) =>
+      callback({
+        setTag: vi.fn(),
+        setContext: vi.fn(),
+      }),
+  },
 }));
 
 // Mock creditManagement

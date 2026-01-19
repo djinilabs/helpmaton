@@ -2,7 +2,12 @@ import type { SQSEvent } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock dependencies - must be before imports
-const { mockDatabase, mockCommitContextTransactions } = vi.hoisted(() => {
+const {
+  mockDatabase,
+  mockCommitContextTransactions,
+  mockSentryCaptureException,
+  mockSentryStartSpan,
+} = vi.hoisted(() => {
   const db = {
     workspace: { get: vi.fn() },
     "workspace-credit-transactions": { create: vi.fn() },
@@ -11,6 +16,8 @@ const { mockDatabase, mockCommitContextTransactions } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn().mockResolvedValue(db),
     mockCommitContextTransactions: vi.fn().mockResolvedValue(undefined),
+    mockSentryCaptureException: vi.fn(),
+    mockSentryStartSpan: vi.fn(),
   };
 });
 
@@ -26,10 +33,6 @@ vi.mock("@architect/functions", () => ({
   }),
 }));
 
-vi.mock("@sentry/node", () => ({
-  captureException: vi.fn(),
-}));
-
 vi.mock("../posthog", () => ({
   flushPostHog: vi.fn().mockResolvedValue(undefined),
 }));
@@ -37,6 +40,17 @@ vi.mock("../posthog", () => ({
 vi.mock("../sentry", () => ({
   flushSentry: vi.fn().mockResolvedValue(undefined),
   ensureError: vi.fn((error) => error),
+  Sentry: {
+    captureException: mockSentryCaptureException,
+    startSpan: mockSentryStartSpan,
+    setTag: vi.fn(),
+    setContext: vi.fn(),
+    withScope: (callback: (scope: { setTag: () => void; setContext: () => void }) => Promise<unknown>) =>
+      callback({
+        setTag: vi.fn(),
+        setContext: vi.fn(),
+      }),
+  },
 }));
 
 vi.mock("../workspaceCreditContext", () => ({
@@ -98,6 +112,12 @@ describe("handlingSQSErrors", () => {
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockSentryStartSpan.mockImplementation(async (_config, callback) => {
+      if (typeof callback === "function") {
+        return callback();
+      }
+      return undefined;
+    });
   });
 
   afterEach(() => {
@@ -124,6 +144,21 @@ describe("handlingSQSErrors", () => {
       expect(result).toEqual({
         batchItemFailures: [],
       });
+    });
+
+    it("should start a Sentry transaction for the batch", async () => {
+      const handler = vi.fn().mockResolvedValue([]);
+      const wrappedHandler = handlingSQSErrors(handler);
+
+      await wrappedHandler(mockEvent);
+
+      expect(mockSentryStartSpan).toHaveBeenCalledWith(
+        expect.objectContaining({
+          op: "sqs.consume",
+          name: "SQS queue",
+        }),
+        expect.any(Function)
+      );
     });
 
     it("should log success message when all messages succeed", async () => {
@@ -250,7 +285,7 @@ describe("handlingSQSErrors", () => {
     });
 
     it("should report error to Sentry when handler throws", async () => {
-      const { captureException } = await import("@sentry/node");
+      const { Sentry } = await import("../sentry");
       const error = new Error("Unexpected error");
       // Handler throws for first record, succeeds for second
       const handler = vi.fn(async (event) => {
@@ -264,7 +299,7 @@ describe("handlingSQSErrors", () => {
       await wrappedHandler(mockEvent);
 
       // Should report error for the specific record that failed
-      expect(captureException).toHaveBeenCalledWith(
+      expect(Sentry.captureException).toHaveBeenCalledWith(
         expect.any(Error),
         expect.objectContaining({
           tags: expect.objectContaining({

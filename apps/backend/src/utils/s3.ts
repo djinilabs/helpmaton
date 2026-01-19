@@ -5,10 +5,32 @@ import s3Plugin from "@aws-lite/s3";
 import { S3Client } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 
+import { Sentry } from "./sentry";
+
 // Use bucket name with period to force path-style addressing for local S3 servers
 const BUCKET_NAME = (
   process.env.HELPMATON_S3_BUCKET || "workspace.documents"
 ).trim();
+
+export async function withS3Span<T>(
+  operation: string,
+  key: string,
+  action: () => Promise<T>
+): Promise<T> {
+  return Sentry.startSpan(
+    {
+      op: "aws.s3",
+      name: `S3.${operation}`,
+      attributes: {
+        "aws.service": "s3",
+        "aws.operation": operation,
+        "s3.bucket": BUCKET_NAME,
+        "s3.key": key,
+      },
+    },
+    action
+  );
+}
 
 // Get S3 client configuration
 export async function getS3Client() {
@@ -170,10 +192,12 @@ export async function checkFilenameExists(
   const key = buildS3Key(workspaceId, folderPath, filename);
 
   try {
-    await s3.HeadObject({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    });
+    await withS3Span("HeadObject", key, () =>
+      s3.HeadObject({
+        Bucket: BUCKET_NAME,
+        Key: key,
+      })
+    );
     return true;
   } catch (error: unknown) {
     if (error && typeof error === "object" && "statusCode" in error) {
@@ -242,12 +266,14 @@ export async function uploadDocument(
   const buffer =
     typeof content === "string" ? Buffer.from(content, "utf-8") : content;
 
-  await s3.PutObject({
-    Bucket: BUCKET_NAME,
-    Key: key,
-    Body: buffer,
-    ContentType: contentType,
-  });
+  await withS3Span("PutObject", key, () =>
+    s3.PutObject({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    })
+  );
 
   return key;
 }
@@ -272,10 +298,12 @@ export async function getDocument(
     }`
   );
 
-  const response = await s3.GetObject({
-    Bucket: BUCKET_NAME,
-    Key: s3Key,
-  });
+  const response = await withS3Span("GetObject", s3Key, () =>
+    s3.GetObject({
+      Bucket: BUCKET_NAME,
+      Key: s3Key,
+    })
+  );
 
   if (response.Body instanceof Buffer) {
     return response.Body;
@@ -305,10 +333,12 @@ export async function deleteDocument(
 ): Promise<void> {
   const s3 = await getS3Client();
 
-  await s3.DeleteObject({
-    Bucket: BUCKET_NAME,
-    Key: s3Key,
-  });
+  await withS3Span("DeleteObject", s3Key, () =>
+    s3.DeleteObject({
+      Bucket: BUCKET_NAME,
+      Key: s3Key,
+    })
+  );
 }
 
 // Rename/move document in S3
@@ -323,17 +353,21 @@ export async function renameDocument(
   const newKey = buildS3Key(workspaceId, normalizedPath, newFilename);
 
   // Copy object to new location
-  await s3.CopyObject({
-    Bucket: BUCKET_NAME,
-    CopySource: `${BUCKET_NAME}/${oldS3Key}`,
-    Key: newKey,
-  });
+  await withS3Span("CopyObject", oldS3Key, () =>
+    s3.CopyObject({
+      Bucket: BUCKET_NAME,
+      CopySource: `${BUCKET_NAME}/${oldS3Key}`,
+      Key: newKey,
+    })
+  );
 
   // Delete old object
-  await s3.DeleteObject({
-    Bucket: BUCKET_NAME,
-    Key: oldS3Key,
-  });
+  await withS3Span("DeleteObject", oldS3Key, () =>
+    s3.DeleteObject({
+      Bucket: BUCKET_NAME,
+      Key: oldS3Key,
+    })
+  );
 
   return newKey;
 }

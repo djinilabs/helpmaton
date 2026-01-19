@@ -6,7 +6,9 @@
 
 **Latest Work**:
 
+- **Sentry backend tracing**: Switched backend Sentry to `@sentry/aws-serverless` with 100% prod sampling, added Lambda/SQS/scheduled spans, and manual S3 spans for aws-lite calls. Added span tests and updated analytics docs. Ran `pnpm lint --fix` and `pnpm --filter backend test --run`; `pnpm typecheck` failed in `apps/frontend/vite.config.ts` with Vite type mismatch (pre-existing).
 - **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PostHog user email identification**: Added backend PostHog identify calls with authenticated user email to align server-side event tracking with frontend identification. `pnpm typecheck` failed (Vite/vitest type mismatch), `pnpm lint --fix` passed.
 - **Lambda async cleanup**: Replaced bot-webhook queue thinking message intervals with awaited periodic loops, removed background agent cache cleanup interval, and ensured legacy HttpHandler error flushing completes before responding. Added `runPeriodicTask` helper + tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Abort/timeout coverage updates**: Added timeout cleanup for stream OPTIONS path and extended abort signals to continuation, eval, prompt generation, and memory summarization LLM calls. `pnpm typecheck` failed in `apps/backend/src/utils/handlingErrors.ts` (unrelated), `pnpm lint --fix` passed.
 - **Agent generation error reporting**: Added Sentry capture to agent generation error paths (tools, delegation, streaming, bot webhooks, schedules) where errors were previously only logged, plus unit tests for tool error reporting. Ran `pnpm typecheck` and `pnpm lint --fix`.

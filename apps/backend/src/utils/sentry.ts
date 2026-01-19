@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/node";
+import * as Sentry from "@sentry/aws-serverless";
 
 let isInitialized = false;
 
@@ -38,21 +38,24 @@ export function initSentry(): void {
   const release =
     process.env.SENTRY_RELEASE || process.env.GITHUB_SHA || undefined;
 
+  const tracesSampleRate = getTracesSampleRate(environment);
+
   Sentry.init({
     dsn,
     environment,
     release, // Add release configuration
     // Enable source maps for better error reporting
     integrations: [
+      Sentry.awsLambdaIntegration(),
+      Sentry.awsIntegration(),
       // Automatically instrument Node.js modules
       Sentry.httpIntegration(),
       Sentry.consoleIntegration(),
       Sentry.onUncaughtExceptionIntegration(),
       Sentry.onUnhandledRejectionIntegration(),
     ],
-    // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring
-    // Adjust this value in production
-    tracesSampleRate: environment === "production" ? 0.1 : 1.0,
+    // Production-only tracing with 100% sampling by default
+    tracesSampleRate,
   });
 
   isInitialized = true;
@@ -61,6 +64,27 @@ export function initSentry(): void {
       release ? `, release: ${release}` : ""
     }`
   );
+}
+
+function getTracesSampleRate(environment: string): number {
+  if (environment !== "production") {
+    return 0;
+  }
+
+  const rawSampleRate = process.env.SENTRY_TRACES_SAMPLE_RATE;
+  if (!rawSampleRate) {
+    return 1.0;
+  }
+
+  const parsed = Number(rawSampleRate);
+  if (Number.isNaN(parsed)) {
+    console.warn(
+      `[Sentry] Invalid SENTRY_TRACES_SAMPLE_RATE "${rawSampleRate}", defaulting to 1.0`
+    );
+    return 1.0;
+  }
+
+  return parsed;
 }
 
 /**

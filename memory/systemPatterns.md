@@ -78,6 +78,7 @@
 - **Testing**: Jest for unit tests, Playwright for E2E
 - **Error Handling**: Custom error utilities in `utils/handlingErrors.ts`
 - **Logging**: Structured logging with table logger
+- **Sentry Tracing**: Use `@sentry/aws-serverless` with wrapper-level `startSpan` for Lambda/SQS/scheduled handlers and flush only in handler `finally` blocks; manual spans for aws-lite S3 calls.
 - **LLM Observers**: Wrap models with `llmObserver` to emit events; wrap tools for execution timing; build conversation records from observed events
 - **SQS Queue Processing**: Use partial batch failures via `handlingSQSErrors` utility
   - Handler returns array of failed message IDs

@@ -224,210 +224,233 @@ export const handlingErrors = (
     context: Context,
     callback: Callback
   ): Promise<APIGatewayProxyResultV2> => {
-    // Augment context with workspace credit transaction capability
-    // Database will be lazy-loaded only if workspace credit transactions are actually used
-    // This avoids interfering with other handlers (e.g., auth) that need tables() with specific options
-    const augmentedContext = augmentContextWithCreditTransactions(context);
+    const method = event.requestContext?.http?.method || "UNKNOWN";
+    const path = event.rawPath || event.requestContext?.http?.path || "UNKNOWN";
 
-    // Make context available to Express handlers via module-level storage
-    // Extract requestId from event (API Gateway includes it in requestContext.requestId)
-    // In local sandbox environments, requestId might not be present, so generate one if needed
-    let requestId = event.requestContext?.requestId || context.awsRequestId;
-
-    // If no requestId is available (e.g., in local sandbox), generate one
-    if (!requestId) {
-      // Generate a unique requestId for local development
-      requestId = `local-${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2, 15)}`;
-      console.log(
-        "[handlingErrors] Generated requestId for local environment:",
-        requestId
-      );
-
-      // Ensure requestContext exists and set the requestId
-      if (!event.requestContext) {
-        event.requestContext = {
-          accountId: "local",
-          apiId: "local",
-          domainName: "localhost",
-          domainPrefix: "local",
-          http: {
-            method: "GET",
-            path: "/",
-            protocol: "HTTP/1.1",
-            sourceIp: "127.0.0.1",
-            userAgent: "",
-          },
-          requestId,
-          routeKey: event.routeKey || "GET /",
-          stage: "local",
-          time: new Date().toISOString(),
-          timeEpoch: Date.now(),
-        };
-      } else {
-        event.requestContext.requestId = requestId;
-      }
-
-      // Also set it on the context's awsRequestId property for commitContextTransactions
-      // This is needed because commitContextTransactions reads from context.awsRequestId
-      (context as { awsRequestId: string }).awsRequestId = requestId;
-    }
-
-    if (requestId) {
-      // Ensure context.awsRequestId is set (needed for commitContextTransactions)
-      if (!context.awsRequestId) {
-        (context as { awsRequestId: string }).awsRequestId = requestId;
-      }
-
-      console.log(
-        "[handlingErrors] Setting up context with requestId:",
-        requestId
-      );
-      setCurrentHTTPContext(requestId, augmentedContext);
-
-      // Ensure requestId is in event headers so serverlessExpress can pass it to Express handlers
-      // This is needed because serverlessExpress may not automatically add x-amzn-requestid header
-      if (
-        !event.headers["x-amzn-requestid"] &&
-        !event.headers["X-Amzn-Requestid"]
-      ) {
-        event.headers["x-amzn-requestid"] = requestId;
-      }
-      if (!event.headers["x-request-id"] && !event.headers["X-Request-Id"]) {
-        event.headers["x-request-id"] = requestId;
-      }
-    }
-
-    let hadError = false;
-    try {
-      const result = await userHandler(event, augmentedContext, callback);
-      if (!result) {
-        throw new Error("Handler returned undefined");
-      }
-      return result as APIGatewayProxyResultV2;
-    } catch (error) {
-      hadError = true; // Used in finally block for commitContextTransactions
-      const boomed = boomify(ensureError(error));
-
-      // Always log the full error details
-      console.error("Lambda handler error:", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        boom: {
-          statusCode: boomed.output.statusCode,
-          message: boomed.message,
-          isServer: boomed.isServer,
+    return Sentry.startSpan(
+      {
+        op: "http.server",
+        name: `${method} ${path}`,
+        attributes: {
+          "http.request.method": method,
+          "url.path": path,
         },
-      });
+      },
+      async () => {
+        // Augment context with workspace credit transaction capability
+        // Database will be lazy-loaded only if workspace credit transactions are actually used
+        // This avoids interfering with other handlers (e.g., auth) that need tables() with specific options
+        const augmentedContext = augmentContextWithCreditTransactions(context);
 
-      if (boomed.isServer) {
-        // Report ALL errors to Sentry with full context
-        // This ensures we capture all failures for monitoring and debugging
-        Sentry.captureException(ensureError(error), {
-          tags: {
-            handler: "APIGatewayProxyHandlerV2",
-            statusCode: boomed.output.statusCode,
-            isServer: boomed.isServer,
-          },
-          contexts: {
-            request: {
-              method: event.requestContext?.http?.method || "UNKNOWN",
-              url:
-                event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
-              path:
-                event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
-              headers: event.headers || {},
-              queryString:
-                event.rawQueryString || event.queryStringParameters || {},
-              body: event.body
-                ? event.body.length > 10000
-                  ? "[truncated]"
-                  : event.body
-                : undefined,
-            },
-            lambda: {
-              requestId: context.awsRequestId,
-              functionName: context.functionName,
-              functionVersion: context.functionVersion,
-              memoryLimitInMB: context.memoryLimitInMB,
-              remainingTimeInMillis:
-                typeof context.getRemainingTimeInMillis === "function"
-                  ? context.getRemainingTimeInMillis()
-                  : undefined,
-            },
-          },
-          extra: {
-            event: {
-              path: event.rawPath || event.requestContext?.http?.path,
-              method: event.requestContext?.http?.method,
-              headers: event.headers,
-              queryStringParameters: event.queryStringParameters,
-              pathParameters: event.pathParameters,
-              stageVariables: event.stageVariables,
-              requestContext: event.requestContext,
-            },
+        // Make context available to Express handlers via module-level storage
+        // Extract requestId from event (API Gateway includes it in requestContext.requestId)
+        // In local sandbox environments, requestId might not be present, so generate one if needed
+        let requestId = event.requestContext?.requestId || context.awsRequestId;
+
+        // If no requestId is available (e.g., in local sandbox), generate one
+        if (!requestId) {
+          // Generate a unique requestId for local development
+          requestId = `local-${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 15)}`;
+          console.log(
+            "[handlingErrors] Generated requestId for local environment:",
+            requestId
+          );
+
+          // Ensure requestContext exists and set the requestId
+          if (!event.requestContext) {
+            event.requestContext = {
+              accountId: "local",
+              apiId: "local",
+              domainName: "localhost",
+              domainPrefix: "local",
+              http: {
+                method: "GET",
+                path: "/",
+                protocol: "HTTP/1.1",
+                sourceIp: "127.0.0.1",
+                userAgent: "",
+              },
+              requestId,
+              routeKey: event.routeKey || "GET /",
+              stage: "local",
+              time: new Date().toISOString(),
+              timeEpoch: Date.now(),
+            };
+          } else {
+            event.requestContext.requestId = requestId;
+          }
+
+          // Also set it on the context's awsRequestId property for commitContextTransactions
+          // This is needed because commitContextTransactions reads from context.awsRequestId
+          (context as { awsRequestId: string }).awsRequestId = requestId;
+        }
+
+        if (requestId) {
+          // Ensure context.awsRequestId is set (needed for commitContextTransactions)
+          if (!context.awsRequestId) {
+            (context as { awsRequestId: string }).awsRequestId = requestId;
+          }
+
+          console.log(
+            "[handlingErrors] Setting up context with requestId:",
+            requestId
+          );
+          setCurrentHTTPContext(requestId, augmentedContext);
+
+          Sentry.setTag("handler", "APIGatewayProxyHandlerV2");
+          Sentry.setTag("request_id", requestId);
+          Sentry.setContext("http", {
+            method,
+            path,
+            requestId,
+          });
+
+          // Ensure requestId is in event headers so serverlessExpress can pass it to Express handlers
+          // This is needed because serverlessExpress may not automatically add x-amzn-requestid header
+          if (
+            !event.headers["x-amzn-requestid"] &&
+            !event.headers["X-Amzn-Requestid"]
+          ) {
+            event.headers["x-amzn-requestid"] = requestId;
+          }
+          if (!event.headers["x-request-id"] && !event.headers["X-Request-Id"]) {
+            event.headers["x-request-id"] = requestId;
+          }
+        }
+
+        let hadError = false;
+        try {
+          const result = await userHandler(event, augmentedContext, callback);
+          if (!result) {
+            throw new Error("Handler returned undefined");
+          }
+          return result as APIGatewayProxyResultV2;
+        } catch (error) {
+          hadError = true; // Used in finally block for commitContextTransactions
+          const boomed = boomify(ensureError(error));
+
+          // Always log the full error details
+          console.error("Lambda handler error:", {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
             boom: {
               statusCode: boomed.output.statusCode,
               message: boomed.message,
               isServer: boomed.isServer,
-              payload: boomed.output.payload,
             },
-          },
-        });
-      }
+          });
 
-      const { statusCode, headers, payload } = boomed.output;
+          if (boomed.isServer) {
+            // Report ALL errors to Sentry with full context
+            // This ensures we capture all failures for monitoring and debugging
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                handler: "APIGatewayProxyHandlerV2",
+                statusCode: boomed.output.statusCode,
+                isServer: boomed.isServer,
+              },
+              contexts: {
+                request: {
+                  method: event.requestContext?.http?.method || "UNKNOWN",
+                  url:
+                    event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
+                  path:
+                    event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
+                  headers: event.headers || {},
+                  queryString:
+                    event.rawQueryString || event.queryStringParameters || {},
+                  body: event.body
+                    ? event.body.length > 10000
+                      ? "[truncated]"
+                      : event.body
+                    : undefined,
+                },
+                lambda: {
+                  requestId: context.awsRequestId,
+                  functionName: context.functionName,
+                  functionVersion: context.functionVersion,
+                  memoryLimitInMB: context.memoryLimitInMB,
+                  remainingTimeInMillis:
+                    typeof context.getRemainingTimeInMillis === "function"
+                      ? context.getRemainingTimeInMillis()
+                      : undefined,
+                },
+              },
+              extra: {
+                event: {
+                  path: event.rawPath || event.requestContext?.http?.path,
+                  method: event.requestContext?.http?.method,
+                  headers: event.headers,
+                  queryStringParameters: event.queryStringParameters,
+                  pathParameters: event.pathParameters,
+                  stageVariables: event.stageVariables,
+                  requestContext: event.requestContext,
+                },
+                boom: {
+                  statusCode: boomed.output.statusCode,
+                  message: boomed.message,
+                  isServer: boomed.isServer,
+                  payload: boomed.output.payload,
+                },
+              },
+            });
+          }
 
-      // Convert headers to Record<string, string> as required by HttpResponse
-      const stringHeaders: Record<string, string> = {};
-      for (const [key, value] of Object.entries(headers)) {
-        stringHeaders[key] = String(value);
-      }
+          const { statusCode, headers, payload } = boomed.output;
 
-      return {
-        statusCode,
-        headers: stringHeaders,
-        body: JSON.stringify(payload),
-      };
-    } finally {
-      // Commit workspace credit transactions (only on success, no errors)
-      try {
-        await commitContextTransactions(context, hadError);
-      } catch (commitError) {
-        // Commit failures cause handler to fail (per user requirement)
-        const messagePrefix = hadError
-          ? "[handlingErrors] Handler failed and additionally failed to commit credit transactions"
-          : "[handlingErrors] Failed to commit credit transactions";
-        console.error(messagePrefix + ":", commitError);
+          // Convert headers to Record<string, string> as required by HttpResponse
+          const stringHeaders: Record<string, string> = {};
+          for (const [key, value] of Object.entries(headers)) {
+            stringHeaders[key] = String(value);
+          }
 
-        // Wrap the commit error to preserve context about prior handler failure
-        const wrappedError =
-          commitError instanceof Error
-            ? new Error(messagePrefix + ": " + commitError.message, {
-                cause: commitError,
-              })
-            : new Error(messagePrefix + ": " + String(commitError));
+          return {
+            statusCode,
+            headers: stringHeaders,
+            body: JSON.stringify(payload),
+          };
+        } finally {
+          // Commit workspace credit transactions (only on success, no errors)
+          try {
+            await commitContextTransactions(context, hadError);
+          } catch (commitError) {
+            // Commit failures cause handler to fail (per user requirement)
+            const messagePrefix = hadError
+              ? "[handlingErrors] Handler failed and additionally failed to commit credit transactions"
+              : "[handlingErrors] Failed to commit credit transactions";
+            console.error(messagePrefix + ":", commitError);
 
-        // eslint-disable-next-line no-unsafe-finally
-        throw wrappedError;
-      } finally {
-        // Clear context from module-level storage
-        const requestId =
-          event.requestContext?.requestId || context.awsRequestId;
-        if (requestId) {
-          clearCurrentHTTPContext(requestId);
+            // Wrap the commit error to preserve context about prior handler failure
+            const wrappedError =
+              commitError instanceof Error
+                ? new Error(messagePrefix + ": " + commitError.message, {
+                    cause: commitError,
+                  })
+                : new Error(messagePrefix + ": " + String(commitError));
+
+            // eslint-disable-next-line no-unsafe-finally
+            throw wrappedError;
+          } finally {
+            // Clear context from module-level storage
+            const requestId =
+              event.requestContext?.requestId || context.awsRequestId;
+            if (requestId) {
+              clearCurrentHTTPContext(requestId);
+            }
+          }
+
+          // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+          // This ensures flushing happens on both success and error paths
+          await Promise.all([flushPostHog(), flushSentry()]).catch(
+            (flushErrors) => {
+              console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+            }
+          );
         }
       }
-
-      // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
-      // This ensures flushing happens on both success and error paths
-      await Promise.all([flushPostHog(), flushSentry()]).catch(
-        (flushErrors) => {
-          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
-        }
-      );
-    }
+    );
   };
 };
 
@@ -438,73 +461,96 @@ export const handlingHttpAsyncErrors = (
     req: HttpRequest,
     context: Context
   ): Promise<HttpResponse | void> => {
-    // Augment context with workspace credit transaction capability
-    // Database will be lazy-loaded only if workspace credit transactions are actually used
-    const augmentedContext = augmentContextWithCreditTransactions(context);
+    const method = req.method || "UNKNOWN";
+    const path = req.path || "UNKNOWN";
 
-    // Make context available to Express handlers via module-level storage
-    const requestId = context.awsRequestId;
-    setCurrentHTTPContext(requestId, augmentedContext);
+    return Sentry.startSpan(
+      {
+        op: "http.server",
+        name: `${method} ${path}`,
+        attributes: {
+          "http.request.method": method,
+          "url.path": path,
+        },
+      },
+      async () => {
+        // Augment context with workspace credit transaction capability
+        // Database will be lazy-loaded only if workspace credit transactions are actually used
+        const augmentedContext = augmentContextWithCreditTransactions(context);
 
-    let hadError = false;
-    try {
-      const result = await userHandler(req, augmentedContext);
-      return result;
-    } catch (error) {
-      hadError = true;
-      const boomed = boomify(ensureError(error));
+        // Make context available to Express handlers via module-level storage
+        const requestId = context.awsRequestId;
+        setCurrentHTTPContext(requestId, augmentedContext);
 
-      if (boomed.isServer) {
-        console.error(boomed);
-        // Report 500 errors to Sentry
-        Sentry.captureException(ensureError(error), {
-          tags: {
-            handler: "HttpAsyncHandler",
-            statusCode: boomed.output.statusCode,
-          },
+        Sentry.setTag("handler", "HttpAsyncHandler");
+        Sentry.setTag("request_id", requestId);
+        Sentry.setContext("http", {
+          method,
+          path,
+          requestId,
         });
-      } else {
-        console.warn(boomed);
-      }
 
-      const { statusCode, headers, payload } = boomed.output;
+        let hadError = false;
+        try {
+          const result = await userHandler(req, augmentedContext);
+          return result;
+        } catch (error) {
+          hadError = true;
+          const boomed = boomify(ensureError(error));
 
-      // Convert headers to Record<string, string> as required by HttpResponse
-      const stringHeaders: Record<string, string> = {};
-      for (const [key, value] of Object.entries(headers)) {
-        stringHeaders[key] = String(value);
-      }
+          if (boomed.isServer) {
+            console.error(boomed);
+            // Report 500 errors to Sentry
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                handler: "HttpAsyncHandler",
+                statusCode: boomed.output.statusCode,
+              },
+            });
+          } else {
+            console.warn(boomed);
+          }
 
-      return {
-        statusCode,
-        headers: stringHeaders,
-        body: JSON.stringify(payload),
-      };
-    } finally {
-      // Commit workspace credit transactions (only on success, no errors)
-      try {
-        await commitContextTransactions(context, hadError);
-      } catch (commitError) {
-        // Commit failures cause handler to fail (per user requirement)
-        console.error(
-          "[handlingHttpAsyncErrors] Failed to commit credit transactions:",
-          commitError
-        );
-        // eslint-disable-next-line no-unsafe-finally
-        throw commitError;
-      } finally {
-        // Clear context from module-level storage
-        clearCurrentHTTPContext(requestId);
-      }
+          const { statusCode, headers, payload } = boomed.output;
 
-      // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
-      // This ensures flushing happens on both success and error paths
-      await Promise.all([flushPostHog(), flushSentry()]).catch(
-        (flushErrors) => {
-          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+          // Convert headers to Record<string, string> as required by HttpResponse
+          const stringHeaders: Record<string, string> = {};
+          for (const [key, value] of Object.entries(headers)) {
+            stringHeaders[key] = String(value);
+          }
+
+          return {
+            statusCode,
+            headers: stringHeaders,
+            body: JSON.stringify(payload),
+          };
+        } finally {
+          // Commit workspace credit transactions (only on success, no errors)
+          try {
+            await commitContextTransactions(context, hadError);
+          } catch (commitError) {
+            // Commit failures cause handler to fail (per user requirement)
+            console.error(
+              "[handlingHttpAsyncErrors] Failed to commit credit transactions:",
+              commitError
+            );
+            // eslint-disable-next-line no-unsafe-finally
+            throw commitError;
+          } finally {
+            // Clear context from module-level storage
+            clearCurrentHTTPContext(requestId);
+          }
+
+          // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+          // This ensures flushing happens on both success and error paths
+          await Promise.all([flushPostHog(), flushSentry()]).catch(
+            (flushErrors) => {
+              console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+            }
+          );
         }
-      );
-    }
+      }
+    );
   };
 };
 
@@ -520,63 +566,75 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
      * Use HttpAsyncHandler instead for credit transaction support.
      */
     // Note: HttpHandler is deprecated, so we keep this wrapper minimal
-    try {
-      userHandler(req, res, next);
-    } catch (error) {
-      const boomed = boomify(ensureError(error));
+    const method = req.method || "UNKNOWN";
+    const path = req.path || "UNKNOWN";
+    let responseSent = false;
 
-      if (boomed.isServer) {
-        console.error(boomed);
-        // Report 500 errors to Sentry
-        Sentry.captureException(ensureError(error), {
-          tags: {
-            handler: "HttpHandler",
-            statusCode: boomed.output.statusCode,
-          },
+    const respondWithFlush = (response: HttpResponse | Error): void => {
+      if (responseSent) {
+        return;
+      }
+      responseSent = true;
+      Promise.all([flushSentry(), flushPostHog()])
+        .catch((flushError) => {
+          console.error("[PostHog/Sentry] Error flushing events:", flushError);
+        })
+        .finally(() => {
+          res(response);
         });
-      } else {
-        console.warn(boomed);
-      }
+    };
 
-      const { statusCode, headers, payload } = boomed.output;
-
-      // Convert headers to Record<string, string> as required by HttpResponse
-      const stringHeaders: Record<string, string> = {};
-      for (const [key, value] of Object.entries(headers)) {
-        stringHeaders[key] = String(value);
-      }
-
-      const respondWithFlush = async (): Promise<void> => {
-        if (boomed.isServer) {
-          await Promise.all([flushSentry(), flushPostHog()]).catch(
-            (flushError) => {
-              console.error(
-                "[PostHog/Sentry] Error flushing events:",
-                flushError
-              );
-            }
+    Sentry.startSpan(
+      {
+        op: "http.server",
+        name: `${method} ${path}`,
+        attributes: {
+          "http.request.method": method,
+          "url.path": path,
+        },
+      },
+      () => {
+        Sentry.setTag("handler", "HttpHandler");
+        try {
+          userHandler(
+            req,
+            (response) => {
+              respondWithFlush(response);
+            },
+            next
           );
+        } catch (error) {
+          const boomed = boomify(ensureError(error));
+
+          if (boomed.isServer) {
+            console.error(boomed);
+            // Report 500 errors to Sentry
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                handler: "HttpHandler",
+                statusCode: boomed.output.statusCode,
+              },
+            });
+          } else {
+            console.warn(boomed);
+          }
+
+          const { statusCode, headers, payload } = boomed.output;
+
+          // Convert headers to Record<string, string> as required by HttpResponse
+          const stringHeaders: Record<string, string> = {};
+          for (const [key, value] of Object.entries(headers)) {
+            stringHeaders[key] = String(value);
+          }
+
+          respondWithFlush({
+            statusCode,
+            headers: stringHeaders,
+            body: JSON.stringify(payload),
+          });
         }
-
-        res({
-          statusCode,
-          headers: stringHeaders,
-          body: JSON.stringify(payload),
-        });
-      };
-
-      respondWithFlush().catch((flushError) => {
-        console.error(
-          "[PostHog/Sentry] Failed to flush before response:",
-          flushError
-        );
-        res({
-          statusCode,
-          headers: stringHeaders,
-          body: JSON.stringify(payload),
-        });
-      });
-    }
+      }
+    );
   };
 };
 
@@ -592,95 +650,118 @@ export const handlingScheduledErrors = (
   ) => Promise<void>
 ): ((event: ScheduledEvent) => Promise<void>) => {
   return async (event: ScheduledEvent): Promise<void> => {
-    // Create a mock context for scheduled functions (they don't have a real context)
-    // We'll create a minimal context object with awsRequestId
-    const mockContext = {
-      awsRequestId: `scheduled-${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(7)}`,
-    } as Context;
+    const eventName =
+      event["detail-type"] || event.source || "Scheduled event";
 
-    // Augment context with workspace credit transaction capability
-    // Database will be lazy-loaded only if workspace credit transactions are actually used
-    const augmentedContext = augmentContextWithCreditTransactions(mockContext);
-
-    // Wrap user handler to pass augmented context
-    // Scheduled handlers normally don't receive context from AWS,
-    // but we can still pass our augmented mockContext as a second
-    // argument so user handlers can opt in to using it.
-    const wrappedHandler = async (e: ScheduledEvent) => {
-      // Pass the augmented context as a second parameter
-      // Handlers can opt in by accepting a second Context parameter
-      await userHandler(e, augmentedContext);
-    };
-
-    let hadError = false;
-    try {
-      await wrappedHandler(event);
-    } catch (error) {
-      hadError = true;
-      const boomed = boomify(ensureError(error));
-
-      // Always log the full error details
-      console.error("Scheduled function error:", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        boom: {
-          statusCode: boomed.output.statusCode,
-          message: boomed.message,
-          isServer: boomed.isServer,
+    return Sentry.startSpan(
+      {
+        op: "scheduled.invoke",
+        name: eventName,
+        attributes: {
+          "aws.eventbridge.source": event.source || "unknown",
+          "aws.eventbridge.detail_type": event["detail-type"] || "unknown",
         },
-        event: {
+      },
+      async () => {
+        // Create a mock context for scheduled functions (they don't have a real context)
+        // We'll create a minimal context object with awsRequestId
+        const mockContext = {
+          awsRequestId: `scheduled-${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(7)}`,
+        } as Context;
+
+        // Augment context with workspace credit transaction capability
+        // Database will be lazy-loaded only if workspace credit transactions are actually used
+        const augmentedContext = augmentContextWithCreditTransactions(mockContext);
+
+        Sentry.setTag("handler", "ScheduledFunction");
+        Sentry.setTag("request_id", mockContext.awsRequestId);
+        Sentry.setContext("eventbridge", {
           source: event.source,
-          "detail-type": event["detail-type"],
+          detailType: event["detail-type"],
           time: event.time,
-        },
-      });
+        });
 
-      // Scheduled functions don't have user errors - all errors are server errors
-      // Report all errors to Sentry
-      console.error("Scheduled function server error details:", boomed);
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          handler: "ScheduledFunction",
-          statusCode: boomed.output.statusCode,
-          source: event.source || "unknown",
-          detailType: event["detail-type"] || "unknown",
-        },
-        contexts: {
-          event: {
-            source: event.source,
-            "detail-type": event["detail-type"],
-            time: event.time,
-            region: event.region,
-            account: event.account,
-          },
-        },
-      });
+        // Wrap user handler to pass augmented context
+        // Scheduled handlers normally don't receive context from AWS,
+        // but we can still pass our augmented mockContext as a second
+        // argument so user handlers can opt in to using it.
+        const wrappedHandler = async (e: ScheduledEvent) => {
+          // Pass the augmented context as a second parameter
+          // Handlers can opt in by accepting a second Context parameter
+          await userHandler(e, augmentedContext);
+        };
 
-      // Re-throw the error so Lambda marks the invocation as failed
-      throw error;
-    } finally {
-      // Commit workspace credit transactions (only on success, no errors)
-      try {
-        await commitContextTransactions(mockContext, hadError);
-      } catch (commitError) {
-        // Commit failures cause handler to fail (per user requirement)
-        console.error(
-          "[handlingScheduledErrors] Failed to commit credit transactions:",
-          commitError
-        );
-        // eslint-disable-next-line no-unsafe-finally
-        throw commitError;
-      }
+        let hadError = false;
+        try {
+          await wrappedHandler(event);
+        } catch (error) {
+          hadError = true;
+          const boomed = boomify(ensureError(error));
 
-      // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
-      // This ensures flushing happens on both success and error paths
-      await Promise.all([flushPostHog(), flushSentry()]).catch(
-        (flushErrors) => {
-          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+          // Always log the full error details
+          console.error("Scheduled function error:", {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            boom: {
+              statusCode: boomed.output.statusCode,
+              message: boomed.message,
+              isServer: boomed.isServer,
+            },
+            event: {
+              source: event.source,
+              "detail-type": event["detail-type"],
+              time: event.time,
+            },
+          });
+
+          // Scheduled functions don't have user errors - all errors are server errors
+          // Report all errors to Sentry
+          console.error("Scheduled function server error details:", boomed);
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              handler: "ScheduledFunction",
+              statusCode: boomed.output.statusCode,
+              source: event.source || "unknown",
+              detailType: event["detail-type"] || "unknown",
+            },
+            contexts: {
+              event: {
+                source: event.source,
+                "detail-type": event["detail-type"],
+                time: event.time,
+                region: event.region,
+                account: event.account,
+              },
+            },
+          });
+
+          // Re-throw the error so Lambda marks the invocation as failed
+          throw error;
+        } finally {
+          // Commit workspace credit transactions (only on success, no errors)
+          try {
+            await commitContextTransactions(mockContext, hadError);
+          } catch (commitError) {
+            // Commit failures cause handler to fail (per user requirement)
+            console.error(
+              "[handlingScheduledErrors] Failed to commit credit transactions:",
+              commitError
+            );
+            // eslint-disable-next-line no-unsafe-finally
+            throw commitError;
+          }
+
+          // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+          // This ensures flushing happens on both success and error paths
+          await Promise.all([flushPostHog(), flushSentry()]).catch(
+            (flushErrors) => {
+              console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+            }
+          );
         }
-      );
-    }
+      }
+    );
   };
 };
