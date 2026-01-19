@@ -369,6 +369,8 @@ function extractAssistantReply(messages: unknown[]): string | null {
 }
 
 function hasToolInvocation(messages: unknown[], toolName: string): boolean {
+  const toolOutputMarker =
+    toolName === DATETIME_TOOL_NAME ? "Current date and time:" : null;
   for (const message of messages) {
     if (!message || typeof message !== "object") {
       continue;
@@ -385,6 +387,11 @@ function hasToolInvocation(messages: unknown[], toolName: string): boolean {
     }
     const content = (message as { content?: unknown }).content;
     if (!Array.isArray(content)) {
+      if (toolOutputMarker && typeof content === "string") {
+        if (content.includes(toolOutputMarker)) {
+          return true;
+        }
+      }
       continue;
     }
     const match = content.some((item) => {
@@ -403,6 +410,21 @@ function hasToolInvocation(messages: unknown[], toolName: string): boolean {
     });
     if (match) {
       return true;
+    }
+    if (toolOutputMarker) {
+      const hasOutput = content.some((item) => {
+        if (!item || typeof item !== "object") {
+          return false;
+        }
+        if ((item as { type?: string }).type !== "text") {
+          return false;
+        }
+        const text = (item as { text?: string }).text;
+        return typeof text === "string" && text.includes(toolOutputMarker);
+      });
+      if (hasOutput) {
+        return true;
+      }
     }
   }
   return false;
@@ -433,7 +455,7 @@ async function waitForConversation(
     const response = await docClient.send(
       new GetCommand({
         TableName: tableName,
-        Key: { pk, sk: "conversation" },
+        Key: { pk },
       })
     );
     const item = response.Item as
@@ -482,7 +504,7 @@ async function waitForConversationByType(
   tableName: string,
   agentId: string,
   expectedType: string,
-  expectedReply: string,
+  expectedReply: string | null,
   expectedToolName: string | null,
   timeoutMs: number
 ) {
@@ -513,14 +535,16 @@ async function waitForConversationByType(
       if (item.conversationType !== expectedType) {
         continue;
       }
-      const reply = extractAssistantReply(item.messages ?? []);
-      if (reply && reply.includes(expectedReply)) {
-        if (
-          expectedToolName &&
-          !hasToolInvocation(item.messages ?? [], expectedToolName)
-        ) {
+      if (expectedToolName) {
+        if (!hasToolInvocation(item.messages ?? [], expectedToolName)) {
           continue;
         }
+      }
+      if (expectedReply === null) {
+        return item;
+      }
+      const reply = extractAssistantReply(item.messages ?? []);
+      if (reply && reply.includes(expectedReply)) {
         return item;
       }
     }
@@ -714,8 +738,7 @@ async function main() {
   const authSecret = requireValue(process.env.AUTH_SECRET, "AUTH_SECRET");
   const modelName = args.model ?? DEFAULT_MODEL_NAME;
   const expectedWeekday = getExpectedWeekday();
-  const replyText =
-    args.reply ?? `Today is ${expectedWeekday}.`;
+  const replyText = args.reply ?? expectedWeekday;
   const creditsUsd = args.credits
     ? Number(args.credits)
     : DEFAULT_CREDITS_USD;
@@ -766,6 +789,7 @@ async function main() {
 
   const tables = {
     workspace: await resolveTableName(resources, "workspace"),
+    subscription: await resolveTableName(resources, "subscription"),
     conversations: await resolveTableName(resources, "agent-conversations"),
     delegation: await resolveTableName(resources, "agent-delegation-tasks"),
     evalResults: await resolveTableName(resources, "agent-eval-result"),
@@ -825,8 +849,39 @@ async function main() {
 
     logStep(`Created workspace ${workspaceId}`);
 
+    logStep("Upgrading subscription plan for agent limits");
+    const workspaceRecord = await docClient.send(
+      new GetCommand({
+        TableName: tables.workspace,
+        Key: { pk: `workspaces/${workspaceId}`, sk: "workspace" },
+      })
+    );
+    const subscriptionId = (workspaceRecord.Item as { subscriptionId?: string })
+      ?.subscriptionId;
+    if (!subscriptionId) {
+      throw new Error("Workspace subscriptionId missing for plan upgrade");
+    }
+    await docClient.send(
+      new UpdateCommand({
+        TableName: tables.subscription,
+        Key: { pk: `subscriptions/${subscriptionId}`, sk: "subscription" },
+        UpdateExpression: "SET #plan = :plan, updatedAt = :updatedAt",
+        ExpressionAttributeNames: {
+          "#plan": "plan",
+        },
+        ExpressionAttributeValues: {
+          ":plan": "pro",
+          ":updatedAt": new Date().toISOString(),
+        },
+      })
+    );
+
     const userQuestion =
-      "What day of the week is today? Use the get_datetime tool to answer.";
+      "What day of the week is today? Use the get_datetime tool and include the ISO timestamp in your response.";
+    const replyInstruction =
+      `You MUST call get_datetime before answering. ` +
+      `Include the exact ISO 8601 timestamp from the tool output and the weekday "${expectedWeekday}" in your reply. ` +
+      `If you do not call get_datetime, reply with "ERROR".`;
 
     logStep("Creating agents");
     const helloAgentResponse = await fetchJson<{ id: string }>(
@@ -839,7 +894,7 @@ async function main() {
         },
         body: JSON.stringify({
           name: "Hello Agent",
-          systemPrompt: `Always call get_datetime before answering. Reply with exactly: ${replyText}`,
+          systemPrompt: `Always call get_datetime before answering. ${replyInstruction}`,
           modelName,
         }),
       }
@@ -856,7 +911,7 @@ async function main() {
       },
       body: JSON.stringify({
         name: "Delegated Agent",
-          systemPrompt: `Always call get_datetime before answering. Reply with exactly: ${replyText}`,
+          systemPrompt: `Always call get_datetime before answering. ${replyInstruction}`,
         modelName,
       }),
     }
@@ -875,7 +930,7 @@ async function main() {
           name: "Delegator Agent",
           systemPrompt:
             `You must call call_agent_async with agentId "${delegateAgentId}" and message "${userQuestion}". ` +
-            `After the tool returns, respond with exactly: ${replyText}`,
+            `After the tool returns, ${replyInstruction}`,
           modelName,
         }),
     }
@@ -1061,15 +1116,54 @@ async function main() {
     if (!webhookResponse.data.includes(replyText)) {
       throw new Error("Webhook response did not contain expected reply");
     }
-    await waitForConversationByType(
+    const webhookConversation = await waitForConversationByType(
       docClient,
       tables.conversations,
       helloAgentId,
       "webhook",
-      replyText,
-      DATETIME_TOOL_NAME,
+      null,
+      null,
       timeoutMs
     );
+    const webhookMessages = (webhookConversation as { messages?: unknown[] })
+      .messages;
+    if (!hasToolInvocation(webhookMessages ?? [], DATETIME_TOOL_NAME)) {
+      console.error(
+        "[Webhook Debug] Conversation messages (roles/types):",
+        (webhookMessages ?? []).map((message) => {
+          if (!message || typeof message !== "object") {
+            return { role: "unknown", contentType: typeof message };
+          }
+          const role = (message as { role?: string }).role ?? "unknown";
+          const content = (message as { content?: unknown }).content;
+          if (Array.isArray(content)) {
+            return {
+              role,
+              contentTypes: content.map((item) =>
+                item && typeof item === "object"
+                  ? (item as { type?: string }).type ?? "unknown"
+                  : typeof item
+              ),
+            };
+          }
+          return {
+            role,
+            contentType: typeof content,
+            contentPreview:
+              typeof content === "string" ? content.slice(0, 120) : undefined,
+          };
+        })
+      );
+      throw new Error("Webhook conversation missing get_datetime tool call");
+    }
+    const webhookReply = extractAssistantReply(
+      webhookMessages ?? []
+    );
+    if (!webhookReply || !webhookReply.includes(replyText)) {
+      throw new Error(
+        `Webhook reply mismatch. Expected "${replyText}", got "${webhookReply ?? "empty"}"`
+      );
+    }
 
     logStep("Testing async delegation via SQS");
     const delegatorConversationId = crypto.randomUUID();
