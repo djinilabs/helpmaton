@@ -137,6 +137,26 @@ export const registerPostMcpServer = (app: express.Application) => {
               "serviceType must be specified and cannot be 'external' for OAuth authentication"
             );
           }
+          if (serviceType === "zendesk") {
+            if (
+              !config.subdomain ||
+              typeof config.subdomain !== "string" ||
+              !config.clientId ||
+              typeof config.clientId !== "string" ||
+              !config.clientSecret ||
+              typeof config.clientSecret !== "string"
+            ) {
+              throw badRequest(
+                "config.subdomain, config.clientId, and config.clientSecret are required for Zendesk OAuth"
+              );
+            }
+            const zendeskSubdomainPattern = /^[a-zA-Z0-9-]+$/;
+            if (!zendeskSubdomainPattern.test(config.subdomain)) {
+              throw badRequest(
+                "config.subdomain must contain only alphanumeric characters and hyphens"
+              );
+            }
+          }
           // Config should be empty initially (OAuth connection happens via separate flow)
           // But we allow it to be empty or contain serviceType
         }

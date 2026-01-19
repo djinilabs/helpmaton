@@ -138,6 +138,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/intercom"
           );
           authUrl = generateIntercomAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "zendesk") {
+          const { generateZendeskAuthUrl } = await import(
+            "../../../utils/oauth/mcp/zendesk"
+          );
+          authUrl = await generateZendeskAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

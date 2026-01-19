@@ -235,6 +235,7 @@ export async function createMcpServerTools(
     "stripe",
     "salesforce",
     "intercom",
+    "zendesk",
   ];
 
   // First pass: collect all valid servers
@@ -713,6 +714,39 @@ export async function createMcpServerTools(
         searchConversationsTool as ReturnType<typeof createMcpServerTool>;
       tools[`intercom_reply_conversation${suffix}`] =
         replyConversationTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "zendesk") {
+      const {
+        createZendeskSearchTicketsTool,
+        createZendeskGetTicketDetailsTool,
+        createZendeskDraftCommentTool,
+        createZendeskSearchHelpCenterTool,
+      } = await import("./zendeskTools");
+
+      const searchTicketsTool = createZendeskSearchTicketsTool(
+        workspaceId,
+        serverId
+      );
+      const ticketDetailsTool = createZendeskGetTicketDetailsTool(
+        workspaceId,
+        serverId
+      );
+      const draftCommentTool = createZendeskDraftCommentTool(
+        workspaceId,
+        serverId
+      );
+      const searchHelpCenterTool = createZendeskSearchHelpCenterTool(
+        workspaceId,
+        serverId
+      );
+
+      tools[`zendesk_search_tickets${suffix}`] =
+        searchTicketsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`zendesk_get_ticket_details${suffix}`] =
+        ticketDetailsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`zendesk_draft_comment${suffix}`] =
+        draftCommentTool as ReturnType<typeof createMcpServerTool>;
+      tools[`zendesk_search_help_center${suffix}`] =
+        searchHelpCenterTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.serviceType === "posthog") {
       const {
         createPosthogListProjectsTool,
