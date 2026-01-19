@@ -21,6 +21,7 @@
 - **Staging schedule queue test**: Added FIFO `MessageGroupId` and `MessageDeduplicationId` to schedule queue SQS send in `run-staging-agent-tests.ts`. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Scheduled conversation logging**: Added fallback assistant text when observer events omit it, and passed fallback in the schedule queue so scheduled conversations include final assistant output. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Observer dedupe + response logs**: Deduped tool call/result events when both steps and arrays are present, added stream response logging, and expanded llmObserver tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR deploy polling script**: Added `scripts/poll-pr-deploy.sh` to poll Deploy PR workflow status for a given PR number. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **SQS commit error handling**: Stopped rethrowing commit failures in `handlingSQSErrors`, now logs + reports to Sentry while keeping partial batch failures; added unit test coverage. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Staging weekday test**: Agent tests now ask for day of week, require `get_datetime` tool invocation, and assert reply matches the expected weekday. Ran `pnpm lint --fix`.
 - **Delegation check**: Script now verifies the delegator agent has `delegatableAgentIds` configured before running delegation tests. Ran `pnpm lint --fix`.
