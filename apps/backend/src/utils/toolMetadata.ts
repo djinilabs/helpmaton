@@ -2360,6 +2360,196 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "intercom") {
+    const condition = oauthConnected
+      ? `Available (Intercom "${serverName}" connected)`
+      : `Not available (Intercom "${serverName}" not connected)`;
+
+    tools.push({
+      name: `intercom_list_contacts${suffix}`,
+      description:
+        "List Intercom contacts with optional pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "perPage",
+          type: "number",
+          required: false,
+          description: "Number of results per page (default: 20, max: 150)",
+        },
+        {
+          name: "startingAfter",
+          type: "string",
+          required: false,
+          description: "Pagination cursor from a previous response",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_get_contact${suffix}`,
+      description: "Get an Intercom contact by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "contactId",
+          type: "string",
+          required: true,
+          description: "Contact ID to retrieve",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_search_contacts${suffix}`,
+      description:
+        "Search Intercom contacts using the Intercom search query format.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "object",
+          required: true,
+          description: "Intercom search query object",
+        },
+        {
+          name: "pagination",
+          type: "object",
+          required: false,
+          description: "Optional pagination settings (perPage, startingAfter)",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_update_contact${suffix}`,
+      description: "Update an Intercom contact by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "contactId",
+          type: "string",
+          required: true,
+          description: "Contact ID to update",
+        },
+        {
+          name: "updates",
+          type: "object",
+          required: true,
+          description: "Fields to update on the contact",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_list_conversations${suffix}`,
+      description: "List Intercom conversations with optional pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "perPage",
+          type: "number",
+          required: false,
+          description: "Number of results per page (default: 20, max: 150)",
+        },
+        {
+          name: "startingAfter",
+          type: "string",
+          required: false,
+          description: "Pagination cursor from a previous response",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_get_conversation${suffix}`,
+      description: "Get an Intercom conversation by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "conversationId",
+          type: "string",
+          required: true,
+          description: "Conversation ID to retrieve",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_search_conversations${suffix}`,
+      description:
+        "Search Intercom conversations using the Intercom search query format.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "object",
+          required: true,
+          description: "Intercom search query object",
+        },
+        {
+          name: "pagination",
+          type: "object",
+          required: false,
+          description: "Optional pagination settings (perPage, startingAfter)",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_reply_conversation${suffix}`,
+      description:
+        "Reply to an Intercom conversation as an admin (comment, note, open, close, or assignment).",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "conversationId",
+          type: "string",
+          required: true,
+          description: "Conversation ID to reply to",
+        },
+        {
+          name: "messageType",
+          type: "string (enum)",
+          required: false,
+          description: "comment, note, open, close, or assignment (default: comment)",
+        },
+        {
+          name: "body",
+          type: "string",
+          required: false,
+          description: "Message body for comment or note replies",
+        },
+        {
+          name: "assigneeId",
+          type: "string",
+          required: false,
+          description: "Admin ID to assign the conversation to",
+        },
+        {
+          name: "adminId",
+          type: "string",
+          required: false,
+          description: "Admin ID to send the reply as (defaults to OAuth admin)",
+        },
+      ],
+    });
   } else if (serviceType === "slack") {
     const condition = oauthConnected
       ? `Available (Slack "${serverName}" connected)`
@@ -2893,6 +3083,7 @@ export function generateToolList(
       "slack",
       "stripe",
       "salesforce",
+      "intercom",
     ];
 
     // Group servers by serviceType for conflict detection

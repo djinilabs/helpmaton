@@ -234,6 +234,7 @@ export async function createMcpServerTools(
     "slack",
     "stripe",
     "salesforce",
+    "intercom",
   ];
 
   // First pass: collect all valid servers
@@ -654,6 +655,64 @@ export async function createMcpServerTools(
         describeTool as ReturnType<typeof createMcpServerTool>;
       tools[`salesforce_query${suffix}`] =
         queryTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "intercom") {
+      const {
+        createIntercomListContactsTool,
+        createIntercomGetContactTool,
+        createIntercomSearchContactsTool,
+        createIntercomUpdateContactTool,
+        createIntercomListConversationsTool,
+        createIntercomGetConversationTool,
+        createIntercomSearchConversationsTool,
+        createIntercomReplyConversationTool,
+      } = await import("./intercomTools");
+
+      const listContactsTool = createIntercomListContactsTool(
+        workspaceId,
+        serverId
+      );
+      const getContactTool = createIntercomGetContactTool(workspaceId, serverId);
+      const searchContactsTool = createIntercomSearchContactsTool(
+        workspaceId,
+        serverId
+      );
+      const updateContactTool = createIntercomUpdateContactTool(
+        workspaceId,
+        serverId
+      );
+      const listConversationsTool = createIntercomListConversationsTool(
+        workspaceId,
+        serverId
+      );
+      const getConversationTool = createIntercomGetConversationTool(
+        workspaceId,
+        serverId
+      );
+      const searchConversationsTool = createIntercomSearchConversationsTool(
+        workspaceId,
+        serverId
+      );
+      const replyConversationTool = createIntercomReplyConversationTool(
+        workspaceId,
+        serverId
+      );
+
+      tools[`intercom_list_contacts${suffix}`] =
+        listContactsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_get_contact${suffix}`] =
+        getContactTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_search_contacts${suffix}`] =
+        searchContactsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_update_contact${suffix}`] =
+        updateContactTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_list_conversations${suffix}`] =
+        listConversationsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_get_conversation${suffix}`] =
+        getConversationTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_search_conversations${suffix}`] =
+        searchConversationsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_reply_conversation${suffix}`] =
+        replyConversationTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.serviceType === "posthog") {
       const {
         createPosthogListProjectsTool,

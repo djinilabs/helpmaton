@@ -495,6 +495,43 @@ describe("toolMetadata", () => {
         ).toBe(true);
       });
 
+      it("should include Intercom tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Intercom",
+            serviceType: "intercom",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const intercomTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("intercom_")
+        );
+        expect(intercomTools?.length).toBeGreaterThan(0);
+        expect(
+          intercomTools?.some((t) => t.name === "intercom_list_contacts")
+        ).toBe(true);
+        expect(
+          intercomTools?.some((t) => t.name === "intercom_reply_conversation")
+        ).toBe(true);
+      });
+
       it("should include Salesforce tools when OAuth-connected server is enabled", () => {
         const mcpServers: McpServerInfo[] = [
           {

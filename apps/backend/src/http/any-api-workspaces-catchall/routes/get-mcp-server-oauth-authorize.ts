@@ -133,6 +133,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/salesforce"
           );
           authUrl = generateSalesforceAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "intercom") {
+          const { generateIntercomAuthUrl } = await import(
+            "../../../utils/oauth/mcp/intercom"
+          );
+          authUrl = generateIntercomAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

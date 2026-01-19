@@ -1458,6 +1458,7 @@ export interface McpServer {
     | "slack"
     | "stripe"
     | "salesforce"
+    | "intercom"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1480,6 +1481,7 @@ export interface CreateMcpServerInput {
     | "slack"
     | "stripe"
     | "salesforce"
+    | "intercom"
     | "posthog";
   config?: {
     apiKey?: string;
@@ -1505,6 +1507,7 @@ export interface UpdateMcpServerInput {
     | "slack"
     | "stripe"
     | "salesforce"
+    | "intercom"
     | "posthog";
   config?: {
     apiKey?: string;
