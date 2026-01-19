@@ -71,7 +71,7 @@ jobs:
       - name: Run staging agent endpoint tests
         env:
           AWS_REGION: eu-west-2
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           PR_NUMBER: ${{ steps.pr-info.outputs.pr_number }}
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"

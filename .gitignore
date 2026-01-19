@@ -2,7 +2,7 @@ node_modules/
 dist/
 *.log
 .DS_Store
-apps/backend/.env
+.env
 
 # Local database files
 apps/backend/db

@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+import dotenv from "dotenv";
 import crypto from "crypto";
 
 import {
@@ -51,6 +52,8 @@ type ApiResponse<T> = {
   data: T;
   rawText: string;
 };
+
+dotenv.config({ path: new URL("../.env", import.meta.url).pathname });
 
 const DEFAULT_REGION = "eu-west-2";
 const DEFAULT_MODEL_NAME = "google/gemini-2.5-flash";
@@ -162,6 +165,28 @@ async function fetchText(
     );
   }
   return { response, data: rawText, rawText };
+}
+
+async function assertApiAccess(
+  apiBaseUrl: string,
+  authHeader: Record<string, string>
+): Promise<void> {
+  const response = await fetchText(
+    `${apiBaseUrl}/api/workspaces`,
+    {
+      method: "GET",
+      headers: {
+        ...authHeader,
+      },
+    },
+    [200, 401, 403]
+  );
+  if (response.response.status !== 200) {
+    throw new Error(
+      `Authorization check failed for /api/workspaces (${response.response.status}). ` +
+        `Ensure AUTH_SECRET matches the PR environment and the user has access. Response: ${response.rawText}`
+    );
+  }
 }
 
 function buildSlackSignature(
@@ -700,17 +725,18 @@ async function main() {
     process.env.STAGING_TEST_USER_EMAIL ??
     `staging-pr-${prNumber}-${Date.now()}@helpmaton.com`;
 
-  const accessTokenExpirySeconds = Math.min(
-    60 * 60,
-    Math.max(15 * 60, Math.ceil(timeoutMs / 1000) + 300)
-  );
-  const accessToken = await generateAccessToken(
-    authSecret,
-    userId,
-    userEmail,
-    accessTokenExpirySeconds
-  );
+  const accessToken =
+    process.env.AUTH_TOKEN ||
+    (await generateAccessToken(
+      authSecret,
+      userId,
+      userEmail,
+      Math.min(60 * 60, Math.max(15 * 60, Math.ceil(timeoutMs / 1000) + 300))
+    ));
   const authHeader = { Authorization: `Bearer ${accessToken}` };
+
+  logStep("Validating API access");
+  await assertApiAccess(apiBaseUrl, authHeader);
 
   let workspaceId: string | undefined;
   try {
