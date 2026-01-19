@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Eval judge JSON robustness**: Added fallback JSON extraction for eval judge responses, expanded parsing tests for extra text, and tightened the default eval prompt to demand JSON-only output. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Sentry env overrides**: Added optional `SENTRY_ENVIRONMENT` (backend) and `VITE_SENTRY_ENVIRONMENT` (frontend) with fallbacks to existing env detection; injected backend env var via esbuild config; set PR deploy workflow envs to `"staging"`. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Production log group cleanup script**: Added `scripts/cleanup-production-log-groups.mjs` to detect unused production CloudWatch log groups by regex and stack resources, with a node:test unit suite; documented in `scripts/README.md`. Ran `node --test scripts/__tests__/cleanup-production-log-groups.test.mjs`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Staging PR agent-call test harness**: Added `scripts/run-staging-agent-tests.ts` to provision a workspace/agents in PR stacks, set credits in DynamoDB, exercise test/stream/webhook endpoints, and verify SQS-backed tasks; wired into `deploy-pr.yml` with optional Slack bot-webhook coverage. Ran `pnpm typecheck` and `pnpm lint --fix`.
@@ -20,6 +21,7 @@
 - **Test cleanup guard**: Staging test script now only deletes the workspace after a fully successful run to avoid SQS eval errors during failures; lint ran.
 - **Conversation correlation marker**: Staging tests now include a unique marker in prompts and require it in replies to ensure conversation records match the current run; lint ran.
 - **Stream parse guard**: Ignored empty/non-JSON SSE data lines (including `[DONE]`) in `pipeAIStreamToResponse` to avoid Sentry noise. Ran `pnpm lint --fix`.
+- **Delegation observer capture**: Added `llmObserver.recordFromResult` after delegated `generateText` so target agent conversations include assistant text/tool calls. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PostHog flush gating**: Ensured deprecated `HttpHandler` responses flush PostHog/Sentry before responding and added unit coverage; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Sentry backend tracing**: Switched backend Sentry to `@sentry/aws-serverless` with 100% prod sampling, added Lambda/SQS/scheduled spans, and manual S3 spans for aws-lite calls. Added span tests and updated analytics docs. Ran `pnpm lint --fix` and `pnpm --filter backend test --run`; `pnpm typecheck` failed in `apps/frontend/vite.config.ts` with Vite type mismatch (pre-existing).
 - **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
