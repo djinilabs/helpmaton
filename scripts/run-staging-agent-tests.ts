@@ -57,6 +57,10 @@ const DEFAULT_MODEL_NAME = "google/gemini-2.5-flash";
 const DEFAULT_REPLY_TEXT = "Hello from test";
 const DEFAULT_CREDITS_USD = 25;
 const DEFAULT_TIMEOUT_MS = 180_000;
+const POLL_INTERVAL_MS = 1000;
+const MAX_POLL_INTERVAL_MS = 10_000;
+const QUERY_LIMIT_SMALL = 5;
+const QUERY_LIMIT_LARGE = 10;
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -99,7 +103,7 @@ function toPascalCase(value: string): string {
     .trim()
     .split(" ")
     .filter(Boolean)
-    .map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
+    .map((segment) => (segment[0]?.toUpperCase() ?? "") + segment.slice(1))
     .join("");
 }
 
@@ -114,13 +118,14 @@ function sleep(ms: number): Promise<void> {
 async function generateAccessToken(
   authSecret: string,
   userId: string,
-  email: string
+  email: string,
+  expirySeconds: number
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   return await new SignJWT({ userId, email })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt(now)
-    .setExpirationTime(now + 24 * 60 * 60)
+    .setExpirationTime(now + expirySeconds)
     .setIssuer("helpmaton")
     .setAudience("helpmaton-api")
     .sign(new TextEncoder().encode(authSecret));
@@ -253,6 +258,14 @@ async function resolveTableName(
   ];
   const resource = findResource(resources, candidates, `-${tableName}`);
   if (!resource?.PhysicalResourceId) {
+    console.error("[resolveTableName] Table not found", {
+      tableName,
+      candidates,
+      sampleResources: resources
+        .filter((entry) => entry.ResourceType === "AWS::DynamoDB::Table")
+        .slice(0, 10)
+        .map((entry) => entry.LogicalResourceId),
+    });
     throw new Error(`Could not resolve DynamoDB table for ${tableName}`);
   }
   return resource.PhysicalResourceId;
@@ -268,14 +281,29 @@ async function resolveQueueUrl(
   const resource = findResource(resources, candidates, queueName);
   const physicalId = resource?.PhysicalResourceId;
   if (!physicalId) {
+    console.error("[resolveQueueUrl] Queue not found", {
+      queueName,
+      candidates,
+      sampleResources: resources
+        .filter((entry) => entry.ResourceType === "AWS::SQS::Queue")
+        .slice(0, 10)
+        .map((entry) => entry.LogicalResourceId),
+    });
     throw new Error(`Could not resolve SQS queue for ${queueName}`);
   }
   if (physicalId.startsWith("https://")) {
     return physicalId;
   }
-  const queueNameValue = physicalId.startsWith("arn:")
-    ? physicalId.split(":").slice(-1)[0] ?? physicalId
-    : physicalId;
+  let queueNameValue: string;
+  if (physicalId.startsWith("arn:")) {
+    const arnParts = physicalId.split(":");
+    if (arnParts.length < 6 || !arnParts[arnParts.length - 1]) {
+      throw new Error(`Invalid SQS queue ARN for ${queueName}: ${physicalId}`);
+    }
+    queueNameValue = arnParts[arnParts.length - 1];
+  } else {
+    queueNameValue = physicalId;
+  }
   const response = await client.send(
     new GetQueueUrlCommand({ QueueName: queueNameValue })
   );
@@ -326,6 +354,7 @@ async function waitForConversation(
 ) {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
   const start = Date.now();
+  let delayMs = POLL_INTERVAL_MS;
   while (Date.now() - start < timeoutMs) {
     const response = await docClient.send(
       new GetCommand({
@@ -356,7 +385,12 @@ async function waitForConversation(
         return item;
       }
     }
-    await sleep(3000);
+    const remaining = timeoutMs - (Date.now() - start);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleep(Math.min(delayMs, remaining));
+    delayMs = Math.min(delayMs * 2, MAX_POLL_INTERVAL_MS);
   }
   throw new Error(`Timed out waiting for conversation ${conversationId}`);
 }
@@ -370,6 +404,7 @@ async function waitForConversationByType(
   timeoutMs: number
 ) {
   const start = Date.now();
+  let delayMs = POLL_INTERVAL_MS;
   while (Date.now() - start < timeoutMs) {
     const response = await docClient.send(
       new QueryCommand({
@@ -380,7 +415,7 @@ async function waitForConversationByType(
           ":agentId": agentId,
         },
         ScanIndexForward: false,
-        Limit: 10,
+        Limit: QUERY_LIMIT_LARGE,
       })
     );
     const items = (response.Items ?? []) as Array<{
@@ -400,7 +435,12 @@ async function waitForConversationByType(
         return item;
       }
     }
-    await sleep(3000);
+    const remaining = timeoutMs - (Date.now() - start);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleep(Math.min(delayMs, remaining));
+    delayMs = Math.min(delayMs * 2, MAX_POLL_INTERVAL_MS);
   }
   throw new Error(`Timed out waiting for ${expectedType} conversation`);
 }
@@ -415,6 +455,7 @@ async function waitForDelegationTask(
 ) {
   const gsi1pk = `workspace/${workspaceId}/agent/${callingAgentId}`;
   const start = Date.now();
+  let delayMs = POLL_INTERVAL_MS;
   while (Date.now() - start < timeoutMs) {
     const response = await docClient.send(
       new QueryCommand({
@@ -425,7 +466,7 @@ async function waitForDelegationTask(
           ":gsi1pk": gsi1pk,
         },
         ScanIndexForward: false,
-        Limit: 5,
+        Limit: QUERY_LIMIT_SMALL,
       })
     );
     const items = (response.Items ?? []) as Array<{
@@ -446,7 +487,12 @@ async function waitForDelegationTask(
         `Delegation task failed: ${match.error ?? match.pk ?? "unknown"}`
       );
     }
-    await sleep(3000);
+    const remaining = timeoutMs - (Date.now() - start);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleep(Math.min(delayMs, remaining));
+    delayMs = Math.min(delayMs * 2, MAX_POLL_INTERVAL_MS);
   }
   throw new Error("Timed out waiting for delegation task");
 }
@@ -459,6 +505,7 @@ async function waitForEvalResult(
   timeoutMs: number
 ) {
   const start = Date.now();
+  let delayMs = POLL_INTERVAL_MS;
   while (Date.now() - start < timeoutMs) {
     const response = await docClient.send(
       new QueryCommand({
@@ -469,7 +516,7 @@ async function waitForEvalResult(
           ":conversationId": conversationId,
         },
         ScanIndexForward: false,
-        Limit: 5,
+        Limit: QUERY_LIMIT_SMALL,
       })
     );
     const items = (response.Items ?? []) as Array<{
@@ -479,7 +526,12 @@ async function waitForEvalResult(
     if (items.find((item) => item.judgeId === judgeId)) {
       return items;
     }
-    await sleep(3000);
+    const remaining = timeoutMs - (Date.now() - start);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleep(Math.min(delayMs, remaining));
+    delayMs = Math.min(delayMs * 2, MAX_POLL_INTERVAL_MS);
   }
   throw new Error("Timed out waiting for eval result");
 }
@@ -493,6 +545,7 @@ async function waitForCostTransaction(
 ) {
   const pk = `workspaces/${workspaceId}`;
   const start = Date.now();
+  let delayMs = POLL_INTERVAL_MS;
   while (Date.now() - start < timeoutMs) {
     const response = await docClient.send(
       new QueryCommand({
@@ -504,13 +557,18 @@ async function waitForCostTransaction(
         },
         FilterExpression: "conversationId = :conversationId",
         ScanIndexForward: false,
-        Limit: 10,
+        Limit: QUERY_LIMIT_LARGE,
       })
     );
     if ((response.Items ?? []).length > 0) {
       return response.Items;
     }
-    await sleep(3000);
+    const remaining = timeoutMs - (Date.now() - start);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleep(Math.min(delayMs, remaining));
+    delayMs = Math.min(delayMs * 2, MAX_POLL_INTERVAL_MS);
   }
   throw new Error("Timed out waiting for cost transaction");
 }
@@ -524,13 +582,14 @@ async function waitForMemoryRecord(
   timeoutMs: number
 ) {
   const start = Date.now();
+  let delayMs = POLL_INTERVAL_MS;
   while (Date.now() - start < timeoutMs) {
     const response = await fetchJson<{
       records: Array<{ content?: string }>;
     }>(
       `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/memory?grain=working&queryText=${encodeURIComponent(
         expectedContent
-      )}&maxResults=5`,
+      )}&maxResults=${QUERY_LIMIT_SMALL}`,
       {
         method: "GET",
         headers: {
@@ -545,7 +604,12 @@ async function waitForMemoryRecord(
     ) {
       return;
     }
-    await sleep(3000);
+    const remaining = timeoutMs - (Date.now() - start);
+    if (remaining <= 0) {
+      break;
+    }
+    await sleep(Math.min(delayMs, remaining));
+    delayMs = Math.min(delayMs * 2, MAX_POLL_INTERVAL_MS);
   }
   throw new Error("Timed out waiting for memory record");
 }
@@ -567,6 +631,9 @@ async function main() {
   const timeoutMs = args.timeout
     ? Number(args.timeout)
     : DEFAULT_TIMEOUT_MS;
+  const keepResources =
+    process.env.KEEP_STAGING_TEST_RESOURCES === "true" ||
+    process.env.KEEP_STAGING_TEST_RESOURCES === "1";
 
   if (!prNumber) {
     throw new Error("PR number is required (use --pr <number>)");
@@ -633,45 +700,56 @@ async function main() {
     process.env.STAGING_TEST_USER_EMAIL ??
     `staging-pr-${prNumber}-${Date.now()}@helpmaton.com`;
 
-  const accessToken = await generateAccessToken(authSecret, userId, userEmail);
+  const accessTokenExpirySeconds = Math.min(
+    60 * 60,
+    Math.max(15 * 60, Math.ceil(timeoutMs / 1000) + 300)
+  );
+  const accessToken = await generateAccessToken(
+    authSecret,
+    userId,
+    userEmail,
+    accessTokenExpirySeconds
+  );
   const authHeader = { Authorization: `Bearer ${accessToken}` };
 
-  logStep("Creating workspace");
-  const workspaceResponse = await fetchJson<{ id: string }>(
-    `${apiBaseUrl}/api/workspaces`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: `staging-pr-${prNumber}-agent-tests`,
-        description: "Automated staging agent tests",
-      }),
-    }
-  );
-  const workspaceId = workspaceResponse.data.id;
+  let workspaceId: string | undefined;
+  try {
+    logStep("Creating workspace");
+    const workspaceResponse = await fetchJson<{ id: string }>(
+      `${apiBaseUrl}/api/workspaces`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: `staging-pr-${prNumber}-agent-tests`,
+          description: "Automated staging agent tests",
+        }),
+      }
+    );
+    workspaceId = workspaceResponse.data.id;
 
-  logStep(`Created workspace ${workspaceId}`);
+    logStep(`Created workspace ${workspaceId}`);
 
-  logStep("Creating agents");
-  const helloAgentResponse = await fetchJson<{ id: string }>(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Hello Agent",
-        systemPrompt: `Always respond with exactly: ${replyText}`,
-        modelName,
-      }),
-    }
-  );
-  const helloAgentId = helloAgentResponse.data.id;
+    logStep("Creating agents");
+    const helloAgentResponse = await fetchJson<{ id: string }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Hello Agent",
+          systemPrompt: `Always respond with exactly: ${replyText}`,
+          modelName,
+        }),
+      }
+    );
+    const helloAgentId = helloAgentResponse.data.id;
 
   const delegateAgentResponse = await fetchJson<{ id: string }>(
     `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
@@ -724,291 +802,9 @@ async function main() {
     }
   );
 
-  logStep("Creating stream server config");
-  const streamConfigResponse = await fetchJson<{ secret: string }>(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/stream-servers`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        allowedOrigins: ["*"],
-      }),
-    }
-  );
-  const streamSecret = streamConfigResponse.data.secret;
-
-  logStep("Creating webhook key");
-  const webhookKeyResponse = await fetchJson<{ key: string }>(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/keys`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Webhook key",
-        type: "webhook",
-      }),
-    }
-  );
-  const webhookKey = webhookKeyResponse.data.key;
-
-  logStep("Creating eval judge");
-  const evalJudgeResponse = await fetchJson<{ id: string }>(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/eval-judges`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Staging Eval Judge",
-        modelName,
-        evalPrompt:
-          "Summarize the assistant response and score goal completion (0-100).",
-        provider: "openrouter",
-        enabled: true,
-        samplingProbability: 100,
-      }),
-    }
-  );
-  const evalJudgeId = evalJudgeResponse.data.id;
-
-  logStep("Setting workspace credits in DynamoDB");
-  const creditBalance = Math.round(creditsUsd * 1_000_000);
-  const workspacePk = `workspaces/${workspaceId}`;
-  await docClient.send(
-    new UpdateCommand({
-      TableName: tables.workspace,
-      Key: { pk: workspacePk, sk: "workspace" },
-      UpdateExpression: "SET creditBalance = :balance, updatedAt = :updatedAt",
-      ExpressionAttributeValues: {
-        ":balance": creditBalance,
-        ":updatedAt": new Date().toISOString(),
-      },
-    })
-  );
-  const workspaceCheck = await docClient.send(
-    new GetCommand({
-      TableName: tables.workspace,
-      Key: { pk: workspacePk, sk: "workspace" },
-    })
-  );
-  const storedBalance = (workspaceCheck.Item as { creditBalance?: number })
-    ?.creditBalance;
-  if (storedBalance !== creditBalance) {
-    throw new Error(
-      `Failed to set credits. Expected ${creditBalance}, got ${storedBalance ?? "unknown"}`
-    );
-  }
-
-  logStep("Testing /api/workspaces/:workspaceId/agents/:agentId/test");
-  const testConversationId = crypto.randomUUID();
-  await fetchText(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/test`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-        "X-Conversation-Id": testConversationId,
-      },
-      body: JSON.stringify([{ role: "user", content: "Hello" }]),
-    }
-  );
-  await waitForConversation(
-    docClient,
-    tables.conversations,
-    workspaceId,
-    helloAgentId,
-    testConversationId,
-    "test",
-    replyText,
-    timeoutMs
-  );
-
-  logStep("Testing streaming endpoint");
-  const streamConversationId = crypto.randomUUID();
-  await fetchText(
-    `${streamBaseUrl}/api/streams/${workspaceId}/${helloAgentId}/${streamSecret}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Conversation-Id": streamConversationId,
-        Origin: "https://app.helpmaton.com",
-      },
-      body: JSON.stringify([{ role: "user", content: "Hello" }]),
-    }
-  );
-  await waitForConversation(
-    docClient,
-    tables.conversations,
-    workspaceId,
-    helloAgentId,
-    streamConversationId,
-    "stream",
-    replyText,
-    timeoutMs
-  );
-
-  logStep("Testing webhook endpoint");
-  const webhookResponse = await fetchText(
-    `${apiBaseUrl}/api/webhook/${workspaceId}/${helloAgentId}/${webhookKey}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-      },
-      body: "Hello",
-    }
-  );
-  if (!webhookResponse.data.includes(replyText)) {
-    throw new Error("Webhook response did not contain expected reply");
-  }
-  await waitForConversationByType(
-    docClient,
-    tables.conversations,
-    helloAgentId,
-    "webhook",
-    replyText,
-    timeoutMs
-  );
-
-  logStep("Testing async delegation via SQS");
-  const delegatorConversationId = crypto.randomUUID();
-  await fetchText(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}/test`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-        "X-Conversation-Id": delegatorConversationId,
-      },
-      body: JSON.stringify([{ role: "user", content: "Hello" }]),
-    }
-  );
-  await waitForDelegationTask(
-    docClient,
-    tables.delegation,
-    workspaceId,
-    delegatorAgentId,
-    delegateAgentId,
-    timeoutMs
-  );
-  await waitForConversationByType(
-    docClient,
-    tables.conversations,
-    delegateAgentId,
-    "test",
-    replyText,
-    timeoutMs
-  );
-
-  logStep("Testing eval queue");
-  await waitForEvalResult(
-    docClient,
-    tables.evalResults,
-    testConversationId,
-    evalJudgeId,
-    timeoutMs
-  );
-
-  logStep("Testing schedule queue via direct SQS message");
-  const scheduleResponse = await fetchJson<{ id: string }>(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/schedules`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Staging schedule",
-        cronExpression: "0 0 * * *",
-        prompt: "Hello",
-        enabled: true,
-      }),
-    }
-  );
-  const scheduleId = scheduleResponse.data.id;
-  await sqsClient.send(
-    new SendMessageCommand({
-      QueueUrl: queueUrls.schedule,
-      MessageBody: JSON.stringify({
-        scheduleId,
-        workspaceId,
-        agentId: helloAgentId,
-      }),
-    })
-  );
-  await waitForConversationByType(
-    docClient,
-    tables.conversations,
-    helloAgentId,
-    "scheduled",
-    replyText,
-    timeoutMs
-  );
-
-  logStep("Testing temporal grain queue via direct SQS message");
-  const factId = crypto.randomUUID();
-  await sqsClient.send(
-    new SendMessageCommand({
-      QueueUrl: queueUrls.temporal,
-      MessageBody: JSON.stringify({
-        operation: "insert",
-        agentId: helloAgentId,
-        temporalGrain: "working",
-        workspaceId,
-        data: {
-          rawFacts: [
-            {
-              id: factId,
-              content: "staging test fact",
-              timestamp: new Date().toISOString(),
-              metadata: { source: "staging-test" },
-            },
-          ],
-        },
-      }),
-      MessageGroupId: `${helloAgentId}-working`,
-      MessageDeduplicationId: crypto.randomUUID(),
-    })
-  );
-
-  logStep("Verifying memory write via API");
-  await waitForMemoryRecord(
-    apiBaseUrl,
-    authHeader,
-    workspaceId,
-    helloAgentId,
-    "staging test fact",
-    timeoutMs
-  );
-
-  logStep("Verifying cost verification queue");
-  await waitForCostTransaction(
-    docClient,
-    tables.creditTransactions,
-    workspaceId,
-    testConversationId,
-    timeoutMs
-  );
-
-  const slackBotToken = process.env.SLACK_BOT_TOKEN;
-  const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
-  const slackTestChannel = process.env.SLACK_TEST_CHANNEL;
-  if (slackBotToken && slackSigningSecret && slackTestChannel) {
-    logStep("Testing bot-webhook queue via Slack webhook");
-    const integrationResponse = await fetchJson<{ id: string }>(
-      `${apiBaseUrl}/api/workspaces/${workspaceId}/integrations`,
+    logStep("Creating stream server config");
+    const streamConfigResponse = await fetchJson<{ secret: string }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/stream-servers`,
       {
         method: "POST",
         headers: {
@@ -1016,46 +812,145 @@ async function main() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          platform: "slack",
-          name: "Staging Slack Integration",
-          agentId: helloAgentId,
-          config: {
-            botToken: slackBotToken,
-            signingSecret: slackSigningSecret,
-            messageHistoryCount: 0,
-          },
+          allowedOrigins: ["*"],
         }),
       }
     );
-    const integrationId = integrationResponse.data.id;
-    const slackEventBody = JSON.stringify({
-      type: "event_callback",
-      event: {
-        type: "message",
-        text: "Hello",
-        channel: slackTestChannel,
-        user: "U_STAGING_TEST",
-        ts: `${Date.now() / 1000}`,
-      },
-    });
-    const slackTimestamp = Math.floor(Date.now() / 1000).toString();
-    const slackSignature = buildSlackSignature(
-      slackSigningSecret,
-      slackTimestamp,
-      slackEventBody
+    const streamSecret = streamConfigResponse.data.secret;
+
+    logStep("Creating webhook key");
+    const webhookKeyResponse = await fetchJson<{ key: string }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/keys`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Webhook key",
+          type: "webhook",
+        }),
+      }
     );
+    const webhookKey = webhookKeyResponse.data.key;
+
+    logStep("Creating eval judge");
+    const evalJudgeResponse = await fetchJson<{ id: string }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/eval-judges`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Staging Eval Judge",
+          modelName,
+          evalPrompt:
+            "Summarize the assistant response and score goal completion (0-100).",
+          provider: "openrouter",
+          enabled: true,
+          samplingProbability: 100,
+        }),
+      }
+    );
+    const evalJudgeId = evalJudgeResponse.data.id;
+
+    logStep("Setting workspace credits in DynamoDB");
+    const creditBalance = Math.round(creditsUsd * 1_000_000);
+    const workspacePk = `workspaces/${workspaceId}`;
+    await docClient.send(
+      new UpdateCommand({
+        TableName: tables.workspace,
+        Key: { pk: workspacePk, sk: "workspace" },
+        UpdateExpression: "SET creditBalance = :balance, updatedAt = :updatedAt",
+        ExpressionAttributeValues: {
+          ":balance": creditBalance,
+          ":updatedAt": new Date().toISOString(),
+        },
+      })
+    );
+    const workspaceCheck = await docClient.send(
+      new GetCommand({
+        TableName: tables.workspace,
+        Key: { pk: workspacePk, sk: "workspace" },
+      })
+    );
+    const storedBalance = (workspaceCheck.Item as { creditBalance?: number })
+      ?.creditBalance;
+    if (storedBalance !== creditBalance) {
+      throw new Error(
+        `Failed to set credits. Expected ${creditBalance} (number), got ${
+          storedBalance ?? "unknown"
+        } (type: ${typeof storedBalance})`
+      );
+    }
+
+    logStep("Testing /api/workspaces/:workspaceId/agents/:agentId/test");
+    const testConversationId = crypto.randomUUID();
     await fetchText(
-      `${apiBaseUrl}/api/webhooks/slack/${workspaceId}/${integrationId}`,
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/test`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+          "X-Conversation-Id": testConversationId,
+        },
+        body: JSON.stringify([{ role: "user", content: "Hello" }]),
+      }
+    );
+    await waitForConversation(
+      docClient,
+      tables.conversations,
+      workspaceId,
+      helloAgentId,
+      testConversationId,
+      "test",
+      replyText,
+      timeoutMs
+    );
+
+    logStep("Testing streaming endpoint");
+    const streamConversationId = crypto.randomUUID();
+    await fetchText(
+      `${streamBaseUrl}/api/streams/${workspaceId}/${helloAgentId}/${streamSecret}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Slack-Request-Timestamp": slackTimestamp,
-          "X-Slack-Signature": slackSignature,
+          "X-Conversation-Id": streamConversationId,
+          Origin: "https://app.helpmaton.com",
         },
-        body: slackEventBody,
+        body: JSON.stringify([{ role: "user", content: "Hello" }]),
       }
     );
+    await waitForConversation(
+      docClient,
+      tables.conversations,
+      workspaceId,
+      helloAgentId,
+      streamConversationId,
+      "stream",
+      replyText,
+      timeoutMs
+    );
+
+    logStep("Testing webhook endpoint");
+    const webhookResponse = await fetchText(
+      `${apiBaseUrl}/api/webhook/${workspaceId}/${helloAgentId}/${webhookKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+        body: "Hello",
+      }
+    );
+    if (!webhookResponse.data.includes(replyText)) {
+      throw new Error("Webhook response did not contain expected reply");
+    }
     await waitForConversationByType(
       docClient,
       tables.conversations,
@@ -1064,13 +959,155 @@ async function main() {
       replyText,
       timeoutMs
     );
-  } else {
-    console.log(
-      "ℹ️  Skipping Slack bot-webhook test (SLACK_BOT_TOKEN/SLACK_SIGNING_SECRET/SLACK_TEST_CHANNEL not set)."
-    );
-  }
 
-  console.log("\n✅ Staging agent tests completed successfully.");
+    logStep("Testing async delegation via SQS");
+    const delegatorConversationId = crypto.randomUUID();
+    await fetchText(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}/test`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+          "X-Conversation-Id": delegatorConversationId,
+        },
+        body: JSON.stringify([{ role: "user", content: "Hello" }]),
+      }
+    );
+    await waitForDelegationTask(
+      docClient,
+      tables.delegation,
+      workspaceId,
+      delegatorAgentId,
+      delegateAgentId,
+      timeoutMs
+    );
+    await waitForConversationByType(
+      docClient,
+      tables.conversations,
+      delegateAgentId,
+      "test",
+      replyText,
+      timeoutMs
+    );
+
+    logStep("Testing eval queue");
+    await waitForEvalResult(
+      docClient,
+      tables.evalResults,
+      testConversationId,
+      evalJudgeId,
+      timeoutMs
+    );
+
+    logStep("Testing schedule queue via direct SQS message");
+    const scheduleResponse = await fetchJson<{ id: string }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/schedules`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Staging schedule",
+          cronExpression: "0 0 * * *",
+          prompt: "Hello",
+          enabled: true,
+        }),
+      }
+    );
+    const scheduleId = scheduleResponse.data.id;
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrls.schedule,
+        MessageBody: JSON.stringify({
+          scheduleId,
+          workspaceId,
+          agentId: helloAgentId,
+        }),
+      })
+    );
+    await waitForConversationByType(
+      docClient,
+      tables.conversations,
+      helloAgentId,
+      "scheduled",
+      replyText,
+      timeoutMs
+    );
+
+    logStep("Testing temporal grain queue via direct SQS message");
+    const factId = crypto.randomUUID();
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrls.temporal,
+        MessageBody: JSON.stringify({
+          operation: "insert",
+          agentId: helloAgentId,
+          temporalGrain: "working",
+          workspaceId,
+          data: {
+            rawFacts: [
+              {
+                id: factId,
+                content: "staging test fact",
+                timestamp: new Date().toISOString(),
+                metadata: { source: "staging-test" },
+              },
+            ],
+          },
+        }),
+        MessageGroupId: `${helloAgentId}-working`,
+        MessageDeduplicationId: crypto.randomUUID(),
+      })
+    );
+
+    logStep("Verifying memory write via API");
+    await waitForMemoryRecord(
+      apiBaseUrl,
+      authHeader,
+      workspaceId,
+      helloAgentId,
+      "staging test fact",
+      timeoutMs
+    );
+
+    logStep("Verifying cost verification queue");
+    await waitForCostTransaction(
+      docClient,
+      tables.creditTransactions,
+      workspaceId,
+      testConversationId,
+      timeoutMs
+    );
+
+    console.log("ℹ️  Skipping Slack bot-webhook test (disabled in CI).");
+
+    console.log("\n✅ Staging agent tests completed successfully.");
+  } finally {
+    if (workspaceId && !keepResources) {
+      logStep(`Cleaning up workspace ${workspaceId}`);
+      try {
+        await fetchText(
+          `${apiBaseUrl}/api/workspaces/${workspaceId}`,
+          {
+            method: "DELETE",
+            headers: {
+              ...authHeader,
+            },
+          },
+          [204]
+        );
+      } catch (error) {
+        console.warn("⚠️  Failed to cleanup workspace:", error);
+      }
+    } else if (workspaceId) {
+      console.log(
+        `ℹ️  KEEP_STAGING_TEST_RESOURCES set; leaving workspace ${workspaceId}`
+      );
+    }
+  }
 }
 
 main().catch((error) => {

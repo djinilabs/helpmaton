@@ -7,6 +7,8 @@
 **Latest Work**:
 
 - **Staging PR agent-call test harness**: Added `scripts/run-staging-agent-tests.ts` to provision a workspace/agents in PR stacks, set credits in DynamoDB, exercise test/stream/webhook endpoints, and verify SQS-backed tasks; wired into `deploy-pr.yml` with optional Slack bot-webhook coverage. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 186 review fixes**: Added polling/backoff constants, shorter JWT expiry, improved resource lookup diagnostics, validated SQS ARN parsing, added cleanup logic, and set CI step timeout; aligned AWS SDK versions. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **CI staging test workflow**: Moved staging agent tests into `.github/workflows/staging-agent-tests.yml` triggered after successful `Deploy PR` workflow completion; removed test step from `deploy-pr.yml`; disabled Slack bot-webhook test in CI.
 - **PostHog flush gating**: Ensured deprecated `HttpHandler` responses flush PostHog/Sentry before responding and added unit coverage; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Sentry backend tracing**: Switched backend Sentry to `@sentry/aws-serverless` with 100% prod sampling, added Lambda/SQS/scheduled spans, and manual S3 spans for aws-lite calls. Added span tests and updated analytics docs. Ran `pnpm lint --fix` and `pnpm --filter backend test --run`; `pnpm typecheck` failed in `apps/frontend/vite.config.ts` with Vite type mismatch (pre-existing).
 - **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
