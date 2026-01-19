@@ -1274,6 +1274,9 @@ export function expandMessagesWithToolCalls(
       const reasoningParts: Array<{ type: "reasoning"; text: string }> = [];
       const textParts: Array<{ type: "text"; text: string }> = [];
 
+      const toolCallSignatures = new Set<string>();
+      const toolResultSignatures = new Set<string>();
+
       // Separate content into tool calls, tool results, delegations, reasoning, and text
       for (const item of message.content) {
         if (typeof item === "object" && item !== null && "type" in item) {
@@ -1291,6 +1294,11 @@ export function expandMessagesWithToolCalls(
               typeof toolCall.toolCallId === "string" &&
               typeof toolCall.toolName === "string"
             ) {
+              const signature = `${toolCall.toolCallId}:${toolCall.toolName}`;
+              if (toolCallSignatures.has(signature)) {
+                continue;
+              }
+              toolCallSignatures.add(signature);
               toolCallsInMessage.push({
                 type: "tool-call",
                 toolCallId: toolCall.toolCallId,
@@ -1316,6 +1324,11 @@ export function expandMessagesWithToolCalls(
               typeof toolResult.toolCallId === "string" &&
               typeof toolResult.toolName === "string"
             ) {
+              const signature = `${toolResult.toolCallId}:${toolResult.toolName}`;
+              if (toolResultSignatures.has(signature)) {
+                continue;
+              }
+              toolResultSignatures.add(signature);
               toolResultsInMessage.push({
                 type: "tool-result",
                 toolCallId: toolResult.toolCallId,

@@ -9,9 +9,43 @@ import {
   updateConversation,
   startConversation,
   type TokenUsage,
+  expandMessagesWithToolCalls,
 } from "../conversationLogger";
 
 describe("conversationLogger", () => {
+  describe("expandMessagesWithToolCalls", () => {
+    it("deduplicates tool result entries inside assistant content", () => {
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "tool-1",
+              toolName: "get_datetime",
+              result: "ok",
+              toolExecutionTimeMs: 123,
+            },
+            {
+              type: "tool-result",
+              toolCallId: "tool-1",
+              toolName: "get_datetime",
+              result: "ok",
+              toolExecutionTimeMs: 123,
+            },
+            {
+              type: "text",
+              text: "done",
+            },
+          ],
+        },
+      ];
+
+      const expanded = expandMessagesWithToolCalls(messages);
+      const toolMessages = expanded.filter((msg) => msg.role === "tool");
+      expect(toolMessages).toHaveLength(1);
+    });
+  });
   describe("extractTokenUsage", () => {
     it("should extract token usage from standard AI SDK format", () => {
       const result = {
