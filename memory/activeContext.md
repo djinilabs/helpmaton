@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Complexity report tooling**: Added ESLint-based complexity report script with `pnpm complexity:report`, generated `docs/complexity-report.md`, and ran `pnpm lint --fix` + `pnpm typecheck`.
 - **PostHog flush gating**: Ensured deprecated `HttpHandler` responses flush PostHog/Sentry before responding and added unit coverage; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Sentry backend tracing**: Switched backend Sentry to `@sentry/aws-serverless` with 100% prod sampling, added Lambda/SQS/scheduled spans, and manual S3 spans for aws-lite calls. Added span tests and updated analytics docs. Ran `pnpm lint --fix` and `pnpm --filter backend test --run`; `pnpm typecheck` failed in `apps/frontend/vite.config.ts` with Vite type mismatch (pre-existing).
 - **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
