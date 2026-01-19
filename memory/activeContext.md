@@ -11,6 +11,7 @@
 - **CI staging test workflow**: Moved staging agent tests into `.github/workflows/staging-agent-tests.yml` triggered after successful `Deploy PR` workflow completion; removed test step from `deploy-pr.yml`; disabled Slack bot-webhook test in CI; set `AUTH_SECRET` env from `secrets.STAGING_AUTH_SECRET`.
 - **Staging test env loading**: Script now loads root `.env` via `dotenv` for easier local runs.
 - **Staging auth preflight**: Script now validates API access before creating workspace and allows optional `AUTH_TOKEN` override.
+- **SQS commit error handling**: Stopped rethrowing commit failures in `handlingSQSErrors`, now logs + reports to Sentry while keeping partial batch failures; added unit test coverage. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **PostHog flush gating**: Ensured deprecated `HttpHandler` responses flush PostHog/Sentry before responding and added unit coverage; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Sentry backend tracing**: Switched backend Sentry to `@sentry/aws-serverless` with 100% prod sampling, added Lambda/SQS/scheduled spans, and manual S3 spans for aws-lite calls. Added span tests and updated analytics docs. Ran `pnpm lint --fix` and `pnpm --filter backend test --run`; `pnpm typecheck` failed in `apps/frontend/vite.config.ts` with Vite type mismatch (pre-existing).
 - **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.

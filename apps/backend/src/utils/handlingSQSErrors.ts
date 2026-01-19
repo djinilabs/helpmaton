@@ -137,7 +137,6 @@ export const handlingSQSErrors = (
                             `[SQS Handler] Successfully processed and committed transactions for message ${messageId}`
                           );
                         } catch (commitError: unknown) {
-                          // Commit failures cause handler to fail (per user requirement)
                           console.error(
                             `[SQS Handler] Failed to commit credit transactions for message ${messageId} in queue ${queueName}:`,
                             {
@@ -157,12 +156,24 @@ export const handlingSQSErrors = (
                           // Mark this message as failed due to commit error
                           failedMessageIds.add(messageId);
 
-                          // Re-throw to fail the handler
-                          const errorToThrow =
-                            commitError instanceof Error
-                              ? commitError
-                              : new Error(String(commitError));
-                          throw errorToThrow;
+                          // Report commit errors but do not fail the entire batch
+                          Sentry.captureException(ensureError(commitError), {
+                            tags: {
+                              handler: "SQSFunction",
+                              statusCode: 500,
+                              messageId,
+                              queueName,
+                            },
+                            contexts: {
+                              event: {
+                                messageId,
+                                queueName,
+                                eventSource: record.eventSource,
+                                awsRegion: record.awsRegion,
+                                messageBody: record.body,
+                              },
+                            },
+                          });
                         }
                       }
                     } catch (error) {
