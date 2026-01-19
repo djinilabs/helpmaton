@@ -22,15 +22,16 @@ export function initSentry(): void {
     return;
   }
 
-  // Determine environment from VITE_ENV or MODE
+  // Determine environment from VITE_SENTRY_ENVIRONMENT, VITE_ENV, or MODE
   const environment =
-    import.meta.env.VITE_ENV === "production"
+    import.meta.env.VITE_SENTRY_ENVIRONMENT ||
+    (import.meta.env.VITE_ENV === "production"
       ? "production"
       : import.meta.env.VITE_ENV === "staging"
         ? "staging"
         : import.meta.env.MODE === "production"
           ? "production"
-          : "development";
+          : "development");
 
   // Get release version from build-time environment variable
   // This should match the release version used during the build process

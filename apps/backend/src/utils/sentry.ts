@@ -23,15 +23,16 @@ export function initSentry(): void {
     return;
   }
 
-  // Determine environment from ARC_ENV or NODE_ENV
+  // Determine environment from SENTRY_ENVIRONMENT, ARC_ENV, or NODE_ENV
   const environment =
-    process.env.ARC_ENV === "production"
+    process.env.SENTRY_ENVIRONMENT ||
+    (process.env.ARC_ENV === "production"
       ? "production"
       : process.env.ARC_ENV === "staging"
       ? "staging"
       : process.env.NODE_ENV === "production"
       ? "production"
-      : "development";
+      : "development");
 
   // Get release version from environment variable (typically GITHUB_SHA in CI/CD)
   // Falls back to undefined if not set (Sentry will work without it)

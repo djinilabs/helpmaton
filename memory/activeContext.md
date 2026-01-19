@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Sentry env overrides**: Added optional `SENTRY_ENVIRONMENT` (backend) and `VITE_SENTRY_ENVIRONMENT` (frontend) with fallbacks to existing env detection; injected backend env var via esbuild config; set PR deploy workflow envs to `"staging"`. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Production log group cleanup script**: Added `scripts/cleanup-production-log-groups.mjs` to detect unused production CloudWatch log groups by regex and stack resources, with a node:test unit suite; documented in `scripts/README.md`. Ran `node --test scripts/__tests__/cleanup-production-log-groups.test.mjs`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Staging PR agent-call test harness**: Added `scripts/run-staging-agent-tests.ts` to provision a workspace/agents in PR stacks, set credits in DynamoDB, exercise test/stream/webhook endpoints, and verify SQS-backed tasks; wired into `deploy-pr.yml` with optional Slack bot-webhook coverage. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 186 review fixes**: Added polling/backoff constants, shorter JWT expiry, improved resource lookup diagnostics, validated SQS ARN parsing, added cleanup logic, and set CI step timeout; aligned AWS SDK versions. Ran `pnpm typecheck` and `pnpm lint --fix`.
