@@ -385,3 +385,15 @@ jobs:
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
           echo "🚀 Triggering API Gateway deployment to make changes live..."
           bash scripts/deploy-api-gateway.sh "HelpmatonStagingPR${PR_NUMBER}"
+
+      - name: Run staging agent endpoint tests
+        env:
+          AWS_REGION: eu-west-2
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          PR_NUMBER: ${{ steps.pr-info.outputs.pr_number }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+          SLACK_TEST_CHANNEL: ${{ secrets.SLACK_TEST_CHANNEL }}
+        run: |
+          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
+          pnpm exec tsx scripts/run-staging-agent-tests.ts --pr "${PR_NUMBER}"
