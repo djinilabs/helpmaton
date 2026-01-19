@@ -211,7 +211,7 @@ jobs:
           BASE_URL=${{ steps.test-env.outputs.base_url }}
           MAILGUN_KEY=${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN=helpmaton.com
-          AUTH_SECRET=${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET=${{ secrets.STAGING_AUTH_SECRET }}
           HEADLESS=true
           CI=true
           EOF
@@ -232,7 +232,7 @@ jobs:
           # FRONTEND_URL is used by backend for auth redirects
           FRONTEND_URL: ${{ steps.test-env.outputs.base_url }}
           # Pass AUTH_SECRET as environment variable so global-setup.ts can access it
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: helpmaton.com
           TESTMAIL_NAMESPACE: ${{ secrets.TESTMAIL_NAMESPACE }}
