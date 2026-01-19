@@ -240,6 +240,48 @@ describe("handlingSQSErrors", () => {
   });
 
   describe("error handling", () => {
+    it("should log and report commit errors without failing the batch", async () => {
+      const { Sentry } = await import("../sentry");
+      const commitError = new Error("Commit failed");
+      mockCommitContextTransactions.mockRejectedValueOnce(commitError);
+      const handler = vi.fn().mockResolvedValue([]);
+      const wrappedHandler = handlingSQSErrors(handler);
+      const singleEvent: SQSEvent = {
+        Records: [mockEvent.Records[0]],
+      };
+
+      const result = await wrappedHandler(singleEvent);
+
+      expect(result).toEqual({
+        batchItemFailures: [
+          {
+            itemIdentifier: "msg-1",
+          },
+        ],
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Failed to commit credit transactions for message msg-1 in queue queue"
+        ),
+        expect.objectContaining({
+          error: "Commit failed",
+          queueName: "queue",
+          messageId: "msg-1",
+          messageBody: '{"test":"data"}',
+        })
+      );
+      expect(Sentry.captureException).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            handler: "SQSFunction",
+            messageId: "msg-1",
+            queueName: "queue",
+          }),
+        })
+      );
+    });
+
     it("should return all messages as failed when handler throws", async () => {
       const error = new Error("Unexpected error");
       const handler = vi.fn().mockRejectedValue(error);
