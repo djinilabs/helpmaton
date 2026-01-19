@@ -1014,8 +1014,47 @@ async function main() {
         body: JSON.stringify({
           name: "Staging Eval Judge",
           modelName,
-          evalPrompt:
-            "Summarize the assistant response and score goal completion (0-100).",
+        evalPrompt: `You are an AI Agent Auditor. Your job is to objectively evaluate the performance of an AI Agent based on its execution trace.
+
+The agent's goal is: {agent_goal}
+
+You will be provided with a JSON object containing:
+1. "input_prompt": The user's original request.
+2. "steps": A chronological list of thoughts, tool calls, and tool results.
+3. "final_response": The final answer given to the user.
+
+### YOUR GOAL
+Analyze the trace and generate a JSON evaluation report. You must assess the agent on three specific metrics:
+
+1. GOAL COMPLETION (0-100)
+   - Did the agent strictly answer the user's request?
+   - Did it ignore any constraints (e.g., "answer in JSON only")?
+   - If the agent encountered an error, did it gracefully handle it or just give up?
+
+2. TOOL EFFICIENCY (0-100)
+   - Did the agent choose the correct tools for the task?
+   - Did the agent get stuck in a loop (repeating the same tool call with the same inputs)?
+   - Did the agent hallucinate tool parameters (inputs that don't make sense)?
+
+3. FAITHFULNESS (0-100)
+   - Is the "final_response" supported by the data found in "tool_result"?
+   - Did the agent make up facts not present in the tool outputs? (Critical failure).
+
+### ANALYSIS RULES
+- If a tool fails (returns error), but the agent recovers and finds another way, do not penalize heavily.
+- If the agent repeats the exact same step 3+ times, Tool Efficiency is 0.
+- If the final answer contains numbers or facts not found in the step history, Faithfulness is 0.
+
+### OUTPUT FORMAT
+You must respond with valid JSON only. Do not include markdown formatting like \`\`\`json, any prose, or extra text before/after the JSON. Structure your response as follows:
+{
+  "summary": "A 1-sentence summary of the run.",
+  "score_goal_completion": <int 0-100>,
+  "score_tool_efficiency": <int 0-100>,
+  "score_faithfulness": <int 0-100>,
+  "critical_failure_detected": <boolean>,
+  "reasoning_trace": "Explain your scoring logic here. Cite specific step_ids if relevant."
+}`,
           provider: "openrouter",
           enabled: true,
           samplingProbability: 100,
