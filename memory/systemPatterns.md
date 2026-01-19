@@ -70,6 +70,7 @@
 - **Error Handling**: Centralized error handling utilities
 - **OpenAPI**: Auto-generated from code annotations
 - **MCP Integrations**: Non-OAuth MCP services (e.g., PostHog) use API keys in `mcp-server.config.apiKey` and validate base URLs against approved regions before requests.
+- **MCP OAuth (per-server creds)**: Some OAuth MCP servers (Zendesk) store client credentials + subdomain in `mcp-server.config` instead of env vars, and OAuth endpoints are built from the stored subdomain.
 
 ### Code Patterns
 

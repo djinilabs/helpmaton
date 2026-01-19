@@ -72,6 +72,8 @@ const McpOAuthCallback = () => {
       ? "Slack"
     : serviceType === "intercom"
       ? "Intercom"
+      : serviceType === "zendesk"
+      ? "Zendesk"
       : serviceType || "service";
 
   if (!workspaceId || !serverId) {

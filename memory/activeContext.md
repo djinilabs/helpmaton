@@ -2,9 +2,11 @@
 
 ## Current Status
 
-**Status**: Intercom MCP integration complete ✅
+**Status**: Zendesk MCP integration complete ✅
 
 **Latest Work**:
+
+- **Zendesk MCP integration**: Added Zendesk OAuth flow using subdomain + client credentials stored per MCP server, Zendesk API client + tools (ticket search, comments, draft private note, Help Center search), tool metadata/UI wiring, schema updates, docs, and unit tests. Preserved Zendesk config on OAuth connect/disconnect. Ran `pnpm lint --fix` and `pnpm typecheck`.
 
 - **Intercom MCP integration**: Added Intercom OAuth flow with admin ID capture, Intercom API client + MCP tools for contacts/conversations (read/write), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm --filter backend test --run intercom`, `pnpm lint --fix`, and `pnpm typecheck`.
 

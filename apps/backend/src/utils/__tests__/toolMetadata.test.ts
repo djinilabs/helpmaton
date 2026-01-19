@@ -532,6 +532,43 @@ describe("toolMetadata", () => {
         ).toBe(true);
       });
 
+      it("should include Zendesk tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Zendesk",
+            serviceType: "zendesk",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const zendeskTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("zendesk_")
+        );
+        expect(zendeskTools?.length).toBeGreaterThan(0);
+        expect(
+          zendeskTools?.some((t) => t.name === "zendesk_search_tickets")
+        ).toBe(true);
+        expect(
+          zendeskTools?.some((t) => t.name === "zendesk_draft_comment")
+        ).toBe(true);
+      });
+
       it("should include Salesforce tools when OAuth-connected server is enabled", () => {
         const mcpServers: McpServerInfo[] = [
           {

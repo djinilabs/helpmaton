@@ -305,7 +305,7 @@ The platform is designed for reliability, scalability, and performance, handling
 
 - [Slack Bot Integration](./docs/slack-integration.md) - Deploy your agents as Slack bots for team collaboration
 - [Discord Bot Integration](./docs/discord-integration.md) - Deploy your agents as Discord bots for community engagement
-- [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers (GitHub, Slack, Linear, HubSpot, PostHog, Salesforce, Notion, Google Workspace)
+- [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers (GitHub, Slack, Linear, HubSpot, PostHog, Salesforce, Zendesk, Notion, Google Workspace)
 - [Tavily Integration](./docs/tavily-integration.md) - Web search and content extraction with Tavily API
 - [Discord Setup](./docs/discord-setup.md) - Configure Discord notification channels for your agents
 - [Email Setup](./docs/email-setup.md) - Configure email authentication and notifications
