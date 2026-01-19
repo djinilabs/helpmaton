@@ -230,6 +230,36 @@ describe("llmObserver helpers", () => {
     ).toBe(true);
   });
 
+  it("deduplicates tool results recorded from steps and arrays", () => {
+    const observer = createLlmObserver();
+    observer.recordFromResult({
+      steps: [
+        {
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call-3",
+              toolName: "get_datetime",
+              result: "ok",
+            },
+          ],
+        },
+      ],
+      toolResults: [
+        {
+          toolCallId: "call-3",
+          toolName: "get_datetime",
+          result: "ok",
+        },
+      ],
+    });
+
+    const events = observer
+      .getEvents()
+      .filter((event) => event.type === "tool-result");
+    expect(events).toHaveLength(1);
+  });
+
   it("deduplicates generation start/end events", () => {
     const observer = createLlmObserver();
     observer.recordGenerationStarted();

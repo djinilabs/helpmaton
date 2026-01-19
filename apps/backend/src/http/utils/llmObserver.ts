@@ -322,6 +322,8 @@ export function createLlmObserver(): LlmObserver {
       if (!result || typeof result !== "object") return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK result shapes vary
       const resultAny = result as any;
+      const toolCallSignatures = new Set<string>();
+      const toolResultSignatures = new Set<string>();
 
       const stepsValue = Array.isArray(resultAny.steps)
         ? resultAny.steps
@@ -329,6 +331,11 @@ export function createLlmObserver(): LlmObserver {
       if (Array.isArray(stepsValue)) {
         for (const step of stepsValue) {
           for (const toolCall of extractToolCallsFromStep(step)) {
+            const signature = `${toolCall.toolCallId}:${toolCall.toolName}`;
+            if (toolCallSignatures.has(signature)) {
+              continue;
+            }
+            toolCallSignatures.add(signature);
             recordEvent({
               type: "tool-call",
               timestamp: nowIso(),
@@ -338,6 +345,11 @@ export function createLlmObserver(): LlmObserver {
             });
           }
           for (const toolResult of extractToolResultsFromStep(step)) {
+            const signature = `${toolResult.toolCallId}:${toolResult.toolName}`;
+            if (toolResultSignatures.has(signature)) {
+              continue;
+            }
+            toolResultSignatures.add(signature);
             recordEvent({
               type: "tool-result",
               timestamp: nowIso(),
@@ -359,6 +371,11 @@ export function createLlmObserver(): LlmObserver {
       if (Array.isArray(resultAny?.toolCalls)) {
         for (const toolCall of resultAny.toolCalls) {
           if (toolCall?.toolCallId && toolCall?.toolName) {
+            const signature = `${toolCall.toolCallId}:${toolCall.toolName}`;
+            if (toolCallSignatures.has(signature)) {
+              continue;
+            }
+            toolCallSignatures.add(signature);
             recordEvent({
               type: "tool-call",
               timestamp: nowIso(),
@@ -373,6 +390,11 @@ export function createLlmObserver(): LlmObserver {
       if (Array.isArray(resultAny?.toolResults)) {
         for (const toolResult of resultAny.toolResults) {
           if (toolResult?.toolCallId && toolResult?.toolName) {
+            const signature = `${toolResult.toolCallId}:${toolResult.toolName}`;
+            if (toolResultSignatures.has(signature)) {
+              continue;
+            }
+            toolResultSignatures.add(signature);
             recordEvent({
               type: "tool-result",
               timestamp: nowIso(),
