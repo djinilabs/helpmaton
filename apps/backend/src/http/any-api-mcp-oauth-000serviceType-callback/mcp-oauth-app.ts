@@ -106,6 +106,7 @@ export const createApp: () => express.Application = () => {
           "stripe",
           "salesforce",
           "intercom",
+          "todoist",
         ]);
 
         if (!allowedServiceTypes.has(serviceType)) {
@@ -264,6 +265,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/intercom"
             );
             tokenInfo = await exchangeIntercomCode(code);
+          } else if (serviceType === "todoist") {
+            const { exchangeTodoistCode } = await import(
+              "../../utils/oauth/mcp/todoist"
+            );
+            tokenInfo = await exchangeTodoistCode(code);
           } else {
             throw new Error(`Unsupported service type: ${serviceType}`);
           }

@@ -532,6 +532,43 @@ describe("toolMetadata", () => {
         ).toBe(true);
       });
 
+      it("should include Todoist tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Todoist",
+            serviceType: "todoist",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const todoistTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("todoist_")
+        );
+        expect(todoistTools?.length).toBeGreaterThan(0);
+        expect(
+          todoistTools?.some((t) => t.name === "todoist_add_task")
+        ).toBe(true);
+        expect(
+          todoistTools?.some((t) => t.name === "todoist_get_projects")
+        ).toBe(true);
+      });
+
       it("should include Salesforce tools when OAuth-connected server is enabled", () => {
         const mcpServers: McpServerInfo[] = [
           {

@@ -1459,6 +1459,7 @@ export interface McpServer {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "todoist"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1482,6 +1483,7 @@ export interface CreateMcpServerInput {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "todoist"
     | "posthog";
   config?: {
     apiKey?: string;
@@ -1508,6 +1510,7 @@ export interface UpdateMcpServerInput {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "todoist"
     | "posthog";
   config?: {
     apiKey?: string;
