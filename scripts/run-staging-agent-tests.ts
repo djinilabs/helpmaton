@@ -64,6 +64,7 @@ const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_INTERVAL_MS = 10_000;
 const QUERY_LIMIT_SMALL = 5;
 const QUERY_LIMIT_LARGE = 10;
+const DATETIME_TOOL_NAME = "get_datetime";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -367,6 +368,53 @@ function extractAssistantReply(messages: unknown[]): string | null {
   return null;
 }
 
+function hasToolInvocation(messages: unknown[], toolName: string): boolean {
+  for (const message of messages) {
+    if (!message || typeof message !== "object") {
+      continue;
+    }
+    const role = (message as { role?: string }).role;
+    if (role === "tool") {
+      const toolIdentifier =
+        (message as { name?: string }).name ||
+        (message as { toolName?: string }).toolName ||
+        "";
+      if (!toolIdentifier || toolIdentifier === toolName) {
+        return true;
+      }
+    }
+    const content = (message as { content?: unknown }).content;
+    if (!Array.isArray(content)) {
+      continue;
+    }
+    const match = content.some((item) => {
+      if (!item || typeof item !== "object") {
+        return false;
+      }
+      const itemType = (item as { type?: string }).type;
+      if (itemType !== "tool-call" && itemType !== "tool-result") {
+        return false;
+      }
+      const itemTool =
+        (item as { toolName?: string }).toolName ||
+        (item as { name?: string }).name ||
+        "";
+      return !itemTool || itemTool === toolName;
+    });
+    if (match) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getExpectedWeekday(): string {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "UTC",
+  });
+}
+
 async function waitForConversation(
   docClient: DynamoDBDocumentClient,
   tableName: string,
@@ -375,6 +423,7 @@ async function waitForConversation(
   conversationId: string,
   expectedType: string,
   expectedReply: string,
+  expectedToolName: string | null,
   timeoutMs: number
 ) {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
@@ -407,6 +456,14 @@ async function waitForConversation(
       }
       const reply = extractAssistantReply(item.messages ?? []);
       if (reply && reply.includes(expectedReply)) {
+        if (
+          expectedToolName &&
+          !hasToolInvocation(item.messages ?? [], expectedToolName)
+        ) {
+          throw new Error(
+            `Conversation ${conversationId} missing tool invocation for ${expectedToolName}`
+          );
+        }
         return item;
       }
     }
@@ -426,6 +483,7 @@ async function waitForConversationByType(
   agentId: string,
   expectedType: string,
   expectedReply: string,
+  expectedToolName: string | null,
   timeoutMs: number
 ) {
   const start = Date.now();
@@ -457,6 +515,12 @@ async function waitForConversationByType(
       }
       const reply = extractAssistantReply(item.messages ?? []);
       if (reply && reply.includes(expectedReply)) {
+        if (
+          expectedToolName &&
+          !hasToolInvocation(item.messages ?? [], expectedToolName)
+        ) {
+          continue;
+        }
         return item;
       }
     }
@@ -649,7 +713,9 @@ async function main() {
   const region = args.region ?? process.env.AWS_REGION ?? DEFAULT_REGION;
   const authSecret = requireValue(process.env.AUTH_SECRET, "AUTH_SECRET");
   const modelName = args.model ?? DEFAULT_MODEL_NAME;
-  const replyText = args.reply ?? DEFAULT_REPLY_TEXT;
+  const expectedWeekday = getExpectedWeekday();
+  const replyText =
+    args.reply ?? `Today is ${expectedWeekday}.`;
   const creditsUsd = args.credits
     ? Number(args.credits)
     : DEFAULT_CREDITS_USD;
@@ -759,6 +825,9 @@ async function main() {
 
     logStep(`Created workspace ${workspaceId}`);
 
+    const userQuestion =
+      "What day of the week is today? Use the get_datetime tool to answer.";
+
     logStep("Creating agents");
     const helloAgentResponse = await fetchJson<{ id: string }>(
       `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
@@ -770,7 +839,7 @@ async function main() {
         },
         body: JSON.stringify({
           name: "Hello Agent",
-          systemPrompt: `Always respond with exactly: ${replyText}`,
+          systemPrompt: `Always call get_datetime before answering. Reply with exactly: ${replyText}`,
           modelName,
         }),
       }
@@ -787,7 +856,7 @@ async function main() {
       },
       body: JSON.stringify({
         name: "Delegated Agent",
-        systemPrompt: `Always respond with exactly: ${replyText}`,
+          systemPrompt: `Always call get_datetime before answering. Reply with exactly: ${replyText}`,
         modelName,
       }),
     }
@@ -802,19 +871,19 @@ async function main() {
         ...authHeader,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        name: "Delegator Agent",
-        systemPrompt:
-          `You must call call_agent_async with agentId "${delegateAgentId}" and message "Hello". ` +
-          `After the tool returns, respond with exactly: ${replyText}`,
-        modelName,
-      }),
+        body: JSON.stringify({
+          name: "Delegator Agent",
+          systemPrompt:
+            `You must call call_agent_async with agentId "${delegateAgentId}" and message "${userQuestion}". ` +
+            `After the tool returns, respond with exactly: ${replyText}`,
+          modelName,
+        }),
     }
   );
   const delegatorAgentId = delegatorAgentResponse.data.id;
 
   logStep("Enabling delegation");
-  await fetchJson(
+    await fetchJson(
     `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}`,
     {
       method: "PUT",
@@ -827,6 +896,19 @@ async function main() {
       }),
     }
   );
+    const delegatorCheck = await fetchJson<{
+      delegatableAgentIds?: string[];
+    }>(`${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}`, {
+      method: "GET",
+      headers: {
+        ...authHeader,
+      },
+    });
+    if (!delegatorCheck.data.delegatableAgentIds?.includes(delegateAgentId)) {
+      throw new Error(
+        `Delegation not configured: ${delegatorAgentId} missing ${delegateAgentId}`
+      );
+    }
 
     logStep("Creating stream server config");
     const streamConfigResponse = await fetchJson<{ secret: string }>(
@@ -924,7 +1006,7 @@ async function main() {
           "Content-Type": "application/json",
           "X-Conversation-Id": testConversationId,
         },
-        body: JSON.stringify([{ role: "user", content: "Hello" }]),
+        body: JSON.stringify([{ role: "user", content: userQuestion }]),
       }
     );
     await waitForConversation(
@@ -935,6 +1017,7 @@ async function main() {
       testConversationId,
       "test",
       replyText,
+      DATETIME_TOOL_NAME,
       timeoutMs
     );
 
@@ -949,7 +1032,7 @@ async function main() {
           "X-Conversation-Id": streamConversationId,
           Origin: "https://app.helpmaton.com",
         },
-        body: JSON.stringify([{ role: "user", content: "Hello" }]),
+        body: JSON.stringify([{ role: "user", content: userQuestion }]),
       }
     );
     await waitForConversation(
@@ -960,6 +1043,7 @@ async function main() {
       streamConversationId,
       "stream",
       replyText,
+      DATETIME_TOOL_NAME,
       timeoutMs
     );
 
@@ -971,7 +1055,7 @@ async function main() {
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
         },
-        body: "Hello",
+        body: userQuestion,
       }
     );
     if (!webhookResponse.data.includes(replyText)) {
@@ -983,6 +1067,7 @@ async function main() {
       helloAgentId,
       "webhook",
       replyText,
+      DATETIME_TOOL_NAME,
       timeoutMs
     );
 
@@ -997,7 +1082,7 @@ async function main() {
           "Content-Type": "application/json",
           "X-Conversation-Id": delegatorConversationId,
         },
-        body: JSON.stringify([{ role: "user", content: "Hello" }]),
+        body: JSON.stringify([{ role: "user", content: userQuestion }]),
       }
     );
     await waitForDelegationTask(
@@ -1014,6 +1099,7 @@ async function main() {
       delegateAgentId,
       "test",
       replyText,
+      DATETIME_TOOL_NAME,
       timeoutMs
     );
 
@@ -1038,7 +1124,7 @@ async function main() {
         body: JSON.stringify({
           name: "Staging schedule",
           cronExpression: "0 0 * * *",
-          prompt: "Hello",
+          prompt: userQuestion,
           enabled: true,
         }),
       }
@@ -1060,6 +1146,7 @@ async function main() {
       helloAgentId,
       "scheduled",
       replyText,
+      DATETIME_TOOL_NAME,
       timeoutMs
     );
 

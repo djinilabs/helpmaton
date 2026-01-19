@@ -49,6 +49,10 @@ Builds and pushes Lambda container images to ECR for deployment.
 - `cleanup-pr-log-groups.sh` - Delete CloudWatch logs for closed PRs
 - `undeploy-pr.sh` - Undeploy a specific PR environment
 
+### Production Operations
+
+- `cleanup-production-log-groups.mjs` - Remove unused production CloudWatch log groups
+
 ### Backend Build and Deployment
 
 - `build-backend.ts` - Build backend Lambda functions

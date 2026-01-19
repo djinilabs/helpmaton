@@ -6,12 +6,15 @@
 
 **Latest Work**:
 
+- **Production log group cleanup script**: Added `scripts/cleanup-production-log-groups.mjs` to detect unused production CloudWatch log groups by regex and stack resources, with a node:test unit suite; documented in `scripts/README.md`. Ran `node --test scripts/__tests__/cleanup-production-log-groups.test.mjs`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Staging PR agent-call test harness**: Added `scripts/run-staging-agent-tests.ts` to provision a workspace/agents in PR stacks, set credits in DynamoDB, exercise test/stream/webhook endpoints, and verify SQS-backed tasks; wired into `deploy-pr.yml` with optional Slack bot-webhook coverage. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 186 review fixes**: Added polling/backoff constants, shorter JWT expiry, improved resource lookup diagnostics, validated SQS ARN parsing, added cleanup logic, and set CI step timeout; aligned AWS SDK versions. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **CI staging test workflow**: Moved staging agent tests into `.github/workflows/staging-agent-tests.yml` triggered after successful `Deploy PR` workflow completion; removed test step from `deploy-pr.yml`; disabled Slack bot-webhook test in CI; set `AUTH_SECRET` env from `secrets.STAGING_AUTH_SECRET`.
 - **Staging test env loading**: Script now loads root `.env` via `dotenv` for easier local runs.
 - **Staging auth preflight**: Script now validates API access before creating workspace and allows optional `AUTH_TOKEN` override.
 - **SQS commit error handling**: Stopped rethrowing commit failures in `handlingSQSErrors`, now logs + reports to Sentry while keeping partial batch failures; added unit test coverage. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Staging weekday test**: Agent tests now ask for day of week, require `get_datetime` tool invocation, and assert reply matches the expected weekday. Ran `pnpm lint --fix`.
+- **Delegation check**: Script now verifies the delegator agent has `delegatableAgentIds` configured before running delegation tests. Ran `pnpm lint --fix`.
 - **PostHog flush gating**: Ensured deprecated `HttpHandler` responses flush PostHog/Sentry before responding and added unit coverage; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Sentry backend tracing**: Switched backend Sentry to `@sentry/aws-serverless` with 100% prod sampling, added Lambda/SQS/scheduled spans, and manual S3 spans for aws-lite calls. Added span tests and updated analytics docs. Ran `pnpm lint --fix` and `pnpm --filter backend test --run`; `pnpm typecheck` failed in `apps/frontend/vite.config.ts` with Vite type mismatch (pre-existing).
 - **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.

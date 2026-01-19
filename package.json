@@ -80,6 +80,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-cloudformation": "^3.971.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.971.0",
     "@aws-sdk/client-dynamodb": "^3.971.0",
     "@aws-sdk/client-ecr": "^3.971.0",
     "@aws-sdk/client-lambda": "^3.971.0",
