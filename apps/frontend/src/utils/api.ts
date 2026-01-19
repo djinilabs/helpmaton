@@ -1460,6 +1460,7 @@ export interface McpServer {
     | "salesforce"
     | "intercom"
     | "todoist"
+    | "zendesk"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1484,12 +1485,16 @@ export interface CreateMcpServerInput {
     | "salesforce"
     | "intercom"
     | "todoist"
+    | "zendesk"
     | "posthog";
   config?: {
     apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;
+    subdomain?: string;
+    clientId?: string;
+    clientSecret?: string;
   };
 }
 
@@ -1511,12 +1516,16 @@ export interface UpdateMcpServerInput {
     | "salesforce"
     | "intercom"
     | "todoist"
+    | "zendesk"
     | "posthog";
   config?: {
     apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;
+    subdomain?: string;
+    clientId?: string;
+    clientSecret?: string;
   };
 }
 

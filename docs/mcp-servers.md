@@ -794,6 +794,54 @@ Once connected, agents can use the following Todoist tools:
 
 - Todoist OAuth does not provide refresh tokens; reconnect if the token is revoked
 
+### Zendesk Integration
+
+```json
+{
+  "name": "My Zendesk Workspace",
+  "authType": "oauth",
+  "serviceType": "zendesk",
+  "config": {
+    "subdomain": "yourcompany",
+    "clientId": "zendesk_client_id",
+    "clientSecret": "zendesk_client_secret"
+  }
+}
+```
+
+**Setup Requirements**:
+
+1. Create a Zendesk OAuth client:
+   - Go to Zendesk Admin Center → Apps and integrations → APIs → Zendesk API
+   - Create an OAuth client
+   - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/zendesk/callback`
+   - Enable the scopes:
+     - `tickets:read`
+     - `tickets:write`
+     - `help_center:read`
+   - Copy the client ID and client secret
+
+2. Configure the MCP Server:
+   - Provide your Zendesk subdomain and OAuth client credentials in the MCP server form
+   - The subdomain is the `yourcompany` portion of `https://yourcompany.zendesk.com`
+
+3. Connect Your Zendesk Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+
+**Available Tools**:
+
+Once connected, agents can use the following Zendesk tools:
+
+- `zendesk_search_tickets_{serverName}` - Search tickets using Zendesk query syntax
+- `zendesk_get_ticket_details_{serverName}` - Retrieve full ticket comment history
+- `zendesk_draft_comment_{serverName}` - Add a private internal note (draft reply)
+- `zendesk_search_help_center_{serverName}` - Search Help Center articles
+
+**Important Notes**:
+
+- The draft comment tool always creates private notes (`public: false`)
+- Use Zendesk query syntax such as `type:ticket status:open requester:alice@example.com`
+
 ### Stripe Integration
 
 ```json

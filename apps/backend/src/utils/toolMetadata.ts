@@ -2812,6 +2812,85 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "zendesk") {
+    const condition = oauthConnected
+      ? `Available (Zendesk "${serverName}" connected)`
+      : `Not available (Zendesk "${serverName}" not connected)`;
+
+    tools.push({
+      name: `zendesk_search_tickets${suffix}`,
+      description:
+        "Searches for tickets using Zendesk's query syntax. Can filter by status, requester, tags, or description.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description:
+            "Zendesk search query. Example: 'type:ticket status:open requester:alice@example.com'",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `zendesk_get_ticket_details${suffix}`,
+      description:
+        "Retrieves the full conversation history (comments) for a specific ticket ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "ticketId",
+          type: "string",
+          required: true,
+          description: "Zendesk ticket ID",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `zendesk_draft_comment${suffix}`,
+      description:
+        "Adds a private internal note to a ticket (draft reply for human review).",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "ticketId",
+          type: "string",
+          required: true,
+          description: "Zendesk ticket ID",
+        },
+        {
+          name: "body",
+          type: "string",
+          required: true,
+          description: "Draft reply body to add as a private note",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `zendesk_search_help_center${suffix}`,
+      description:
+        "Searches the Zendesk Help Center (Guide) for articles to answer user questions.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description: "Search query for Zendesk Help Center articles",
+        },
+      ],
+    });
   } else if (serviceType === "posthog") {
     const condition = `Available (PostHog "${serverName}" enabled)`;
 
@@ -3161,6 +3240,7 @@ export function generateToolList(
       "salesforce",
       "intercom",
       "todoist",
+      "zendesk",
     ];
 
     // Group servers by serviceType for conflict detection

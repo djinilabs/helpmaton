@@ -74,6 +74,8 @@ const McpOAuthCallback = () => {
       ? "Intercom"
       : serviceType === "todoist"
       ? "Todoist"
+      : serviceType === "zendesk"
+      ? "Zendesk"
       : serviceType || "service";
 
   if (!workspaceId || !serverId) {

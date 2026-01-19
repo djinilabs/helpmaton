@@ -107,6 +107,7 @@ export const createApp: () => express.Application = () => {
           "salesforce",
           "intercom",
           "todoist",
+          "zendesk",
         ]);
 
         if (!allowedServiceTypes.has(serviceType)) {
@@ -270,6 +271,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/todoist"
             );
             tokenInfo = await exchangeTodoistCode(code);
+          } else if (serviceType === "zendesk") {
+            const { exchangeZendeskCode } = await import(
+              "../../utils/oauth/mcp/zendesk"
+            );
+            tokenInfo = await exchangeZendeskCode(workspaceId, serverId, code);
           } else {
             throw new Error(`Unsupported service type: ${serviceType}`);
           }
@@ -322,11 +328,17 @@ export const createApp: () => express.Application = () => {
         }
 
         // Build config object with OAuth tokens and serviceType
-        const config: Record<string, unknown> = {
+        let config: Record<string, unknown> = {
           accessToken: String(tokenInfo.accessToken),
           refreshToken: String(tokenInfo.refreshToken),
           expiresAt: String(tokenInfo.expiresAt),
         };
+        if (serviceType === "zendesk") {
+          config = {
+            ...(server.config as Record<string, unknown>),
+            ...config,
+          };
+        }
         // Only add email if it's defined and not null
         if (
           tokenInfo.email !== undefined &&

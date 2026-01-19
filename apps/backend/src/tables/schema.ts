@@ -351,6 +351,7 @@ export const tableSchemas = {
         "salesforce",
         "intercom",
         "todoist",
+        "zendesk",
         "posthog",
       ])
       .optional(), // service type (defaults to "external" for backward compatibility)
