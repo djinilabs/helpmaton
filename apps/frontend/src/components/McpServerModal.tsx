@@ -1070,7 +1070,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   onChange={(e) => setZendeskSubdomain(e.target.value)}
                   className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   placeholder="yourcompany"
-                  required
+                  required={!isEditing}
                 />
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   Use the subdomain from your Zendesk URL (e.g. the
@@ -1092,7 +1092,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   onChange={(e) => setZendeskClientId(e.target.value)}
                   className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   placeholder="zendesk_client_id"
-                  required
+                  required={!isEditing}
                 />
               </div>
               <div>
