@@ -152,6 +152,56 @@ describe("buildConversationMessagesFromObserver", () => {
       });
     }
   });
+
+  it("adds tool call/results from tool execution events", () => {
+    const events: LlmObserverEvent[] = [
+      {
+        type: "input-messages",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        messages: [{ role: "user", content: "what time is it" }],
+      },
+      {
+        type: "tool-execution-started",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        toolName: "get_datetime",
+      },
+      {
+        type: "tool-execution-ended",
+        timestamp: "2025-01-01T00:00:02.000Z",
+        toolName: "get_datetime",
+        result: "ok",
+      },
+    ];
+
+    const messages = buildConversationMessagesFromObserver({
+      observerEvents: events,
+      assistantMeta: {
+        provider: "openrouter",
+      },
+    });
+
+    const assistantMessage = messages[1];
+    expect(assistantMessage.role).toBe("assistant");
+    expect(Array.isArray(assistantMessage.content)).toBe(true);
+    if (Array.isArray(assistantMessage.content)) {
+      expect(
+        assistantMessage.content.some(
+          (item) =>
+            typeof item === "object" &&
+            item?.type === "tool-call" &&
+            item.toolName === "get_datetime"
+        )
+      ).toBe(true);
+      expect(
+        assistantMessage.content.some(
+          (item) =>
+            typeof item === "object" &&
+            item?.type === "tool-result" &&
+            item.toolName === "get_datetime"
+        )
+      ).toBe(true);
+    }
+  });
 });
 
 describe("llmObserver helpers", () => {
