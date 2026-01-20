@@ -231,6 +231,7 @@ export async function createMcpServerTools(
     "github",
     "linear",
     "hubspot",
+    "shopify",
     "slack",
     "stripe",
     "salesforce",
@@ -598,6 +599,29 @@ export async function createMcpServerTools(
         getOwnerTool as ReturnType<typeof createMcpServerTool>;
       tools[`hubspot_search_owners${suffix}`] =
         searchOwnersTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "shopify") {
+      const {
+        createShopifyGetOrderTool,
+        createShopifySearchProductsTool,
+        createShopifySalesReportTool,
+      } = await import("./shopifyTools");
+
+      const getOrderTool = createShopifyGetOrderTool(workspaceId, serverId);
+      const searchProductsTool = createShopifySearchProductsTool(
+        workspaceId,
+        serverId
+      );
+      const salesReportTool = createShopifySalesReportTool(
+        workspaceId,
+        serverId
+      );
+
+      tools[`shopify_get_order${suffix}`] =
+        getOrderTool as ReturnType<typeof createMcpServerTool>;
+      tools[`shopify_search_products${suffix}`] =
+        searchProductsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`shopify_sales_report${suffix}`] =
+        salesReportTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.authType === "oauth" && server.serviceType === "slack") {
       const {
         createSlackListChannelsTool,

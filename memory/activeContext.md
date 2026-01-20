@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Shopify MCP integration**: Added Shopify OAuth flow with shop domain capture (offline tokens), Shopify API client + tools (order lookup, product search, sales report), tool metadata/UI wiring, schema updates, docs/env/workflow updates, and unit tests. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Eval judge JSON robustness**: Added fallback JSON extraction for eval judge responses, expanded parsing tests for extra text, and tightened the default eval prompt to demand JSON-only output. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Sentry env overrides**: Added optional `SENTRY_ENVIRONMENT` (backend) and `VITE_SENTRY_ENVIRONMENT` (frontend) with fallbacks to existing env detection; injected backend env var via esbuild config; set PR deploy workflow envs to `"staging"`. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Production log group cleanup script**: Added `scripts/cleanup-production-log-groups.mjs` to detect unused production CloudWatch log groups by regex and stack resources, with a node:test unit suite; documented in `scripts/README.md`. Ran `node --test scripts/__tests__/cleanup-production-log-groups.test.mjs`, `pnpm typecheck`, and `pnpm lint --fix`.

@@ -504,6 +504,7 @@ const mcpServerSchema = z
         "github",
         "linear",
         "hubspot",
+        "shopify",
         "slack",
         "stripe",
         "salesforce",

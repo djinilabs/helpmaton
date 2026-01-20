@@ -11,6 +11,7 @@ import {
   BuildingOfficeIcon,
   ChatBubbleLeftRightIcon,
   CreditCardIcon,
+  ShoppingBagIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
@@ -32,6 +33,7 @@ type McpServerType =
   | "github"
   | "linear"
   | "hubspot"
+  | "shopify"
   | "salesforce"
   | "slack"
   | "intercom"
@@ -97,6 +99,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     description:
       "Read-only access to HubSpot CRM data. List and search contacts, companies, deals, and owners.",
     icon: BuildingOfficeIcon,
+  },
+  {
+    value: "shopify",
+    name: "Shopify",
+    description:
+      "Look up orders, check product inventory, and summarize sales for a date range.",
+    icon: ShoppingBagIcon,
   },
   {
     value: "salesforce",
@@ -183,6 +192,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "github"
     | "linear"
     | "hubspot"
+    | "shopify"
     | "salesforce"
     | "slack"
     | "intercom"
@@ -202,6 +212,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const [zendeskSubdomain, setZendeskSubdomain] = useState("");
   const [zendeskClientId, setZendeskClientId] = useState("");
   const [zendeskClientSecret, setZendeskClientSecret] = useState("");
+  const [shopifyShopDomain, setShopifyShopDomain] = useState("");
 
   const posthogBaseUrls = {
     us: "https://us.posthog.com",
@@ -262,6 +273,13 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           // OAuth servers don't have authType in the UI
         } else if (
           server.authType === "oauth" &&
+          server.serviceType === "shopify"
+        ) {
+          setMcpType("shopify");
+          setShopifyShopDomain("");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
           server.serviceType === "salesforce"
         ) {
           setMcpType("salesforce");
@@ -317,6 +335,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setZendeskSubdomain("");
         setZendeskClientId("");
         setZendeskClientSecret("");
+        setShopifyShopDomain("");
       } else {
         setName("");
         setMcpType("google-drive"); // Default to Google Drive for new servers
@@ -330,6 +349,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setZendeskSubdomain("");
         setZendeskClientId("");
         setZendeskClientSecret("");
+        setShopifyShopDomain("");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -348,6 +368,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     setZendeskSubdomain("");
     setZendeskClientId("");
     setZendeskClientSecret("");
+    setShopifyShopDomain("");
     onClose();
   };
 
@@ -363,6 +384,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
 
   const isPosthogType = mcpType === "posthog";
   const isZendeskType = mcpType === "zendesk";
+  const isShopifyType = mcpType === "shopify";
   const isOAuthType = mcpType !== "custom" && mcpType !== "posthog";
   const selectedPosthogBaseUrl = posthogBaseUrls[posthogRegion];
 
@@ -426,6 +448,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
       }
     }
 
+    if (isShopifyType) {
+      if (!isEditing && !shopifyShopDomain.trim()) {
+        return;
+      }
+    }
+
     try {
       const config: {
         apiKey?: string;
@@ -435,6 +463,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         subdomain?: string;
         clientId?: string;
         clientSecret?: string;
+        shopDomain?: string;
       } = {};
 
       if (isPosthogType) {
@@ -450,6 +479,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         }
         if (zendeskClientSecret.trim()) {
           config.clientSecret = zendeskClientSecret.trim();
+        }
+      } else if (isShopifyType) {
+        if (shopifyShopDomain.trim()) {
+          config.shopDomain = shopifyShopDomain.trim();
         }
       } else if (authType === "header") {
         config.headerValue = headerValue.trim();
@@ -472,6 +505,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "github"
             | "linear"
             | "hubspot"
+            | "shopify"
             | "salesforce"
             | "slack"
             | "intercom"
@@ -499,15 +533,18 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "github" ||
             server?.serviceType === "linear" ||
             server?.serviceType === "hubspot" ||
-          server?.serviceType === "salesforce" ||
+            server?.serviceType === "shopify" ||
+            server?.serviceType === "salesforce" ||
             server?.serviceType === "slack" ||
-          server?.serviceType === "stripe" ||
-          server?.serviceType === "intercom" ||
-          server?.serviceType === "todoist" ||
-          server?.serviceType === "zendesk");
+            server?.serviceType === "stripe" ||
+            server?.serviceType === "intercom" ||
+            server?.serviceType === "todoist" ||
+            server?.serviceType === "zendesk");
         const isPosthogServer = server?.serviceType === "posthog";
         const isZendeskServer =
           server?.authType === "oauth" && server?.serviceType === "zendesk";
+        const isShopifyServer =
+          server?.authType === "oauth" && server?.serviceType === "shopify";
 
         // OAuth servers can only update name (OAuth connection is managed separately)
         // Custom MCP servers can update URL and auth
@@ -528,8 +565,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             updatedFields.push("region");
           }
         }
-        // Only include config for custom MCP servers or Zendesk OAuth config
-        if ((!isOAuthServer && !isPosthogServer) || isZendeskServer) {
+        // Only include config for custom MCP servers or selected OAuth config
+        if (
+          (!isOAuthServer && !isPosthogServer) ||
+          isZendeskServer ||
+          isShopifyServer
+        ) {
           // Only include config if:
           // 1. Auth type changed (need new credentials for new auth type)
           // 2. User provided new credentials (non-empty values)
@@ -539,6 +580,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               ? !!zendeskSubdomain.trim() ||
                 !!zendeskClientId.trim() ||
                 !!zendeskClientSecret.trim()
+              : isShopifyServer
+              ? !!shopifyShopDomain.trim()
               : authType === "header"
               ? !!headerValue.trim()
               : authType === "basic"
@@ -559,6 +602,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 if (zendeskClientSecret.trim()) {
                   newConfig.clientSecret = zendeskClientSecret.trim();
                 }
+              } else if (isShopifyServer) {
+                if (shopifyShopDomain.trim()) {
+                  newConfig.shopDomain = shopifyShopDomain.trim();
+                }
               } else if (authType === "header") {
                 newConfig.headerValue = headerValue.trim();
               } else if (authType === "basic") {
@@ -566,13 +613,13 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 newConfig.password = password.trim();
               }
               // Only set config if authType is not "none"
-              if (authType !== "none" || isZendeskServer) {
+              if (authType !== "none" || isZendeskServer || isShopifyServer) {
                 updateData.config = newConfig;
               }
             } else {
               // Auth type didn't change, use the config we built above
               // Only set config if authType is not "none"
-              if (authType !== "none" || isZendeskServer) {
+              if (authType !== "none" || isZendeskServer || isShopifyServer) {
                 updateData.config = config;
               }
             }
@@ -695,6 +742,22 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server_id: result.id,
             auth_type: "oauth",
             service_type: "hubspot",
+          });
+        } else if (mcpType === "shopify") {
+          // Shopify - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "shopify",
+            config: {
+              shopDomain: shopifyShopDomain.trim(),
+            },
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "shopify",
           });
         } else if (mcpType === "salesforce") {
           // Salesforce - OAuth-based
@@ -979,6 +1042,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   After creating the server, you&apos;ll connect via OAuth.
                 </p>
               )}
+              {mcpType === "shopify" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  Provide your Shopify shop domain. After creating the server,
+                  you&apos;ll connect via OAuth.
+                </p>
+              )}
               {mcpType === "posthog" && (
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   You&apos;ll be prompted for a PostHog personal API key and
@@ -1152,6 +1221,29 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 </p>
               </div>
             </>
+          )}
+
+          {mcpType === "shopify" && (
+            <div>
+              <label
+                htmlFor="shopifyShopDomain"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                What is your shop domain? *
+              </label>
+              <input
+                id="shopifyShopDomain"
+                type="text"
+                value={shopifyShopDomain}
+                onChange={(e) => setShopifyShopDomain(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                placeholder="my-cool-store.myshopify.com"
+                required={!isEditing}
+              />
+              <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                Enter the full Shopify domain (e.g. my-cool-store.myshopify.com).
+              </p>
+            </div>
           )}
 
           {isEditing && server && (

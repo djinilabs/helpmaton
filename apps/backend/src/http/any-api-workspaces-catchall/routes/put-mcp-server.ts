@@ -7,6 +7,7 @@ import {
   isValidPosthogBaseUrl,
   normalizePosthogBaseUrl,
 } from "../../../utils/posthog/constants";
+import { assertValidShopifyShopDomain } from "../../../utils/shopify/utils";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateMcpServerSchema } from "../../utils/schemas/workspaceSchemas";
@@ -251,6 +252,32 @@ export const registerPutMcpServer = (app: express.Application) => {
           if (!zendeskSubdomainPattern.test(subdomain)) {
             throw badRequest(
               "config.subdomain must contain only alphanumeric characters and hyphens"
+            );
+          }
+        }
+
+        if (finalServiceType === "shopify" && finalAuthType === "oauth") {
+          const existingConfig = server.config as {
+            shopDomain?: string;
+          };
+          const newConfig = (config ?? {}) as {
+            shopDomain?: string;
+          };
+          const shopDomain = newConfig.shopDomain ?? existingConfig.shopDomain;
+          if (!shopDomain) {
+            throw badRequest("config.shopDomain is required for Shopify OAuth");
+          }
+          try {
+            const normalizedShopDomain = assertValidShopifyShopDomain(shopDomain);
+            if (config && typeof config === "object") {
+              (config as { shopDomain?: string }).shopDomain =
+                normalizedShopDomain;
+            }
+          } catch (error) {
+            throw badRequest(
+              error instanceof Error
+                ? error.message
+                : "config.shopDomain is invalid"
             );
           }
         }
