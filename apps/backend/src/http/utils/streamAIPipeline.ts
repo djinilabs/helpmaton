@@ -115,7 +115,13 @@ export async function pipeAIStreamToResponse(
           for (const line of lines) {
             if (line.startsWith("data: ")) {
               try {
-                const jsonStr = line.substring(6); // Remove "data: " prefix
+                const jsonStr = line.substring(6).trim(); // Remove "data: " prefix
+                if (!jsonStr || jsonStr === "[DONE]") {
+                  continue;
+                }
+                if (!jsonStr.startsWith("{") && !jsonStr.startsWith("[")) {
+                  continue;
+                }
                 const parsed = JSON.parse(jsonStr);
                 if (parsed.type === "text-delta" && parsed.textDelta) {
                   observer?.recordText(parsed.textDelta);

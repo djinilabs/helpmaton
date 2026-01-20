@@ -2587,6 +2587,27 @@
             "output": 0,
             "cachedInput": 0
           }
+        },
+        "openai/gpt-audio": {
+          "usd": {
+            "input": 2.5,
+            "output": 10,
+            "cachedInput": 0.25
+          }
+        },
+        "openai/gpt-audio-mini": {
+          "usd": {
+            "input": 0.6,
+            "output": 2.4,
+            "cachedInput": 0.06
+          }
+        },
+        "z-ai/glm-4.7-flash": {
+          "usd": {
+            "input": 0.07,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.007000000000000001
+          }
         }
       }
     }
@@ -2603,5 +2624,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-18T00:16:50.471Z"
+  "lastUpdated": "2026-01-20T00:15:11.734Z"
 }

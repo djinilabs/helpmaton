@@ -135,6 +135,15 @@ export async function logConversation(
       "stream"
     );
     const provisionalCostUsd = extractedProvisionalCostUsd;
+    const responseText = await streamResult.text;
+    console.log("[Stream Handler] LLM response received:", {
+      workspaceId: context.workspaceId,
+      agentId: context.agentId,
+      conversationId: context.conversationId,
+      endpointType: context.endpointType,
+      receivedAt: new Date().toISOString(),
+      text: responseText,
+    });
 
     const messagesForLogging = buildConversationMessagesFromObserver({
       observerEvents: context.llmObserver.getEvents(),

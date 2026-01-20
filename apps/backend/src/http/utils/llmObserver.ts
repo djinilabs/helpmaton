@@ -322,6 +322,8 @@ export function createLlmObserver(): LlmObserver {
       if (!result || typeof result !== "object") return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK result shapes vary
       const resultAny = result as any;
+      const toolCallSignatures = new Set<string>();
+      const toolResultSignatures = new Set<string>();
 
       const stepsValue = Array.isArray(resultAny.steps)
         ? resultAny.steps
@@ -329,6 +331,11 @@ export function createLlmObserver(): LlmObserver {
       if (Array.isArray(stepsValue)) {
         for (const step of stepsValue) {
           for (const toolCall of extractToolCallsFromStep(step)) {
+            const signature = `${toolCall.toolCallId}:${toolCall.toolName}`;
+            if (toolCallSignatures.has(signature)) {
+              continue;
+            }
+            toolCallSignatures.add(signature);
             recordEvent({
               type: "tool-call",
               timestamp: nowIso(),
@@ -338,6 +345,11 @@ export function createLlmObserver(): LlmObserver {
             });
           }
           for (const toolResult of extractToolResultsFromStep(step)) {
+            const signature = `${toolResult.toolCallId}:${toolResult.toolName}`;
+            if (toolResultSignatures.has(signature)) {
+              continue;
+            }
+            toolResultSignatures.add(signature);
             recordEvent({
               type: "tool-result",
               timestamp: nowIso(),
@@ -351,6 +363,44 @@ export function createLlmObserver(): LlmObserver {
               type: "assistant-reasoning",
               timestamp: nowIso(),
               text: reasoningText,
+            });
+          }
+        }
+      }
+
+      if (Array.isArray(resultAny?.toolCalls)) {
+        for (const toolCall of resultAny.toolCalls) {
+          if (toolCall?.toolCallId && toolCall?.toolName) {
+            const signature = `${toolCall.toolCallId}:${toolCall.toolName}`;
+            if (toolCallSignatures.has(signature)) {
+              continue;
+            }
+            toolCallSignatures.add(signature);
+            recordEvent({
+              type: "tool-call",
+              timestamp: nowIso(),
+              toolCallId: toolCall.toolCallId,
+              toolName: toolCall.toolName,
+              args: toolCall.input ?? toolCall.args ?? {},
+            });
+          }
+        }
+      }
+
+      if (Array.isArray(resultAny?.toolResults)) {
+        for (const toolResult of resultAny.toolResults) {
+          if (toolResult?.toolCallId && toolResult?.toolName) {
+            const signature = `${toolResult.toolCallId}:${toolResult.toolName}`;
+            if (toolResultSignatures.has(signature)) {
+              continue;
+            }
+            toolResultSignatures.add(signature);
+            recordEvent({
+              type: "tool-result",
+              timestamp: nowIso(),
+              toolCallId: toolResult.toolCallId,
+              toolName: toolResult.toolName,
+              result: normalizeToolResultValue(toolResult),
             });
           }
         }
@@ -593,6 +643,7 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
 export function buildConversationMessagesFromObserver(params: {
   observerEvents: LlmObserverEvent[];
   fallbackInputMessages?: UIMessage[];
+  fallbackAssistantText?: string;
   assistantMeta: {
     tokenUsage?: AssistantTokenUsage;
     modelName?: string;
@@ -602,7 +653,12 @@ export function buildConversationMessagesFromObserver(params: {
     generationTimeMs?: number;
   };
 }): UIMessage[] {
-  const { observerEvents, fallbackInputMessages, assistantMeta } = params;
+  const {
+    observerEvents,
+    fallbackInputMessages,
+    fallbackAssistantText,
+    assistantMeta,
+  } = params;
 
   const inputEvent = observerEvents.find(
     (event) => event.type === "input-messages"
@@ -616,6 +672,31 @@ export function buildConversationMessagesFromObserver(params: {
   const toolCallStartedAt = new Map<string, string>();
   const toolExecutionStart = new Map<string, string>();
   const toolExecutionEnd = new Map<string, string>();
+  const toolCallSignatures = new Set<string>();
+  const toolResultSignatures = new Set<string>();
+  const syntheticToolIdsByName = new Map<string, string>();
+  const syntheticToolCounters = new Map<string, number>();
+  const hasToolCallEvents = observerEvents.some(
+    (event) => event.type === "tool-call"
+  );
+  const hasToolResultEvents = observerEvents.some(
+    (event) => event.type === "tool-result"
+  );
+
+  const getToolCallId = (toolCallId: string | undefined, toolName: string) => {
+    if (toolCallId) {
+      return toolCallId;
+    }
+    const existing = syntheticToolIdsByName.get(toolName);
+    if (existing) {
+      return existing;
+    }
+    const nextIndex = (syntheticToolCounters.get(toolName) ?? 0) + 1;
+    syntheticToolCounters.set(toolName, nextIndex);
+    const syntheticId = `tool_${toolName}_${nextIndex}`;
+    syntheticToolIdsByName.set(toolName, syntheticId);
+    return syntheticId;
+  };
 
   const content: Array<
     | { type: "text"; text: string }
@@ -661,13 +742,19 @@ export function buildConversationMessagesFromObserver(params: {
       case "tool-call":
         toolCallStartedAt.set(event.toolCallId, event.timestamp);
         flushTextBuffer();
-        content.push({
-          type: "tool-call",
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          args: event.args,
-          toolCallStartedAt: event.timestamp,
-        });
+        {
+          const signature = `${event.toolCallId}:${event.toolName}`;
+          if (!toolCallSignatures.has(signature)) {
+            toolCallSignatures.add(signature);
+            content.push({
+              type: "tool-call",
+              toolCallId: event.toolCallId,
+              toolName: event.toolName,
+              args: event.args,
+              toolCallStartedAt: event.timestamp,
+            });
+          }
+        }
         break;
       case "tool-result": {
         flushTextBuffer();
@@ -685,25 +772,75 @@ export function buildConversationMessagesFromObserver(params: {
             new Date(event.timestamp).getTime() -
             new Date(toolCallStart).getTime();
         }
-        const formattedToolResult = formatToolResultMessage({
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          result: event.result,
-          ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
-        });
-        if (Array.isArray(formattedToolResult.content)) {
-          content.push(...formattedToolResult.content);
+        const signature = `${event.toolCallId}:${event.toolName}`;
+        if (!toolResultSignatures.has(signature)) {
+          toolResultSignatures.add(signature);
+          const formattedToolResult = formatToolResultMessage({
+            toolCallId: event.toolCallId,
+            toolName: event.toolName,
+            result: event.result,
+            ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
+          });
+          if (Array.isArray(formattedToolResult.content)) {
+            content.push(...formattedToolResult.content);
+          }
         }
         break;
       }
       case "tool-execution-started":
-        if (event.toolCallId) {
-          toolExecutionStart.set(event.toolCallId, event.timestamp);
+        if (event.toolName) {
+          const toolCallId = getToolCallId(event.toolCallId, event.toolName);
+          toolExecutionStart.set(toolCallId, event.timestamp);
+          if (!event.toolCallId) {
+            syntheticToolIdsByName.set(event.toolName, toolCallId);
+          }
+          const signature = `${toolCallId}:${event.toolName}`;
+          if (!hasToolCallEvents && !toolCallSignatures.has(signature)) {
+            flushTextBuffer();
+            toolCallSignatures.add(signature);
+            content.push({
+              type: "tool-call",
+              toolCallId,
+              toolName: event.toolName,
+              args: {},
+              toolCallStartedAt: event.timestamp,
+            });
+          }
         }
         break;
       case "tool-execution-ended":
-        if (event.toolCallId) {
-          toolExecutionEnd.set(event.toolCallId, event.timestamp);
+        if (event.toolName) {
+          const toolCallId = getToolCallId(event.toolCallId, event.toolName);
+          toolExecutionEnd.set(toolCallId, event.timestamp);
+          if (!event.toolCallId) {
+            syntheticToolIdsByName.delete(event.toolName);
+          }
+          const signature = `${toolCallId}:${event.toolName}`;
+          if (
+            !hasToolResultEvents &&
+            !toolResultSignatures.has(signature) &&
+            event.result !== undefined
+          ) {
+            flushTextBuffer();
+            toolResultSignatures.add(signature);
+            const executionStart = toolExecutionStart.get(toolCallId);
+            const executionEnd = toolExecutionEnd.get(toolCallId);
+            let toolExecutionTimeMs: number | undefined;
+            if (executionStart && executionEnd) {
+              toolExecutionTimeMs =
+                new Date(executionEnd).getTime() -
+                new Date(executionStart).getTime();
+            }
+            const formattedToolResult = formatToolResultMessage({
+              toolCallId,
+              toolName: event.toolName,
+              result: event.result,
+              ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
+            });
+            if (Array.isArray(formattedToolResult.content)) {
+              content.push(...formattedToolResult.content);
+            }
+          }
         }
         break;
       case "assistant-reasoning":
@@ -719,6 +856,17 @@ export function buildConversationMessagesFromObserver(params: {
   }
 
   flushTextBuffer();
+
+  const hasAssistantText = content.some(
+    (item) => typeof item === "object" && item.type === "text"
+  );
+  if (
+    !hasAssistantText &&
+    typeof fallbackAssistantText === "string" &&
+    fallbackAssistantText.trim().length > 0
+  ) {
+    content.push({ type: "text", text: fallbackAssistantText });
+  }
 
   const assistantMessage: UIMessage = {
     role: "assistant",

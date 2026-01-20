@@ -2360,6 +2360,272 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "intercom") {
+    const condition = oauthConnected
+      ? `Available (Intercom "${serverName}" connected)`
+      : `Not available (Intercom "${serverName}" not connected)`;
+
+    tools.push({
+      name: `intercom_list_contacts${suffix}`,
+      description:
+        "List Intercom contacts with optional pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "perPage",
+          type: "number",
+          required: false,
+          description: "Number of results per page (default: 20, max: 150)",
+        },
+        {
+          name: "startingAfter",
+          type: "string",
+          required: false,
+          description: "Pagination cursor from a previous response",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_get_contact${suffix}`,
+      description: "Get an Intercom contact by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "contactId",
+          type: "string",
+          required: true,
+          description: "Contact ID to retrieve",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_search_contacts${suffix}`,
+      description:
+        "Search Intercom contacts using the Intercom search query format.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "object",
+          required: true,
+          description: "Intercom search query object",
+        },
+        {
+          name: "pagination",
+          type: "object",
+          required: false,
+          description: "Optional pagination settings (perPage, startingAfter)",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_update_contact${suffix}`,
+      description: "Update an Intercom contact by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "contactId",
+          type: "string",
+          required: true,
+          description: "Contact ID to update",
+        },
+        {
+          name: "updates",
+          type: "object",
+          required: true,
+          description: "Fields to update on the contact",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_list_conversations${suffix}`,
+      description: "List Intercom conversations with optional pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "perPage",
+          type: "number",
+          required: false,
+          description: "Number of results per page (default: 20, max: 150)",
+        },
+        {
+          name: "startingAfter",
+          type: "string",
+          required: false,
+          description: "Pagination cursor from a previous response",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_get_conversation${suffix}`,
+      description: "Get an Intercom conversation by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "conversationId",
+          type: "string",
+          required: true,
+          description: "Conversation ID to retrieve",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_search_conversations${suffix}`,
+      description:
+        "Search Intercom conversations using the Intercom search query format.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "object",
+          required: true,
+          description: "Intercom search query object",
+        },
+        {
+          name: "pagination",
+          type: "object",
+          required: false,
+          description: "Optional pagination settings (perPage, startingAfter)",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `intercom_reply_conversation${suffix}`,
+      description:
+        "Reply to an Intercom conversation as an admin (comment, note, open, close, or assignment).",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "conversationId",
+          type: "string",
+          required: true,
+          description: "Conversation ID to reply to",
+        },
+        {
+          name: "messageType",
+          type: "string (enum)",
+          required: false,
+          description: "comment, note, open, close, or assignment (default: comment)",
+        },
+        {
+          name: "body",
+          type: "string",
+          required: false,
+          description: "Message body for comment or note replies",
+        },
+        {
+          name: "assigneeId",
+          type: "string",
+          required: false,
+          description: "Admin ID to assign the conversation to",
+        },
+        {
+          name: "adminId",
+          type: "string",
+          required: false,
+          description: "Admin ID to send the reply as (defaults to OAuth admin)",
+        },
+      ],
+    });
+  } else if (serviceType === "todoist") {
+    const condition = oauthConnected
+      ? `Available (Todoist "${serverName}" connected)`
+      : `Not available (Todoist "${serverName}" not connected)`;
+
+    tools.push({
+      name: `todoist_add_task${suffix}`,
+      description:
+        "Create a new Todoist task. Supports natural language dates.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "content",
+          type: "string",
+          required: true,
+          description: "The task name (e.g., 'Buy milk').",
+        },
+        {
+          name: "due_string",
+          type: "string",
+          required: false,
+          description:
+            "Natural language due date (e.g., 'tomorrow at 5pm', 'every friday').",
+        },
+        {
+          name: "priority",
+          type: "number",
+          required: false,
+          description: "Task priority from 1 (Normal) to 4 (Urgent).",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `todoist_get_tasks${suffix}`,
+      description:
+        "List active Todoist tasks. Use this to summarize what is due today or this week.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "filter",
+          type: "string",
+          required: true,
+          description: "Todoist filter syntax (e.g., 'today', 'overdue').",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `todoist_close_task${suffix}`,
+      description: "Complete a Todoist task by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "id",
+          type: "string",
+          required: true,
+          description: "The Todoist task ID to close.",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `todoist_get_projects${suffix}`,
+      description: "List Todoist projects to find the correct project ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [],
+    });
   } else if (serviceType === "slack") {
     const condition = oauthConnected
       ? `Available (Slack "${serverName}" connected)`
@@ -2543,6 +2809,85 @@ function getMcpServerToolMetadata(
           required: true,
           description:
             "SOQL query string (e.g., SELECT Name, Amount FROM Opportunity WHERE Amount > 10000)",
+        },
+      ],
+    });
+  } else if (serviceType === "zendesk") {
+    const condition = oauthConnected
+      ? `Available (Zendesk "${serverName}" connected)`
+      : `Not available (Zendesk "${serverName}" not connected)`;
+
+    tools.push({
+      name: `zendesk_search_tickets${suffix}`,
+      description:
+        "Searches for tickets using Zendesk's query syntax. Can filter by status, requester, tags, or description.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description:
+            "Zendesk search query. Example: 'type:ticket status:open requester:alice@example.com'",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `zendesk_get_ticket_details${suffix}`,
+      description:
+        "Retrieves the full conversation history (comments) for a specific ticket ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "ticketId",
+          type: "string",
+          required: true,
+          description: "Zendesk ticket ID",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `zendesk_draft_comment${suffix}`,
+      description:
+        "Adds a private internal note to a ticket (draft reply for human review).",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "ticketId",
+          type: "string",
+          required: true,
+          description: "Zendesk ticket ID",
+        },
+        {
+          name: "body",
+          type: "string",
+          required: true,
+          description: "Draft reply body to add as a private note",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `zendesk_search_help_center${suffix}`,
+      description:
+        "Searches the Zendesk Help Center (Guide) for articles to answer user questions.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description: "Search query for Zendesk Help Center articles",
         },
       ],
     });
@@ -2893,6 +3238,9 @@ export function generateToolList(
       "slack",
       "stripe",
       "salesforce",
+      "intercom",
+      "todoist",
+      "zendesk",
     ];
 
     // Group servers by serviceType for conflict detection

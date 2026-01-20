@@ -133,6 +133,21 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/salesforce"
           );
           authUrl = generateSalesforceAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "intercom") {
+          const { generateIntercomAuthUrl } = await import(
+            "../../../utils/oauth/mcp/intercom"
+          );
+          authUrl = generateIntercomAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "todoist") {
+          const { generateTodoistAuthUrl } = await import(
+            "../../../utils/oauth/mcp/todoist"
+          );
+          authUrl = generateTodoistAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "zendesk") {
+          const { generateZendeskAuthUrl } = await import(
+            "../../../utils/oauth/mcp/zendesk"
+          );
+          authUrl = await generateZendeskAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

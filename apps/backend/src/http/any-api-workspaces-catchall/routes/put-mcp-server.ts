@@ -227,6 +227,34 @@ export const registerPutMcpServer = (app: express.Application) => {
           }
         }
 
+        if (finalServiceType === "zendesk" && finalAuthType === "oauth") {
+          const existingConfig = server.config as {
+            subdomain?: string;
+            clientId?: string;
+            clientSecret?: string;
+          };
+          const newConfig = (config ?? {}) as {
+            subdomain?: string;
+            clientId?: string;
+            clientSecret?: string;
+          };
+          const subdomain = newConfig.subdomain ?? existingConfig.subdomain;
+          const clientId = newConfig.clientId ?? existingConfig.clientId;
+          const clientSecret =
+            newConfig.clientSecret ?? existingConfig.clientSecret;
+          if (!subdomain || !clientId || !clientSecret) {
+            throw badRequest(
+              "config.subdomain, config.clientId, and config.clientSecret are required for Zendesk OAuth"
+            );
+          }
+          const zendeskSubdomainPattern = /^[a-zA-Z0-9-]+$/;
+          if (!zendeskSubdomainPattern.test(subdomain)) {
+            throw badRequest(
+              "config.subdomain must contain only alphanumeric characters and hyphens"
+            );
+          }
+        }
+
         // Update server
         // For OAuth servers, merge config but preserve OAuth tokens
         let finalConfig = config !== undefined ? config : server.config;

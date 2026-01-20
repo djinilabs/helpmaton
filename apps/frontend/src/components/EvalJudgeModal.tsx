@@ -82,7 +82,7 @@ Analyze the trace and generate a JSON evaluation report. You must assess the age
 - If the final answer contains numbers or facts not found in the step history, Faithfulness is 0.
 
 ### OUTPUT FORMAT
-You must respond with valid JSON only. Do not include markdown formatting like \`\`\`json. Structure your response as follows:
+You must respond with valid JSON only. Do not include markdown formatting like \`\`\`json, any prose, or extra text before/after the JSON. Structure your response as follows:
 {
   "summary": "A 1-sentence summary of the run.",
   "score_goal_completion": <int 0-100>,

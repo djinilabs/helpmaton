@@ -88,8 +88,10 @@ jobs:
           NODE_ENV: "production"
           VITE_ENV: "production"
           ARC_ENV: "staging"
+          SENTRY_ENVIRONMENT: "staging"
+          VITE_SENTRY_ENVIRONMENT: "staging"
           NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -126,6 +128,10 @@ jobs:
           SALESFORCE_OAUTH_CLIENT_SECRET: ${{ secrets.SALESFORCE_OAUTH_CLIENT_SECRET }}
           SLACK_OAUTH_CLIENT_ID: ${{ secrets.SLACK_OAUTH_CLIENT_ID }}
           SLACK_OAUTH_CLIENT_SECRET: ${{ secrets.SLACK_OAUTH_CLIENT_SECRET }}
+          INTERCOM_OAUTH_CLIENT_ID: ${{ secrets.INTERCOM_OAUTH_CLIENT_ID }}
+          INTERCOM_OAUTH_CLIENT_SECRET: ${{ secrets.INTERCOM_OAUTH_CLIENT_SECRET }}
+          TODOIST_OAUTH_CLIENT_ID: ${{ secrets.TODOIST_OAUTH_CLIENT_ID }}
+          TODOIST_OAUTH_CLIENT_SECRET: ${{ secrets.TODOIST_OAUTH_CLIENT_SECRET }}
           OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
           OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
           LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
@@ -223,8 +229,10 @@ jobs:
         env:
           NODE_ENV: "production"
           VITE_ENV: "production"
+          SENTRY_ENVIRONMENT: "staging"
+          VITE_SENTRY_ENVIRONMENT: "staging"
           NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -258,6 +266,10 @@ jobs:
           LINEAR_OAUTH_CLIENT_SECRET: ${{ secrets.LINEAR_OAUTH_CLIENT_SECRET }}
           NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
           NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
+          INTERCOM_OAUTH_CLIENT_ID: ${{ secrets.INTERCOM_OAUTH_CLIENT_ID }}
+          INTERCOM_OAUTH_CLIENT_SECRET: ${{ secrets.INTERCOM_OAUTH_CLIENT_SECRET }}
+          TODOIST_OAUTH_CLIENT_ID: ${{ secrets.TODOIST_OAUTH_CLIENT_ID }}
+          TODOIST_OAUTH_CLIENT_SECRET: ${{ secrets.TODOIST_OAUTH_CLIENT_SECRET }}
           GH_APP_ID: ${{ secrets.GH_APP_ID }}
           GH_APP_CLIENT_ID: ${{ secrets.GH_APP_CLIENT_ID }}
           GH_APP_CLIENT_SECRET: ${{ secrets.GH_APP_CLIENT_SECRET }}
@@ -332,6 +344,10 @@ jobs:
           [ -n "${LINEAR_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(LINEAR_OAUTH_CLIENT_SECRET "${LINEAR_OAUTH_CLIENT_SECRET}")
           [ -n "${SALESFORCE_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(SALESFORCE_OAUTH_CLIENT_ID "${SALESFORCE_OAUTH_CLIENT_ID}")
           [ -n "${SALESFORCE_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(SALESFORCE_OAUTH_CLIENT_SECRET "${SALESFORCE_OAUTH_CLIENT_SECRET}")
+          [ -n "${INTERCOM_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(INTERCOM_OAUTH_CLIENT_ID "${INTERCOM_OAUTH_CLIENT_ID}")
+          [ -n "${INTERCOM_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(INTERCOM_OAUTH_CLIENT_SECRET "${INTERCOM_OAUTH_CLIENT_SECRET}")
+          [ -n "${TODOIST_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(TODOIST_OAUTH_CLIENT_ID "${TODOIST_OAUTH_CLIENT_ID}")
+          [ -n "${TODOIST_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(TODOIST_OAUTH_CLIENT_SECRET "${TODOIST_OAUTH_CLIENT_SECRET}")
           [ -n "${NOTION_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(NOTION_OAUTH_CLIENT_ID "${NOTION_OAUTH_CLIENT_ID}")
           [ -n "${NOTION_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(NOTION_OAUTH_CLIENT_SECRET "${NOTION_OAUTH_CLIENT_SECRET}")
           [ -n "${GH_APP_ID}" ] && ENV_VARS+=(GH_APP_ID "${GH_APP_ID}")

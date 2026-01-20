@@ -234,6 +234,9 @@ export async function createMcpServerTools(
     "slack",
     "stripe",
     "salesforce",
+    "intercom",
+    "todoist",
+    "zendesk",
   ];
 
   // First pass: collect all valid servers
@@ -654,6 +657,118 @@ export async function createMcpServerTools(
         describeTool as ReturnType<typeof createMcpServerTool>;
       tools[`salesforce_query${suffix}`] =
         queryTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "intercom") {
+      const {
+        createIntercomListContactsTool,
+        createIntercomGetContactTool,
+        createIntercomSearchContactsTool,
+        createIntercomUpdateContactTool,
+        createIntercomListConversationsTool,
+        createIntercomGetConversationTool,
+        createIntercomSearchConversationsTool,
+        createIntercomReplyConversationTool,
+      } = await import("./intercomTools");
+
+      const listContactsTool = createIntercomListContactsTool(
+        workspaceId,
+        serverId
+      );
+      const getContactTool = createIntercomGetContactTool(workspaceId, serverId);
+      const searchContactsTool = createIntercomSearchContactsTool(
+        workspaceId,
+        serverId
+      );
+      const updateContactTool = createIntercomUpdateContactTool(
+        workspaceId,
+        serverId
+      );
+      const listConversationsTool = createIntercomListConversationsTool(
+        workspaceId,
+        serverId
+      );
+      const getConversationTool = createIntercomGetConversationTool(
+        workspaceId,
+        serverId
+      );
+      const searchConversationsTool = createIntercomSearchConversationsTool(
+        workspaceId,
+        serverId
+      );
+      const replyConversationTool = createIntercomReplyConversationTool(
+        workspaceId,
+        serverId
+      );
+
+      tools[`intercom_list_contacts${suffix}`] =
+        listContactsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_get_contact${suffix}`] =
+        getContactTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_search_contacts${suffix}`] =
+        searchContactsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_update_contact${suffix}`] =
+        updateContactTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_list_conversations${suffix}`] =
+        listConversationsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_get_conversation${suffix}`] =
+        getConversationTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_search_conversations${suffix}`] =
+        searchConversationsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`intercom_reply_conversation${suffix}`] =
+        replyConversationTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "todoist") {
+      const {
+        createTodoistAddTaskTool,
+        createTodoistGetTasksTool,
+        createTodoistCloseTaskTool,
+        createTodoistGetProjectsTool,
+      } = await import("./todoistTools");
+
+      const addTaskTool = createTodoistAddTaskTool(workspaceId, serverId);
+      const getTasksTool = createTodoistGetTasksTool(workspaceId, serverId);
+      const closeTaskTool = createTodoistCloseTaskTool(workspaceId, serverId);
+      const getProjectsTool = createTodoistGetProjectsTool(workspaceId, serverId);
+
+      tools[`todoist_add_task${suffix}`] =
+        addTaskTool as ReturnType<typeof createMcpServerTool>;
+      tools[`todoist_get_tasks${suffix}`] =
+        getTasksTool as ReturnType<typeof createMcpServerTool>;
+      tools[`todoist_close_task${suffix}`] =
+        closeTaskTool as ReturnType<typeof createMcpServerTool>;
+      tools[`todoist_get_projects${suffix}`] =
+        getProjectsTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "zendesk") {
+      const {
+        createZendeskSearchTicketsTool,
+        createZendeskGetTicketDetailsTool,
+        createZendeskDraftCommentTool,
+        createZendeskSearchHelpCenterTool,
+      } = await import("./zendeskTools");
+
+      const searchTicketsTool = createZendeskSearchTicketsTool(
+        workspaceId,
+        serverId
+      );
+      const ticketDetailsTool = createZendeskGetTicketDetailsTool(
+        workspaceId,
+        serverId
+      );
+      const draftCommentTool = createZendeskDraftCommentTool(
+        workspaceId,
+        serverId
+      );
+      const searchHelpCenterTool = createZendeskSearchHelpCenterTool(
+        workspaceId,
+        serverId
+      );
+
+      tools[`zendesk_search_tickets${suffix}`] =
+        searchTicketsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`zendesk_get_ticket_details${suffix}`] =
+        ticketDetailsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`zendesk_draft_comment${suffix}`] =
+        draftCommentTool as ReturnType<typeof createMcpServerTool>;
+      tools[`zendesk_search_help_center${suffix}`] =
+        searchHelpCenterTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.serviceType === "posthog") {
       const {
         createPosthogListProjectsTool,

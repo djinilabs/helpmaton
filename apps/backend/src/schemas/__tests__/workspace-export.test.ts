@@ -494,6 +494,20 @@ describe("workspaceExportSchema", () => {
             serviceType: "linear",
             config: {},
           },
+          {
+            id: "mcp-7",
+            name: "Intercom",
+            authType: "oauth",
+            serviceType: "intercom",
+            config: {},
+          },
+          {
+            id: "mcp-8",
+            name: "Zendesk",
+            authType: "oauth",
+            serviceType: "zendesk",
+            config: {},
+          },
         ],
       };
 

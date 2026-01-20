@@ -1458,6 +1458,9 @@ export interface McpServer {
     | "slack"
     | "stripe"
     | "salesforce"
+    | "intercom"
+    | "todoist"
+    | "zendesk"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1480,12 +1483,18 @@ export interface CreateMcpServerInput {
     | "slack"
     | "stripe"
     | "salesforce"
+    | "intercom"
+    | "todoist"
+    | "zendesk"
     | "posthog";
   config?: {
     apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;
+    subdomain?: string;
+    clientId?: string;
+    clientSecret?: string;
   };
 }
 
@@ -1505,12 +1514,18 @@ export interface UpdateMcpServerInput {
     | "slack"
     | "stripe"
     | "salesforce"
+    | "intercom"
+    | "todoist"
+    | "zendesk"
     | "posthog";
   config?: {
     apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;
+    subdomain?: string;
+    clientId?: string;
+    clientSecret?: string;
   };
 }
 
