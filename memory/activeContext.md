@@ -2,11 +2,12 @@
 
 ## Current Status
 
-**Status**: Zendesk MCP integration complete ✅
+**Status**: Todoist + Zendesk MCP integrations complete ✅
 
 **Latest Work**:
 
 - **Zendesk MCP integration**: Added Zendesk OAuth flow using subdomain + client credentials stored per MCP server, Zendesk API client + tools (ticket search, comments, draft private note, Help Center search), tool metadata/UI wiring, schema updates, docs, and unit tests. Preserved Zendesk config on OAuth connect/disconnect. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Todoist MCP integration**: Added Todoist OAuth flow, API client, MCP tools (add/list/close tasks, list projects), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run todoist`.
 
 - **Intercom MCP integration**: Added Intercom OAuth flow with admin ID capture, Intercom API client + MCP tools for contacts/conversations (read/write), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm --filter backend test --run intercom`, `pnpm lint --fix`, and `pnpm typecheck`.
 

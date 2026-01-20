@@ -138,6 +138,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/intercom"
           );
           authUrl = generateIntercomAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "todoist") {
+          const { generateTodoistAuthUrl } = await import(
+            "../../../utils/oauth/mcp/todoist"
+          );
+          authUrl = generateTodoistAuthUrl(workspaceId, serverId);
         } else if (server.serviceType === "zendesk") {
           const { generateZendeskAuthUrl } = await import(
             "../../../utils/oauth/mcp/zendesk"

@@ -508,6 +508,7 @@ const mcpServerSchema = z
         "stripe",
         "salesforce",
         "intercom",
+        "todoist",
         "zendesk",
         "posthog",
       ])

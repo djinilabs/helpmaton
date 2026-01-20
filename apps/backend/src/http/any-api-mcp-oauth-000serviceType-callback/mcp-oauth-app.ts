@@ -106,6 +106,7 @@ export const createApp: () => express.Application = () => {
           "stripe",
           "salesforce",
           "intercom",
+          "todoist",
           "zendesk",
         ]);
 
@@ -265,6 +266,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/intercom"
             );
             tokenInfo = await exchangeIntercomCode(code);
+          } else if (serviceType === "todoist") {
+            const { exchangeTodoistCode } = await import(
+              "../../utils/oauth/mcp/todoist"
+            );
+            tokenInfo = await exchangeTodoistCode(code);
           } else if (serviceType === "zendesk") {
             const { exchangeZendeskCode } = await import(
               "../../utils/oauth/mcp/zendesk"

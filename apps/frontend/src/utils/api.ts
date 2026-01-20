@@ -1459,6 +1459,7 @@ export interface McpServer {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "todoist"
     | "zendesk"
     | "posthog";
   oauthConnected?: boolean;
@@ -1483,6 +1484,7 @@ export interface CreateMcpServerInput {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "todoist"
     | "zendesk"
     | "posthog";
   config?: {
@@ -1513,6 +1515,7 @@ export interface UpdateMcpServerInput {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "todoist"
     | "zendesk"
     | "posthog";
   config?: {

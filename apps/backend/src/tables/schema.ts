@@ -350,6 +350,7 @@ export const tableSchemas = {
         "stripe",
         "salesforce",
         "intercom",
+        "todoist",
         "zendesk",
         "posthog",
       ])
