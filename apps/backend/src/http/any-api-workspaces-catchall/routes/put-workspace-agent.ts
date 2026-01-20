@@ -1,4 +1,4 @@
-import { badRequest, forbidden, resourceGone } from "@hapi/boom";
+import { badRequest } from "@hapi/boom";
 import express from "express";
 
 import { database } from "../../../tables";
@@ -9,6 +9,23 @@ import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateAgentSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
+
+import {
+  buildAgentResponse,
+  buildAgentUpdateParams,
+  cleanEnabledMcpServerIds,
+  getAgentOrThrow,
+  resolveFetchWebProvider,
+  resolveSearchWebProvider,
+  validateClientTools,
+  validateDelegatableAgentIds,
+  validateKnowledgeConfig,
+  validateModelName,
+  validateModelTuning,
+  validateNotificationChannelId,
+  validateSpendingLimits,
+  validateAvatar,
+} from "./agentUpdate";
 
 /**
  * @openapi
@@ -99,38 +116,6 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, updateAgentSchema);
-        const {
-          name,
-          systemPrompt,
-          notificationChannelId,
-          spendingLimits,
-          delegatableAgentIds,
-          enabledMcpServerIds,
-          enableMemorySearch,
-          enableSearchDocuments,
-          enableKnowledgeInjection,
-          knowledgeInjectionSnippetCount,
-          knowledgeInjectionMinSimilarity,
-          enableKnowledgeReranking,
-          knowledgeRerankingModel,
-          enableSendEmail,
-          enableTavilySearch,
-          searchWebProvider,
-          enableTavilyFetch, // Legacy field for backward compatibility
-          fetchWebProvider,
-          enableExaSearch,
-          clientTools,
-          summarizationPrompts,
-          widgetConfig,
-          temperature,
-          topP,
-          topK,
-          maxOutputTokens,
-          stopSequences,
-          maxToolRoundtrips,
-          modelName,
-          avatar,
-        } = body;
         const db = await database();
         const workspaceResource = req.workspaceResource;
         if (!workspaceResource) {
@@ -138,526 +123,81 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         }
 
         const normalizedSummarizationPrompts =
-          normalizeSummarizationPrompts(summarizationPrompts);
+          normalizeSummarizationPrompts(body.summarizationPrompts);
         const workspaceId = req.params.workspaceId;
         const agentId = req.params.agentId;
         const agentPk = `agents/${workspaceId}/${agentId}`;
 
-        const agent = await db.agent.get(agentPk, "agent");
-        if (!agent) {
-          throw resourceGone("Agent not found");
-        }
+        const agent = await getAgentOrThrow({
+          db,
+          workspaceId,
+          agentId,
+        });
 
-        // Validate notificationChannelId if provided (Zod already validated the type)
-        if (
-          notificationChannelId !== undefined &&
-          notificationChannelId !== null
-        ) {
-          // Verify channel exists and belongs to workspace
-          const channelPk = `output-channels/${workspaceId}/${notificationChannelId}`;
-          const channel = await db["output_channel"].get(channelPk, "channel");
-          if (!channel) {
-            throw resourceGone("Notification channel not found");
-          }
-          if (channel.workspaceId !== workspaceId) {
-            throw forbidden(
-              "Notification channel does not belong to this workspace"
-            );
-          }
-        }
+        await validateNotificationChannelId({
+          db,
+          workspaceId,
+          notificationChannelId: body.notificationChannelId,
+        });
+        validateSpendingLimits(body.spendingLimits);
+        await validateDelegatableAgentIds({
+          db,
+          workspaceId,
+          agentId,
+          delegatableAgentIds: body.delegatableAgentIds,
+        });
+        const cleanedEnabledMcpServerIds = await cleanEnabledMcpServerIds({
+          db,
+          workspaceId,
+          enabledMcpServerIds: body.enabledMcpServerIds,
+          existingEnabledMcpServerIds: agent.enabledMcpServerIds,
+        });
+        validateClientTools(body.clientTools);
+        validateKnowledgeConfig({
+          knowledgeInjectionMinSimilarity: body.knowledgeInjectionMinSimilarity,
+        });
+        validateModelTuning({
+          temperature: body.temperature,
+          topP: body.topP,
+          topK: body.topK,
+          maxOutputTokens: body.maxOutputTokens,
+          stopSequences: body.stopSequences,
+          maxToolRoundtrips: body.maxToolRoundtrips,
+        });
+        const resolvedModelName = await validateModelName({
+          modelName: body.modelName,
+        });
+        validateAvatar({ avatar: body.avatar, isValidAvatar });
 
-        // Validate spendingLimits if provided
-        if (spendingLimits !== undefined) {
-          if (!Array.isArray(spendingLimits)) {
-            throw badRequest("spendingLimits must be an array");
-          }
-          for (const limit of spendingLimits) {
-            if (
-              !limit.timeFrame ||
-              !["daily", "weekly", "monthly"].includes(limit.timeFrame)
-            ) {
-              throw badRequest(
-                "Each spending limit must have a valid timeFrame (daily, weekly, or monthly)"
-              );
-            }
-            if (typeof limit.amount !== "number" || limit.amount < 0) {
-              throw badRequest(
-                "Each spending limit must have a non-negative amount"
-              );
-            }
-          }
-        }
-
-        // Validate delegatableAgentIds if provided
-        if (delegatableAgentIds !== undefined) {
-          if (!Array.isArray(delegatableAgentIds)) {
-            throw badRequest("delegatableAgentIds must be an array");
-          }
-          // Validate all items are strings
-          for (const id of delegatableAgentIds) {
-            if (typeof id !== "string") {
-              throw badRequest("All delegatableAgentIds must be strings");
-            }
-            // Cannot delegate to self
-            if (id === agentId) {
-              throw badRequest("Agent cannot delegate to itself");
-            }
-            // Verify agent exists and belongs to workspace
-            const targetAgentPk = `agents/${workspaceId}/${id}`;
-            const targetAgent = await db.agent.get(targetAgentPk, "agent");
-            if (!targetAgent) {
-              throw resourceGone(`Delegatable agent ${id} not found`);
-            }
-            if (targetAgent.workspaceId !== workspaceId) {
-              throw forbidden(
-                `Delegatable agent ${id} does not belong to this workspace`
-              );
-            }
-          }
-
-          // Check for circular delegation chains
-          // Fetch all agents in the workspace to build a lookup map
-          const allAgentsQuery = await db.agent.query({
-            IndexName: "byWorkspaceId",
-            KeyConditionExpression: "workspaceId = :workspaceId",
-            ExpressionAttributeValues: {
-              ":workspaceId": workspaceId,
-            },
-          });
-          const agentMap = new Map<
-            string,
-            { delegatableAgentIds?: string[] }
-          >();
-          for (const a of allAgentsQuery.items) {
-            agentMap.set(a.pk.replace(`agents/${workspaceId}/`, ""), {
-              delegatableAgentIds: a.delegatableAgentIds,
-            });
-          }
-          // Use the new delegatableAgentIds for the current agent
-          agentMap.set(agentId, { delegatableAgentIds });
-
-          // Helper function to detect cycles using DFS
-          function hasDelegationCycle(
-            startId: string,
-            currentId: string,
-            visited: Set<string>
-          ): boolean {
-            if (visited.has(currentId)) return false;
-            visited.add(currentId);
-            const entry = agentMap.get(currentId);
-            if (!entry || !entry.delegatableAgentIds) return false;
-            for (const nextId of entry.delegatableAgentIds) {
-              if (nextId === startId) {
-                return true;
-              }
-              if (hasDelegationCycle(startId, nextId, visited)) {
-                return true;
-              }
-            }
-            return false;
-          }
-
-          for (const id of delegatableAgentIds) {
-            if (hasDelegationCycle(agentId, id, new Set([agentId]))) {
-              throw badRequest(
-                "Circular delegation detected: this update would create a cycle in the delegation graph"
-              );
-            }
-          }
-        }
-
-        // Validate and clean up enabledMcpServerIds if provided
-        let cleanedEnabledMcpServerIds: string[] | undefined = undefined;
-        if (enabledMcpServerIds !== undefined) {
-          if (!Array.isArray(enabledMcpServerIds)) {
-            throw badRequest("enabledMcpServerIds must be an array");
-          }
-          // Validate all items are strings and filter out non-existent MCP servers
-          cleanedEnabledMcpServerIds = [];
-          for (const id of enabledMcpServerIds) {
-            if (typeof id !== "string") {
-              throw badRequest("All enabledMcpServerIds must be strings");
-            }
-            // Verify MCP server exists and belongs to workspace
-            const serverPk = `mcp-servers/${workspaceId}/${id}`;
-            const server = await db["mcp-server"].get(serverPk, "server");
-            if (!server) {
-              // MCP server not found - silently filter it out (it was likely deleted)
-              console.warn(
-                `MCP server ${id} not found, filtering out from enabledMcpServerIds`
-              );
-              continue;
-            }
-            if (server.workspaceId !== workspaceId) {
-              throw forbidden(
-                `MCP server ${id} does not belong to this workspace`
-              );
-            }
-            cleanedEnabledMcpServerIds.push(id);
-          }
-        } else {
-          // If not updating enabledMcpServerIds, clean up existing ones that don't exist
-          if (agent.enabledMcpServerIds && agent.enabledMcpServerIds.length > 0) {
-            cleanedEnabledMcpServerIds = [];
-            for (const id of agent.enabledMcpServerIds) {
-              const serverPk = `mcp-servers/${workspaceId}/${id}`;
-              const server = await db["mcp-server"].get(serverPk, "server");
-              if (server && server.workspaceId === workspaceId) {
-                cleanedEnabledMcpServerIds.push(id);
-              } else {
-                // MCP server not found or doesn't belong to workspace - filter it out
-                console.warn(
-                  `MCP server ${id} not found or invalid, filtering out from enabledMcpServerIds`
-                );
-              }
-            }
-            // If we filtered something out, we'll update with the cleaned list
-            // If nothing was filtered, cleanedEnabledMcpServerIds will be the same as agent.enabledMcpServerIds
-            // but we'll still use it to ensure consistency
-          }
-        }
-
-        // Validate clientTools if provided
-        if (clientTools !== undefined) {
-          if (!Array.isArray(clientTools)) {
-            throw badRequest("clientTools must be an array");
-          }
-          for (const tool of clientTools) {
-            if (
-              !tool ||
-              typeof tool !== "object" ||
-              typeof tool.name !== "string" ||
-              typeof tool.description !== "string" ||
-              !tool.parameters ||
-              typeof tool.parameters !== "object"
-            ) {
-              throw badRequest(
-                "Each client tool must have name, description (both strings) and parameters (object)"
-              );
-            }
-            // Validate name is a valid JavaScript identifier
-            if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(tool.name)) {
-              throw badRequest(
-                `Tool name "${tool.name}" must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)`
-              );
-            }
-          }
-        }
-
-        // widgetConfig is already validated by Zod schema
-
-        // Validate model configuration fields if provided (null is allowed to clear values)
-        if (temperature !== undefined && temperature !== null) {
-          if (
-            typeof temperature !== "number" ||
-            temperature < 0 ||
-            temperature > 2
-          ) {
-            throw badRequest("temperature must be a number between 0 and 2");
-          }
-        }
-
-        if (topP !== undefined && topP !== null) {
-          if (typeof topP !== "number" || topP < 0 || topP > 1) {
-            throw badRequest("topP must be a number between 0 and 1");
-          }
-        }
-
-        if (knowledgeInjectionMinSimilarity !== undefined && knowledgeInjectionMinSimilarity !== null) {
-          if (
-            typeof knowledgeInjectionMinSimilarity !== "number" ||
-            knowledgeInjectionMinSimilarity < 0 ||
-            knowledgeInjectionMinSimilarity > 1
-          ) {
-            throw badRequest("knowledgeInjectionMinSimilarity must be a number between 0 and 1");
-          }
-        }
-
-        if (topK !== undefined && topK !== null) {
-          if (
-            typeof topK !== "number" ||
-            !Number.isInteger(topK) ||
-            topK <= 0
-          ) {
-            throw badRequest("topK must be a positive integer");
-          }
-        }
-
-        if (maxOutputTokens !== undefined && maxOutputTokens !== null) {
-          if (
-            typeof maxOutputTokens !== "number" ||
-            !Number.isInteger(maxOutputTokens) ||
-            maxOutputTokens <= 0
-          ) {
-            throw badRequest("maxOutputTokens must be a positive integer");
-          }
-        }
-
-        if (stopSequences !== undefined && stopSequences !== null) {
-          if (!Array.isArray(stopSequences)) {
-            throw badRequest("stopSequences must be an array");
-          }
-          for (const seq of stopSequences) {
-            if (typeof seq !== "string") {
-              throw badRequest("All stopSequences must be strings");
-            }
-          }
-        }
-
-        if (maxToolRoundtrips !== undefined && maxToolRoundtrips !== null) {
-          if (
-            typeof maxToolRoundtrips !== "number" ||
-            !Number.isInteger(maxToolRoundtrips) ||
-            maxToolRoundtrips <= 0
-          ) {
-            throw badRequest("maxToolRoundtrips must be a positive integer");
-          }
-        }
-
-        // Validate modelName if provided
-        if (modelName !== undefined && modelName !== null) {
-          if (typeof modelName !== "string" || modelName.trim().length === 0) {
-            throw badRequest("modelName must be a non-empty string or null");
-          }
-          // Validate model exists in pricing config
-          // System always uses "openrouter" provider (see agentSetup.ts), regardless of agent.provider field
-          const { getModelPricing } = await import("../../../utils/pricing");
-          const pricing = getModelPricing("openrouter", modelName.trim());
-          if (!pricing) {
-            throw badRequest(
-              `Model "${modelName.trim()}" is not available. Please check available models at /api/models`
-            );
-          }
-        }
-
-        // Validate avatar if provided
-        if (avatar !== undefined && avatar !== null) {
-          if (typeof avatar !== "string") {
-            throw badRequest("avatar must be a string or null");
-          }
-          if (!isValidAvatar(avatar)) {
-            throw badRequest(
-              `Invalid avatar path. Avatar must be one of the available logo paths.`
-            );
-          }
-        }
-
-        // Handle searchWebProvider with backward compatibility for enableTavilySearch
-        let resolvedSearchWebProvider: "tavily" | "jina" | undefined;
-        if (searchWebProvider !== undefined) {
-          // New field takes precedence
-          if (searchWebProvider !== null && searchWebProvider !== "tavily" && searchWebProvider !== "jina") {
-            throw badRequest(
-              "searchWebProvider must be 'tavily', 'jina', or null"
-            );
-          }
-          resolvedSearchWebProvider = searchWebProvider === null ? undefined : searchWebProvider;
-        } else if (enableTavilySearch !== undefined) {
-          // Legacy field: migrate to new field
-          resolvedSearchWebProvider = enableTavilySearch === true ? "tavily" : undefined;
-        } else {
-          // Keep existing value
-          resolvedSearchWebProvider = agent.searchWebProvider;
-        }
-
-        // Handle fetchWebProvider with backward compatibility for enableTavilyFetch
-        let resolvedFetchWebProvider: "tavily" | "jina" | "scrape" | undefined;
-        if (fetchWebProvider !== undefined) {
-          // New field takes precedence
-          if (
-            fetchWebProvider !== null &&
-            fetchWebProvider !== "tavily" &&
-            fetchWebProvider !== "jina" &&
-            fetchWebProvider !== "scrape"
-          ) {
-            throw badRequest(
-              "fetchWebProvider must be 'tavily', 'jina', 'scrape', or null"
-            );
-          }
-          resolvedFetchWebProvider = fetchWebProvider === null ? undefined : fetchWebProvider;
-        } else if (enableTavilyFetch !== undefined) {
-          // Legacy field: migrate to new field
-          resolvedFetchWebProvider = enableTavilyFetch === true ? "tavily" : undefined;
-        } else {
-          // Keep existing value
-          resolvedFetchWebProvider = agent.fetchWebProvider;
-        }
+        const resolvedSearchWebProvider = resolveSearchWebProvider({
+          searchWebProvider: body.searchWebProvider,
+          enableTavilySearch: body.enableTavilySearch,
+          currentProvider: agent.searchWebProvider,
+        });
+        const resolvedFetchWebProvider = resolveFetchWebProvider({
+          fetchWebProvider: body.fetchWebProvider,
+          enableTavilyFetch: body.enableTavilyFetch,
+          currentProvider: agent.fetchWebProvider,
+        });
 
         // Update agent
         // Convert null to undefined for optional fields to match schema
-        const updated = await db.agent.update({
-          pk: agentPk,
-          sk: "agent",
-          workspaceId,
-          name: name !== undefined ? name : agent.name,
-          systemPrompt:
-            systemPrompt !== undefined ? systemPrompt : agent.systemPrompt,
-          notificationChannelId:
-            notificationChannelId !== undefined
-              ? notificationChannelId === null
-                ? undefined
-                : notificationChannelId
-              : agent.notificationChannelId,
-          delegatableAgentIds:
-            delegatableAgentIds !== undefined
-              ? delegatableAgentIds
-              : agent.delegatableAgentIds,
-          enabledMcpServerIds:
-            cleanedEnabledMcpServerIds !== undefined
-              ? cleanedEnabledMcpServerIds
-              : agent.enabledMcpServerIds ?? [],
-          enableMemorySearch:
-            enableMemorySearch !== undefined
-              ? enableMemorySearch
-              : agent.enableMemorySearch,
-          enableSearchDocuments:
-            enableSearchDocuments !== undefined
-              ? enableSearchDocuments
-              : agent.enableSearchDocuments,
-          enableKnowledgeInjection:
-            enableKnowledgeInjection !== undefined
-              ? enableKnowledgeInjection
-              : agent.enableKnowledgeInjection,
-          knowledgeInjectionSnippetCount:
-            knowledgeInjectionSnippetCount !== undefined
-              ? knowledgeInjectionSnippetCount
-              : agent.knowledgeInjectionSnippetCount,
-          knowledgeInjectionMinSimilarity:
-            knowledgeInjectionMinSimilarity !== undefined
-              ? knowledgeInjectionMinSimilarity === null
-                ? undefined
-                : knowledgeInjectionMinSimilarity
-              : agent.knowledgeInjectionMinSimilarity,
-          enableKnowledgeReranking:
-            enableKnowledgeReranking !== undefined
-              ? enableKnowledgeReranking
-              : agent.enableKnowledgeReranking,
-          knowledgeRerankingModel:
-            knowledgeRerankingModel !== undefined
-              ? knowledgeRerankingModel === null
-                ? undefined
-                : knowledgeRerankingModel
-              : agent.knowledgeRerankingModel,
-          enableSendEmail:
-            enableSendEmail !== undefined
-              ? enableSendEmail
-              : agent.enableSendEmail,
-          enableTavilySearch:
-            enableTavilySearch !== undefined
-              ? enableTavilySearch
-              : agent.enableTavilySearch,
-          searchWebProvider: resolvedSearchWebProvider,
-          fetchWebProvider: resolvedFetchWebProvider,
-          enableExaSearch:
-            enableExaSearch !== undefined
-              ? enableExaSearch
-              : agent.enableExaSearch,
-          clientTools:
-            clientTools !== undefined ? clientTools : agent.clientTools,
-          summarizationPrompts:
-            summarizationPrompts !== undefined
-              ? normalizedSummarizationPrompts
-              : agent.summarizationPrompts,
-          widgetConfig:
-            widgetConfig !== undefined
-              ? widgetConfig === null
-                ? undefined
-                : widgetConfig
-              : agent.widgetConfig,
-          spendingLimits:
-            spendingLimits !== undefined
-              ? spendingLimits
-              : agent.spendingLimits,
-          temperature:
-            temperature !== undefined
-              ? temperature === null
-                ? undefined
-                : temperature
-              : agent.temperature,
-          topP:
-            topP !== undefined
-              ? topP === null
-                ? undefined
-                : topP
-              : agent.topP,
-          topK:
-            topK !== undefined
-              ? topK === null
-                ? undefined
-                : topK
-              : agent.topK,
-          maxOutputTokens:
-            maxOutputTokens !== undefined
-              ? maxOutputTokens === null
-                ? undefined
-                : maxOutputTokens
-              : agent.maxOutputTokens,
-          stopSequences:
-            stopSequences !== undefined
-              ? stopSequences === null
-                ? undefined
-                : stopSequences
-              : agent.stopSequences,
-          maxToolRoundtrips:
-            maxToolRoundtrips !== undefined
-              ? maxToolRoundtrips === null
-                ? undefined
-                : maxToolRoundtrips
-              : agent.maxToolRoundtrips,
-          provider: "openrouter", // Always use openrouter (only supported provider)
-          modelName:
-            modelName !== undefined
-              ? modelName === null
-                ? undefined
-                : modelName.trim()
-              : agent.modelName,
-          avatar:
-            avatar !== undefined
-              ? avatar === null
-                ? undefined
-                : avatar
-              : agent.avatar,
-          updatedBy: req.userRef || "",
-          updatedAt: new Date().toISOString(),
-        });
+        const updated = await db.agent.update(
+          buildAgentUpdateParams({
+            body,
+            agent,
+            agentPk,
+            workspaceId,
+            normalizedSummarizationPrompts,
+            cleanedEnabledMcpServerIds,
+            resolvedSearchWebProvider,
+            resolvedFetchWebProvider,
+            resolvedModelName,
+            updatedBy: req.userRef || "",
+          })
+        );
 
-        const response = {
-          id: agentId,
-          name: updated.name,
-          systemPrompt: updated.systemPrompt,
-          summarizationPrompts: updated.summarizationPrompts,
-          notificationChannelId: updated.notificationChannelId,
-          delegatableAgentIds: updated.delegatableAgentIds ?? [],
-          enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
-          enableMemorySearch: updated.enableMemorySearch ?? false,
-          enableSearchDocuments: updated.enableSearchDocuments ?? false,
-          enableKnowledgeInjection: updated.enableKnowledgeInjection ?? false,
-          knowledgeInjectionSnippetCount:
-            updated.knowledgeInjectionSnippetCount ?? undefined,
-          knowledgeInjectionMinSimilarity:
-            updated.knowledgeInjectionMinSimilarity ?? undefined,
-          enableKnowledgeReranking: updated.enableKnowledgeReranking ?? false,
-          knowledgeRerankingModel: updated.knowledgeRerankingModel ?? undefined,
-          enableSendEmail: updated.enableSendEmail ?? false,
-          enableTavilySearch: updated.enableTavilySearch ?? false,
-          searchWebProvider: updated.searchWebProvider ?? null,
-          fetchWebProvider: updated.fetchWebProvider ?? null,
-          enableExaSearch: updated.enableExaSearch ?? false,
-          clientTools: updated.clientTools ?? [],
-          spendingLimits: updated.spendingLimits ?? [],
-          temperature: updated.temperature ?? null,
-          topP: updated.topP ?? null,
-          topK: updated.topK ?? null,
-          maxOutputTokens: updated.maxOutputTokens ?? null,
-          stopSequences: updated.stopSequences ?? null,
-          maxToolRoundtrips: updated.maxToolRoundtrips ?? null,
-          provider: updated.provider,
-          modelName: updated.modelName ?? null,
-          avatar: updated.avatar ?? null,
-          widgetConfig: updated.widgetConfig ?? undefined,
-          createdAt: updated.createdAt,
-          updatedAt: updated.updatedAt,
-        };
+        const response = buildAgentResponse({ agentId, updated });
 
         // Track agent update
         trackBusinessEvent(

@@ -502,42 +502,32 @@ async function validateSubscriptionAndLimitsStream(
   return await validateSubscriptionAndLimits(workspaceId, endpointType);
 }
 
-/**
- * Builds the complete request context for processing the stream
- */
-export async function buildStreamRequestContext(
-  event: LambdaUrlEvent | APIGatewayProxyEventV2,
-  pathParams: PathParameters,
-  authResult: { authenticated: boolean; userId?: string }
-): Promise<StreamRequestContext> {
-  const { workspaceId, agentId, secret, endpointType } = pathParams;
-
-  // Read and validate X-Conversation-Id header
+const requireConversationId = (
+  event: LambdaUrlEvent | APIGatewayProxyEventV2
+): string => {
   const conversationId =
     event.headers["x-conversation-id"] || event.headers["X-Conversation-Id"];
   if (!conversationId || typeof conversationId !== "string") {
     throw badRequest("X-Conversation-Id header is required");
   }
+  return conversationId;
+};
 
-  // Get allowed origins for CORS (only for stream endpoint)
-  let allowedOrigins: string[] | null = null;
-  if (endpointType === "stream") {
-    allowedOrigins = await getAllowedOrigins(workspaceId, agentId);
-  }
+const resolveCorsOrigins = async (
+  workspaceId: string,
+  agentId: string,
+  endpointType: EndpointType,
+  event: LambdaUrlEvent | APIGatewayProxyEventV2
+): Promise<{ allowedOrigins: string[] | null; origin: string | undefined }> => {
+  const allowedOrigins =
+    endpointType === "stream" ? await getAllowedOrigins(workspaceId, agentId) : null;
   const origin = event.headers["origin"] || event.headers["Origin"];
+  return { allowedOrigins, origin };
+};
 
-  // Validate subscription and limits
-  const subscriptionId = await validateSubscriptionAndLimitsStream(
-    workspaceId,
-    endpointType
-  );
-
-  // Setup database connection
-  const db = await database();
-
-  // Get context for workspace credit transactions
-  // The requestId should have been set in handleApiGatewayStreaming or internalHandler
-  // before this function is called. If it's missing or empty, that's an error.
+const requireLambdaContext = (
+  event: LambdaUrlEvent | APIGatewayProxyEventV2
+) => {
   const awsRequestId = event.requestContext?.requestId;
 
   if (!awsRequestId || awsRequestId.trim() === "") {
@@ -555,7 +545,6 @@ export async function buildStreamRequestContext(
 
   const lambdaContext = getContextFromRequestId(awsRequestId);
   if (!lambdaContext) {
-    // Log detailed error information for debugging
     console.error(
       "[buildStreamRequestContext] Context not found for requestId:",
       {
@@ -569,26 +558,10 @@ export async function buildStreamRequestContext(
     );
   }
 
-  // Setup agent context
-  // Always use "https://app.helpmaton.com" as the Referer header for LLM provider calls
-  const modelReferer = "https://app.helpmaton.com";
-  const llmObserver = createLlmObserver();
-  const { agent, model, tools, usesByok } = await setupAgentContext(
-    workspaceId,
-    agentId,
-    modelReferer,
-    lambdaContext,
-    conversationId,
-    llmObserver
-  );
+  return { awsRequestId, lambdaContext };
+};
 
-  // Extract and convert request body
-  const bodyText = extractRequestBody(event);
-  if (!bodyText) {
-    throw new Error("Request body is required");
-  }
-
-  // Log raw request body for debugging file attachment issues (only first 1000 chars to avoid log spam)
+const logBodyPartsPreview = (bodyText: string) => {
   try {
     const bodyPreview =
       bodyText.length > 1000 ? bodyText.substring(0, 1000) + "..." : bodyText;
@@ -627,58 +600,207 @@ export async function buildStreamRequestContext(
   } catch {
     // Ignore parsing errors for logging
   }
+};
 
-  const { uiMessage, modelMessages, convertedMessages } =
-    await convertRequestBodyToMessages(bodyText);
-
-  // Add timestamps to user messages that don't have them
+const addMessageTimestamps = (params: {
+  uiMessage: UIMessage;
+  convertedMessages: UIMessage[];
+}) => {
   const now = new Date().toISOString();
-  const convertedMessagesWithTimestamps = convertedMessages.map((msg) => {
+  const convertedMessagesWithTimestamps = params.convertedMessages.map((msg) => {
     if (msg.role === "user" && !msg.generationStartedAt) {
       return {
         ...msg,
         generationStartedAt: now,
-        generationEndedAt: now, // User messages are instantaneous
+        generationEndedAt: now,
       };
     }
     if (msg.role === "system" && !msg.generationStartedAt) {
       return {
         ...msg,
         generationStartedAt: now,
-        generationEndedAt: now, // System messages are instantaneous
+        generationEndedAt: now,
       };
     }
     return msg;
   });
 
-  // Update uiMessage if it's a user message without timestamps
   const uiMessageWithTimestamps =
-    uiMessage.role === "user" && !uiMessage.generationStartedAt
+    params.uiMessage.role === "user" && !params.uiMessage.generationStartedAt
       ? {
-          ...uiMessage,
+          ...params.uiMessage,
           generationStartedAt: now,
           generationEndedAt: now,
         }
-      : uiMessage;
+      : params.uiMessage;
 
-  // Fetch existing conversation messages to check for existing knowledge injection
-  let existingConversationMessages: UIMessage[] | undefined;
+  return { convertedMessagesWithTimestamps, uiMessageWithTimestamps };
+};
+
+const fetchExistingConversationMessages = async (params: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  agentId: string;
+  conversationId: string;
+}): Promise<UIMessage[] | undefined> => {
   try {
-    const conversationPk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
-    const existingConversation = await db["agent-conversations"].get(
+    const conversationPk = `conversations/${params.workspaceId}/${params.agentId}/${params.conversationId}`;
+    const existingConversation = await params.db["agent-conversations"].get(
       conversationPk
     );
     if (existingConversation && existingConversation.messages) {
-      existingConversationMessages =
-        existingConversation.messages as UIMessage[];
+      return existingConversation.messages as UIMessage[];
     }
   } catch (error) {
-    // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
     console.log(
       "[buildStreamRequestContext] Could not fetch existing conversation messages:",
       error instanceof Error ? error.message : String(error)
     );
   }
+  return undefined;
+};
+
+const buildInsertionMessages = (params: {
+  rerankingRequestMessage?: UIMessage;
+  rerankingResultMessage?: UIMessage;
+  knowledgeInjectionMessage?: UIMessage | null;
+}): UIMessage[] => {
+  const messagesToInsert: UIMessage[] = [];
+  if (params.rerankingRequestMessage) {
+    messagesToInsert.push(params.rerankingRequestMessage);
+  }
+  if (params.rerankingResultMessage) {
+    messagesToInsert.push(params.rerankingResultMessage);
+  }
+  if (params.knowledgeInjectionMessage) {
+    messagesToInsert.push(params.knowledgeInjectionMessage);
+  }
+  return messagesToInsert;
+};
+
+const insertMessagesBeforeFirstUser = (
+  convertedMessages: UIMessage[],
+  messagesToInsert: UIMessage[]
+): UIMessage[] => {
+  if (messagesToInsert.length === 0) {
+    return convertedMessages;
+  }
+  const userMessageIndex = convertedMessages.findIndex(
+    (msg) => msg.role === "user"
+  );
+  if (userMessageIndex === -1) {
+    return [...messagesToInsert, ...convertedMessages];
+  }
+  const updatedConvertedMessages = [...convertedMessages];
+  updatedConvertedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
+  return updatedConvertedMessages;
+};
+
+const logClientToolResults = (
+  agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"],
+  modelMessages: ModelMessage[]
+) => {
+  const clientToolNames = new Set<string>();
+  if (
+    agent.clientTools &&
+    Array.isArray(agent.clientTools) &&
+    agent.clientTools.length > 0
+  ) {
+    for (const clientTool of agent.clientTools) {
+      if (clientTool.name) {
+        clientToolNames.add(clientTool.name);
+      }
+    }
+  }
+
+  for (const msg of modelMessages) {
+    if (
+      msg &&
+      typeof msg === "object" &&
+      "role" in msg &&
+      msg.role === "tool" &&
+      "toolCallId" in msg &&
+      "toolName" in msg
+    ) {
+      const toolName = (msg as { toolName?: string }).toolName;
+      const toolCallId = (msg as { toolCallId?: string }).toolCallId;
+      const toolResult = (msg as { result?: unknown }).result;
+
+      if (toolName && clientToolNames.has(toolName)) {
+        console.log("[Stream Handler] Client-side tool result received:", {
+          toolName,
+          toolCallId,
+          result: toolResult,
+        });
+      }
+    }
+  }
+};
+
+/**
+ * Builds the complete request context for processing the stream
+ */
+export async function buildStreamRequestContext(
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
+  pathParams: PathParameters,
+  authResult: { authenticated: boolean; userId?: string }
+): Promise<StreamRequestContext> {
+  const { workspaceId, agentId, secret, endpointType } = pathParams;
+
+  const conversationId = requireConversationId(event);
+  const { allowedOrigins, origin } = await resolveCorsOrigins(
+    workspaceId,
+    agentId,
+    endpointType,
+    event
+  );
+
+  // Validate subscription and limits
+  const subscriptionId = await validateSubscriptionAndLimitsStream(
+    workspaceId,
+    endpointType
+  );
+
+  // Setup database connection
+  const db = await database();
+
+  const { awsRequestId, lambdaContext } = requireLambdaContext(event);
+
+  // Setup agent context
+  // Always use "https://app.helpmaton.com" as the Referer header for LLM provider calls
+  const modelReferer = "https://app.helpmaton.com";
+  const llmObserver = createLlmObserver();
+  const { agent, model, tools, usesByok } = await setupAgentContext(
+    workspaceId,
+    agentId,
+    modelReferer,
+    lambdaContext,
+    conversationId,
+    llmObserver
+  );
+
+  // Extract and convert request body
+  const bodyText = extractRequestBody(event);
+  if (!bodyText) {
+    throw new Error("Request body is required");
+  }
+
+  // Log raw request body for debugging file attachment issues (only first 1000 chars to avoid log spam)
+  logBodyPartsPreview(bodyText);
+
+  const { uiMessage, modelMessages, convertedMessages } =
+    await convertRequestBodyToMessages(bodyText);
+
+  const { convertedMessagesWithTimestamps, uiMessageWithTimestamps } =
+    addMessageTimestamps({ uiMessage, convertedMessages });
+
+  // Fetch existing conversation messages to check for existing knowledge injection
+  const existingConversationMessages = await fetchExistingConversationMessages({
+    db,
+    workspaceId,
+    agentId,
+    conversationId,
+  });
 
   // Inject knowledge from workspace documents if enabled
   const { injectKnowledgeIntoMessages } = await import(
@@ -704,39 +826,15 @@ export async function buildStreamRequestContext(
   const rerankingResultMessage =
     knowledgeInjectionResult.rerankingResultMessage;
 
-  // Add re-ranking and knowledge injection messages to convertedMessages if they exist
-  let updatedConvertedMessages = convertedMessagesWithTimestamps;
-
-  // Find insertion point (before first user message)
-  const userMessageIndex = convertedMessagesWithTimestamps.findIndex(
-    (msg) => msg.role === "user"
+  const messagesToInsert = buildInsertionMessages({
+    rerankingRequestMessage,
+    rerankingResultMessage,
+    knowledgeInjectionMessage,
+  });
+  const updatedConvertedMessages = insertMessagesBeforeFirstUser(
+    convertedMessagesWithTimestamps,
+    messagesToInsert
   );
-
-  // Build array of messages to insert (in order: reranking request, reranking result, knowledge injection)
-  const messagesToInsert: typeof convertedMessages = [];
-  if (rerankingRequestMessage) {
-    messagesToInsert.push(rerankingRequestMessage);
-  }
-  if (rerankingResultMessage) {
-    messagesToInsert.push(rerankingResultMessage);
-  }
-  if (knowledgeInjectionMessage) {
-    messagesToInsert.push(knowledgeInjectionMessage);
-  }
-
-  if (messagesToInsert.length > 0) {
-    if (userMessageIndex === -1) {
-      // No user message found, prepend all messages
-      updatedConvertedMessages = [
-        ...messagesToInsert,
-        ...convertedMessagesWithTimestamps,
-      ];
-    } else {
-      // Insert before first user message
-      updatedConvertedMessages = [...convertedMessagesWithTimestamps];
-      updatedConvertedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
-    }
-  }
 
   llmObserver.recordInputMessages(updatedConvertedMessages);
 
@@ -744,44 +842,7 @@ export async function buildStreamRequestContext(
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
 
-  // Log client-side tool results if present
-  // Get list of client-side tool names from agent configuration
-  const clientToolNames = new Set<string>();
-  if (
-    agent.clientTools &&
-    Array.isArray(agent.clientTools) &&
-    agent.clientTools.length > 0
-  ) {
-    for (const clientTool of agent.clientTools) {
-      if (clientTool.name) {
-        clientToolNames.add(clientTool.name);
-      }
-    }
-  }
-
-  // Check for tool result messages (role: "tool")
-  for (const msg of modelMessagesWithKnowledge) {
-    if (
-      msg &&
-      typeof msg === "object" &&
-      "role" in msg &&
-      msg.role === "tool" &&
-      "toolCallId" in msg &&
-      "toolName" in msg
-    ) {
-      const toolName = (msg as { toolName?: string }).toolName;
-      const toolCallId = (msg as { toolCallId?: string }).toolCallId;
-      const toolResult = (msg as { result?: unknown }).result;
-
-      if (toolName && clientToolNames.has(toolName)) {
-        console.log("[Stream Handler] Client-side tool result received:", {
-          toolName,
-          toolCallId,
-          result: toolResult,
-        });
-      }
-    }
-  }
+  logClientToolResults(agent, modelMessagesWithKnowledge);
 
   // Validate credits, spending limits, and reserve credits before LLM call
   const reservationId = await validateCreditsAndReserveBeforeLLM(
@@ -796,9 +857,6 @@ export async function buildStreamRequestContext(
     lambdaContext,
     conversationId
   );
-
-  // Extract request ID from event (for context access)
-  const requestIdForContext = event.requestContext?.requestId;
 
   return {
     workspaceId,
@@ -820,7 +878,7 @@ export async function buildStreamRequestContext(
     usesByok,
     reservationId,
     finalModelName,
-    awsRequestId: requestIdForContext,
+    awsRequestId,
     userId: authResult.userId,
   };
 }

@@ -40,6 +40,7 @@ export default tseslint.config(
       ...importPlugin.configs.typescript.rules,
       '@typescript-eslint/no-unused-vars': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
+      'complexity': ['error', 50],
       'import/order': ['error', {
         'groups': [
           'builtin',

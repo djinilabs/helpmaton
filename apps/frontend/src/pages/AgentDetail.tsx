@@ -335,6 +335,7 @@ interface AgentDetailContentProps {
   agentId: string;
 }
 
+/* eslint-disable complexity */
 const AgentDetailContent: FC<AgentDetailContentProps> = ({
   workspace,
   agent,

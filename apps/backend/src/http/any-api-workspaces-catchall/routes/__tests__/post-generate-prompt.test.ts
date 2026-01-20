@@ -52,6 +52,270 @@ vi.mock("../../../../utils/toolMetadata", () => ({
   generateToolList: mockGenerateToolList,
 }));
 
+type AgentPromptContext = {
+  systemPrompt?: string;
+  clientTools?: Array<{
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  }>;
+  notificationChannelId?: string;
+  delegatableAgentIds?: string[];
+  enabledMcpServerIds?: string[];
+  enableMemorySearch?: boolean;
+  enableSearchDocuments?: boolean;
+  enableSendEmail?: boolean;
+  searchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
+  enableExaSearch?: boolean;
+};
+
+type ToolGroup = {
+  category: string;
+  tools: ToolMetadata[];
+};
+
+const PROMPT_SYSTEM_TEXT = `You are an expert at writing effective system prompts for AI agents. Your task is to generate clear, actionable system prompts based on user-provided goals and available tools.
+
+When generating a system prompt, you should:
+1. Define the agent's role and purpose clearly
+2. Include specific guidelines for how the agent should behave and respond
+3. Add any relevant constraints or limitations
+4. Make the prompt specific to the user's goal
+5. Reference available tools when relevant to help the agent understand what capabilities it has
+6. Use clear, professional language
+7. Support markdown formatting where appropriate
+
+If an existing system prompt is provided, you should build upon it, refine it, or incorporate relevant elements while addressing the user's goal. When an existing prompt is present, preserve important instructions and constraints while updating based on the new goal.
+
+The system prompt should be comprehensive enough to guide the agent's behavior effectively, but concise enough to be practical. Focus on actionable instructions rather than abstract concepts.
+
+If tools are available, you may mention them naturally in the prompt, but do not list them exhaustively - the agent will have access to tool definitions separately.
+
+Generate only the system prompt text itself, without any additional commentary or explanation.`;
+
+const extractGoal = (body: unknown): string => {
+  const goal = (body as { goal?: unknown })?.goal;
+  if (!goal || typeof goal !== "string" || goal.trim().length === 0) {
+    throw badRequest("goal is required and must be a non-empty string");
+  }
+  return goal;
+};
+
+const requireWorkspaceContext = (req: express.Request) => {
+  if (!req.workspaceResource) {
+    throw badRequest("Workspace resource not found");
+  }
+  if (!req.userRef) {
+    throw unauthorized();
+  }
+  return {
+    workspaceId: req.params.workspaceId,
+    currentUserRef: req.userRef,
+  };
+};
+
+const loadAgentForPrompt = async (
+  db: Awaited<ReturnType<typeof mockDatabase>>,
+  workspaceId: string,
+  agentId?: unknown
+): Promise<AgentPromptContext | null> => {
+  if (!agentId || typeof agentId !== "string") {
+    return null;
+  }
+  const agentPk = `agents/${workspaceId}/${agentId}`;
+  const agentRecord = await db.agent.get(agentPk, "agent");
+  if (!agentRecord) {
+    return null;
+  }
+  return {
+    systemPrompt: agentRecord.systemPrompt,
+    clientTools: agentRecord.clientTools,
+    notificationChannelId: agentRecord.notificationChannelId,
+    delegatableAgentIds: agentRecord.delegatableAgentIds,
+    enabledMcpServerIds: agentRecord.enabledMcpServerIds,
+    enableMemorySearch: agentRecord.enableMemorySearch,
+    enableSearchDocuments: agentRecord.enableSearchDocuments,
+    enableSendEmail: agentRecord.enableSendEmail,
+    searchWebProvider: agentRecord.searchWebProvider ?? null,
+    fetchWebProvider: agentRecord.fetchWebProvider ?? null,
+    enableExaSearch: agentRecord.enableExaSearch ?? false,
+  };
+};
+
+const loadEmailConnection = async (
+  db: Awaited<ReturnType<typeof mockDatabase>>,
+  workspaceId: string
+): Promise<boolean> => {
+  const emailConnectionPk = `email-connections/${workspaceId}`;
+  const emailConnection = await db["email-connection"].get(
+    emailConnectionPk,
+    "connection"
+  );
+  return !!emailConnection;
+};
+
+const loadEnabledMcpServers = async (
+  db: Awaited<ReturnType<typeof mockDatabase>>,
+  workspaceId: string,
+  enabledMcpServerIds: string[]
+) => {
+  const enabledMcpServers = [];
+  for (const serverId of enabledMcpServerIds) {
+    const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
+    const server = await db["mcp-server"].get(serverPk, "server");
+    if (server) {
+      const config = server.config as { accessToken?: string };
+      const hasOAuthConnection = !!config.accessToken;
+
+      enabledMcpServers.push({
+        id: serverId,
+        name: server.name,
+        serviceType: server.serviceType,
+        authType: server.authType,
+        oauthConnected: hasOAuthConnection,
+      });
+    }
+  }
+  return enabledMcpServers;
+};
+
+const buildToolList = (params: {
+  agent: AgentPromptContext | null;
+  workspaceId: string;
+  enabledMcpServers: Array<{
+    id: string;
+    name: string;
+    serviceType: string;
+    authType: string;
+    oauthConnected: boolean;
+  }>;
+  emailConnection: boolean;
+}): ToolGroup[] => {
+  return mockGenerateToolList({
+    agent: {
+      enableSearchDocuments: params.agent?.enableSearchDocuments ?? false,
+      enableMemorySearch: params.agent?.enableMemorySearch ?? false,
+      notificationChannelId: params.agent?.notificationChannelId,
+      enableSendEmail: params.agent?.enableSendEmail ?? false,
+      searchWebProvider: params.agent?.searchWebProvider ?? null,
+      fetchWebProvider: params.agent?.fetchWebProvider ?? null,
+      enableExaSearch: params.agent?.enableExaSearch ?? false,
+      delegatableAgentIds: params.agent?.delegatableAgentIds ?? [],
+      enabledMcpServerIds: params.agent?.enabledMcpServerIds ?? [],
+      clientTools: params.agent?.clientTools ?? [],
+    },
+    workspaceId: params.workspaceId,
+    enabledMcpServers: params.enabledMcpServers,
+    emailConnection: params.emailConnection,
+  });
+};
+
+const getServiceTypeForTool = (toolName: string): string => {
+  if (toolName.startsWith("google_drive_")) {
+    return "Google Drive";
+  }
+  if (toolName.startsWith("gmail_")) {
+    return "Gmail";
+  }
+  if (toolName.startsWith("google_calendar_")) {
+    return "Google Calendar";
+  }
+  if (toolName.startsWith("notion_")) {
+    return "Notion";
+  }
+  if (toolName.startsWith("github_")) {
+    return "GitHub";
+  }
+  if (toolName.startsWith("linear_")) {
+    return "Linear";
+  }
+  if (toolName.startsWith("mcp_")) {
+    return "MCP Server";
+  }
+  return "";
+};
+
+const buildToolsInfo = (toolList: ToolGroup[]): string[] => {
+  const toolsInfo: string[] = [];
+
+  for (const group of toolList) {
+    const availableToolsInGroup = group.tools.filter(
+      (tool: ToolMetadata) =>
+        tool.alwaysAvailable ||
+        (tool.condition && tool.condition.includes("Available"))
+    );
+
+    if (availableToolsInGroup.length === 0) {
+      continue;
+    }
+
+    if (group.category === "MCP Server Tools") {
+      toolsInfo.push("## MCP Server Tools");
+    } else if (group.category === "Client Tools") {
+      toolsInfo.push("## Client-Side Tools (Custom)");
+    } else {
+      toolsInfo.push(`## ${group.category}`);
+    }
+
+    if (group.category === "MCP Server Tools") {
+      const toolsByServer = new Map<string, string[]>();
+      for (const tool of availableToolsInGroup) {
+        let serverName = "Unknown";
+        if (tool.condition) {
+          const match = tool.condition.match(/"([^"]+)"/);
+          if (match) {
+            serverName = match[1];
+          }
+        }
+
+        const serviceType = getServiceTypeForTool(tool.name);
+        const key = serviceType
+          ? `${serviceType} (${serverName})`
+          : `MCP Server (${serverName})`;
+        if (!toolsByServer.has(key)) {
+          toolsByServer.set(key, []);
+        }
+        toolsByServer.get(key)!.push(tool.name);
+      }
+
+      for (const [serverKey, toolNames] of toolsByServer.entries()) {
+        toolsInfo.push(`- **${serverKey}**: ${toolNames.join(", ")}`);
+      }
+    } else {
+      for (const tool of availableToolsInGroup) {
+        const shortDescription = tool.description
+          .split(".")
+          .slice(0, 1)
+          .join(".")
+          .trim();
+        toolsInfo.push(`- **${tool.name}**: ${shortDescription}`);
+      }
+    }
+  }
+
+  return toolsInfo;
+};
+
+const buildToolsContext = (toolList: ToolGroup[]): string => {
+  const toolsInfo = buildToolsInfo(toolList);
+  if (toolsInfo.length === 0) {
+    return "";
+  }
+  return `\n\n## Available Tools\n\nThe agent will have access to the following tools:\n\n${toolsInfo.join(
+    "\n"
+  )}\n\nWhen generating the prompt, you may reference these tools naturally if they are relevant to the agent's goal, but do not list them exhaustively.`;
+};
+
+const buildExistingPromptContext = (
+  agent: AgentPromptContext | null
+): string => {
+  if (!agent?.systemPrompt || agent.systemPrompt.trim().length === 0) {
+    return "";
+  }
+  return `\n\n## Existing System Prompt\n\n${agent.systemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`;
+};
+
 describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -91,201 +355,40 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
       next: express.NextFunction
     ) => {
       try {
-        const { goal, agentId } = req.body;
-        if (!goal || typeof goal !== "string" || goal.trim().length === 0) {
-          throw badRequest("goal is required and must be a non-empty string");
-        }
+        const goal = extractGoal(req.body);
+        const agentId = (req.body as { agentId?: unknown })?.agentId;
 
         const db = await mockDatabase();
 
-        const workspaceResource = req.workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const currentUserRef = req.userRef;
-        if (!currentUserRef) {
-          throw unauthorized();
-        }
-        const workspaceId = req.params.workspaceId;
+        const { workspaceId, currentUserRef } = requireWorkspaceContext(req);
 
         // Get agent information if agentId is provided
-        let agent: {
-          systemPrompt?: string;
-          clientTools?: Array<{
-            name: string;
-            description: string;
-            parameters: Record<string, unknown>;
-          }>;
-          notificationChannelId?: string;
-          delegatableAgentIds?: string[];
-          enabledMcpServerIds?: string[];
-          enableMemorySearch?: boolean;
-          enableSearchDocuments?: boolean;
-          enableSendEmail?: boolean;
-          searchWebProvider?: "tavily" | "jina" | null;
-          fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
-          enableExaSearch?: boolean;
-        } | null = null;
-
-        if (agentId && typeof agentId === "string") {
-          const agentPk = `agents/${workspaceId}/${agentId}`;
-          const agentRecord = await db.agent.get(agentPk, "agent");
-          if (agentRecord) {
-            agent = {
-              systemPrompt: agentRecord.systemPrompt,
-              clientTools: agentRecord.clientTools,
-              notificationChannelId: agentRecord.notificationChannelId,
-              delegatableAgentIds: agentRecord.delegatableAgentIds,
-              enabledMcpServerIds: agentRecord.enabledMcpServerIds,
-              enableMemorySearch: agentRecord.enableMemorySearch,
-              enableSearchDocuments: agentRecord.enableSearchDocuments,
-              enableSendEmail: agentRecord.enableSendEmail,
-              searchWebProvider: agentRecord.searchWebProvider ?? null,
-              fetchWebProvider: agentRecord.fetchWebProvider ?? null,
-              enableExaSearch: agentRecord.enableExaSearch ?? false,
-            };
-          }
-        }
+        const agent = await loadAgentForPrompt(db, workspaceId, agentId);
 
         // Check for email connection
-        const emailConnectionPk = `email-connections/${workspaceId}`;
-        const emailConnection = await db["email-connection"].get(
-          emailConnectionPk,
-          "connection"
-        );
-        const hasEmailConnection = !!emailConnection;
+        const hasEmailConnection = await loadEmailConnection(db, workspaceId);
 
         // Load enabled MCP servers if agent has them
         const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
-        const enabledMcpServers = [];
-
-        for (const serverId of enabledMcpServerIds) {
-          const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
-          const server = await db["mcp-server"].get(serverPk, "server");
-          if (server) {
-            const config = server.config as { accessToken?: string };
-            const hasOAuthConnection = !!config.accessToken;
-
-            enabledMcpServers.push({
-              id: serverId,
-              name: server.name,
-              serviceType: server.serviceType,
-              authType: server.authType,
-              oauthConnected: hasOAuthConnection,
-            });
-          }
-        }
+        const enabledMcpServers = await loadEnabledMcpServers(
+          db,
+          workspaceId,
+          enabledMcpServerIds
+        );
 
         // Use shared tool metadata library to generate tool list
-        const toolList = mockGenerateToolList({
-          agent: {
-            enableSearchDocuments: agent?.enableSearchDocuments ?? false,
-            enableMemorySearch: agent?.enableMemorySearch ?? false,
-            notificationChannelId: agent?.notificationChannelId,
-            enableSendEmail: agent?.enableSendEmail ?? false,
-            searchWebProvider: agent?.searchWebProvider ?? null,
-            fetchWebProvider: agent?.fetchWebProvider ?? null,
-            enableExaSearch: agent?.enableExaSearch ?? false,
-            delegatableAgentIds: agent?.delegatableAgentIds ?? [],
-            enabledMcpServerIds: agent?.enabledMcpServerIds ?? [],
-            clientTools: agent?.clientTools ?? [],
-          },
+        const toolList = buildToolList({
+          agent,
           workspaceId,
           enabledMcpServers,
           emailConnection: hasEmailConnection,
         });
 
         // Convert tool metadata to text format for prompt generation
-        const toolsInfo: string[] = [];
-        const availableTools: string[] = [];
-
-        for (const group of toolList) {
-          const availableToolsInGroup = group.tools.filter(
-            (tool: ToolMetadata) =>
-              tool.alwaysAvailable ||
-              (tool.condition && tool.condition.includes("Available"))
-          );
-
-          if (availableToolsInGroup.length === 0) {
-            continue;
-          }
-
-          if (group.category === "MCP Server Tools") {
-            toolsInfo.push("## MCP Server Tools");
-          } else if (group.category === "Client Tools") {
-            toolsInfo.push("## Client-Side Tools (Custom)");
-          } else {
-            toolsInfo.push(`## ${group.category}`);
-          }
-
-          if (group.category === "MCP Server Tools") {
-            const toolsByServer = new Map<string, string[]>();
-            for (const tool of availableToolsInGroup) {
-              availableTools.push(tool.name);
-
-              let serverName = "Unknown";
-              if (tool.condition) {
-                const match = tool.condition.match(/"([^"]+)"/);
-                if (match) {
-                  serverName = match[1];
-                }
-              }
-
-              let serviceType = "";
-              if (tool.name.startsWith("google_drive_")) {
-                serviceType = "Google Drive";
-              } else if (tool.name.startsWith("gmail_")) {
-                serviceType = "Gmail";
-              } else if (tool.name.startsWith("google_calendar_")) {
-                serviceType = "Google Calendar";
-              } else if (tool.name.startsWith("notion_")) {
-                serviceType = "Notion";
-              } else if (tool.name.startsWith("github_")) {
-                serviceType = "GitHub";
-              } else if (tool.name.startsWith("linear_")) {
-                serviceType = "Linear";
-              } else if (tool.name.startsWith("mcp_")) {
-                serviceType = "MCP Server";
-              }
-
-              const key = serviceType
-                ? `${serviceType} (${serverName})`
-                : `MCP Server (${serverName})`;
-              if (!toolsByServer.has(key)) {
-                toolsByServer.set(key, []);
-              }
-              toolsByServer.get(key)!.push(tool.name);
-            }
-
-            for (const [serverKey, toolNames] of toolsByServer.entries()) {
-              toolsInfo.push(`- **${serverKey}**: ${toolNames.join(", ")}`);
-            }
-          } else {
-            for (const tool of availableToolsInGroup) {
-              availableTools.push(tool.name);
-              const shortDescription = tool.description
-                .split(".")
-                .slice(0, 1)
-                .join(".")
-                .trim();
-              toolsInfo.push(`- **${tool.name}**: ${shortDescription}`);
-            }
-          }
-        }
-
-        // Build tools context for prompt generation
-        const toolsContext =
-          toolsInfo.length > 0
-            ? `\n\n## Available Tools\n\nThe agent will have access to the following tools:\n\n${toolsInfo.join(
-                "\n"
-              )}\n\nWhen generating the prompt, you may reference these tools naturally if they are relevant to the agent's goal, but do not list them exhaustively.`
-            : "";
+        const toolsContext = buildToolsContext(toolList);
 
         // Build existing prompt context if available
-        const existingPromptContext =
-          agent?.systemPrompt && agent.systemPrompt.trim().length > 0
-            ? `\n\n## Existing System Prompt\n\n${agent.systemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`
-            : "";
+        const existingPromptContext = buildExistingPromptContext(agent);
 
         // Check prompt generation limit before LLM call
         await mockCheckPromptGenerationLimit(workspaceId);
@@ -304,24 +407,7 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
           model: model as unknown as Parameters<
             typeof generateText
           >[0]["model"],
-          system: `You are an expert at writing effective system prompts for AI agents. Your task is to generate clear, actionable system prompts based on user-provided goals and available tools.
-
-When generating a system prompt, you should:
-1. Define the agent's role and purpose clearly
-2. Include specific guidelines for how the agent should behave and respond
-3. Add any relevant constraints or limitations
-4. Make the prompt specific to the user's goal
-5. Reference available tools when relevant to help the agent understand what capabilities it has
-6. Use clear, professional language
-7. Support markdown formatting where appropriate
-
-If an existing system prompt is provided, you should build upon it, refine it, or incorporate relevant elements while addressing the user's goal. When an existing prompt is present, preserve important instructions and constraints while updating based on the new goal.
-
-The system prompt should be comprehensive enough to guide the agent's behavior effectively, but concise enough to be practical. Focus on actionable instructions rather than abstract concepts.
-
-If tools are available, you may mention them naturally in the prompt, but do not list them exhaustively - the agent will have access to tool definitions separately.
-
-Generate only the system prompt text itself, without any additional commentary or explanation.`,
+          system: PROMPT_SYSTEM_TEXT,
           messages: [
             {
               role: "user",

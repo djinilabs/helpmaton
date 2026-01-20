@@ -45,6 +45,64 @@ describe("conversationLogger", () => {
       const toolMessages = expanded.filter((msg) => msg.role === "tool");
       expect(toolMessages).toHaveLength(1);
     });
+
+    it("splits tool calls/results and preserves text metadata", () => {
+      const toolCallStartedAt = "2024-01-01T00:00:00.000Z";
+      const toolExecutionTimeMs = 2000;
+      const expectedToolEnd = "2024-01-01T00:00:02.000Z";
+
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "tool-1",
+              toolName: "get_datetime",
+              args: { zone: "UTC" },
+              toolCallStartedAt,
+            },
+            {
+              type: "tool-result",
+              toolCallId: "tool-1",
+              toolName: "get_datetime",
+              result: "ok",
+              toolExecutionTimeMs,
+            },
+            {
+              type: "text",
+              text: "done",
+            },
+          ],
+          generationStartedAt: "2024-01-01T00:00:00.000Z",
+          generationEndedAt: "2024-01-01T00:00:05.000Z",
+          tokenUsage: { promptTokens: 1, completionTokens: 2, totalTokens: 3 },
+          modelName: "test-model",
+          provider: "openrouter",
+        },
+      ];
+
+      const expanded = expandMessagesWithToolCalls(messages);
+      const toolMessages = expanded.filter((msg) => msg.role === "tool");
+      const assistantMessages = expanded.filter((msg) => msg.role === "assistant");
+
+      expect(toolMessages).toHaveLength(1);
+      expect(assistantMessages).toHaveLength(2);
+
+      const textOnlyMessage = assistantMessages.find(
+        (msg) =>
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (item) => typeof item === "object" && item !== null && "type" in item && item.type === "text"
+          )
+      );
+      expect(textOnlyMessage?.generationStartedAt).toBe(expectedToolEnd);
+      expect(textOnlyMessage?.tokenUsage).toEqual({
+        promptTokens: 1,
+        completionTokens: 2,
+        totalTokens: 3,
+      });
+    });
   });
   describe("extractTokenUsage", () => {
     it("should extract token usage from standard AI SDK format", () => {

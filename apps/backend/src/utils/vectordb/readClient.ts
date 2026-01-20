@@ -133,6 +133,14 @@ interface LanceDBRow {
   _distance?: number;
 }
 
+type QueryBuilder = {
+  nearestTo?: (vector: number[]) => unknown;
+  where?: (filter: string) => unknown;
+  limit?: (limit: number) => unknown;
+  toArray?: () => Promise<Array<LanceDBRow>>;
+  execute?: () => Promise<AsyncIterable<LanceDBRow>>;
+};
+
 /**
  * Apply temporal filter to query results
  */
@@ -161,6 +169,216 @@ function applyTemporalFilter(
   });
 }
 
+function clampQueryLimit(limit: number): number {
+  return Math.min(Math.max(1, limit), MAX_QUERY_LIMIT);
+}
+
+async function openVectorsTable(
+  db: Awaited<ReturnType<typeof connect>>,
+  dbUri: string,
+  agentId: string,
+  temporalGrain: TemporalGrain
+): Promise<{ query: () => QueryBuilder } | null> {
+  const table = await db.openTable("vectors").catch(async (error) => {
+    console.warn(
+      `[Read Client] Table "vectors" not found in database ${dbUri}:`,
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  });
+
+  if (!table) {
+    console.log(
+      `[Read Client] No table found, returning empty results for agent ${agentId}, grain ${temporalGrain}`
+    );
+    return null;
+  }
+
+  console.log(
+    `[Read Client] Table opened successfully for agent ${agentId}, grain ${temporalGrain}`
+  );
+
+  return table as unknown as { query: () => QueryBuilder };
+}
+
+function buildQueryBuilder(
+  table: { query: () => QueryBuilder },
+  options: {
+    vector?: number[];
+    filter?: string;
+    limit: number;
+  }
+): QueryBuilder {
+  let queryBuilder = table.query();
+
+  if (options.vector && queryBuilder.nearestTo) {
+    queryBuilder = queryBuilder.nearestTo(options.vector) as QueryBuilder;
+  }
+
+  if (options.filter && queryBuilder.where) {
+    queryBuilder = queryBuilder.where(options.filter) as QueryBuilder;
+  }
+
+  if (queryBuilder.limit) {
+    queryBuilder = queryBuilder.limit(options.limit) as QueryBuilder;
+  }
+
+  return queryBuilder;
+}
+
+async function collectRowsFromQuery(
+  queryBuilder: QueryBuilder
+): Promise<LanceDBRow[]> {
+  if (queryBuilder.toArray) {
+    const rows = await queryBuilder.toArray();
+    logSampleRowMetadata(rows);
+    console.log(
+      `[Read Client] Retrieved ${rows.length} rows, logging all metadata:`
+    );
+    return rows;
+  }
+
+  if (queryBuilder.execute) {
+    const iterator = await queryBuilder.execute();
+    console.log(`[Read Client] Using execute() method to retrieve rows...`);
+    const rows: LanceDBRow[] = [];
+    for await (const row of iterator) {
+      rows.push(row);
+    }
+    console.log(
+      `[Read Client] Retrieved ${rows.length} rows total via execute()`
+    );
+    return rows;
+  }
+
+  console.log(`[Read Client] Using fallback method to retrieve rows...`);
+  const rows = await (queryBuilder as unknown as () => Promise<Array<LanceDBRow>>)();
+  console.log(
+    `[Read Client] Retrieved ${rows.length} rows via fallback, logging all metadata:`
+  );
+  return rows;
+}
+
+function logSampleRowMetadata(rows: LanceDBRow[]): void {
+  if (rows.length === 0) {
+    return;
+  }
+  console.log(
+    `[Read Client] Sample row metadata type:`,
+    typeof rows[0].metadata,
+    Array.isArray(rows[0].metadata)
+  );
+  if (rows[0].metadata) {
+    console.log(
+      `[Read Client] Sample row metadata value:`,
+      JSON.stringify(rows[0].metadata, null, 2)
+    );
+  }
+}
+
+function buildMetadataFromRow(row: LanceDBRow): Record<string, unknown> {
+  return {
+    conversationId: row.conversationId || row.metadata?.conversationId || null,
+    workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
+    agentId: row.agentId || row.metadata?.agentId || null,
+    documentId: row.documentId || row.metadata?.documentId || null,
+    documentName: row.documentName || row.metadata?.documentName || null,
+    folderPath: row.folderPath || row.metadata?.folderPath || null,
+  };
+}
+
+function logRowMetadata(row: LanceDBRow, index: number, total: number): void {
+  console.log(
+    `[Read Client] Row ${index + 1}/${total} - ID: ${row.id.substring(0, 20)}...`
+  );
+  console.log(`  Content: ${row.content.substring(0, 60)}...`);
+  console.log(`  Timestamp: ${row.timestamp}`);
+  console.log(
+    `  Metadata fields from row:`,
+    JSON.stringify(
+      {
+        conversationId: row.conversationId,
+        workspaceId: row.workspaceId,
+        agentId: row.agentId,
+        documentId: row.documentId,
+        documentName: row.documentName,
+        folderPath: row.folderPath,
+      },
+      null,
+      4
+    )
+  );
+
+  if (row.metadata) {
+    console.log(`  Raw metadata type: ${typeof row.metadata}`);
+    console.log(
+      `  Raw metadata value:`,
+      JSON.stringify(row.metadata, null, 4)
+    );
+  }
+}
+
+function mapRowsToResults(rows: LanceDBRow[]): QueryResult[] {
+  const results: QueryResult[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    logRowMetadata(row, i, rows.length);
+
+    const metadata = buildMetadataFromRow(row);
+    console.log(`  Reconstructed metadata:`, JSON.stringify(metadata, null, 4));
+
+    results.push({
+      id: row.id,
+      content: row.content,
+      embedding: (row.vector || row.embedding || []) as number[],
+      timestamp: row.timestamp,
+      metadata,
+      distance: row._distance,
+    });
+  }
+
+  return results;
+}
+
+function logMetadataSummary(options: {
+  results: QueryResult[];
+  filteredResults: QueryResult[];
+  agentId: string;
+  temporalGrain: TemporalGrain;
+}): void {
+  const { results, filteredResults, agentId, temporalGrain } = options;
+  const metadataStats = {
+    total: results.length,
+    withConversationId: results.filter((r) => r.metadata?.conversationId).length,
+    withWorkspaceId: results.filter((r) => r.metadata?.workspaceId).length,
+    withAgentId: results.filter((r) => r.metadata?.agentId).length,
+    withAllMetadata: results.filter(
+      (r) =>
+        r.metadata?.conversationId &&
+        r.metadata?.workspaceId &&
+        r.metadata?.agentId
+    ).length,
+    withNullMetadata: results.filter(
+      (r) =>
+        !r.metadata?.conversationId ||
+        !r.metadata?.workspaceId ||
+        !r.metadata?.agentId
+    ).length,
+  };
+
+  console.log(
+    `[Read Client] Query completed for agent ${agentId}, grain ${temporalGrain}: ${results.length} raw results, ${filteredResults.length} after temporal filter`
+  );
+  console.log(
+    `[Read Client] Metadata summary:`,
+    JSON.stringify(metadataStats, null, 2)
+  );
+  console.log(
+    `[Read Client] Returning ${filteredResults.length} filtered results`
+  );
+}
+
 /**
  * Query the vector database
  *
@@ -182,7 +400,7 @@ export async function query(
   } = options;
 
   // Validate limit
-  const queryLimit = Math.min(Math.max(1, limit), MAX_QUERY_LIMIT);
+  const queryLimit = clampQueryLimit(limit);
 
   try {
     const dbUri = getDatabaseUri(agentId, temporalGrain);
@@ -191,290 +409,21 @@ export async function query(
     );
     const db = await getDatabaseConnection(agentId, temporalGrain);
 
-    // Get the table (LanceDB uses a default table name or we can specify)
-    // For now, we'll use the default table name "vectors"
-    const table = await db.openTable("vectors").catch(async (error) => {
-      // If table doesn't exist, return empty results
-      console.warn(
-        `[Read Client] Table "vectors" not found in database ${dbUri}:`,
-        error instanceof Error ? error.message : String(error)
-      );
-      return null;
-    });
-
+    const table = await openVectorsTable(db, dbUri, agentId, temporalGrain);
     if (!table) {
-      console.log(
-        `[Read Client] No table found, returning empty results for agent ${agentId}, grain ${temporalGrain}`
-      );
       return [];
     }
 
-    console.log(
-      `[Read Client] Table opened successfully for agent ${agentId}, grain ${temporalGrain}`
-    );
+    const queryBuilder = buildQueryBuilder(table, {
+      vector,
+      filter,
+      limit: queryLimit,
+    });
 
-    // Build query
-    let queryBuilder: {
-      nearestTo?: (vector: number[]) => unknown;
-      where?: (filter: string) => unknown;
-      limit?: (limit: number) => unknown;
-      toArray?: () => Promise<Array<LanceDBRow>>;
-      execute?: () => Promise<AsyncIterable<LanceDBRow>>;
-    } = table.query() as unknown as typeof queryBuilder;
-
-    // Apply vector similarity search if provided
-    if (vector && queryBuilder.nearestTo) {
-      queryBuilder = queryBuilder.nearestTo(vector) as typeof queryBuilder;
-    }
-
-    // Apply metadata filter if provided
-    if (filter && queryBuilder.where) {
-      queryBuilder = queryBuilder.where(filter) as typeof queryBuilder;
-    }
-
-    // Apply limit
-    if (queryBuilder.limit) {
-      queryBuilder = queryBuilder.limit(queryLimit) as typeof queryBuilder;
-    }
-
-    // Execute query - LanceDB query() returns a Query object that needs to be executed
-    // The actual execution method may vary, so we'll use toArray() if available
     const results: QueryResult[] = [];
     try {
-      // Try toArray() method which converts the query to an array
-      const queryResult = queryBuilder as unknown as {
-        toArray?: () => Promise<Array<LanceDBRow>>;
-        execute?: () => Promise<AsyncIterable<LanceDBRow>>;
-      };
-
-      if (queryResult.toArray) {
-        const rows = await queryResult.toArray();
-        // Log first row's metadata for debugging
-        if (rows.length > 0) {
-          console.log(
-            `[Read Client] Sample row metadata type:`,
-            typeof rows[0].metadata,
-            Array.isArray(rows[0].metadata)
-          );
-          if (rows[0].metadata) {
-            console.log(
-              `[Read Client] Sample row metadata value:`,
-              JSON.stringify(rows[0].metadata, null, 2)
-            );
-          }
-        }
-
-        // Log all metadata from all rows for debugging
-        console.log(
-          `[Read Client] Retrieved ${rows.length} rows, logging all metadata:`
-        );
-        for (let i = 0; i < rows.length; i++) {
-          const row = rows[i];
-          console.log(
-            `[Read Client] Row ${i + 1}/${rows.length} - ID: ${row.id.substring(
-              0,
-              20
-            )}...`
-          );
-          console.log(`  Content: ${row.content.substring(0, 60)}...`);
-          console.log(`  Timestamp: ${row.timestamp}`);
-
-          // Metadata is stored as top-level fields, not nested
-          console.log(
-            `  Metadata fields from row:`,
-            JSON.stringify(
-              {
-                conversationId: row.conversationId,
-                workspaceId: row.workspaceId,
-                agentId: row.agentId,
-                documentId: row.documentId,
-                documentName: row.documentName,
-                folderPath: row.folderPath,
-              },
-              null,
-              4
-            )
-          );
-
-          // For backward compatibility, also check for legacy nested metadata
-          if (row.metadata) {
-            console.log(`  Raw metadata type: ${typeof row.metadata}`);
-            console.log(
-              `  Raw metadata value:`,
-              JSON.stringify(row.metadata, null, 4)
-            );
-          }
-
-          // Reconstruct metadata object from top-level fields
-          // Prefer top-level fields, fallback to nested metadata for legacy tables
-          const metadata: Record<string, unknown> = {
-            conversationId:
-              row.conversationId || row.metadata?.conversationId || null,
-            workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
-            agentId: row.agentId || row.metadata?.agentId || null,
-            documentId: row.documentId || row.metadata?.documentId || null,
-            documentName:
-              row.documentName || row.metadata?.documentName || null,
-            folderPath: row.folderPath || row.metadata?.folderPath || null,
-          };
-
-          console.log(
-            `  Reconstructed metadata:`,
-            JSON.stringify(metadata, null, 4)
-          );
-
-          results.push({
-            id: row.id,
-            content: row.content,
-            embedding: (row.vector || row.embedding || []) as number[],
-            timestamp: row.timestamp,
-            metadata,
-            distance: row._distance,
-          });
-        }
-      } else if (queryResult.execute) {
-        const iterator = await queryResult.execute();
-        let rowIndex = 0;
-        console.log(`[Read Client] Using execute() method to retrieve rows...`);
-        for await (const row of iterator) {
-          rowIndex++;
-          console.log(
-            `[Read Client] Row ${rowIndex} - ID: ${row.id.substring(0, 20)}...`
-          );
-          console.log(`  Content: ${row.content.substring(0, 60)}...`);
-          console.log(`  Timestamp: ${row.timestamp}`);
-
-          // Metadata is stored as top-level fields, not nested
-          console.log(
-            `  Metadata fields from row:`,
-            JSON.stringify(
-              {
-                conversationId: row.conversationId,
-                workspaceId: row.workspaceId,
-                agentId: row.agentId,
-                documentId: row.documentId,
-                documentName: row.documentName,
-                folderPath: row.folderPath,
-              },
-              null,
-              4
-            )
-          );
-
-          // For backward compatibility, also check for legacy nested metadata
-          if (row.metadata) {
-            console.log(`  Raw metadata type: ${typeof row.metadata}`);
-            console.log(
-              `  Raw metadata value:`,
-              JSON.stringify(row.metadata, null, 4)
-            );
-          }
-
-          // Reconstruct metadata object from top-level fields
-          // Prefer top-level fields, fallback to nested metadata for legacy tables
-          const metadata: Record<string, unknown> = {
-            conversationId:
-              row.conversationId || row.metadata?.conversationId || null,
-            workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
-            agentId: row.agentId || row.metadata?.agentId || null,
-            documentId: row.documentId || row.metadata?.documentId || null,
-            documentName:
-              row.documentName || row.metadata?.documentName || null,
-            folderPath: row.folderPath || row.metadata?.folderPath || null,
-          };
-
-          console.log(
-            `  Reconstructed metadata:`,
-            JSON.stringify(metadata, null, 4)
-          );
-
-          results.push({
-            id: row.id,
-            content: row.content,
-            embedding: (row.vector || row.embedding || []) as number[],
-            timestamp: row.timestamp,
-            metadata,
-            distance: row._distance,
-          });
-        }
-        console.log(
-          `[Read Client] Retrieved ${rowIndex} rows total via execute()`
-        );
-      } else {
-        // Fallback: try calling as a function
-        console.log(`[Read Client] Using fallback method to retrieve rows...`);
-        const rows = await (
-          queryBuilder as unknown as () => Promise<Array<LanceDBRow>>
-        )();
-
-        console.log(
-          `[Read Client] Retrieved ${rows.length} rows via fallback, logging all metadata:`
-        );
-        for (let i = 0; i < rows.length; i++) {
-          const row = rows[i];
-          console.log(
-            `[Read Client] Row ${i + 1}/${rows.length} - ID: ${row.id.substring(
-              0,
-              20
-            )}...`
-          );
-          console.log(`  Content: ${row.content.substring(0, 60)}...`);
-          console.log(`  Timestamp: ${row.timestamp}`);
-
-          // Metadata is stored as top-level fields, not nested
-          console.log(
-            `  Metadata fields from row:`,
-            JSON.stringify(
-              {
-                conversationId: row.conversationId,
-                workspaceId: row.workspaceId,
-                agentId: row.agentId,
-                documentId: row.documentId,
-                documentName: row.documentName,
-                folderPath: row.folderPath,
-              },
-              null,
-              4
-            )
-          );
-
-          // For backward compatibility, also check for legacy nested metadata
-          if (row.metadata) {
-            console.log(`  Raw metadata type: ${typeof row.metadata}`);
-            console.log(
-              `  Raw metadata value:`,
-              JSON.stringify(row.metadata, null, 4)
-            );
-          }
-
-          // Reconstruct metadata object from top-level fields
-          // Prefer top-level fields, fallback to nested metadata for legacy tables
-          const metadata: Record<string, unknown> = {
-            conversationId:
-              row.conversationId || row.metadata?.conversationId || null,
-            workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
-            agentId: row.agentId || row.metadata?.agentId || null,
-            documentId: row.documentId || row.metadata?.documentId || null,
-            documentName:
-              row.documentName || row.metadata?.documentName || null,
-            folderPath: row.folderPath || row.metadata?.folderPath || null,
-          };
-
-          console.log(
-            `  Reconstructed metadata:`,
-            JSON.stringify(metadata, null, 4)
-          );
-
-          results.push({
-            id: row.id,
-            content: row.content,
-            embedding: (row.vector || row.embedding || []) as number[],
-            timestamp: row.timestamp,
-            metadata,
-            distance: row._distance,
-          });
-        }
-      }
+      const rows = await collectRowsFromQuery(queryBuilder);
+      results.push(...mapRowsToResults(rows));
     } catch (error) {
       console.error("[Read Client] Query execution error:", error);
       throw error;
@@ -484,36 +433,7 @@ export async function query(
     const filteredResults = applyTemporalFilter(results, temporalFilter);
 
     // Log metadata summary
-    const metadataStats = {
-      total: results.length,
-      withConversationId: results.filter((r) => r.metadata?.conversationId)
-        .length,
-      withWorkspaceId: results.filter((r) => r.metadata?.workspaceId).length,
-      withAgentId: results.filter((r) => r.metadata?.agentId).length,
-      withAllMetadata: results.filter(
-        (r) =>
-          r.metadata?.conversationId &&
-          r.metadata?.workspaceId &&
-          r.metadata?.agentId
-      ).length,
-      withNullMetadata: results.filter(
-        (r) =>
-          !r.metadata?.conversationId ||
-          !r.metadata?.workspaceId ||
-          !r.metadata?.agentId
-      ).length,
-    };
-
-    console.log(
-      `[Read Client] Query completed for agent ${agentId}, grain ${temporalGrain}: ${results.length} raw results, ${filteredResults.length} after temporal filter`
-    );
-    console.log(
-      `[Read Client] Metadata summary:`,
-      JSON.stringify(metadataStats, null, 2)
-    );
-    console.log(
-      `[Read Client] Returning ${filteredResults.length} filtered results`
-    );
+    logMetadataSummary({ results, filteredResults, agentId, temporalGrain });
 
     return filteredResults;
   } catch (error) {

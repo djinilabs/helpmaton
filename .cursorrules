@@ -76,3 +76,20 @@ After completing a task (or significant step), you must:
 - use your vast knowledge about the Helpmaton product and code base to decide if the comment makes sense.
 - if the comment makes sense, explain why, and then make the required changes.
 - if the comment does not make sense, explain why, and then ignore it.
+
+## Refactor complex functions
+
+11. When needing to refactor a complex function, do the following:
+- Make sure there are enough unit tests to thoroughly test the function, covering edge cases and particular behaviours.
+- Once you are satisfied with the unit test coverage and the tests pass, do the following:
+  - Relocate the complex function into a dedicated file
+  - Refactor the function, making sure that
+   - The function is easy to read.
+   - The function body uses functions with clear names and distinct responsabilities.
+- Make sure the unit tests still pass
+
+12. When asked to refactor complex functions, do the following:
+- Use the `scripts/complexity-report.mjs` script to generate a complexity report.
+- Locate the function with the highest complexity.
+- Refactor the function following the rules above
+

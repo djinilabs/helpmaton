@@ -120,6 +120,7 @@ export const ChatMessage = memo<ChatMessageProps>(
     const roleStyling = getRoleStyling(message.role);
 
     // Render part function - now using memoized components
+    // eslint-disable-next-line complexity
     const renderPart = (part: unknown, partIndex: number) => {
       if (
         !part ||
