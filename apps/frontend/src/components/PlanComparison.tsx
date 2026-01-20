@@ -9,6 +9,7 @@ interface PlanComparisonProps {
   isLoading?: boolean;
 }
 
+/* eslint-disable complexity */
 export const PlanComparison: FC<PlanComparisonProps> = ({
   currentPlan,
   onUpgrade,

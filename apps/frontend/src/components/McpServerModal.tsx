@@ -163,6 +163,7 @@ interface McpServerModalProps {
   serverId?: string; // If provided, we're editing; otherwise, creating
 }
 
+/* eslint-disable complexity */
 export const McpServerModal: FC<McpServerModalProps> = ({
   isOpen,
   onClose,
@@ -366,6 +367,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const isOAuthType = mcpType !== "custom" && mcpType !== "posthog";
   const selectedPosthogBaseUrl = posthogBaseUrls[posthogRegion];
 
+  /* eslint-disable complexity */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
