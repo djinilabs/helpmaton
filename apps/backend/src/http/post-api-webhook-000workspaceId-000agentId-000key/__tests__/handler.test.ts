@@ -1077,6 +1077,143 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     });
   });
 
+  it("should include assistant text when observer has only tool events", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const key = "key-789";
+    const bodyText = "Fetch the current time";
+
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId,
+      agentId,
+      key,
+      bodyText,
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-123",
+      plan: "pro" as const,
+    };
+    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: {
+        pk: `agents/${workspaceId}/${agentId}`,
+        name: "Test Agent",
+        systemPrompt: "You are helpful",
+        provider: "google" as const,
+      },
+      model: {},
+      tools: {
+        get_datetime: {
+          description: "Get datetime",
+          inputSchema: {},
+        },
+      },
+      usesByok: false,
+    });
+
+    mockConvertTextToUIMessage.mockReturnValue({
+      role: "user",
+      content: bodyText,
+    });
+
+    mockConvertUIMessagesToModelMessages.mockReturnValue([
+      {
+        role: "user",
+        content: bodyText,
+      },
+    ]);
+
+    mockCallAgentNonStreaming.mockResolvedValue({
+      text: "Here is the time.",
+      tokenUsage: {
+        promptTokens: 10,
+        completionTokens: 5,
+        totalTokens: 15,
+      },
+      observerEvents: [
+        {
+          type: "input-messages",
+          timestamp: "2026-01-01T00:00:00.000Z",
+          messages: [{ role: "user", content: bodyText }],
+        },
+        {
+          type: "tool-call",
+          timestamp: "2026-01-01T00:00:01.000Z",
+          toolCallId: "call-789",
+          toolName: "get_datetime",
+          args: {},
+        },
+        {
+          type: "tool-result",
+          timestamp: "2026-01-01T00:00:02.000Z",
+          toolCallId: "call-789",
+          toolName: "get_datetime",
+          result: "ok",
+        },
+      ],
+      rawResult: {
+        text: "Here is the time.",
+      } as unknown as Awaited<ReturnType<typeof generateText>>,
+      openrouterGenerationId: undefined,
+      openrouterGenerationIds: [],
+      provisionalCostUsd: 1000,
+    });
+
+    mockStartConversation.mockResolvedValue("conversation-id-123");
+    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const baseEvent = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: bodyText,
+    });
+    const event = {
+      ...baseEvent,
+      requestContext: {
+        ...baseEvent.requestContext,
+        http: {
+          ...baseEvent.requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId,
+        agentId,
+        key,
+      },
+    };
+
+    const result = (await handler(event, mockContext, mockCallback)) as {
+      statusCode: number;
+    };
+
+    expect(result.statusCode).toBe(200);
+    const conversationData = mockStartConversation.mock.calls[0][1];
+    const assistantMessage = conversationData.messages.find(
+      (msg: { role: string }) => msg.role === "assistant"
+    );
+    expect(assistantMessage).toBeDefined();
+    expect(Array.isArray(assistantMessage.content)).toBe(true);
+    if (Array.isArray(assistantMessage.content)) {
+      const textParts = assistantMessage.content.filter(
+        (item: unknown) =>
+          typeof item === "object" &&
+          item !== null &&
+          "type" in item &&
+          item.type === "text"
+      );
+      expect(textParts.length).toBeGreaterThan(0);
+    }
+  });
+
   it("should extract tool calls, token usage, and costs from result.steps structure (generateText format)", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-456";

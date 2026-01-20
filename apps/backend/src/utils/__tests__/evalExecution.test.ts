@@ -69,6 +69,44 @@ describe("evalExecution", () => {
       expect(result.score_goal_completion).toBe(50);
     });
 
+    it("should parse JSON embedded in surrounding text", () => {
+      const jsonResponse = {
+        summary: "Embedded JSON",
+        score_goal_completion: 88,
+        score_tool_efficiency: 92,
+        score_faithfulness: 90,
+        critical_failure_detected: false,
+        reasoning_trace: "Embedded reasoning",
+      };
+
+      const withText = `Here is the evaluation:\n${JSON.stringify(
+        jsonResponse
+      )}\nThanks!`;
+      const result = parseEvalResponse(withText);
+
+      expect(result.summary).toBe("Embedded JSON");
+      expect(result.score_tool_efficiency).toBe(92);
+    });
+
+    it("should parse fenced JSON with leading and trailing text", () => {
+      const jsonResponse = {
+        summary: "Fenced JSON",
+        score_goal_completion: 70,
+        score_tool_efficiency: 75,
+        score_faithfulness: 80,
+        critical_failure_detected: false,
+        reasoning_trace: "Fenced reasoning",
+      };
+
+      const withText = `Preamble\n\`\`\`json\n${JSON.stringify(
+        jsonResponse
+      )}\n\`\`\`\nPostscript`;
+      const result = parseEvalResponse(withText);
+
+      expect(result.summary).toBe("Fenced JSON");
+      expect(result.score_faithfulness).toBe(80);
+    });
+
     it("should throw error for invalid response format", () => {
       const invalidResponse = JSON.stringify({
         summary: "Test",

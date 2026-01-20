@@ -49,6 +49,10 @@ Builds and pushes Lambda container images to ECR for deployment.
 - `cleanup-pr-log-groups.sh` - Delete CloudWatch logs for closed PRs
 - `undeploy-pr.sh` - Undeploy a specific PR environment
 
+### Production Operations
+
+- `cleanup-production-log-groups.mjs` - Remove unused production CloudWatch log groups
+
 ### Backend Build and Deployment
 
 - `build-backend.ts` - Build backend Lambda functions
@@ -66,6 +70,84 @@ Builds and pushes Lambda container images to ECR for deployment.
 
 - `test-aggregation.ts` - Test token usage aggregation
 - `verify-aggregates.ts` - Verify aggregated token usage data
+- `run-staging-agent-tests.ts` - End-to-end validation against a PR stack
+
+#### Staging Agent Tests (`run-staging-agent-tests.ts`)
+
+**Purpose**: Provision a temporary workspace in a PR deployment and validate key agent workflows end-to-end.
+
+**What it sets up**
+- Resolves CloudFormation outputs/resources for the PR stack (API URL, streaming URL, tables, SQS queues).
+- Generates an auth token (or uses `AUTH_TOKEN`) and validates API access.
+- Creates a workspace and upgrades its subscription plan to unlock agent limits.
+- Creates agents:
+  - **Hello Agent** (simple test agent)
+  - **Delegated Agent** (target for async delegation)
+  - **Delegator Agent** (calls `call_agent_async`)
+- Enables delegation on the delegator agent.
+- Creates a streaming server config and a webhook API key.
+- Creates an eval judge with the required JSON schema prompt.
+- Sets workspace credits directly in DynamoDB to ensure enough budget for tests.
+
+**What it tests**
+- **Test endpoint** (`/api/workspaces/:workspaceId/agents/:agentId/test`)
+  - Sends a prompt that requires `get_datetime`.
+  - Validates the conversation record contains the reply marker, weekday, and tool usage.
+- **Streaming endpoint** (`/api/streams/:workspaceId/:agentId/:secret`)
+  - Validates a streamed response is logged correctly with tool usage and reply marker.
+- **Webhook endpoint** (`/api/webhook/:workspaceId/:agentId/:key`)
+  - Validates immediate text response contains the reply marker.
+  - Validates the stored conversation includes tool calls/results and known content.
+- **Async delegation**
+  - Calls delegator agent and waits for the delegation task in DynamoDB.
+  - Validates delegated agent conversation contains expected reply marker and weekday.
+- **Eval queue**
+  - Waits for an eval result entry tied to the test conversation and judge ID.
+- **Schedule queue**
+  - Creates a schedule, sends a direct SQS message, and validates a scheduled conversation is logged.
+- **Temporal grain queue**
+  - Sends a direct SQS message to write a memory fact.
+  - Verifies the fact is retrievable via the memory API.
+- **Cost verification**
+  - Polls credit transactions for the test conversation to verify cost reconciliation ran.
+
+**How it validates**
+- Uses a unique run marker embedded in prompts to correlate conversations.
+- Polls DynamoDB tables (conversations, eval results, delegation tasks, credit transactions) with exponential backoff.
+- Checks for:
+  - Tool call presence (`get_datetime`) in conversation messages
+  - Expected weekday in assistant reply
+  - Reply marker in assistant output
+  - Matching eval judge result
+  - Presence of cost-transaction entries for the conversation
+
+**Cleanup behavior**
+- Deletes the workspace only after a fully successful run.
+- Leaves resources behind on failure (or when `KEEP_STAGING_TEST_RESOURCES=1`).
+
+**Usage**
+```bash
+pnpm tsx scripts/run-staging-agent-tests.ts --pr 186
+```
+
+**Inputs**
+- `--pr <number>`: required PR number (stack suffix).
+- `--model <name>`: override model (default `google/gemini-2.5-flash`).
+- `--timeout <ms>`: per-step timeout (default `180000`).
+- `--credits <usd>`: workspace credits to set (default `25`).
+- `--reply <text>`: override reply marker.
+- `AUTH_SECRET`: required if not using `AUTH_TOKEN`.
+- `AUTH_TOKEN`: optional pre-generated auth token.
+- `KEEP_STAGING_TEST_RESOURCES=1`: keep workspace on success.
+
+**Potential future improvements**
+- Add a GSI for `conversationId` in credit-transactions to avoid filtered scans.
+- Emit a structured JSON report (pass/fail per step with timings).
+- Add CloudWatch log links on failures for faster triage.
+- Add per-step timeouts and retries (vs one global timeout).
+- Parallelize independent polls (eval + schedule + cost verification).
+- Add explicit validation for tool-result de-duplication and assistant text fallback.
+- Provide a `--dry-run` mode that only resolves stack resources and validates auth.
 
 ### Credits and Pricing
 

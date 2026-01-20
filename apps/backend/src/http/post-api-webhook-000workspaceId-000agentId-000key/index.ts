@@ -593,10 +593,11 @@ export const handler = adaptHttpHandler(
       try {
         // Combine user message and assistant message for logging
         // Deduplication will happen in startConversation (via expandMessagesWithToolCalls)
-        const messagesForLogging: UIMessage[] = agentResult.observerEvents
+        const observerMessages = agentResult.observerEvents
           ? buildConversationMessagesFromObserver({
               observerEvents: agentResult.observerEvents,
               fallbackInputMessages: [uiMessage],
+              fallbackAssistantText: agentResult.text,
               assistantMeta: {
                 tokenUsage: agentResult.tokenUsage,
                 modelName: finalModelName,
@@ -606,7 +607,20 @@ export const handler = adaptHttpHandler(
                 generationTimeMs,
               },
             })
-          : [uiMessage, assistantMessage];
+          : null;
+        const observerHasAssistantContent = observerMessages?.some((msg) => {
+          if (msg.role !== "assistant") {
+            return false;
+          }
+          if (Array.isArray(msg.content)) {
+            return msg.content.length > 0;
+          }
+          return typeof msg.content === "string" && msg.content.trim().length > 0;
+        });
+        const messagesForLogging: UIMessage[] =
+          observerMessages && observerHasAssistantContent
+            ? observerMessages
+            : [uiMessage, assistantMessage];
 
         // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
         const validMessages: UIMessage[] = messagesForLogging.filter(

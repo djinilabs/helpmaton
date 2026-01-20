@@ -147,6 +147,48 @@ export function parseEvalResponse(text: string): {
   critical_failure_detected: boolean;
   reasoning_trace: string;
 } {
+  const extractFirstJsonObject = (value: string): string | null => {
+    const startIndex = value.indexOf("{");
+    if (startIndex === -1) {
+      return null;
+    }
+
+    let depth = 0;
+    let inString = false;
+    let isEscaped = false;
+
+    for (let i = startIndex; i < value.length; i += 1) {
+      const char = value[i];
+
+      if (inString) {
+        if (isEscaped) {
+          isEscaped = false;
+        } else if (char === "\\") {
+          isEscaped = true;
+        } else if (char === "\"") {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char === "\"") {
+        inString = true;
+        continue;
+      }
+
+      if (char === "{") {
+        depth += 1;
+      } else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          return value.slice(startIndex, i + 1);
+        }
+      }
+    }
+
+    return null;
+  };
+
   // Remove markdown code blocks if present
   let cleanedText = text.trim();
   if (cleanedText.startsWith("```json")) {
@@ -155,7 +197,16 @@ export function parseEvalResponse(text: string): {
     cleanedText = cleanedText.replace(/^```\s*/, "").replace(/\s*```$/, "");
   }
 
-  const parsed = JSON.parse(cleanedText);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(cleanedText) as Record<string, unknown>;
+  } catch (error) {
+    const extractedJson = extractFirstJsonObject(cleanedText);
+    if (!extractedJson) {
+      throw error;
+    }
+    parsed = JSON.parse(extractedJson) as Record<string, unknown>;
+  }
 
   // Validate required fields
   if (
