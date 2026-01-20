@@ -344,11 +344,22 @@ const addMcpTools = async (params: {
   Object.assign(params.tools, mcpTools);
 };
 
+type ClientToolConfig = {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+};
+
+const hasClientTools = (
+  agent: WorkspaceAndAgent["agent"]
+): agent is WorkspaceAndAgent["agent"] & { clientTools: ClientToolConfig[] } =>
+  Array.isArray(agent.clientTools) && agent.clientTools.length > 0;
+
 const addClientTools = (
   tools: AgentSetup["tools"],
   agent: WorkspaceAndAgent["agent"]
 ) => {
-  if (!agent.clientTools || !Array.isArray(agent.clientTools) || agent.clientTools.length === 0) {
+  if (!hasClientTools(agent)) {
     return;
   }
   console.log("[Agent Setup] Adding client tools:", agent.clientTools);

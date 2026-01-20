@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 198 review fixes (round 2)**: Removed commented legacy block in `messageConversion.ts` and added a `hasClientTools` type guard in `agentSetup.ts` for clarity. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **MCP OAuth callback refactor**: Reduced `mcp-oauth-app.ts` complexity by extracting helpers for redirects, state parsing, permissions, token exchange, and config building; added `mcp-oauth-app` unit tests; ran `pnpm --filter backend test --run mcp-oauth-app`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **PR 198 review fixes**: Addressed CodeQL comments by adjusting `generationTimeMs` spreads in `webhookHandler.ts` and `slackTask.ts`, and removing the redundant `workspaceId` guard in widget `internalHandler.ts`. Ran `pnpm lint --fix` (fails on existing complexity in `mcp-oauth-app.ts`) and `pnpm typecheck`.
 - **Merge conflict resolution**: Resolved conflicts in `memory/activeContext.md`, `apps/backend/src/http/utils/mcpUtils.ts`, and `apps/backend/src/http/any-api-workspaces-catchall/routes/put-mcp-server.ts`; kept refactors and added Shopify validation in `put-mcp-server-handler.ts`. Ran `pnpm --filter backend test --run put-mcp-server`, `pnpm typecheck`, and regenerated `docs/complexity-report.md` (lint still fails on existing complexity in `apps/backend/src/http/any-api-mcp-oauth-000serviceType-callback/mcp-oauth-app.ts`).
