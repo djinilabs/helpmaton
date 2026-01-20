@@ -629,15 +629,14 @@ function cleanConversationErrorInfo(
   return cleanErrorInfo;
 }
 
-export function buildConversationErrorInfo(
-  error: unknown,
-  options?: {
-    provider?: string;
-    modelName?: string;
-    endpoint?: string;
-    metadata?: Record<string, unknown>;
-  }
-): ConversationErrorInfo {
+type MessageResolution = {
+  message: string;
+  specificError?: Error;
+  isWrapper: boolean;
+  errorAny?: ErrorWithCustomFields;
+};
+
+function logErrorExtractionStart(error: unknown): void {
   console.log("[buildConversationErrorInfo] Starting error extraction:", {
     errorType: error instanceof Error ? error.constructor.name : typeof error,
     errorName: error instanceof Error ? error.name : "N/A",
@@ -652,17 +651,14 @@ export function buildConversationErrorInfo(
         ? error.cause.message
         : undefined,
   });
+}
 
-  let message = error instanceof Error ? error.message : String(error);
-  let specificError: Error | undefined =
-    error instanceof Error ? error : undefined;
-
-  console.log("[buildConversationErrorInfo] Initial message:", message);
-
-  const isWrapper = error instanceof Error && isGenericWrapperError(error);
-  const errorAny =
-    error instanceof Error ? (error as ErrorWithCustomFields) : undefined;
-
+function logErrorStructureCheck(options: {
+  error: unknown;
+  isWrapper: boolean;
+  errorAny?: ErrorWithCustomFields;
+}): void {
+  const { error, isWrapper, errorAny } = options;
   console.log("[buildConversationErrorInfo] Error structure check:", {
     isWrapper,
     hasData: !!errorAny?.data,
@@ -678,6 +674,20 @@ export function buildConversationErrorInfo(
     statusCode: errorAny?.statusCode,
     hasCause: error instanceof Error && !!error.cause,
   });
+}
+
+function resolveMessageAndSpecificError(error: unknown): MessageResolution {
+  let message = error instanceof Error ? error.message : String(error);
+  let specificError: Error | undefined =
+    error instanceof Error ? error : undefined;
+
+  console.log("[buildConversationErrorInfo] Initial message:", message);
+
+  const isWrapper = error instanceof Error && isGenericWrapperError(error);
+  const errorAny =
+    error instanceof Error ? (error as ErrorWithCustomFields) : undefined;
+
+  logErrorStructureCheck({ error, isWrapper, errorAny });
 
   if (isWrapper && error instanceof Error && error.cause) {
     const wrapperResult = resolveWrapperCauseMessage(error);
@@ -747,6 +757,133 @@ export function buildConversationErrorInfo(
     }
   }
 
+  return {
+    message,
+    specificError,
+    isWrapper,
+    errorAny,
+  };
+}
+
+function applyApiErrorDetailsFromData(options: {
+  message: string;
+  currentCode?: string;
+  data: unknown;
+}): { message: string; code?: string } {
+  return applyApiErrorDetails({
+    message: options.message,
+    currentCode: options.currentCode,
+    data: options.data,
+  });
+}
+
+function enrichWithErrorDetails(options: {
+  base: ConversationErrorInfo;
+  message: string;
+  errorToInspect: Error;
+  originalError?: Error;
+}): { base: ConversationErrorInfo; message: string } {
+  const { base, errorToInspect, originalError } = options;
+
+  base.name = errorToInspect.name;
+  base.stack = errorToInspect.stack;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+  const anyError = errorToInspect as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const originalAny = originalError as any;
+
+  base.code =
+    extractCodeFromError(anyError) || extractCodeFromError(originalAny) || undefined;
+
+  base.statusCode =
+    extractStatusCodeFromError(anyError) ||
+    extractStatusCodeFromError(originalAny) ||
+    undefined;
+
+  let message = options.message;
+
+  if (anyError.response?.data) {
+    const updated = applyApiErrorDetailsFromData({
+      message,
+      currentCode: base.code,
+      data: anyError.response.data,
+    });
+    message = updated.message;
+    base.code = updated.code;
+  }
+
+  if (anyError.data) {
+    const updated = applyApiErrorDetailsFromData({
+      message,
+      currentCode: base.code,
+      data: anyError.data,
+    });
+    message = updated.message;
+    base.code = updated.code;
+  }
+
+  if (originalAny && originalError && originalError !== errorToInspect) {
+    if (originalAny.response?.data) {
+      const updated = applyApiErrorDetailsFromData({
+        message,
+        currentCode: base.code,
+        data: originalAny.response.data,
+      });
+      message = updated.message;
+      base.code = updated.code;
+    }
+    if (originalAny.data) {
+      const updated = applyApiErrorDetailsFromData({
+        message,
+        currentCode: base.code,
+        data: originalAny.data,
+      });
+      message = updated.message;
+      base.code = updated.code;
+    }
+  }
+
+  base.message = message;
+
+  return { base, message };
+}
+
+function applyStatusFromUnknownError(
+  base: ConversationErrorInfo,
+  error: unknown
+): ConversationErrorInfo {
+  if (!error || typeof error !== "object") {
+    return base;
+  }
+
+  const maybeStatus =
+    "statusCode" in error &&
+    typeof (error as { statusCode?: unknown }).statusCode === "number"
+      ? (error as { statusCode: number }).statusCode
+      : "status" in error && typeof (error as { status?: unknown }).status === "number"
+      ? (error as { status: number }).status
+      : undefined;
+
+  if (maybeStatus !== undefined) {
+    base.statusCode = maybeStatus;
+  }
+
+  return base;
+}
+
+export function buildConversationErrorInfo(
+  error: unknown,
+  options?: {
+    provider?: string;
+    modelName?: string;
+    endpoint?: string;
+    metadata?: Record<string, unknown>;
+  }
+): ConversationErrorInfo {
+  logErrorExtractionStart(error);
+  const { message, specificError } = resolveMessageAndSpecificError(error);
+
   const base: ConversationErrorInfo = {
     message,
     occurredAt: new Date().toISOString(),
@@ -760,78 +897,15 @@ export function buildConversationErrorInfo(
     specificError || (error instanceof Error ? error : undefined);
 
   if (errorToInspect) {
-    base.name = errorToInspect.name;
-    base.stack = errorToInspect.stack;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-    const anyError = errorToInspect as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const originalError = error instanceof Error ? (error as any) : undefined;
-
-    base.code =
-      extractCodeFromError(anyError) ||
-      extractCodeFromError(originalError) ||
-      undefined;
-
-    base.statusCode =
-      extractStatusCodeFromError(anyError) ||
-      extractStatusCodeFromError(originalError) ||
-      undefined;
-
-    if (anyError.response?.data) {
-      const updated = applyApiErrorDetails({
-        message,
-        currentCode: base.code,
-        data: anyError.response.data,
-      });
-      message = updated.message;
-      base.code = updated.code;
-    }
-
-    if (anyError.data) {
-      const updated = applyApiErrorDetails({
-        message,
-        currentCode: base.code,
-        data: anyError.data,
-      });
-      message = updated.message;
-      base.code = updated.code;
-    }
-
-    if (originalError && error instanceof Error && error !== errorToInspect) {
-      if (originalError.response?.data) {
-        const updated = applyApiErrorDetails({
-          message,
-          currentCode: base.code,
-          data: originalError.response.data,
-        });
-        message = updated.message;
-        base.code = updated.code;
-      }
-      if (originalError.data) {
-        const updated = applyApiErrorDetails({
-          message,
-          currentCode: base.code,
-          data: originalError.data,
-        });
-        message = updated.message;
-        base.code = updated.code;
-      }
-    }
-
-    base.message = message;
-  } else if (error && typeof error === "object") {
-    const maybeStatus =
-      "statusCode" in error &&
-      typeof (error as { statusCode?: unknown }).statusCode === "number"
-        ? (error as { statusCode: number }).statusCode
-        : "status" in error &&
-          typeof (error as { status?: unknown }).status === "number"
-        ? (error as { status: number }).status
-        : undefined;
-    if (maybeStatus !== undefined) {
-      base.statusCode = maybeStatus;
-    }
+    const updated = enrichWithErrorDetails({
+      base,
+      message,
+      errorToInspect,
+      originalError: error instanceof Error ? error : undefined,
+    });
+    updated.base.message = updated.message;
+  } else {
+    applyStatusFromUnknownError(base, error);
   }
 
   const cleanErrorInfo = cleanConversationErrorInfo(base);

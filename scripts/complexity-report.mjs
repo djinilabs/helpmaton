@@ -29,7 +29,7 @@ const toNumber = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-const topLimit = toNumber(getArgValue('--top', 50), 50)
+const topLimit = toNumber(getArgValue('--top', 10), 10)
 const outputPath = resolve(repoRoot, getArgValue('--out', 'docs/complexity-report.md'))
 
 const targetGlobs = [
@@ -149,7 +149,7 @@ reportLines.push(
   '`pnpm complexity:report`',
   '',
   'Options:',
-  '- `--top <number>`: limit list size (default 50)',
+  '- `--top <number>`: limit list size (default 10)',
   '- `--out <path>`: output path (default docs/complexity-report.md)',
   ''
 )
