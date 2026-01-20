@@ -52,6 +52,13 @@ interface McpServerTypeMetadata {
 
 const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
   {
+    value: "slack",
+    name: "Slack",
+    description:
+      "Read channel history, list channels, and post messages. Perfect for team updates and collaboration.",
+    icon: ChatBubbleLeftRightIcon,
+  },
+  {
     value: "google-drive",
     name: "Google Drive",
     description:
@@ -101,25 +108,11 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: BuildingOfficeIcon,
   },
   {
-    value: "shopify",
-    name: "Shopify",
-    description:
-      "Look up orders, check product inventory, and summarize sales for a date range.",
-    icon: ShoppingBagIcon,
-  },
-  {
     value: "salesforce",
     name: "Salesforce",
     description:
       "Query Salesforce CRM data using SOQL. List objects, describe schemas, and run read-only queries.",
     icon: BuildingOfficeIcon,
-  },
-  {
-    value: "slack",
-    name: "Slack",
-    description:
-      "Read channel history, list channels, and post messages. Perfect for team updates and collaboration.",
-    icon: ChatBubbleLeftRightIcon,
   },
   {
     value: "intercom",
@@ -129,18 +122,18 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: ChatBubbleLeftRightIcon,
   },
   {
-    value: "todoist",
-    name: "Todoist",
-    description:
-      "Create, list, and complete tasks. Summarize what is due today or this week.",
-    icon: ClipboardDocumentListIcon,
-  },
-  {
     value: "zendesk",
     name: "Zendesk",
     description:
       "Search tickets, read ticket threads, draft private replies, and search Help Center articles.",
     icon: ChatBubbleLeftRightIcon,
+  },
+  {
+    value: "shopify",
+    name: "Shopify",
+    description:
+      "Look up orders, check product inventory, and summarize sales for a date range.",
+    icon: ShoppingBagIcon,
   },
   {
     value: "stripe",
@@ -155,6 +148,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     description:
       "Read-only access to PostHog analytics. Browse projects, events, insights, feature flags, and people.",
     icon: ChartBarIcon,
+  },
+  {
+    value: "todoist",
+    name: "Todoist",
+    description:
+      "Create, list, and complete tasks. Summarize what is due today or this week.",
+    icon: ClipboardDocumentListIcon,
   },
   {
     value: "custom",
@@ -172,7 +172,7 @@ interface McpServerModalProps {
   serverId?: string; // If provided, we're editing; otherwise, creating
 }
 
-/* eslint-disable complexity */
+ 
 export const McpServerModal: FC<McpServerModalProps> = ({
   isOpen,
   onClose,
