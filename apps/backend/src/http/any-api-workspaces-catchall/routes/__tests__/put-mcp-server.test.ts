@@ -1,4 +1,3 @@
-import { badRequest, forbidden, resourceGone } from "@hapi/boom";
 import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -7,6 +6,7 @@ import {
   createMockResponse,
   createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
+import { handlePutMcpServer } from "../put-mcp-server-handler";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const { mockDatabase } = vi.hoisted(() => {
@@ -20,6 +20,10 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
+vi.mock("../../../utils/bodyValidation", () => ({
+  validateBody: vi.fn((body) => body),
+}));
+
 describe("PUT /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -30,123 +34,11 @@ describe("PUT /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
-    // Extract the handler logic directly
-    const handler = async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const { name, url, authType, config } = req.body;
-        const db = await mockDatabase();
-        const workspaceResource = (req as { workspaceResource?: string })
-          .workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const workspaceId = req.params.workspaceId;
-        const serverId = req.params.serverId;
-        const pk = `mcp-servers/${workspaceId}/${serverId}`;
-
-        const server = await db["mcp-server"].get(pk, "server");
-        if (!server) {
-          throw resourceGone("MCP server not found");
-        }
-
-        if (server.workspaceId !== workspaceId) {
-          throw forbidden("MCP server does not belong to this workspace");
-        }
-
-        // Validate name if provided
-        if (name !== undefined) {
-          if (typeof name !== "string") {
-            throw badRequest("name must be a string");
-          }
-        }
-
-        // Validate URL if provided
-        if (url !== undefined) {
-          if (typeof url !== "string") {
-            throw badRequest("url must be a string");
-          }
-          try {
-            new URL(url);
-          } catch {
-            throw badRequest("url must be a valid URL");
-          }
-        }
-
-        // Validate authType if provided
-        if (authType !== undefined) {
-          if (typeof authType !== "string") {
-            throw badRequest("authType must be a string");
-          }
-          if (!["none", "header", "basic"].includes(authType)) {
-            throw badRequest(
-              'authType must be one of: "none", "header", "basic"'
-            );
-          }
-        }
-
-        // Validate config if provided
-        if (config !== undefined) {
-          if (typeof config !== "object" || config === null) {
-            throw badRequest("config must be an object");
-          }
-          const finalAuthType = (authType || server.authType) as
-            | "none"
-            | "header"
-            | "basic";
-          if (finalAuthType === "header") {
-            if (!config.headerValue || typeof config.headerValue !== "string") {
-              throw badRequest(
-                "config.headerValue is required for header authentication"
-              );
-            }
-          } else if (finalAuthType === "basic") {
-            if (!config.username || typeof config.username !== "string") {
-              throw badRequest(
-                "config.username is required for basic authentication"
-              );
-            }
-            if (!config.password || typeof config.password !== "string") {
-              throw badRequest(
-                "config.password is required for basic authentication"
-              );
-            }
-          }
-        }
-
-        // Update server
-        const updated = await db["mcp-server"].update({
-          pk,
-          sk: "server",
-          workspaceId,
-          name: name !== undefined ? name : server.name,
-          url: url !== undefined ? url : server.url,
-          authType:
-            authType !== undefined
-              ? (authType as "none" | "header" | "basic")
-              : server.authType,
-          config: config !== undefined ? config : server.config,
-          updatedBy: (req as { userRef?: string }).userRef || "",
-          updatedAt: new Date().toISOString(),
-        });
-
-        res.json({
-          id: serverId,
-          name: updated.name,
-          url: updated.url,
-          authType: updated.authType,
-          createdAt: updated.createdAt,
-          updatedAt: updated.updatedAt,
-        });
-      } catch (error) {
-        next(error);
-      }
-    };
-
-    await handler(req as express.Request, res as express.Response, next);
+    await handlePutMcpServer(
+      req as express.Request,
+      res as express.Response,
+      next
+    );
   }
 
   it("should update MCP server name successfully", async () => {
@@ -723,7 +615,7 @@ describe("PUT /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
         output: expect.objectContaining({
           statusCode: 400,
           payload: expect.objectContaining({
-            message: 'authType must be one of: "none", "header", "basic"',
+            message: 'authType must be one of: "none", "header", "basic", "oauth"',
           }),
         }),
       })

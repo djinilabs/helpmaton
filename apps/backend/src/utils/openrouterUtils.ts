@@ -1,5 +1,105 @@
 import { Sentry, ensureError } from "./sentry";
 
+type StepCandidate = {
+  response?: {
+    id?: unknown;
+  };
+};
+
+const isGenerationId = (value: unknown): value is string =>
+  typeof value === "string" && value.startsWith("gen-");
+
+const logResultStructure = (result: unknown) => {
+  console.log(
+    "[extractOpenRouterGenerationId] Full result structure:",
+    JSON.stringify(result, null, 2)
+  );
+
+  console.log("[extractOpenRouterGenerationId] Result structure summary:", {
+    hasRaw: !!(result as { raw?: unknown })?.raw,
+    hasExperimentalProviderMetadata: !!(result as {
+      experimental_providerMetadata?: unknown;
+    })?.experimental_providerMetadata,
+    hasResponse: !!(result as { response?: unknown })?.response,
+    hasUsage: !!(result as { usage?: unknown })?.usage,
+    hasId: !!(result as { id?: unknown })?.id,
+    rawKeys:
+      (result as { raw?: Record<string, unknown> })?.raw
+        ? Object.keys(
+            (result as { raw: Record<string, unknown> }).raw
+          )
+        : [],
+    experimentalProviderMetadataKeys: (result as {
+      experimental_providerMetadata?: Record<string, unknown>;
+    })?.experimental_providerMetadata
+      ? Object.keys(
+          (result as {
+            experimental_providerMetadata: Record<string, unknown>;
+          }).experimental_providerMetadata
+        )
+      : [],
+    responseHeaders:
+      (result as { response?: { headers?: Record<string, unknown> } })?.response
+        ?.headers
+        ? Object.keys(
+            (result as {
+              response: { headers: Record<string, unknown> };
+            }).response.headers
+          )
+        : [],
+    usageKeys: (result as { usage?: Record<string, unknown> })?.usage
+      ? Object.keys(
+          (result as { usage: Record<string, unknown> }).usage
+        )
+      : [],
+  });
+};
+
+const findGenerationIdInSteps = (
+  steps: StepCandidate[],
+  logLabel: string
+): string | undefined => {
+  for (const step of steps) {
+    if (isGenerationId(step?.response?.id)) {
+      console.log(
+        `[extractOpenRouterGenerationId] Found in ${logLabel}:`,
+        step.response?.id
+      );
+      return step.response?.id;
+    }
+  }
+  return undefined;
+};
+
+const getResolvedSteps = (result: unknown): StepCandidate[] | null => {
+  const status = (result as { _steps?: { status?: { type?: string; value?: unknown } } })
+    ?._steps?.status;
+  if (status?.type !== "resolved" || !status.value) {
+    return null;
+  }
+  return Array.isArray(status.value)
+    ? (status.value as StepCandidate[])
+    : [status.value as StepCandidate];
+};
+
+const findGenerationIdInHeaders = (
+  headers: Record<string, unknown>
+): string | undefined => {
+  if (headers["x-openrouter-generation-id"]) {
+    console.log(
+      "[extractOpenRouterGenerationId] Found in response.headers['x-openrouter-generation-id']"
+    );
+    return headers["x-openrouter-generation-id"];
+  }
+  if (headers["openrouter-generation-id"]) {
+    console.log(
+      "[extractOpenRouterGenerationId] Found in response.headers['openrouter-generation-id']"
+    );
+    return headers["openrouter-generation-id"];
+  }
+  return undefined;
+};
+
 /**
  * Extract OpenRouter generation ID from AI SDK response
  * OpenRouter includes generation ID in response metadata
@@ -9,67 +109,28 @@ export function extractOpenRouterGenerationId(
   result: any
 ): string | undefined {
   try {
-    // Log the full result structure for debugging
-    console.log(
-      "[extractOpenRouterGenerationId] Full result structure:",
-      JSON.stringify(result, null, 2)
-    );
-
-    // Log summary of result structure for quick reference
-    console.log("[extractOpenRouterGenerationId] Result structure summary:", {
-      hasRaw: !!result?.raw,
-      hasExperimentalProviderMetadata: !!result?.experimental_providerMetadata,
-      hasResponse: !!result?.response,
-      hasUsage: !!result?.usage,
-      hasId: !!result?.id,
-      rawKeys: result?.raw ? Object.keys(result.raw) : [],
-      experimentalProviderMetadataKeys: result?.experimental_providerMetadata
-        ? Object.keys(result.experimental_providerMetadata)
-        : [],
-      responseHeaders: result?.response?.headers
-        ? Object.keys(result.response.headers)
-        : [],
-      usageKeys: result?.usage ? Object.keys(result.usage) : [],
-    });
+    logResultStructure(result);
 
     // Check result.steps[] (generateText structure) first
     if (Array.isArray(result?.steps)) {
-      for (const step of result.steps) {
-        if (
-          step?.response?.id &&
-          typeof step.response.id === "string" &&
-          step.response.id.startsWith("gen-")
-        ) {
-          console.log(
-            "[extractOpenRouterGenerationId] Found in steps[].response.id:",
-            step.response.id
-          );
-          return step.response.id;
-        }
+      const fromSteps = findGenerationIdInSteps(
+        result.steps,
+        "steps[].response.id"
+      );
+      if (fromSteps) {
+        return fromSteps;
       }
     }
 
     // Check _steps.status.value[] (streamText structure) if not found
-    if (
-      result?._steps?.status?.type === "resolved" &&
-      result._steps.status.value
-    ) {
-      const steps = Array.isArray(result._steps.status.value)
-        ? result._steps.status.value
-        : [result._steps.status.value];
-
-      for (const step of steps) {
-        if (
-          step?.response?.id &&
-          typeof step.response.id === "string" &&
-          step.response.id.startsWith("gen-")
-        ) {
-          console.log(
-            "[extractOpenRouterGenerationId] Found in _steps.status.value[].response.id:",
-            step.response.id
-          );
-          return step.response.id;
-        }
+    const resolvedSteps = getResolvedSteps(result);
+    if (resolvedSteps) {
+      const fromResolvedSteps = findGenerationIdInSteps(
+        resolvedSteps,
+        "_steps.status.value[].response.id"
+      );
+      if (fromResolvedSteps) {
+        return fromResolvedSteps;
       }
     }
 
@@ -99,18 +160,9 @@ export function extractOpenRouterGenerationId(
     }
     // Check response headers if available
     if (result?.response?.headers) {
-      const headers = result.response.headers;
-      if (headers["x-openrouter-generation-id"]) {
-        console.log(
-          "[extractOpenRouterGenerationId] Found in response.headers['x-openrouter-generation-id']"
-        );
-        return headers["x-openrouter-generation-id"];
-      }
-      if (headers["openrouter-generation-id"]) {
-        console.log(
-          "[extractOpenRouterGenerationId] Found in response.headers['openrouter-generation-id']"
-        );
-        return headers["openrouter-generation-id"];
+      const headersId = findGenerationIdInHeaders(result.response.headers);
+      if (headersId) {
+        return headersId;
       }
     }
     // Check usage metadata

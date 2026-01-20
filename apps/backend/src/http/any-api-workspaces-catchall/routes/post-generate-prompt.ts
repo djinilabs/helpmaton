@@ -8,7 +8,7 @@ import {
   checkPromptGenerationLimit,
   incrementPromptGenerationBucket,
 } from "../../../utils/requestTracking";
-import { generateToolList } from "../../../utils/toolMetadata";
+import { generateToolList, type ToolMetadata } from "../../../utils/toolMetadata";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { createModel } from "../../utils/modelFactory";
@@ -38,6 +38,312 @@ The system prompt should be comprehensive enough to guide the agent's behavior e
 If tools are available, you may mention them naturally in the prompt, but do not list them exhaustively - the agent will have access to tool definitions separately.
 
 Generate only the system prompt text itself, without any additional commentary or explanation.`;
+
+type AgentPromptContext = {
+  systemPrompt?: string;
+  clientTools?: Array<{
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  }>;
+  notificationChannelId?: string;
+  delegatableAgentIds?: string[];
+  enabledMcpServerIds?: string[];
+  enableMemorySearch?: boolean;
+  enableSearchDocuments?: boolean;
+  enableSendEmail?: boolean;
+  searchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
+  enableExaSearch?: boolean;
+};
+
+type EnabledMcpServer = {
+  id: string;
+  name: string;
+  serviceType?: string;
+  authType: string;
+  oauthConnected: boolean;
+};
+
+type ToolGroup = {
+  category: string;
+  tools: ToolMetadata[];
+};
+
+const requireWorkspaceContext = (req: express.Request) => {
+  if (!req.workspaceResource) {
+    throw badRequest("Workspace resource not found");
+  }
+  if (!req.userRef) {
+    throw unauthorized();
+  }
+  return { workspaceId: req.params.workspaceId };
+};
+
+const loadAgentForPrompt = async (params: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  agentId?: string;
+}): Promise<AgentPromptContext | null> => {
+  const { db, workspaceId, agentId } = params;
+  if (!agentId) {
+    return null;
+  }
+  const agentPk = `agents/${workspaceId}/${agentId}`;
+  const agentRecord = await db.agent.get(agentPk, "agent");
+  if (!agentRecord) {
+    throw resourceGone("Agent not found");
+  }
+  if (agentRecord.workspaceId !== workspaceId) {
+    throw badRequest("Agent does not belong to this workspace");
+  }
+  return {
+    systemPrompt: agentRecord.systemPrompt,
+    clientTools: agentRecord.clientTools,
+    notificationChannelId: agentRecord.notificationChannelId,
+    delegatableAgentIds: agentRecord.delegatableAgentIds,
+    enabledMcpServerIds: agentRecord.enabledMcpServerIds,
+    enableMemorySearch: agentRecord.enableMemorySearch,
+    enableSearchDocuments: agentRecord.enableSearchDocuments,
+    enableSendEmail: agentRecord.enableSendEmail,
+    searchWebProvider: agentRecord.searchWebProvider ?? null,
+    fetchWebProvider: agentRecord.fetchWebProvider ?? null,
+    enableExaSearch: agentRecord.enableExaSearch ?? false,
+  };
+};
+
+const loadEmailConnection = async (
+  db: Awaited<ReturnType<typeof database>>,
+  workspaceId: string
+): Promise<boolean> => {
+  const emailConnectionPk = `email-connections/${workspaceId}`;
+  const emailConnection = await db["email-connection"].get(
+    emailConnectionPk,
+    "connection"
+  );
+  return !!emailConnection;
+};
+
+const loadEnabledMcpServers = async (params: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  enabledMcpServerIds: string[];
+}): Promise<EnabledMcpServer[]> => {
+  const { db, workspaceId, enabledMcpServerIds } = params;
+  const enabledMcpServers: EnabledMcpServer[] = [];
+
+  for (const serverId of enabledMcpServerIds) {
+    const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
+    const server = await db["mcp-server"].get(serverPk, "server");
+    if (server) {
+      const config = server.config as { accessToken?: string };
+      const hasOAuthConnection = !!config.accessToken;
+
+      enabledMcpServers.push({
+        id: serverId,
+        name: server.name,
+        serviceType: server.serviceType,
+        authType: server.authType,
+        oauthConnected: hasOAuthConnection,
+      });
+    }
+  }
+
+  return enabledMcpServers;
+};
+
+const buildToolList = (params: {
+  agent: AgentPromptContext | null;
+  workspaceId: string;
+  enabledMcpServers: EnabledMcpServer[];
+  emailConnection: boolean;
+}): ToolGroup[] => {
+  return generateToolList({
+    agent: {
+      enableSearchDocuments: params.agent?.enableSearchDocuments ?? false,
+      enableMemorySearch: params.agent?.enableMemorySearch ?? false,
+      notificationChannelId: params.agent?.notificationChannelId,
+      enableSendEmail: params.agent?.enableSendEmail ?? false,
+      searchWebProvider: params.agent?.searchWebProvider ?? null,
+      fetchWebProvider: params.agent?.fetchWebProvider ?? null,
+      enableExaSearch: params.agent?.enableExaSearch ?? false,
+      delegatableAgentIds: params.agent?.delegatableAgentIds ?? [],
+      enabledMcpServerIds: params.agent?.enabledMcpServerIds ?? [],
+      clientTools: params.agent?.clientTools ?? [],
+    },
+    workspaceId: params.workspaceId,
+    enabledMcpServers: params.enabledMcpServers,
+    emailConnection: params.emailConnection,
+  });
+};
+
+const resolveMcpServerName = (tool: ToolMetadata): string => {
+  if (!tool.condition) {
+    return "Unknown";
+  }
+  const match = tool.condition.match(/"([^"]+)"/);
+  return match ? match[1] : "Unknown";
+};
+
+const resolveServiceTypeForTool = (toolName: string): string => {
+  if (toolName.startsWith("google_drive_")) {
+    return "Google Drive";
+  }
+  if (toolName.startsWith("gmail_")) {
+    return "Gmail";
+  }
+  if (toolName.startsWith("google_calendar_")) {
+    return "Google Calendar";
+  }
+  if (toolName.startsWith("notion_")) {
+    return "Notion";
+  }
+  if (toolName.startsWith("github_")) {
+    return "GitHub";
+  }
+  if (toolName.startsWith("linear_")) {
+    return "Linear";
+  }
+  if (toolName.startsWith("mcp_")) {
+    return "MCP Server";
+  }
+  return "";
+};
+
+const buildToolsInfo = (toolList: ToolGroup[]): string[] => {
+  const toolsInfo: string[] = [];
+
+  for (const group of toolList) {
+    const availableToolsInGroup = group.tools.filter(
+      (tool) =>
+        tool.alwaysAvailable ||
+        (tool.condition && tool.condition.includes("Available"))
+    );
+
+    if (availableToolsInGroup.length === 0) {
+      continue;
+    }
+
+    if (group.category === "MCP Server Tools") {
+      toolsInfo.push("## MCP Server Tools");
+    } else if (group.category === "Client Tools") {
+      toolsInfo.push("## Client-Side Tools (Custom)");
+    } else {
+      toolsInfo.push(`## ${group.category}`);
+    }
+
+    if (group.category === "MCP Server Tools") {
+      const toolsByServer = new Map<string, string[]>();
+      for (const tool of availableToolsInGroup) {
+        const serverName = resolveMcpServerName(tool);
+        const serviceType = resolveServiceTypeForTool(tool.name);
+        const key = serviceType
+          ? `${serviceType} (${serverName})`
+          : `MCP Server (${serverName})`;
+        if (!toolsByServer.has(key)) {
+          toolsByServer.set(key, []);
+        }
+        toolsByServer.get(key)!.push(tool.name);
+      }
+
+      for (const [serverKey, toolNames] of toolsByServer.entries()) {
+        toolsInfo.push(`- **${serverKey}**: ${toolNames.join(", ")}`);
+      }
+    } else {
+      for (const tool of availableToolsInGroup) {
+        const shortDescription = tool.description
+          .split(".")
+          .slice(0, 1)
+          .join(".")
+          .trim();
+        toolsInfo.push(`- **${tool.name}**: ${shortDescription}`);
+      }
+    }
+  }
+
+  return toolsInfo;
+};
+
+const buildToolsContext = (toolList: ToolGroup[]): string => {
+  const toolsInfo = buildToolsInfo(toolList);
+  if (toolsInfo.length === 0) {
+    return "";
+  }
+  return `\n\n## Available Tools\n\nThe agent will have access to the following tools:\n\n${toolsInfo.join(
+    "\n"
+  )}\n\nWhen generating the prompt, you may reference these tools naturally if they are relevant to the agent's goal, but do not list them exhaustively.`;
+};
+
+const buildExistingPromptContext = (agent: AgentPromptContext | null): string => {
+  if (!agent?.systemPrompt || agent.systemPrompt.trim().length === 0) {
+    return "";
+  }
+  return `\n\n## Existing System Prompt\n\n${agent.systemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`;
+};
+
+const buildPromptMessage = (params: {
+  goal: string;
+  existingPromptContext: string;
+  toolsContext: string;
+}) =>
+  `Generate a system prompt for an AI agent with the following goal:\n\n${params.goal.trim()}${params.existingPromptContext}${params.toolsContext}`;
+
+const generatePromptText = async (params: {
+  model: Parameters<typeof generateText>[0]["model"];
+  goal: string;
+  existingPromptContext: string;
+  toolsContext: string;
+}): Promise<string> => {
+  console.log("[Prompt Generation] generateText arguments:", {
+    model: "default",
+    systemPromptLength: PROMPT_GENERATOR_SYSTEM_PROMPT.length,
+    messagesCount: 1,
+  });
+  const requestTimeout = createRequestTimeout();
+  try {
+    const result = await generateText({
+      model: params.model,
+      system: PROMPT_GENERATOR_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: buildPromptMessage({
+            goal: params.goal,
+            existingPromptContext: params.existingPromptContext,
+            toolsContext: params.toolsContext,
+          }),
+        },
+      ],
+      abortSignal: requestTimeout.signal,
+    });
+    return result.text.trim();
+  } finally {
+    cleanupRequestTimeout(requestTimeout);
+  }
+};
+
+const incrementPromptGenerationBucketSafe = async (workspaceId: string) => {
+  try {
+    console.log(
+      "[Prompt Generation] Incrementing prompt generation bucket for workspace:",
+      workspaceId
+    );
+    await incrementPromptGenerationBucket(workspaceId);
+    console.log(
+      "[Prompt Generation] Successfully incremented prompt generation bucket:",
+      workspaceId
+    );
+  } catch (error) {
+    console.error(
+      "[Prompt Generation] Error incrementing prompt generation bucket:",
+      {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        workspaceId,
+      }
+    );
+  }
+};
 
 /**
  * @openapi
@@ -94,212 +400,40 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
         const body = validateBody(req.body, generatePromptRequestSchema);
         const { goal, agentId } = body;
 
-        const workspaceResource = req.workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const currentUserRef = req.userRef;
-        if (!currentUserRef) {
-          throw unauthorized();
-        }
-        const workspaceId = req.params.workspaceId;
+        const { workspaceId } = requireWorkspaceContext(req);
 
         // Get database connection
         const db = await database();
 
         // Get agent information if agentId is provided (for editing existing agent)
-        let agent: {
-          systemPrompt?: string;
-          clientTools?: Array<{
-            name: string;
-            description: string;
-            parameters: Record<string, unknown>;
-          }>;
-          notificationChannelId?: string;
-          delegatableAgentIds?: string[];
-          enabledMcpServerIds?: string[];
-          enableMemorySearch?: boolean;
-          enableSearchDocuments?: boolean;
-          enableSendEmail?: boolean;
-          searchWebProvider?: "tavily" | "jina" | null;
-          fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
-          enableExaSearch?: boolean;
-        } | null = null;
-
-        if (agentId && typeof agentId === "string") {
-          const agentPk = `agents/${workspaceId}/${agentId}`;
-          const agentRecord = await db.agent.get(agentPk, "agent");
-          if (!agentRecord) {
-            throw resourceGone("Agent not found");
-          }
-          if (agentRecord.workspaceId !== workspaceId) {
-            throw badRequest("Agent does not belong to this workspace");
-          }
-          agent = {
-            systemPrompt: agentRecord.systemPrompt,
-            clientTools: agentRecord.clientTools,
-            notificationChannelId: agentRecord.notificationChannelId,
-            delegatableAgentIds: agentRecord.delegatableAgentIds,
-            enabledMcpServerIds: agentRecord.enabledMcpServerIds,
-            enableMemorySearch: agentRecord.enableMemorySearch,
-            enableSearchDocuments: agentRecord.enableSearchDocuments,
-            enableSendEmail: agentRecord.enableSendEmail,
-            searchWebProvider: agentRecord.searchWebProvider ?? null,
-            fetchWebProvider: agentRecord.fetchWebProvider ?? null,
-            enableExaSearch: agentRecord.enableExaSearch ?? false,
-          };
-        }
+        const agent = await loadAgentForPrompt({
+          db,
+          workspaceId,
+          agentId,
+        });
 
         // Check for email connection in workspace
-        const emailConnectionPk = `email-connections/${workspaceId}`;
-        const emailConnection = await db["email-connection"].get(
-          emailConnectionPk,
-          "connection"
-        );
-        const hasEmailConnection = !!emailConnection;
+        const hasEmailConnection = await loadEmailConnection(db, workspaceId);
 
         // Load enabled MCP servers if agent has them
         const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
-        const enabledMcpServers = [];
-
-        for (const serverId of enabledMcpServerIds) {
-          const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
-          const server = await db["mcp-server"].get(serverPk, "server");
-          if (server) {
-            // Check for OAuth connection
-            const config = server.config as { accessToken?: string };
-            const hasOAuthConnection = !!config.accessToken;
-
-            enabledMcpServers.push({
-              id: serverId,
-              name: server.name,
-              serviceType: server.serviceType,
-              authType: server.authType,
-              oauthConnected: hasOAuthConnection,
-            });
-          }
-        }
+        const enabledMcpServers = await loadEnabledMcpServers({
+          db,
+          workspaceId,
+          enabledMcpServerIds,
+        });
 
         // Use shared tool metadata library to generate tool list
-        const toolList = generateToolList({
-          agent: {
-            enableSearchDocuments: agent?.enableSearchDocuments ?? false,
-            enableMemorySearch: agent?.enableMemorySearch ?? false,
-            notificationChannelId: agent?.notificationChannelId,
-            enableSendEmail: agent?.enableSendEmail ?? false,
-            searchWebProvider: agent?.searchWebProvider ?? null,
-            fetchWebProvider: agent?.fetchWebProvider ?? null,
-            enableExaSearch: agent?.enableExaSearch ?? false,
-            delegatableAgentIds: agent?.delegatableAgentIds ?? [],
-            enabledMcpServerIds: agent?.enabledMcpServerIds ?? [],
-            clientTools: agent?.clientTools ?? [],
-          },
+        const toolList = buildToolList({
+          agent,
           workspaceId,
           enabledMcpServers,
           emailConnection: hasEmailConnection,
         });
 
-        // Convert tool metadata to text format for prompt generation
-        const toolsInfo: string[] = [];
-        const availableTools: string[] = [];
+        const toolsContext = buildToolsContext(toolList);
 
-        for (const group of toolList) {
-          // Only include available tools (skip tools that are not available)
-          const availableToolsInGroup = group.tools.filter(
-            (tool) =>
-              tool.alwaysAvailable ||
-              (tool.condition && tool.condition.includes("Available"))
-          );
-
-          if (availableToolsInGroup.length === 0) {
-            continue;
-          }
-
-          // Add category header
-          if (group.category === "MCP Server Tools") {
-            toolsInfo.push("## MCP Server Tools");
-          } else if (group.category === "Client Tools") {
-            toolsInfo.push("## Client-Side Tools (Custom)");
-          } else {
-            toolsInfo.push(`## ${group.category}`);
-          }
-
-          // Group MCP tools by server name for better formatting
-          if (group.category === "MCP Server Tools") {
-            // Group tools by server (extract server name from condition)
-            const toolsByServer = new Map<string, string[]>();
-            for (const tool of availableToolsInGroup) {
-              availableTools.push(tool.name);
-
-              // Extract server name from condition if available
-              // Format: "Available (GitHub \"server-name\" connected)"
-              let serverName = "Unknown";
-              if (tool.condition) {
-                const match = tool.condition.match(/"([^"]+)"/);
-                if (match) {
-                  serverName = match[1];
-                }
-              }
-
-              // Extract service type from tool name
-              let serviceType = "";
-              if (tool.name.startsWith("google_drive_")) {
-                serviceType = "Google Drive";
-              } else if (tool.name.startsWith("gmail_")) {
-                serviceType = "Gmail";
-              } else if (tool.name.startsWith("google_calendar_")) {
-                serviceType = "Google Calendar";
-              } else if (tool.name.startsWith("notion_")) {
-                serviceType = "Notion";
-              } else if (tool.name.startsWith("github_")) {
-                serviceType = "GitHub";
-              } else if (tool.name.startsWith("linear_")) {
-                serviceType = "Linear";
-              } else if (tool.name.startsWith("mcp_")) {
-                serviceType = "MCP Server";
-              }
-
-              const key = serviceType
-                ? `${serviceType} (${serverName})`
-                : `MCP Server (${serverName})`;
-              if (!toolsByServer.has(key)) {
-                toolsByServer.set(key, []);
-              }
-              toolsByServer.get(key)!.push(tool.name);
-            }
-
-            // Format MCP tools grouped by server
-            for (const [serverKey, toolNames] of toolsByServer.entries()) {
-              toolsInfo.push(`- **${serverKey}**: ${toolNames.join(", ")}`);
-            }
-          } else {
-            // For non-MCP tools, list them individually
-            for (const tool of availableToolsInGroup) {
-              availableTools.push(tool.name);
-              // Use a simplified description for prompt generation
-              const shortDescription = tool.description
-                .split(".")
-                .slice(0, 1)
-                .join(".")
-                .trim();
-              toolsInfo.push(`- **${tool.name}**: ${shortDescription}`);
-            }
-          }
-        }
-
-        // Build tools context for prompt generation
-        const toolsContext =
-          toolsInfo.length > 0
-            ? `\n\n## Available Tools\n\nThe agent will have access to the following tools:\n\n${toolsInfo.join(
-                "\n"
-              )}\n\nWhen generating the prompt, you may reference these tools naturally if they are relevant to the agent's goal, but do not list them exhaustively.`
-            : "";
-
-        // Build existing prompt context if available
-        const existingPromptContext =
-          agent?.systemPrompt && agent.systemPrompt.trim().length > 0
-            ? `\n\n## Existing System Prompt\n\n${agent.systemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`
-            : "";
+        const existingPromptContext = buildExistingPromptContext(agent);
 
         // Check prompt generation limit before LLM call
         // Note: This is a soft limit - there's a small race condition window where
@@ -321,55 +455,17 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
         );
 
         // Generate the prompt
-        console.log("[Prompt Generation] generateText arguments:", {
-          model: "default",
-          systemPromptLength: PROMPT_GENERATOR_SYSTEM_PROMPT.length,
-          messagesCount: 1,
+        const generatedPrompt = await generatePromptText({
+          model: model as unknown as Parameters<
+            typeof generateText
+          >[0]["model"],
+          goal,
+          existingPromptContext,
+          toolsContext,
         });
-        const requestTimeout = createRequestTimeout();
-        let result: Awaited<ReturnType<typeof generateText>>;
-        try {
-          result = await generateText({
-            model: model as unknown as Parameters<
-              typeof generateText
-            >[0]["model"],
-            system: PROMPT_GENERATOR_SYSTEM_PROMPT,
-            messages: [
-              {
-                role: "user",
-                content: `Generate a system prompt for an AI agent with the following goal:\n\n${goal.trim()}${existingPromptContext}${toolsContext}`,
-              },
-            ],
-            abortSignal: requestTimeout.signal,
-          });
-        } finally {
-          cleanupRequestTimeout(requestTimeout);
-        }
-
-        const generatedPrompt = result.text.trim();
 
         // Track successful prompt generation (increment bucket)
-        try {
-          console.log(
-            "[Prompt Generation] Incrementing prompt generation bucket for workspace:",
-            workspaceId
-          );
-          await incrementPromptGenerationBucket(workspaceId);
-          console.log(
-            "[Prompt Generation] Successfully incremented prompt generation bucket:",
-            workspaceId
-          );
-        } catch (error) {
-          // Log error but don't fail the request
-          console.error(
-            "[Prompt Generation] Error incrementing prompt generation bucket:",
-            {
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              workspaceId,
-            }
-          );
-        }
+        await incrementPromptGenerationBucketSafe(workspaceId);
 
         // Track prompt generation
         trackBusinessEvent(
