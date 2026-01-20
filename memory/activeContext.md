@@ -6,6 +6,9 @@
 
 **Latest Work**:
 
+- **Staging tests concurrency guard**: Added per-PR concurrency grouping to staging agent tests workflow. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Staging agent tests trigger fix**: Converted `staging-agent-tests.yml` to a reusable `workflow_call`/`workflow_dispatch` workflow and invoked it from `deploy-pr.yml` after deploy, passing the PR number via job outputs. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **CI workflow investigation**: Determined `staging-agent-tests.yml` does not trigger after PR deploys because `workflow_run` only fires for workflows on the default branch; `Deploy PR` runs from PR branches, so the completion event never matches.
 - **Shopify MCP integration**: Added Shopify OAuth flow with shop domain capture (offline tokens), Shopify API client + tools (order lookup, product search, sales report), tool metadata/UI wiring, schema updates, docs/env/workflow updates, and unit tests. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Eval judge JSON robustness**: Added fallback JSON extraction for eval judge responses, expanded parsing tests for extra text, and tightened the default eval prompt to demand JSON-only output. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Sentry env overrides**: Added optional `SENTRY_ENVIRONMENT` (backend) and `VITE_SENTRY_ENVIRONMENT` (frontend) with fallbacks to existing env detection; injected backend env var via esbuild config; set PR deploy workflow envs to `"staging"`. Ran `pnpm lint --fix` and `pnpm typecheck`.
