@@ -676,6 +676,64 @@ describe("PUT /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
     );
   });
 
+  it("should throw badRequest when Shopify shopDomain is invalid", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const workspaceId = "workspace-123";
+    const workspaceResource = `workspaces/${workspaceId}`;
+    const serverId = "server-456";
+    const pk = `mcp-servers/${workspaceId}/${serverId}`;
+
+    const existingServer = {
+      pk,
+      sk: "server",
+      workspaceId,
+      name: "Shopify Server",
+      url: "https://example.com",
+      authType: "oauth" as const,
+      serviceType: "shopify",
+      config: { shopDomain: "valid.myshopify.com" },
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockGet = vi.fn().mockResolvedValue(existingServer);
+    const mcpServerMock = (mockDb as Record<string, unknown>)["mcp-server"] as {
+      get: typeof mockGet;
+    };
+    mcpServerMock.get = mockGet;
+
+    const req = createMockRequest({
+      workspaceResource,
+      params: {
+        workspaceId,
+        serverId,
+      },
+      body: {
+        config: {
+          shopDomain: "not-a-shop",
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message:
+              "shopDomain must be a valid Shopify domain like my-store.myshopify.com",
+          }),
+        }),
+      })
+    );
+  });
+
   it("should throw badRequest when header authType config is missing headerValue", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);

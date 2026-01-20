@@ -200,9 +200,16 @@ const validateShopifyOAuthConfig = (params: {
   if (!shopDomain) {
     throw badRequest("config.shopDomain is required for Shopify OAuth");
   }
-  const normalizedShopDomain = assertValidShopifyShopDomain(shopDomain);
-  if (params.config && typeof params.config === "object") {
-    (params.config as { shopDomain?: string }).shopDomain = normalizedShopDomain;
+  try {
+    const normalizedShopDomain = assertValidShopifyShopDomain(shopDomain);
+    if (params.config && typeof params.config === "object") {
+      (params.config as { shopDomain?: string }).shopDomain =
+        normalizedShopDomain;
+    }
+  } catch (error) {
+    throw badRequest(
+      error instanceof Error ? error.message : "config.shopDomain is invalid"
+    );
   }
 };
 
