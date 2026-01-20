@@ -298,6 +298,47 @@ describe("readClient", () => {
       ]);
     });
 
+    it("should support execute() query path", async () => {
+      const { connect } = await import("@lancedb/lancedb");
+      const mockConnect = vi.mocked(connect);
+
+      const mockResults = [
+        {
+          id: "record-exec",
+          content: "Exec",
+          vector: [0.1, 0.2],
+          timestamp: "2024-01-01T00:00:00Z",
+        },
+      ];
+
+      const mockExecute = vi.fn().mockResolvedValue(
+        (async function* () {
+          for (const row of mockResults) {
+            yield row;
+          }
+        })()
+      );
+      const mockLimit = vi.fn().mockReturnValue({
+        execute: mockExecute,
+      });
+      const mockQueryBuilder = vi.fn().mockReturnValue({
+        limit: mockLimit,
+      });
+      const mockOpenTable = vi.fn().mockResolvedValue({
+        query: mockQueryBuilder,
+      });
+
+      mockConnect.mockResolvedValue({
+        openTable: mockOpenTable,
+      } as unknown as Awaited<ReturnType<typeof connect>>);
+
+      const results = await query(agentId, temporalGrain);
+
+      expect(mockExecute).toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+      expect(results[0]?.id).toBe("record-exec");
+    });
+
     it("should handle table not found gracefully", async () => {
       const { connect } = await import("@lancedb/lancedb");
       const mockConnect = vi.mocked(connect);
