@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 198 review fixes**: Addressed CodeQL comments by adjusting `generationTimeMs` spreads in `webhookHandler.ts` and `slackTask.ts`, and removing the redundant `workspaceId` guard in widget `internalHandler.ts`. Ran `pnpm lint --fix` (fails on existing complexity in `mcp-oauth-app.ts`) and `pnpm typecheck`.
 - **Merge conflict resolution**: Resolved conflicts in `memory/activeContext.md`, `apps/backend/src/http/utils/mcpUtils.ts`, and `apps/backend/src/http/any-api-workspaces-catchall/routes/put-mcp-server.ts`; kept refactors and added Shopify validation in `put-mcp-server-handler.ts`. Ran `pnpm --filter backend test --run put-mcp-server`, `pnpm typecheck`, and regenerated `docs/complexity-report.md` (lint still fails on existing complexity in `apps/backend/src/http/any-api-mcp-oauth-000serviceType-callback/mcp-oauth-app.ts`).
 - **Agent setup refactor**: Split `setupAgentAndTools` in `apps/backend/src/http/utils/agentSetup.ts` into helpers for model config, tool assembly, web/email tools, delegation tools, and MCP/client tools; behavior unchanged. Ran `pnpm lint --fix`, `pnpm typecheck`, and regenerated `docs/complexity-report.md` (no matching tests for `agentSetup`).
 - **Stream request context refactor**: Split `buildStreamRequestContext` in `apps/backend/src/http/utils/streamRequestContext.ts` into helpers for headers, CORS, context resolution, timestamps, and message insertion. Ran `pnpm --filter backend test --run streamRequestContext`, `pnpm lint --fix`, `pnpm typecheck`, and regenerated `docs/complexity-report.md`.

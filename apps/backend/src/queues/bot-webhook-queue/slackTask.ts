@@ -680,7 +680,7 @@ async function logSlackConversation(params: {
           ...(agentResult.provisionalCostUsd !== undefined && {
             provisionalCostUsd: agentResult.provisionalCostUsd,
           }),
-          ...(generationTimeMs !== undefined && { generationTimeMs }),
+          ...(generationTimeMs != null && { generationTimeMs }),
           ...(generationStartedAt && { generationStartedAt }),
           ...(generationEndedAt && { generationEndedAt }),
         },

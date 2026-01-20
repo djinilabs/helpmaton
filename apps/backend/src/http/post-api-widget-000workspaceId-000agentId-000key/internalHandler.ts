@@ -500,15 +500,14 @@ export const internalHandler = async (
     }
 
     if (
-      workspaceId &&
-      (await tryHandleCreditError({
+      await tryHandleCreditError({
         error,
         workspaceId,
         responseStream,
         origin,
         allowedOrigins,
         context,
-      }))
+      })
     ) {
       return;
     }

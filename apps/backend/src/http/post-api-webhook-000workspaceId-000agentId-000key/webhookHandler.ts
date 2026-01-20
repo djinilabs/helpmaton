@@ -692,7 +692,7 @@ export async function handleWebhookRequest(
       ...(agentResult.provisionalCostUsd !== undefined && {
         provisionalCostUsd: agentResult.provisionalCostUsd,
       }),
-      ...(generationTimeMs !== undefined && { generationTimeMs }),
+      ...(Number.isFinite(generationTimeMs) ? { generationTimeMs } : {}),
       ...(generationStartedAt && { generationStartedAt }),
       ...(generationEndedAt && { generationEndedAt }),
     };
