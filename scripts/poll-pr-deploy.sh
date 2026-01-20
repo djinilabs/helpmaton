@@ -10,7 +10,7 @@ PR_NUMBER="$1"
 shift
 
 INTERVAL_SECONDS=20
-TIMEOUT_SECONDS=1800
+TIMEOUT_SECONDS=2400
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

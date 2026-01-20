@@ -750,22 +750,29 @@ async function waitForCostTransaction(
   const start = Date.now();
   let delayMs = POLL_INTERVAL_MS;
   while (Date.now() - start < timeoutMs) {
-    const response = await docClient.send(
-      new QueryCommand({
-        TableName: tableName,
-        KeyConditionExpression: "pk = :pk",
-        ExpressionAttributeValues: {
-          ":pk": pk,
-          ":conversationId": conversationId,
-        },
-        FilterExpression: "conversationId = :conversationId",
-        ScanIndexForward: false,
-        Limit: QUERY_LIMIT_LARGE,
-      })
-    );
-    if ((response.Items ?? []).length > 0) {
-      return response.Items;
-    }
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
+    do {
+      const response = await docClient.send(
+        new QueryCommand({
+          TableName: tableName,
+          KeyConditionExpression: "pk = :pk",
+          ExpressionAttributeValues: {
+            ":pk": pk,
+            ":conversationId": conversationId,
+          },
+          FilterExpression: "conversationId = :conversationId",
+          ScanIndexForward: false,
+          Limit: QUERY_LIMIT_LARGE,
+          ExclusiveStartKey: lastEvaluatedKey,
+        })
+      );
+      if ((response.Items ?? []).length > 0) {
+        return response.Items;
+      }
+      lastEvaluatedKey = response.LastEvaluatedKey as
+        | Record<string, unknown>
+        | undefined;
+    } while (lastEvaluatedKey);
     const remaining = timeoutMs - (Date.now() - start);
     if (remaining <= 0) {
       break;
