@@ -89,13 +89,13 @@ const findGenerationIdInHeaders = (
     console.log(
       "[extractOpenRouterGenerationId] Found in response.headers['x-openrouter-generation-id']"
     );
-    return headers["x-openrouter-generation-id"];
+    return headers["x-openrouter-generation-id"] as string;
   }
   if (headers["openrouter-generation-id"]) {
     console.log(
       "[extractOpenRouterGenerationId] Found in response.headers['openrouter-generation-id']"
     );
-    return headers["openrouter-generation-id"];
+    return headers["openrouter-generation-id"] as string;
   }
   return undefined;
 };
