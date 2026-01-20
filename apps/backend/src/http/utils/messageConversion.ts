@@ -1,16 +1,11 @@
-import type {
-  ModelMessage,
-  UserModelMessage,
-  AssistantModelMessage,
-  SystemModelMessage,
-  ToolCallPart,
-  ToolResultPart,
-  ImagePart,
-  FilePart,
-} from "ai";
+import type { ModelMessage, ToolResultPart } from "ai";
 
 import type { UIMessage } from "../../utils/messageTypes";
 
+import {
+  convertUIMessagesToModelMessages as convertUIMessagesToModelMessagesImpl,
+  createToolResultPart as createToolResultPartImpl,
+} from "./convert-ui-messages-to-model-messages";
 import { extractToolCostFromResult } from "./toolCostExtraction";
 
 /**
@@ -356,41 +351,7 @@ export function createToolResultPart(
   toolName: string,
   rawValue: unknown
 ): ToolResultPart {
-  // LanguageModelV2ToolResultOutput requires a discriminated union:
-  // - { type: 'text', value: string } for text outputs
-  // - { type: 'json', value: JSONValue } for JSON outputs
-  // - { type: 'error-text', value: string } for error text
-  // - { type: 'error-json', value: JSONValue } for error JSON
-  // - { type: 'content', value: Array<...> } for content arrays
-  let outputValue: ToolResultPart["output"];
-
-  if (rawValue === null || rawValue === undefined) {
-    // Use empty text output for null/undefined
-    outputValue = { type: "text", value: "" };
-  } else if (typeof rawValue === "string") {
-    // Format string as text output
-    outputValue = { type: "text", value: rawValue };
-  } else if (typeof rawValue === "object") {
-    // Format object as JSON output
-    // Type assertion needed because JSONValue is an internal type that accepts any JSON-serializable object
-    outputValue = {
-      type: "json",
-      value: rawValue as unknown as Extract<
-        ToolResultPart["output"],
-        { type: "json" }
-      >["value"],
-    };
-  } else {
-    // Convert other primitives to string and format as text output
-    outputValue = { type: "text", value: String(rawValue) };
-  }
-
-  return {
-    type: "tool-result",
-    toolCallId,
-    toolName,
-    output: outputValue,
-  };
+  return createToolResultPartImpl(toolCallId, toolName, rawValue);
 }
 
 /**
@@ -400,6 +361,8 @@ export function createToolResultPart(
 export function convertUIMessagesToModelMessages(
   messages: UIMessage[]
 ): ModelMessage[] {
+  return convertUIMessagesToModelMessagesImpl(messages);
+/*
   const modelMessages: ModelMessage[] = [];
 
   for (const message of messages) {
@@ -809,4 +772,5 @@ export function convertUIMessagesToModelMessages(
   }
 
   return modelMessages;
+*/
 }

@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Message conversion refactor**: Moved `convertUIMessagesToModelMessages` logic into `apps/backend/src/http/utils/convert-ui-messages-to-model-messages.ts`, kept thin wrappers in `messageConversion.ts`, and ran backend tests for message conversion. Ran `pnpm --filter backend test --run messageConversion`, `pnpm lint --fix`, `pnpm typecheck`, and regenerated `docs/complexity-report.md`.
 - **Put-agent refactor**: Extracted update/validation logic into `apps/backend/src/http/any-api-workspaces-catchall/routes/agentUpdate.ts`, rewired `put-workspace-agent` handler and tests to use helpers, and updated model pricing checks to openrouter in tests. Ran `pnpm --filter backend test --run put-workspace-agent`, `pnpm lint --fix`, `pnpm typecheck`, and regenerated `docs/complexity-report.md`.
 - **Conversation error refactor**: Extracted `buildConversationErrorInfo` into `apps/backend/src/utils/conversationErrorInfo.ts`, split helpers to lower complexity, added unit tests (`conversationErrorInfo.test.ts`), and regenerated complexity report. Ran `pnpm --filter backend test --run conversationErrorInfo`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Complexity report tooling**: Added ESLint-based complexity report script with `pnpm complexity:report`, generated `docs/complexity-report.md`, and ran `pnpm lint --fix` + `pnpm typecheck`.

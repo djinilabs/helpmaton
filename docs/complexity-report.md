@@ -1,11 +1,11 @@
 # Function Complexity Report
 
-Generated: 2026-01-20T10:35:03.002Z
+Generated: 2026-01-20T10:56:58.292Z
 
 ## Summary
 
-- Total functions analyzed: 9420
-- Functions with complexity >= 2: 2542
+- Total functions analyzed: 9432
+- Functions with complexity >= 2: 2552
 
 ## Top 10 most complex functions
 
@@ -13,14 +13,14 @@ Generated: 2026-01-20T10:35:03.002Z
 | --- | --- | --- | --- |
 | 1 | 170 | <anonymous> | apps/frontend/src/pages/AgentDetail.tsx:344 |
 | 2 | 127 | <anonymous> | apps/frontend/src/components/McpServerModal.tsx:369 |
-| 3 | 108 | convertUIMessagesToModelMessages | apps/backend/src/http/utils/messageConversion.ts:400 |
-| 4 | 102 | callAgentInternal | apps/backend/src/http/utils/agentUtils.ts:806 |
-| 5 | 95 | processSlackTask | apps/backend/src/queues/bot-webhook-queue/index.ts:613 |
-| 6 | 94 | convertAiSdkUIMessageToUIMessage | apps/backend/src/http/utils/messageConversion.ts:31 |
-| 7 | 88 | <anonymous> | apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts:168 |
-| 8 | 88 | <anonymous> | apps/backend/src/utils/handlingErrors.ts:22 |
-| 9 | 87 | expandMessagesWithToolCalls | apps/backend/src/utils/conversationLogger.ts:439 |
-| 10 | 85 | buildConversationErrorInfo | apps/backend/src/utils/conversationErrorInfo.ts:632 |
+| 3 | 102 | callAgentInternal | apps/backend/src/http/utils/agentUtils.ts:806 |
+| 4 | 95 | processSlackTask | apps/backend/src/queues/bot-webhook-queue/index.ts:613 |
+| 5 | 94 | convertAiSdkUIMessageToUIMessage | apps/backend/src/http/utils/messageConversion.ts:26 |
+| 6 | 88 | <anonymous> | apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts:168 |
+| 7 | 88 | <anonymous> | apps/backend/src/utils/handlingErrors.ts:22 |
+| 8 | 87 | expandMessagesWithToolCalls | apps/backend/src/utils/conversationLogger.ts:439 |
+| 9 | 85 | buildConversationErrorInfo | apps/backend/src/utils/conversationErrorInfo.ts:632 |
+| 10 | 84 | processDiscordTask | apps/backend/src/queues/bot-webhook-queue/index.ts:38 |
 
 ## How to run
 
