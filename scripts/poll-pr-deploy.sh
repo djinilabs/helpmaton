@@ -35,6 +35,7 @@ HEAD_BRANCH="$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)"
 echo "Polling Deploy PR workflow for PR #${PR_NUMBER} (branch: ${HEAD_BRANCH})"
 
 while true; do
+  sleep 5
   NOW="$(date +%s)"
   ELAPSED=$((NOW - START_TIME))
   if [[ $ELAPSED -ge $TIMEOUT_SECONDS ]]; then
@@ -42,7 +43,7 @@ while true; do
     exit 1
   fi
 
-RUN_JSON="$(gh run list --workflow "Deploy PR" --branch "$HEAD_BRANCH" --limit 1 --json status,conclusion,displayTitle,createdAt,updatedAt,url)"
+  RUN_JSON="$(gh run list --workflow "Deploy PR" --branch "$HEAD_BRANCH" --limit 1 --json status,conclusion,displayTitle,createdAt,updatedAt,url)"
   RUN_COUNT="$(echo "$RUN_JSON" | jq 'length')"
   if [[ "$RUN_COUNT" -eq 0 ]]; then
     echo "No Deploy PR runs found yet. Waiting..."
@@ -52,7 +53,7 @@ RUN_JSON="$(gh run list --workflow "Deploy PR" --branch "$HEAD_BRANCH" --limit 1
 
   STATUS="$(echo "$RUN_JSON" | jq -r '.[0].status')"
   CONCLUSION="$(echo "$RUN_JSON" | jq -r '.[0].conclusion')"
-URL="$(echo "$RUN_JSON" | jq -r '.[0].url')"
+  URL="$(echo "$RUN_JSON" | jq -r '.[0].url')"
   UPDATED_AT="$(echo "$RUN_JSON" | jq -r '.[0].updatedAt')"
 
   echo "Deploy PR status: ${STATUS} (conclusion: ${CONCLUSION}) at ${UPDATED_AT}"
