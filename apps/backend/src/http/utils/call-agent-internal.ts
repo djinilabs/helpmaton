@@ -282,6 +282,487 @@ const buildAbortSignal = (params: {
   return { signal: timeoutController.signal, timeoutHandle };
 };
 
+type GenerateTextResult = Awaited<ReturnType<typeof generateText>>;
+type TokenUsage = ReturnType<typeof extractTokenUsage>;
+
+const buildToolDefinitionsForReservation = (
+  wrappedTools: DelegationTools
+):
+  | Array<{ name: string; description: string; parameters: unknown }>
+  | undefined => {
+  if (!wrappedTools || Object.keys(wrappedTools).length === 0) {
+    return undefined;
+  }
+  return Object.entries(wrappedTools).map(([name, tool]) => ({
+    name,
+    description: (tool as { description?: string }).description || "",
+    parameters: (tool as { inputSchema?: unknown }).inputSchema || {},
+  }));
+};
+
+const executeGenerateTextWithTimeout = async (params: {
+  model: Parameters<typeof generateText>[0]["model"];
+  system: string;
+  messages: ModelMessage[];
+  tools: DelegationTools;
+  generateOptions: ReturnType<typeof buildGenerateTextOptions>;
+  abortSignal?: AbortSignal;
+  timeoutMs: number;
+}): Promise<GenerateTextResult> => {
+  const { signal: effectiveSignal, timeoutHandle } = buildAbortSignal({
+    abortSignal: params.abortSignal,
+    timeoutMs: params.timeoutMs,
+  });
+
+  try {
+    return await generateText({
+      model: params.model,
+      system: params.system,
+      messages: params.messages,
+      tools: params.tools,
+      ...params.generateOptions,
+      ...(effectiveSignal && { abortSignal: effectiveSignal }),
+    });
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+};
+
+const adjustReservationAfterSuccess = async (params: {
+  db: Awaited<ReturnType<typeof database>>;
+  reservationId?: string;
+  tokenUsage?: TokenUsage;
+  workspaceId: string;
+  targetAgentId: string;
+  agentProvider: Provider;
+  modelName: string;
+  context?: CreditContext;
+  openrouterGenerationId?: string;
+  openrouterGenerationIds?: string[];
+}): Promise<void> => {
+  const {
+    db,
+    reservationId,
+    tokenUsage,
+    workspaceId,
+    targetAgentId,
+    agentProvider,
+    modelName,
+    context,
+    openrouterGenerationId,
+    openrouterGenerationIds,
+  } = params;
+
+  if (
+    isCreditDeductionEnabled() &&
+    reservationId &&
+    reservationId !== "byok" &&
+    tokenUsage &&
+    (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
+  ) {
+    try {
+      if (context) {
+        await adjustCreditReservation(
+          db,
+          reservationId,
+          workspaceId,
+          agentProvider,
+          modelName,
+          tokenUsage,
+          context,
+          3,
+          false,
+          openrouterGenerationId,
+          openrouterGenerationIds,
+          targetAgentId
+        );
+      } else {
+        console.warn(
+          "[callAgentInternal] Context not available, skipping credit adjustment"
+        );
+      }
+      console.log(
+        "[Agent Delegation] Credit reservation adjusted successfully"
+      );
+    } catch (error) {
+      console.error(
+        "[callAgentInternal] Error adjusting credit reservation:",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          workspaceId,
+          targetAgentId,
+          reservationId,
+          tokenUsage,
+        }
+      );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "credit-management",
+          operation: "adjust-reservation",
+        },
+        extra: {
+          workspaceId,
+          targetAgentId,
+          reservationId,
+        },
+        level: "warning",
+      });
+    }
+  } else if (
+    reservationId &&
+    reservationId !== "byok" &&
+    (!tokenUsage ||
+      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0))
+  ) {
+    console.warn(
+      "[callAgentInternal] No token usage available after successful call, keeping estimated cost:",
+      {
+        workspaceId,
+        targetAgentId,
+        reservationId,
+      }
+    );
+    try {
+      const reservationPk = `credit-reservations/${reservationId}`;
+      await db["credit-reservations"].delete(reservationPk);
+    } catch (deleteError) {
+      console.warn(
+        "[callAgentInternal] Error deleting reservation:",
+        deleteError
+      );
+      Sentry.captureException(ensureError(deleteError), {
+        tags: {
+          context: "credit-management",
+          operation: "delete-reservation",
+        },
+      });
+    }
+  }
+};
+
+const logTargetAgentConversation = async (params: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  targetAgentId: string;
+  targetAgentConversationId: string;
+  llmObserver: ReturnType<typeof createLlmObserver>;
+  inputUserMessage: UIMessage;
+  tokenUsage?: TokenUsage;
+  usesByok: boolean;
+  modelName: string;
+  openrouterGenerationId?: string;
+  provisionalCostUsd?: number;
+  message: string;
+  responseText: string;
+}): Promise<void> => {
+  const {
+    db,
+    workspaceId,
+    targetAgentId,
+    targetAgentConversationId,
+    llmObserver,
+    inputUserMessage,
+    tokenUsage,
+    usesByok,
+    modelName,
+    openrouterGenerationId,
+    provisionalCostUsd,
+    message,
+    responseText,
+  } = params;
+
+  try {
+    const observerTiming = getGenerationTimingFromObserver(
+      llmObserver.getEvents()
+    );
+    const generationTimeMs =
+      observerTiming.generationStartedAt && observerTiming.generationEndedAt
+        ? new Date(observerTiming.generationEndedAt).getTime() -
+          new Date(observerTiming.generationStartedAt).getTime()
+        : undefined;
+
+    const targetAgentMessages = buildConversationMessagesFromObserver({
+      observerEvents: llmObserver.getEvents(),
+      fallbackInputMessages: [inputUserMessage],
+      assistantMeta: {
+        tokenUsage,
+        modelName,
+        provider: "openrouter",
+        openrouterGenerationId,
+        provisionalCostUsd,
+        generationTimeMs,
+      },
+    });
+
+    await updateConversation(
+      db,
+      workspaceId,
+      targetAgentId,
+      targetAgentConversationId,
+      targetAgentMessages,
+      tokenUsage,
+      usesByok,
+      undefined,
+      undefined,
+      "test"
+    );
+
+    console.log("[Agent Delegation] Created conversation for target agent:", {
+      workspaceId,
+      targetAgentId,
+      targetAgentConversationId,
+      messageLength: message.length,
+      responseLength: responseText.length,
+      tokenUsage: tokenUsage
+        ? {
+            promptTokens: tokenUsage.promptTokens,
+            completionTokens: tokenUsage.completionTokens,
+            totalTokens: tokenUsage.totalTokens,
+          }
+        : undefined,
+    });
+  } catch (conversationError) {
+    const errorMessage =
+      conversationError instanceof Error
+        ? conversationError.message
+        : String(conversationError);
+    const errorName =
+      conversationError instanceof Error ? conversationError.name : "Error";
+
+    console.error(
+      "[callAgentInternal] Error creating conversation for target agent:",
+      {
+        error: errorMessage,
+        errorName,
+        workspaceId,
+        targetAgentId,
+      }
+    );
+
+    if (conversationError instanceof Error) {
+      const wrappedError = new Error(
+        `Failed to create conversation for target agent: ${errorMessage}`
+      );
+      wrappedError.name = errorName;
+      wrappedError.cause = conversationError;
+      throw wrappedError;
+    }
+
+    throw new Error(
+      `Failed to create conversation for target agent: ${errorMessage}`
+    );
+  }
+};
+
+const handleReservationAfterError = async (params: {
+  db: Awaited<ReturnType<typeof database>>;
+  reservationId?: string;
+  llmCallAttempted: boolean;
+  error: unknown;
+  workspaceId: string;
+  targetAgentId: string;
+  agentProvider: Provider;
+  modelName: string;
+  context?: CreditContext;
+}): Promise<void> => {
+  const {
+    db,
+    reservationId,
+    llmCallAttempted,
+    error,
+    workspaceId,
+    targetAgentId,
+    agentProvider,
+    modelName,
+    context,
+  } = params;
+
+  if (!reservationId || reservationId === "byok") {
+    return;
+  }
+
+  if (!llmCallAttempted) {
+    try {
+      console.log(
+        "[callAgentInternal] Error before LLM call, refunding reservation:",
+        {
+          workspaceId,
+          targetAgentId,
+          reservationId,
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
+      if (context) {
+        await refundReservation(db, reservationId, context);
+      } else {
+        console.warn(
+          "[callAgentInternal] Context not available, skipping refund transaction"
+        );
+      }
+    } catch (refundError) {
+      console.error("[callAgentInternal] Error refunding reservation:", {
+        reservationId,
+        error:
+          refundError instanceof Error
+            ? refundError.message
+            : String(refundError),
+      });
+      Sentry.captureException(ensureError(refundError), {
+        tags: {
+          context: "credit-management",
+          operation: "refund-credits",
+        },
+      });
+    }
+    return;
+  }
+
+  let errorTokenUsage: TokenUsage | undefined;
+  try {
+    if (error && typeof error === "object" && "result" in error && error.result) {
+      errorTokenUsage = extractTokenUsage(error.result);
+    }
+  } catch {
+    // Ignore extraction errors
+  }
+
+  if (
+    isCreditDeductionEnabled() &&
+    errorTokenUsage &&
+    (errorTokenUsage.promptTokens > 0 || errorTokenUsage.completionTokens > 0)
+  ) {
+    try {
+      if (context) {
+        await adjustCreditReservation(
+          db,
+          reservationId,
+          workspaceId,
+          agentProvider,
+          modelName,
+          errorTokenUsage,
+          context,
+          3,
+          false,
+          undefined,
+          undefined,
+          targetAgentId
+        );
+      } else {
+        console.warn(
+          "[callAgentInternal] Context not available, skipping credit adjustment"
+        );
+      }
+    } catch (adjustError) {
+      console.error(
+        "[callAgentInternal] Error adjusting reservation after error:",
+        adjustError
+      );
+      Sentry.captureException(ensureError(adjustError), {
+        tags: {
+          context: "credit-management",
+          operation: "adjust-reservation-after-error",
+        },
+        extra: {
+          workspaceId,
+          targetAgentId,
+          reservationId,
+        },
+      });
+    }
+  } else {
+    console.warn(
+      "[callAgentInternal] Model error without token usage, assuming reserved credits consumed:",
+      {
+        workspaceId,
+        targetAgentId,
+        reservationId,
+      }
+    );
+    try {
+      const reservationPk = `credit-reservations/${reservationId}`;
+      await db["credit-reservations"].delete(reservationPk);
+    } catch (deleteError) {
+      console.warn(
+        "[callAgentInternal] Error deleting reservation:",
+        deleteError
+      );
+      Sentry.captureException(ensureError(deleteError), {
+        tags: {
+          context: "credit-management",
+          operation: "delete-reservation-after-error",
+        },
+      });
+    }
+  }
+};
+
+const logDelegationErrorConversation = async (params: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  targetAgentId: string;
+  targetAgentConversationId: string;
+  message: string;
+  usesByok: boolean;
+  modelName: string;
+  error: unknown;
+}): Promise<void> => {
+  const {
+    db,
+    workspaceId,
+    targetAgentId,
+    targetAgentConversationId,
+    message,
+    usesByok,
+    modelName,
+    error,
+  } = params;
+  try {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorInfo = {
+      message: errorMessage,
+      name: error instanceof Error ? error.name : "Error",
+      stack: error instanceof Error ? error.stack : undefined,
+      occurredAt: new Date().toISOString(),
+      provider: "openrouter",
+      modelName,
+      endpoint: "test",
+    };
+
+    await updateConversation(
+      db,
+      workspaceId,
+      targetAgentId,
+      targetAgentConversationId,
+      [
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+      undefined,
+      usesByok,
+      errorInfo,
+      undefined,
+      "test"
+    );
+  } catch (logError) {
+    console.error("[callAgentInternal] Failed to log error conversation:", {
+      error: logError instanceof Error ? logError.message : String(logError),
+      workspaceId,
+      targetAgentId,
+      targetAgentConversationId,
+    });
+    Sentry.captureException(ensureError(logError), {
+      tags: {
+        context: "agent-delegation",
+        operation: "log-error-conversation",
+      },
+    });
+  }
+};
+
 export async function callAgentInternal(
   workspaceId: string,
   targetAgentId: string,
@@ -426,18 +907,11 @@ export async function callAgentInternal(
   let reservationId: string | undefined;
   let llmCallAttempted = false;
   let shouldTrackRequest = false;
-  let result: Awaited<ReturnType<typeof generateText>> | undefined;
-  let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+  let result: GenerateTextResult | undefined;
+  let tokenUsage: TokenUsage | undefined;
 
   try {
-    const toolDefinitions =
-      Object.keys(wrappedTools).length > 0
-        ? Object.entries(wrappedTools).map(([name, tool]) => ({
-            name,
-            description: (tool as { description?: string }).description || "",
-            parameters: (tool as { inputSchema?: unknown }).inputSchema || {},
-          }))
-        : undefined;
+    const toolDefinitions = buildToolDefinitionsForReservation(wrappedTools);
 
     const reservation = await validateCreditsAndLimitsAndReserve(
       db,
@@ -477,25 +951,15 @@ export async function callAgentInternal(
       logToolDefinitions(wrappedTools, "Agent Delegation", targetAgent);
     }
 
-    const { signal: effectiveSignal, timeoutHandle } = buildAbortSignal({
+    result = await executeGenerateTextWithTimeout({
+      model: model as unknown as Parameters<typeof generateText>[0]["model"],
+      system: targetAgent.systemPrompt,
+      messages: modelMessagesWithKnowledge,
+      tools: wrappedTools,
+      generateOptions,
       abortSignal,
       timeoutMs,
     });
-
-    try {
-      result = await generateText({
-        model: model as unknown as Parameters<typeof generateText>[0]["model"],
-        system: targetAgent.systemPrompt,
-        messages: modelMessagesWithKnowledge,
-        tools: wrappedTools,
-        ...generateOptions,
-        ...(effectiveSignal && { abortSignal: effectiveSignal }),
-      });
-    } finally {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
-    }
 
     llmCallAttempted = true;
     shouldTrackRequest = true;
@@ -514,177 +978,38 @@ export async function callAgentInternal(
     const openrouterGenerationIds = extractionResult.openrouterGenerationIds;
     const provisionalCostUsd = extractionResult.provisionalCostUsd;
 
-    if (
-      isCreditDeductionEnabled() &&
-      reservationId &&
-      reservationId !== "byok" &&
-      tokenUsage &&
-      (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
-    ) {
-      try {
-        if (context) {
-          await adjustCreditReservation(
-            db,
-            reservationId,
-            workspaceId,
-            agentProvider,
-            modelName || MODEL_NAME,
-            tokenUsage,
-            context,
-            3,
-            false,
-            openrouterGenerationId,
-            openrouterGenerationIds,
-            targetAgentId
-          );
-        } else {
-          console.warn(
-            "[callAgentInternal] Context not available, skipping credit adjustment"
-          );
-        }
-        console.log(
-          "[Agent Delegation] Credit reservation adjusted successfully"
-        );
-      } catch (error) {
-        console.error(
-          "[callAgentInternal] Error adjusting credit reservation:",
-          {
-            error: error instanceof Error ? error.message : String(error),
-            workspaceId,
-            targetAgentId,
-            reservationId,
-            tokenUsage,
-          }
-        );
-        Sentry.captureException(ensureError(error), {
-          tags: {
-            context: "credit-management",
-            operation: "adjust-reservation",
-          },
-          extra: {
-            workspaceId,
-            targetAgentId,
-            reservationId,
-          },
-          level: "warning",
-        });
-      }
-    } else if (
-      reservationId &&
-      reservationId !== "byok" &&
-      (!tokenUsage ||
-        (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0))
-    ) {
-      console.warn(
-        "[callAgentInternal] No token usage available after successful call, keeping estimated cost:",
-        {
-          workspaceId,
-          targetAgentId,
-          reservationId,
-        }
-      );
-      try {
-        const reservationPk = `credit-reservations/${reservationId}`;
-        await db["credit-reservations"].delete(reservationPk);
-      } catch (deleteError) {
-        console.warn(
-          "[callAgentInternal] Error deleting reservation:",
-          deleteError
-        );
-        Sentry.captureException(ensureError(deleteError), {
-          tags: {
-            context: "credit-management",
-            operation: "delete-reservation",
-          },
-        });
-      }
-    }
+    await adjustReservationAfterSuccess({
+      db,
+      reservationId,
+      tokenUsage,
+      workspaceId,
+      targetAgentId,
+      agentProvider,
+      modelName: modelName || MODEL_NAME,
+      context,
+      openrouterGenerationId,
+      openrouterGenerationIds,
+    });
 
     if (!result) {
       throw new Error("LLM call succeeded but result is undefined");
     }
 
-    try {
-      const observerTiming = getGenerationTimingFromObserver(
-        llmObserver.getEvents()
-      );
-      const generationTimeMs =
-        observerTiming.generationStartedAt && observerTiming.generationEndedAt
-          ? new Date(observerTiming.generationEndedAt).getTime() -
-            new Date(observerTiming.generationStartedAt).getTime()
-          : undefined;
-
-      const targetAgentMessages = buildConversationMessagesFromObserver({
-        observerEvents: llmObserver.getEvents(),
-        fallbackInputMessages: [inputUserMessage],
-        assistantMeta: {
-          tokenUsage,
-          modelName: modelName || MODEL_NAME,
-          provider: "openrouter",
-          openrouterGenerationId,
-          provisionalCostUsd,
-          generationTimeMs,
-        },
-      });
-
-      await updateConversation(
-        db,
-        workspaceId,
-        targetAgentId,
-        targetAgentConversationId,
-        targetAgentMessages,
-        tokenUsage,
-        usesByok,
-        undefined,
-        undefined,
-        "test"
-      );
-
-      console.log("[Agent Delegation] Created conversation for target agent:", {
-        workspaceId,
-        targetAgentId,
-        targetAgentConversationId,
-        messageLength: message.length,
-        responseLength: result.text.length,
-        tokenUsage: tokenUsage
-          ? {
-              promptTokens: tokenUsage.promptTokens,
-              completionTokens: tokenUsage.completionTokens,
-              totalTokens: tokenUsage.totalTokens,
-            }
-          : undefined,
-      });
-    } catch (conversationError) {
-      const errorMessage =
-        conversationError instanceof Error
-          ? conversationError.message
-          : String(conversationError);
-      const errorName =
-        conversationError instanceof Error ? conversationError.name : "Error";
-
-      console.error(
-        "[callAgentInternal] Error creating conversation for target agent:",
-        {
-          error: errorMessage,
-          errorName,
-          workspaceId,
-          targetAgentId,
-        }
-      );
-
-      if (conversationError instanceof Error) {
-        const wrappedError = new Error(
-          `Failed to create conversation for target agent: ${errorMessage}`
-        );
-        wrappedError.name = errorName;
-        wrappedError.cause = conversationError;
-        throw wrappedError;
-      }
-
-      throw new Error(
-        `Failed to create conversation for target agent: ${errorMessage}`
-      );
-    }
+    await logTargetAgentConversation({
+      db,
+      workspaceId,
+      targetAgentId,
+      targetAgentConversationId,
+      llmObserver,
+      inputUserMessage,
+      tokenUsage,
+      usesByok,
+      modelName: modelName || MODEL_NAME,
+      openrouterGenerationId,
+      provisionalCostUsd,
+      message,
+      responseText: result.text,
+    });
 
     return {
       response: result.text,
@@ -692,121 +1017,17 @@ export async function callAgentInternal(
       shouldTrackRequest,
     };
   } catch (error) {
-    if (reservationId && reservationId !== "byok") {
-      if (!llmCallAttempted) {
-        try {
-          console.log(
-            "[callAgentInternal] Error before LLM call, refunding reservation:",
-            {
-              workspaceId,
-              targetAgentId,
-              reservationId,
-              error: error instanceof Error ? error.message : String(error),
-            }
-          );
-          if (context) {
-            await refundReservation(db, reservationId, context);
-          } else {
-            console.warn(
-              "[callAgentInternal] Context not available, skipping refund transaction"
-            );
-          }
-        } catch (refundError) {
-          console.error("[callAgentInternal] Error refunding reservation:", {
-            reservationId,
-            error:
-              refundError instanceof Error
-                ? refundError.message
-                : String(refundError),
-          });
-          Sentry.captureException(ensureError(refundError), {
-            tags: {
-              context: "credit-management",
-              operation: "refund-credits",
-            },
-          });
-        }
-      } else {
-        let errorTokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
-        try {
-          if (error && typeof error === "object" && "result" in error && error.result) {
-            errorTokenUsage = extractTokenUsage(error.result);
-          }
-        } catch {
-          // Ignore extraction errors
-        }
-
-        if (
-          isCreditDeductionEnabled() &&
-          errorTokenUsage &&
-          (errorTokenUsage.promptTokens > 0 ||
-            errorTokenUsage.completionTokens > 0)
-        ) {
-          try {
-            if (context) {
-              await adjustCreditReservation(
-                db,
-                reservationId,
-                workspaceId,
-                agentProvider,
-                modelName || MODEL_NAME,
-                errorTokenUsage,
-                context,
-                3,
-                false,
-                undefined,
-                undefined,
-                targetAgentId
-              );
-            } else {
-              console.warn(
-                "[callAgentInternal] Context not available, skipping credit adjustment"
-              );
-            }
-          } catch (adjustError) {
-            console.error(
-              "[callAgentInternal] Error adjusting reservation after error:",
-              adjustError
-            );
-            Sentry.captureException(ensureError(adjustError), {
-              tags: {
-                context: "credit-management",
-                operation: "adjust-reservation-after-error",
-              },
-              extra: {
-                workspaceId,
-                targetAgentId,
-                reservationId,
-              },
-            });
-          }
-        } else {
-          console.warn(
-            "[callAgentInternal] Model error without token usage, assuming reserved credits consumed:",
-            {
-              workspaceId,
-              targetAgentId,
-              reservationId,
-            }
-          );
-          try {
-            const reservationPk = `credit-reservations/${reservationId}`;
-            await db["credit-reservations"].delete(reservationPk);
-          } catch (deleteError) {
-            console.warn(
-              "[callAgentInternal] Error deleting reservation:",
-              deleteError
-            );
-            Sentry.captureException(ensureError(deleteError), {
-              tags: {
-                context: "credit-management",
-                operation: "delete-reservation-after-error",
-              },
-            });
-          }
-        }
-      }
-    }
+    await handleReservationAfterError({
+      db,
+      reservationId,
+      llmCallAttempted,
+      error,
+      workspaceId,
+      targetAgentId,
+      agentProvider,
+      modelName: modelName || MODEL_NAME,
+      context,
+    });
 
     console.error(
       `[callAgentInternal] Error calling agent ${targetAgentId}:`,
@@ -823,49 +1044,16 @@ export async function callAgentInternal(
       },
     });
 
-    try {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorInfo = {
-        message: errorMessage,
-        name: error instanceof Error ? error.name : "Error",
-        stack: error instanceof Error ? error.stack : undefined,
-        occurredAt: new Date().toISOString(),
-        provider: "openrouter",
-        modelName: modelName || MODEL_NAME,
-        endpoint: "test",
-      };
-
-      await updateConversation(
-        db,
-        workspaceId,
-        targetAgentId,
-        targetAgentConversationId,
-        [
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-        undefined,
-        usesByok,
-        errorInfo,
-        undefined,
-        "test"
-      );
-    } catch (logError) {
-      console.error("[callAgentInternal] Failed to log error conversation:", {
-        error: logError instanceof Error ? logError.message : String(logError),
-        workspaceId,
-        targetAgentId,
-        targetAgentConversationId,
-      });
-      Sentry.captureException(ensureError(logError), {
-        tags: {
-          context: "agent-delegation",
-          operation: "log-error-conversation",
-        },
-      });
-    }
+    await logDelegationErrorConversation({
+      db,
+      workspaceId,
+      targetAgentId,
+      targetAgentConversationId,
+      message,
+      usesByok,
+      modelName: modelName || MODEL_NAME,
+      error,
+    });
 
     return {
       response: `Error calling agent: ${
