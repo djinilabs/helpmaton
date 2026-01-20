@@ -215,38 +215,93 @@ function sanitizeServerName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 }
 
-/**
- * Create tools for all enabled MCP servers for an agent
- */
-export async function createMcpServerTools(
+type ValidServer = {
+  server: McpServerRecord;
+  serverId: string;
+  hasOAuthConnection: boolean;
+};
+
+const OAUTH_SERVICE_TYPES = new Set([
+  "google-drive",
+  "gmail",
+  "google-calendar",
+  "notion",
+  "github",
+  "linear",
+  "hubspot",
+  "slack",
+  "stripe",
+  "salesforce",
+  "intercom",
+  "todoist",
+  "zendesk",
+]);
+
+const GENERIC_SERVICE_GROUP = "__generic__";
+
+const getServiceGroupKey = (server: McpServerRecord): string => {
+  if (
+    server.serviceType &&
+    ((server.authType === "oauth" && OAUTH_SERVICE_TYPES.has(server.serviceType)) ||
+      server.serviceType === "posthog")
+  ) {
+    return server.serviceType;
+  }
+  return GENERIC_SERVICE_GROUP;
+};
+
+const registerTool = (
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>,
+  name: string,
+  tool: ReturnType<typeof createMcpServerTool>
+) => {
+  tools[name] = tool;
+};
+
+const getToolSuffix = (server: McpServerRecord, hasConflict: boolean) => {
+  if (!hasConflict) {
+    return "";
+  }
+  return `_${sanitizeServerName(server.name)}`;
+};
+
+const logNotionServer = (params: {
+  server: McpServerRecord;
+  serverId: string;
+  hasOAuthConnection: boolean;
+  hasConflict: boolean;
+  suffix: string;
+}) => {
+  if (
+    params.server.serviceType === "notion" ||
+    params.server.name.toLowerCase().includes("notion")
+  ) {
+    console.log(`[MCP Tools] Processing Notion server ${params.serverId}:`, {
+      authType: params.server.authType,
+      serviceType: params.server.serviceType,
+      hasAccessToken: params.hasOAuthConnection,
+      hasConflict: params.hasConflict,
+      suffix: params.suffix,
+    });
+  }
+};
+
+const logNotionGenericFallback = (server: McpServerRecord, serverId: string) => {
+  if (
+    server.serviceType === "notion" ||
+    server.name.toLowerCase().includes("notion")
+  ) {
+    console.warn(
+      `[MCP Tools] Notion server ${serverId} falling through to generic tool. AuthType: ${server.authType}, ServiceType: ${server.serviceType}`
+    );
+  }
+};
+
+const collectValidServers = async (
   workspaceId: string,
   enabledMcpServerIds: string[]
-): Promise<Record<string, ReturnType<typeof createMcpServerTool>>> {
-  const tools: Record<string, ReturnType<typeof createMcpServerTool>> = {};
-  const oauthServiceTypes = [
-    "google-drive",
-    "gmail",
-    "google-calendar",
-    "notion",
-    "github",
-    "linear",
-    "hubspot",
-    "slack",
-    "stripe",
-    "salesforce",
-    "intercom",
-    "todoist",
-    "zendesk",
-  ];
-
-  // First pass: collect all valid servers
-  interface ValidServer {
-    server: McpServerRecord;
-    serverId: string;
-    hasOAuthConnection: boolean;
-  }
+): Promise<ValidServer[]> => {
   const validServers: ValidServer[] = [];
-
   for (const serverId of enabledMcpServerIds) {
     const server = await getMcpServer(workspaceId, serverId);
     if (!server) {
@@ -261,11 +316,9 @@ export async function createMcpServerTools(
       continue;
     }
 
-    // Check for OAuth connection
     const config = server.config as { accessToken?: string };
     const hasOAuthConnection = !!config.accessToken;
 
-    // Skip OAuth servers without connection
     if (server.authType === "oauth" && !hasOAuthConnection) {
       console.warn(
         `MCP server ${serverId} (${server.serviceType || "unknown"}) is not connected, skipping tools`
@@ -276,574 +329,774 @@ export async function createMcpServerTools(
     validServers.push({ server, serverId, hasOAuthConnection });
   }
 
-  // Group servers by serviceType for conflict detection
-  // For OAuth servers with specific serviceTypes, group by serviceType
-  // For generic servers, group all together
+  return validServers;
+};
+
+const buildServersByServiceType = (
+  validServers: Array<{ server: McpServerRecord; serverId: string }>
+) => {
   const serversByServiceType = new Map<
     string,
     Array<{ server: McpServerRecord; serverId: string }>
   >();
 
   for (const { server, serverId } of validServers) {
-    // Determine grouping key
-    let groupKey: string;
-    if (
-      server.serviceType &&
-      ((server.authType === "oauth" &&
-        oauthServiceTypes.includes(server.serviceType)) ||
-        server.serviceType === "posthog")
-    ) {
-      // OAuth servers with specific serviceTypes
-      groupKey = server.serviceType;
-    } else {
-      // Generic MCP servers (all grouped together)
-      groupKey = "__generic__";
-    }
-
+    const groupKey = getServiceGroupKey(server);
     if (!serversByServiceType.has(groupKey)) {
       serversByServiceType.set(groupKey, []);
     }
     serversByServiceType.get(groupKey)!.push({ server, serverId });
   }
 
+  return serversByServiceType;
+};
+
+const addGoogleDriveTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createGoogleDriveListTool,
+    createGoogleDriveReadTool,
+    createGoogleDriveSearchTool,
+  } = await import("./googleDriveTools");
+
+  registerTool(
+    params.tools,
+    `google_drive_list${params.suffix}`,
+    createGoogleDriveListTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `google_drive_read${params.suffix}`,
+    createGoogleDriveReadTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `google_drive_search${params.suffix}`,
+    createGoogleDriveSearchTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addGmailTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createGmailListTool,
+    createGmailReadTool,
+    createGmailSearchTool,
+  } = await import("./gmailTools");
+
+  registerTool(
+    params.tools,
+    `gmail_list${params.suffix}`,
+    createGmailListTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `gmail_read${params.suffix}`,
+    createGmailReadTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `gmail_search${params.suffix}`,
+    createGmailSearchTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addGoogleCalendarTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createGoogleCalendarListTool,
+    createGoogleCalendarReadTool,
+    createGoogleCalendarSearchTool,
+    createGoogleCalendarCreateTool,
+    createGoogleCalendarUpdateTool,
+    createGoogleCalendarDeleteTool,
+  } = await import("./googleCalendarTools");
+
+  registerTool(
+    params.tools,
+    `google_calendar_list${params.suffix}`,
+    createGoogleCalendarListTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `google_calendar_read${params.suffix}`,
+    createGoogleCalendarReadTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `google_calendar_search${params.suffix}`,
+    createGoogleCalendarSearchTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `google_calendar_create${params.suffix}`,
+    createGoogleCalendarCreateTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `google_calendar_update${params.suffix}`,
+    createGoogleCalendarUpdateTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `google_calendar_delete${params.suffix}`,
+    createGoogleCalendarDeleteTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addNotionTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  console.log(
+    `[MCP Tools] Creating Notion-specific tools for server ${params.serverId}`
+  );
+  const {
+    createNotionReadPageTool,
+    createNotionSearchTool,
+    createNotionCreatePageTool,
+    createNotionUpdatePageTool,
+    createNotionQueryDatabaseTool,
+    createNotionCreateDatabasePageTool,
+    createNotionUpdateDatabasePageTool,
+    createNotionAppendBlocksTool,
+  } = await import("./notionTools");
+
+  registerTool(
+    params.tools,
+    `notion_read${params.suffix}`,
+    createNotionReadPageTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `notion_search${params.suffix}`,
+    createNotionSearchTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `notion_create${params.suffix}`,
+    createNotionCreatePageTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `notion_update${params.suffix}`,
+    createNotionUpdatePageTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `notion_query_database${params.suffix}`,
+    createNotionQueryDatabaseTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `notion_create_database_page${params.suffix}`,
+    createNotionCreateDatabasePageTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `notion_update_database_page${params.suffix}`,
+    createNotionUpdateDatabasePageTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `notion_append_blocks${params.suffix}`,
+    createNotionAppendBlocksTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addGithubTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createGithubListRepositoriesTool,
+    createGithubGetRepositoryTool,
+    createGithubListIssuesTool,
+    createGithubGetIssueTool,
+    createGithubListPullRequestsTool,
+    createGithubGetPullRequestTool,
+    createGithubReadFileTool,
+    createGithubListCommitsTool,
+    createGithubGetCommitTool,
+  } = await import("./githubTools");
+
+  registerTool(
+    params.tools,
+    `github_list_repos${params.suffix}`,
+    createGithubListRepositoriesTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_get_repo${params.suffix}`,
+    createGithubGetRepositoryTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_list_issues${params.suffix}`,
+    createGithubListIssuesTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_get_issue${params.suffix}`,
+    createGithubGetIssueTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_list_prs${params.suffix}`,
+    createGithubListPullRequestsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_get_pr${params.suffix}`,
+    createGithubGetPullRequestTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_read_file${params.suffix}`,
+    createGithubReadFileTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_list_commits${params.suffix}`,
+    createGithubListCommitsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `github_get_commit${params.suffix}`,
+    createGithubGetCommitTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addLinearTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createLinearListTeamsTool,
+    createLinearListProjectsTool,
+    createLinearListIssuesTool,
+    createLinearGetIssueTool,
+    createLinearSearchIssuesTool,
+  } = await import("./linearTools");
+
+  registerTool(
+    params.tools,
+    `linear_list_teams${params.suffix}`,
+    createLinearListTeamsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `linear_list_projects${params.suffix}`,
+    createLinearListProjectsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `linear_list_issues${params.suffix}`,
+    createLinearListIssuesTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `linear_get_issue${params.suffix}`,
+    createLinearGetIssueTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `linear_search_issues${params.suffix}`,
+    createLinearSearchIssuesTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addHubspotTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createHubspotListContactsTool,
+    createHubspotGetContactTool,
+    createHubspotSearchContactsTool,
+    createHubspotListCompaniesTool,
+    createHubspotGetCompanyTool,
+    createHubspotSearchCompaniesTool,
+    createHubspotListDealsTool,
+    createHubspotGetDealTool,
+    createHubspotSearchDealsTool,
+    createHubspotListOwnersTool,
+    createHubspotGetOwnerTool,
+    createHubspotSearchOwnersTool,
+  } = await import("./hubspotTools");
+
+  registerTool(
+    params.tools,
+    `hubspot_list_contacts${params.suffix}`,
+    createHubspotListContactsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_get_contact${params.suffix}`,
+    createHubspotGetContactTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_search_contacts${params.suffix}`,
+    createHubspotSearchContactsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_list_companies${params.suffix}`,
+    createHubspotListCompaniesTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_get_company${params.suffix}`,
+    createHubspotGetCompanyTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_search_companies${params.suffix}`,
+    createHubspotSearchCompaniesTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_list_deals${params.suffix}`,
+    createHubspotListDealsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_get_deal${params.suffix}`,
+    createHubspotGetDealTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_search_deals${params.suffix}`,
+    createHubspotSearchDealsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_list_owners${params.suffix}`,
+    createHubspotListOwnersTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_get_owner${params.suffix}`,
+    createHubspotGetOwnerTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `hubspot_search_owners${params.suffix}`,
+    createHubspotSearchOwnersTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addSlackTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createSlackListChannelsTool,
+    createSlackGetChannelHistoryTool,
+    createSlackPostMessageTool,
+  } = await import("./slackTools");
+
+  registerTool(
+    params.tools,
+    `slack_list_channels${params.suffix}`,
+    createSlackListChannelsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `slack_get_channel_history${params.suffix}`,
+    createSlackGetChannelHistoryTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `slack_post_message${params.suffix}`,
+    createSlackPostMessageTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addStripeTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const { createStripeSearchChargesTool, createStripeGetMetricsTool } =
+    await import("./stripeTools");
+
+  registerTool(
+    params.tools,
+    `stripe_search_charges${params.suffix}`,
+    createStripeSearchChargesTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `stripe_get_metrics${params.suffix}`,
+    createStripeGetMetricsTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addSalesforceTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createSalesforceListObjectsTool,
+    createSalesforceDescribeObjectTool,
+    createSalesforceQueryTool,
+  } = await import("./salesforceTools");
+
+  registerTool(
+    params.tools,
+    `salesforce_list_objects${params.suffix}`,
+    createSalesforceListObjectsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `salesforce_describe_object${params.suffix}`,
+    createSalesforceDescribeObjectTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `salesforce_query${params.suffix}`,
+    createSalesforceQueryTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addIntercomTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createIntercomListContactsTool,
+    createIntercomGetContactTool,
+    createIntercomSearchContactsTool,
+    createIntercomUpdateContactTool,
+    createIntercomListConversationsTool,
+    createIntercomGetConversationTool,
+    createIntercomSearchConversationsTool,
+    createIntercomReplyConversationTool,
+  } = await import("./intercomTools");
+
+  registerTool(
+    params.tools,
+    `intercom_list_contacts${params.suffix}`,
+    createIntercomListContactsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `intercom_get_contact${params.suffix}`,
+    createIntercomGetContactTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `intercom_search_contacts${params.suffix}`,
+    createIntercomSearchContactsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `intercom_update_contact${params.suffix}`,
+    createIntercomUpdateContactTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `intercom_list_conversations${params.suffix}`,
+    createIntercomListConversationsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `intercom_get_conversation${params.suffix}`,
+    createIntercomGetConversationTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `intercom_search_conversations${params.suffix}`,
+    createIntercomSearchConversationsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `intercom_reply_conversation${params.suffix}`,
+    createIntercomReplyConversationTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addTodoistTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createTodoistAddTaskTool,
+    createTodoistGetTasksTool,
+    createTodoistCloseTaskTool,
+    createTodoistGetProjectsTool,
+  } = await import("./todoistTools");
+
+  registerTool(
+    params.tools,
+    `todoist_add_task${params.suffix}`,
+    createTodoistAddTaskTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `todoist_get_tasks${params.suffix}`,
+    createTodoistGetTasksTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `todoist_close_task${params.suffix}`,
+    createTodoistCloseTaskTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `todoist_get_projects${params.suffix}`,
+    createTodoistGetProjectsTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addZendeskTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createZendeskSearchTicketsTool,
+    createZendeskGetTicketDetailsTool,
+    createZendeskDraftCommentTool,
+    createZendeskSearchHelpCenterTool,
+  } = await import("./zendeskTools");
+
+  registerTool(
+    params.tools,
+    `zendesk_search_tickets${params.suffix}`,
+    createZendeskSearchTicketsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `zendesk_get_ticket_details${params.suffix}`,
+    createZendeskGetTicketDetailsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `zendesk_draft_comment${params.suffix}`,
+    createZendeskDraftCommentTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `zendesk_search_help_center${params.suffix}`,
+    createZendeskSearchHelpCenterTool(params.workspaceId, params.serverId)
+  );
+};
+
+const addPosthogTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createPosthogListProjectsTool,
+    createPosthogGetProjectTool,
+    createPosthogListEventsTool,
+    createPosthogListFeatureFlagsTool,
+    createPosthogGetFeatureFlagTool,
+    createPosthogListInsightsTool,
+    createPosthogGetInsightTool,
+    createPosthogListPersonsTool,
+    createPosthogGetPersonTool,
+    createPosthogGetTool,
+  } = await import("./posthogTools");
+
+  registerTool(
+    params.tools,
+    `posthog_list_projects${params.suffix}`,
+    createPosthogListProjectsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_get_project${params.suffix}`,
+    createPosthogGetProjectTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_list_events${params.suffix}`,
+    createPosthogListEventsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_list_feature_flags${params.suffix}`,
+    createPosthogListFeatureFlagsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_get_feature_flag${params.suffix}`,
+    createPosthogGetFeatureFlagTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_list_insights${params.suffix}`,
+    createPosthogListInsightsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_get_insight${params.suffix}`,
+    createPosthogGetInsightTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_list_persons${params.suffix}`,
+    createPosthogListPersonsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_get_person${params.suffix}`,
+    createPosthogGetPersonTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `posthog_get${params.suffix}`,
+    createPosthogGetTool(params.workspaceId, params.serverId)
+  );
+};
+
+const createDedicatedTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  server: McpServerRecord;
+  serverId: string;
+  suffix: string;
+}) => {
+  const { server } = params;
+  if (server.authType === "oauth" && server.serviceType === "google-drive") {
+    await addGoogleDriveTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "gmail") {
+    await addGmailTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "google-calendar") {
+    await addGoogleCalendarTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "notion") {
+    await addNotionTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "github") {
+    await addGithubTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "linear") {
+    await addLinearTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "hubspot") {
+    await addHubspotTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "slack") {
+    await addSlackTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "stripe") {
+    await addStripeTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "salesforce") {
+    await addSalesforceTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "intercom") {
+    await addIntercomTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "todoist") {
+    await addTodoistTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "zendesk") {
+    await addZendeskTools(params);
+    return true;
+  }
+  if (server.serviceType === "posthog") {
+    await addPosthogTools(params);
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Create tools for all enabled MCP servers for an agent
+ */
+export async function createMcpServerTools(
+  workspaceId: string,
+  enabledMcpServerIds: string[]
+): Promise<Record<string, ReturnType<typeof createMcpServerTool>>> {
+  const tools: Record<string, ReturnType<typeof createMcpServerTool>> = {};
+  const validServers = await collectValidServers(
+    workspaceId,
+    enabledMcpServerIds
+  );
+  const serversByServiceType = buildServersByServiceType(
+    validServers.map(({ server, serverId }) => ({ server, serverId }))
+  );
+
   // Second pass: create tools with conditional naming
   for (const { server, serverId, hasOAuthConnection } of validServers) {
-    // Determine if there's a conflict (multiple servers of same type)
-    let groupKey: string;
-    if (
-      server.serviceType &&
-      ((server.authType === "oauth" &&
-        oauthServiceTypes.includes(server.serviceType)) ||
-        server.serviceType === "posthog")
-    ) {
-      groupKey = server.serviceType;
-    } else {
-      groupKey = "__generic__";
-    }
-
-    const sameTypeServers = serversByServiceType.get(groupKey) || [];
+    const groupKey = getServiceGroupKey(server);
+    const sameTypeServers = serversByServiceType.get(groupKey) ?? [];
     const hasConflict = sameTypeServers.length > 1;
-    const serverNameSanitized = sanitizeServerName(server.name);
-    const suffix = hasConflict ? `_${serverNameSanitized}` : "";
+    const suffix = getToolSuffix(server, hasConflict);
 
-    // Debug logging for Notion MCP servers
-    if (server.serviceType === "notion" || server.name.toLowerCase().includes("notion")) {
-      console.log(`[MCP Tools] Processing Notion server ${serverId}:`, {
-        authType: server.authType,
-        serviceType: server.serviceType,
-        hasAccessToken: hasOAuthConnection,
-        hasConflict,
-        suffix,
-      });
-    }
+    logNotionServer({
+      server,
+      serverId,
+      hasOAuthConnection,
+      hasConflict,
+      suffix,
+    });
 
-    // Check if this is an OAuth-based MCP server with dedicated tools
-    if (server.authType === "oauth" && server.serviceType === "google-drive") {
-      // Import Google Drive tools dynamically to avoid circular dependencies
-      const {
-        createGoogleDriveListTool,
-        createGoogleDriveReadTool,
-        createGoogleDriveSearchTool,
-      } = await import("./googleDriveTools");
-
-      // Create dedicated Google Drive tools
-      const listTool = createGoogleDriveListTool(workspaceId, serverId);
-      const readTool = createGoogleDriveReadTool(workspaceId, serverId);
-      const searchTool = createGoogleDriveSearchTool(workspaceId, serverId);
-
-      tools[`google_drive_list${suffix}`] =
-        listTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_drive_read${suffix}`] =
-        readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_drive_search${suffix}`] =
-        searchTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "gmail") {
-      // Import Gmail tools dynamically to avoid circular dependencies
-      const {
-        createGmailListTool,
-        createGmailReadTool,
-        createGmailSearchTool,
-      } = await import("./gmailTools");
-
-      // Create dedicated Gmail tools
-      const listTool = createGmailListTool(workspaceId, serverId);
-      const readTool = createGmailReadTool(workspaceId, serverId);
-      const searchTool = createGmailSearchTool(workspaceId, serverId);
-
-      tools[`gmail_list${suffix}`] =
-        listTool as ReturnType<typeof createMcpServerTool>;
-      tools[`gmail_read${suffix}`] =
-        readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`gmail_search${suffix}`] =
-        searchTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "google-calendar") {
-      // Import Google Calendar tools dynamically to avoid circular dependencies
-      const {
-        createGoogleCalendarListTool,
-        createGoogleCalendarReadTool,
-        createGoogleCalendarSearchTool,
-        createGoogleCalendarCreateTool,
-        createGoogleCalendarUpdateTool,
-        createGoogleCalendarDeleteTool,
-      } = await import("./googleCalendarTools");
-
-      // Create dedicated Google Calendar tools
-      const listTool = createGoogleCalendarListTool(workspaceId, serverId);
-      const readTool = createGoogleCalendarReadTool(workspaceId, serverId);
-      const searchTool = createGoogleCalendarSearchTool(workspaceId, serverId);
-      const createTool = createGoogleCalendarCreateTool(workspaceId, serverId);
-      const updateTool = createGoogleCalendarUpdateTool(workspaceId, serverId);
-      const deleteTool = createGoogleCalendarDeleteTool(workspaceId, serverId);
-
-      tools[`google_calendar_list${suffix}`] =
-        listTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_read${suffix}`] =
-        readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_search${suffix}`] =
-        searchTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_create${suffix}`] =
-        createTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_update${suffix}`] =
-        updateTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_delete${suffix}`] =
-        deleteTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "notion") {
-      console.log(
-        `[MCP Tools] Creating Notion-specific tools for server ${serverId} (${server.name})`
-      );
-
-      // Import Notion tools dynamically to avoid circular dependencies
-      const {
-        createNotionReadPageTool,
-        createNotionSearchTool,
-        createNotionCreatePageTool,
-        createNotionUpdatePageTool,
-        createNotionQueryDatabaseTool,
-        createNotionCreateDatabasePageTool,
-        createNotionUpdateDatabasePageTool,
-        createNotionAppendBlocksTool,
-      } = await import("./notionTools");
-
-      // Create dedicated Notion tools
-      const readTool = createNotionReadPageTool(workspaceId, serverId);
-      const searchTool = createNotionSearchTool(workspaceId, serverId);
-      const createTool = createNotionCreatePageTool(workspaceId, serverId);
-      const updateTool = createNotionUpdatePageTool(workspaceId, serverId);
-      const queryDatabaseTool = createNotionQueryDatabaseTool(workspaceId, serverId);
-      const createDatabasePageTool = createNotionCreateDatabasePageTool(workspaceId, serverId);
-      const updateDatabasePageTool = createNotionUpdateDatabasePageTool(workspaceId, serverId);
-      const appendBlocksTool = createNotionAppendBlocksTool(workspaceId, serverId);
-
-      tools[`notion_read${suffix}`] =
-        readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`notion_search${suffix}`] =
-        searchTool as ReturnType<typeof createMcpServerTool>;
-      tools[`notion_create${suffix}`] =
-        createTool as ReturnType<typeof createMcpServerTool>;
-      tools[`notion_update${suffix}`] =
-        updateTool as ReturnType<typeof createMcpServerTool>;
-      tools[`notion_query_database${suffix}`] =
-        queryDatabaseTool as ReturnType<typeof createMcpServerTool>;
-      tools[`notion_create_database_page${suffix}`] =
-        createDatabasePageTool as ReturnType<typeof createMcpServerTool>;
-      tools[`notion_update_database_page${suffix}`] =
-        updateDatabasePageTool as ReturnType<typeof createMcpServerTool>;
-      tools[`notion_append_blocks${suffix}`] =
-        appendBlocksTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "github") {
-      // Import GitHub tools dynamically to avoid circular dependencies
-      const {
-        createGithubListRepositoriesTool,
-        createGithubGetRepositoryTool,
-        createGithubListIssuesTool,
-        createGithubGetIssueTool,
-        createGithubListPullRequestsTool,
-        createGithubGetPullRequestTool,
-        createGithubReadFileTool,
-        createGithubListCommitsTool,
-        createGithubGetCommitTool,
-      } = await import("./githubTools");
-
-      // Create dedicated GitHub tools
-      const listReposTool = createGithubListRepositoriesTool(workspaceId, serverId);
-      const getRepoTool = createGithubGetRepositoryTool(workspaceId, serverId);
-      const listIssuesTool = createGithubListIssuesTool(workspaceId, serverId);
-      const getIssueTool = createGithubGetIssueTool(workspaceId, serverId);
-      const listPRsTool = createGithubListPullRequestsTool(workspaceId, serverId);
-      const getPRTool = createGithubGetPullRequestTool(workspaceId, serverId);
-      const readFileTool = createGithubReadFileTool(workspaceId, serverId);
-      const listCommitsTool = createGithubListCommitsTool(workspaceId, serverId);
-      const getCommitTool = createGithubGetCommitTool(workspaceId, serverId);
-
-      tools[`github_list_repos${suffix}`] =
-        listReposTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_get_repo${suffix}`] =
-        getRepoTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_list_issues${suffix}`] =
-        listIssuesTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_get_issue${suffix}`] =
-        getIssueTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_list_prs${suffix}`] =
-        listPRsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_get_pr${suffix}`] =
-        getPRTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_read_file${suffix}`] =
-        readFileTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_list_commits${suffix}`] =
-        listCommitsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`github_get_commit${suffix}`] =
-        getCommitTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "linear") {
-      const {
-        createLinearListTeamsTool,
-        createLinearListProjectsTool,
-        createLinearListIssuesTool,
-        createLinearGetIssueTool,
-        createLinearSearchIssuesTool,
-      } = await import("./linearTools");
-
-      const listTeamsTool = createLinearListTeamsTool(workspaceId, serverId);
-      const listProjectsTool = createLinearListProjectsTool(workspaceId, serverId);
-      const listIssuesTool = createLinearListIssuesTool(workspaceId, serverId);
-      const getIssueTool = createLinearGetIssueTool(workspaceId, serverId);
-      const searchIssuesTool = createLinearSearchIssuesTool(workspaceId, serverId);
-
-      tools[`linear_list_teams${suffix}`] =
-        listTeamsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`linear_list_projects${suffix}`] =
-        listProjectsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`linear_list_issues${suffix}`] =
-        listIssuesTool as ReturnType<typeof createMcpServerTool>;
-      tools[`linear_get_issue${suffix}`] =
-        getIssueTool as ReturnType<typeof createMcpServerTool>;
-      tools[`linear_search_issues${suffix}`] =
-        searchIssuesTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "hubspot") {
-      const {
-        createHubspotListContactsTool,
-        createHubspotGetContactTool,
-        createHubspotSearchContactsTool,
-        createHubspotListCompaniesTool,
-        createHubspotGetCompanyTool,
-        createHubspotSearchCompaniesTool,
-        createHubspotListDealsTool,
-        createHubspotGetDealTool,
-        createHubspotSearchDealsTool,
-        createHubspotListOwnersTool,
-        createHubspotGetOwnerTool,
-        createHubspotSearchOwnersTool,
-      } = await import("./hubspotTools");
-
-      const listContactsTool = createHubspotListContactsTool(
-        workspaceId,
-        serverId
-      );
-      const getContactTool = createHubspotGetContactTool(
-        workspaceId,
-        serverId
-      );
-      const searchContactsTool = createHubspotSearchContactsTool(
-        workspaceId,
-        serverId
-      );
-      const listCompaniesTool = createHubspotListCompaniesTool(
-        workspaceId,
-        serverId
-      );
-      const getCompanyTool = createHubspotGetCompanyTool(
-        workspaceId,
-        serverId
-      );
-      const searchCompaniesTool = createHubspotSearchCompaniesTool(
-        workspaceId,
-        serverId
-      );
-      const listDealsTool = createHubspotListDealsTool(workspaceId, serverId);
-      const getDealTool = createHubspotGetDealTool(workspaceId, serverId);
-      const searchDealsTool = createHubspotSearchDealsTool(
-        workspaceId,
-        serverId
-      );
-      const listOwnersTool = createHubspotListOwnersTool(
-        workspaceId,
-        serverId
-      );
-      const getOwnerTool = createHubspotGetOwnerTool(workspaceId, serverId);
-      const searchOwnersTool = createHubspotSearchOwnersTool(
-        workspaceId,
-        serverId
-      );
-
-      tools[`hubspot_list_contacts${suffix}`] =
-        listContactsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_get_contact${suffix}`] =
-        getContactTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_search_contacts${suffix}`] =
-        searchContactsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_list_companies${suffix}`] =
-        listCompaniesTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_get_company${suffix}`] =
-        getCompanyTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_search_companies${suffix}`] =
-        searchCompaniesTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_list_deals${suffix}`] =
-        listDealsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_get_deal${suffix}`] =
-        getDealTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_search_deals${suffix}`] =
-        searchDealsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_list_owners${suffix}`] =
-        listOwnersTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_get_owner${suffix}`] =
-        getOwnerTool as ReturnType<typeof createMcpServerTool>;
-      tools[`hubspot_search_owners${suffix}`] =
-        searchOwnersTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "slack") {
-      const {
-        createSlackListChannelsTool,
-        createSlackGetChannelHistoryTool,
-        createSlackPostMessageTool,
-      } = await import("./slackTools");
-
-      const listChannelsTool = createSlackListChannelsTool(workspaceId, serverId);
-      const historyTool = createSlackGetChannelHistoryTool(workspaceId, serverId);
-      const postMessageTool = createSlackPostMessageTool(workspaceId, serverId);
-
-      tools[`slack_list_channels${suffix}`] =
-        listChannelsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`slack_get_channel_history${suffix}`] =
-        historyTool as ReturnType<typeof createMcpServerTool>;
-      tools[`slack_post_message${suffix}`] =
-        postMessageTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "stripe") {
-      const {
-        createStripeSearchChargesTool,
-        createStripeGetMetricsTool,
-      } = await import("./stripeTools");
-
-      const searchChargesTool = createStripeSearchChargesTool(
-        workspaceId,
-        serverId
-      );
-      const getMetricsTool = createStripeGetMetricsTool(workspaceId, serverId);
-
-      tools[`stripe_search_charges${suffix}`] =
-        searchChargesTool as ReturnType<typeof createMcpServerTool>;
-      tools[`stripe_get_metrics${suffix}`] =
-        getMetricsTool as ReturnType<typeof createMcpServerTool>;
-    } else if (
-      server.authType === "oauth" &&
-      server.serviceType === "salesforce"
-    ) {
-      const {
-        createSalesforceListObjectsTool,
-        createSalesforceDescribeObjectTool,
-        createSalesforceQueryTool,
-      } = await import("./salesforceTools");
-
-      const listObjectsTool = createSalesforceListObjectsTool(
-        workspaceId,
-        serverId
-      );
-      const describeTool = createSalesforceDescribeObjectTool(
-        workspaceId,
-        serverId
-      );
-      const queryTool = createSalesforceQueryTool(workspaceId, serverId);
-
-      tools[`salesforce_list_objects${suffix}`] =
-        listObjectsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`salesforce_describe_object${suffix}`] =
-        describeTool as ReturnType<typeof createMcpServerTool>;
-      tools[`salesforce_query${suffix}`] =
-        queryTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "intercom") {
-      const {
-        createIntercomListContactsTool,
-        createIntercomGetContactTool,
-        createIntercomSearchContactsTool,
-        createIntercomUpdateContactTool,
-        createIntercomListConversationsTool,
-        createIntercomGetConversationTool,
-        createIntercomSearchConversationsTool,
-        createIntercomReplyConversationTool,
-      } = await import("./intercomTools");
-
-      const listContactsTool = createIntercomListContactsTool(
-        workspaceId,
-        serverId
-      );
-      const getContactTool = createIntercomGetContactTool(workspaceId, serverId);
-      const searchContactsTool = createIntercomSearchContactsTool(
-        workspaceId,
-        serverId
-      );
-      const updateContactTool = createIntercomUpdateContactTool(
-        workspaceId,
-        serverId
-      );
-      const listConversationsTool = createIntercomListConversationsTool(
-        workspaceId,
-        serverId
-      );
-      const getConversationTool = createIntercomGetConversationTool(
-        workspaceId,
-        serverId
-      );
-      const searchConversationsTool = createIntercomSearchConversationsTool(
-        workspaceId,
-        serverId
-      );
-      const replyConversationTool = createIntercomReplyConversationTool(
-        workspaceId,
-        serverId
-      );
-
-      tools[`intercom_list_contacts${suffix}`] =
-        listContactsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`intercom_get_contact${suffix}`] =
-        getContactTool as ReturnType<typeof createMcpServerTool>;
-      tools[`intercom_search_contacts${suffix}`] =
-        searchContactsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`intercom_update_contact${suffix}`] =
-        updateContactTool as ReturnType<typeof createMcpServerTool>;
-      tools[`intercom_list_conversations${suffix}`] =
-        listConversationsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`intercom_get_conversation${suffix}`] =
-        getConversationTool as ReturnType<typeof createMcpServerTool>;
-      tools[`intercom_search_conversations${suffix}`] =
-        searchConversationsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`intercom_reply_conversation${suffix}`] =
-        replyConversationTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "todoist") {
-      const {
-        createTodoistAddTaskTool,
-        createTodoistGetTasksTool,
-        createTodoistCloseTaskTool,
-        createTodoistGetProjectsTool,
-      } = await import("./todoistTools");
-
-      const addTaskTool = createTodoistAddTaskTool(workspaceId, serverId);
-      const getTasksTool = createTodoistGetTasksTool(workspaceId, serverId);
-      const closeTaskTool = createTodoistCloseTaskTool(workspaceId, serverId);
-      const getProjectsTool = createTodoistGetProjectsTool(workspaceId, serverId);
-
-      tools[`todoist_add_task${suffix}`] =
-        addTaskTool as ReturnType<typeof createMcpServerTool>;
-      tools[`todoist_get_tasks${suffix}`] =
-        getTasksTool as ReturnType<typeof createMcpServerTool>;
-      tools[`todoist_close_task${suffix}`] =
-        closeTaskTool as ReturnType<typeof createMcpServerTool>;
-      tools[`todoist_get_projects${suffix}`] =
-        getProjectsTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.authType === "oauth" && server.serviceType === "zendesk") {
-      const {
-        createZendeskSearchTicketsTool,
-        createZendeskGetTicketDetailsTool,
-        createZendeskDraftCommentTool,
-        createZendeskSearchHelpCenterTool,
-      } = await import("./zendeskTools");
-
-      const searchTicketsTool = createZendeskSearchTicketsTool(
-        workspaceId,
-        serverId
-      );
-      const ticketDetailsTool = createZendeskGetTicketDetailsTool(
-        workspaceId,
-        serverId
-      );
-      const draftCommentTool = createZendeskDraftCommentTool(
-        workspaceId,
-        serverId
-      );
-      const searchHelpCenterTool = createZendeskSearchHelpCenterTool(
-        workspaceId,
-        serverId
-      );
-
-      tools[`zendesk_search_tickets${suffix}`] =
-        searchTicketsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`zendesk_get_ticket_details${suffix}`] =
-        ticketDetailsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`zendesk_draft_comment${suffix}`] =
-        draftCommentTool as ReturnType<typeof createMcpServerTool>;
-      tools[`zendesk_search_help_center${suffix}`] =
-        searchHelpCenterTool as ReturnType<typeof createMcpServerTool>;
-    } else if (server.serviceType === "posthog") {
-      const {
-        createPosthogListProjectsTool,
-        createPosthogGetProjectTool,
-        createPosthogListEventsTool,
-        createPosthogListFeatureFlagsTool,
-        createPosthogGetFeatureFlagTool,
-        createPosthogListInsightsTool,
-        createPosthogGetInsightTool,
-        createPosthogListPersonsTool,
-        createPosthogGetPersonTool,
-        createPosthogGetTool,
-      } = await import("./posthogTools");
-
-      const listProjectsTool = createPosthogListProjectsTool(
-        workspaceId,
-        serverId
-      );
-      const getProjectTool = createPosthogGetProjectTool(workspaceId, serverId);
-      const listEventsTool = createPosthogListEventsTool(workspaceId, serverId);
-      const listFlagsTool = createPosthogListFeatureFlagsTool(
-        workspaceId,
-        serverId
-      );
-      const getFlagTool = createPosthogGetFeatureFlagTool(
-        workspaceId,
-        serverId
-      );
-      const listInsightsTool = createPosthogListInsightsTool(
-        workspaceId,
-        serverId
-      );
-      const getInsightTool = createPosthogGetInsightTool(workspaceId, serverId);
-      const listPersonsTool = createPosthogListPersonsTool(
-        workspaceId,
-        serverId
-      );
-      const getPersonTool = createPosthogGetPersonTool(workspaceId, serverId);
-      const getTool = createPosthogGetTool(workspaceId, serverId);
-
-      tools[`posthog_list_projects${suffix}`] =
-        listProjectsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_get_project${suffix}`] =
-        getProjectTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_list_events${suffix}`] =
-        listEventsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_list_feature_flags${suffix}`] =
-        listFlagsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_get_feature_flag${suffix}`] =
-        getFlagTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_list_insights${suffix}`] =
-        listInsightsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_get_insight${suffix}`] =
-        getInsightTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_list_persons${suffix}`] =
-        listPersonsTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_get_person${suffix}`] =
-        getPersonTool as ReturnType<typeof createMcpServerTool>;
-      tools[`posthog_get${suffix}`] =
-        getTool as ReturnType<typeof createMcpServerTool>;
-    } else {
+    const dedicatedToolsCreated = await createDedicatedTools({
+      tools,
+      workspaceId,
+      server,
+      serverId,
+      suffix,
+    });
+    if (!dedicatedToolsCreated) {
       // Create a generic MCP tool for external servers
       // For generic servers, always use server name since they're inherently different
       // Only append suffix if there are multiple generic servers
-      const toolName = hasConflict
-        ? `mcp_${serverNameSanitized}`
-        : `mcp_${serverNameSanitized}`;
-
-      // Debug logging for servers that fall through to generic tool
-      if (server.serviceType === "notion" || server.name.toLowerCase().includes("notion")) {
-        console.warn(
-          `[MCP Tools] Notion server ${serverId} falling through to generic tool. AuthType: ${server.authType}, ServiceType: ${server.serviceType}`
-        );
-      }
-
+      const toolName = `mcp_${sanitizeServerName(server.name)}`;
+      logNotionGenericFallback(server, serverId);
       tools[toolName] = createMcpServerTool(workspaceId, serverId, server.name);
     }
   }
