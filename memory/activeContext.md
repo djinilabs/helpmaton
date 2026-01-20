@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Shopify MCP integration**: Added Shopify OAuth flow with shop domain capture (offline tokens), Shopify API client + tools (order lookup, product search, sales report), tool metadata/UI wiring, schema updates, docs/env/workflow updates, and unit tests. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Zendesk MCP integration**: Added Zendesk OAuth flow using subdomain + client credentials stored per MCP server, Zendesk API client + tools (ticket search, comments, draft private note, Help Center search), tool metadata/UI wiring, schema updates, docs, and unit tests. Preserved Zendesk config on OAuth connect/disconnect. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Todoist MCP integration**: Added Todoist OAuth flow, API client, MCP tools (add/list/close tasks, list projects), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run todoist`.
 

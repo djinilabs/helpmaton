@@ -609,6 +609,53 @@ Once connected, agents can use the following HubSpot tools:
 - HubSpot OAuth tokens are refreshed automatically when expired
 - The integration is read-only; only GET/search operations are performed
 
+### Shopify Integration
+
+```json
+{
+  "name": "My Shopify Store",
+  "authType": "oauth",
+  "serviceType": "shopify",
+  "config": {
+    "shopDomain": "my-cool-store.myshopify.com"
+  }
+}
+```
+
+**Setup Requirements**:
+
+1. Create a Shopify app:
+   - Go to the [Shopify Partner Dashboard](https://partners.shopify.com/)
+   - Create or open your app
+   - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/shopify/callback`
+   - Enable scopes:
+     - `read_orders`
+     - `read_products`
+     - `read_customers`
+   - Copy the client ID and client secret
+
+2. Configure Environment Variables:
+   - Set `SHOPIFY_OAUTH_CLIENT_ID` to your Shopify OAuth client ID
+   - Set `SHOPIFY_OAUTH_CLIENT_SECRET` to your Shopify OAuth client secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Configure the MCP Server:
+   - Provide your shop domain (e.g., `my-cool-store.myshopify.com`)
+   - After creating the MCP server, click "Connect" to authorize the integration
+
+**Available Tools**:
+
+Once connected, agents can use the following Shopify tools:
+
+- `shopify_get_order_{serverName}` - Find an order by ID or number (e.g., #1001)
+- `shopify_search_products_{serverName}` - Search products by title for inventory and pricing
+- `shopify_sales_report_{serverName}` - Summarize order counts and gross sales by date range
+
+**Important Notes**:
+
+- Shopify uses offline access tokens so agents can work in the background
+- Product inventory lives on each product's `variants` array (`inventory_quantity`)
+
 ### Salesforce Integration
 
 ```json

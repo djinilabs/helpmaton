@@ -9,6 +9,7 @@ import {
   isValidPosthogBaseUrl,
   normalizePosthogBaseUrl,
 } from "../../../utils/posthog/constants";
+import { assertValidShopifyShopDomain } from "../../../utils/shopify/utils";
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
@@ -157,6 +158,20 @@ export const registerPostMcpServer = (app: express.Application) => {
               );
             }
           }
+          if (serviceType === "shopify") {
+            if (!config.shopDomain || typeof config.shopDomain !== "string") {
+              throw badRequest("config.shopDomain is required for Shopify OAuth");
+            }
+            try {
+              config.shopDomain = assertValidShopifyShopDomain(config.shopDomain);
+            } catch (error) {
+              throw badRequest(
+                error instanceof Error
+                  ? error.message
+                  : "config.shopDomain is invalid"
+              );
+            }
+          }
           // Config should be empty initially (OAuth connection happens via separate flow)
           // But we allow it to be empty or contain serviceType
         }
@@ -205,6 +220,9 @@ export const registerPostMcpServer = (app: express.Application) => {
         const sk = "server";
 
         // Create MCP server
+        const shouldPersistOAuthConfig =
+          authType === "oauth" &&
+          (serviceType === "zendesk" || serviceType === "shopify");
         const server = await db["mcp-server"].create({
           pk,
           sk,
@@ -213,7 +231,8 @@ export const registerPostMcpServer = (app: express.Application) => {
           url: url || undefined, // url is optional for OAuth servers
           authType: authType as "none" | "header" | "basic" | "oauth",
           serviceType: serviceType || "external",
-          config: authType === "oauth" ? {} : config, // Start with empty config for OAuth
+          config:
+            authType === "oauth" && !shouldPersistOAuthConfig ? {} : config, // Start with empty config for OAuth unless service needs extra fields
           createdBy: currentUserRef,
         });
 

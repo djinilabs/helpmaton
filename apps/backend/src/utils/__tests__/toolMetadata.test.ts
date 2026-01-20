@@ -495,6 +495,43 @@ describe("toolMetadata", () => {
         ).toBe(true);
       });
 
+      it("should include Shopify tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Shopify",
+            serviceType: "shopify",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const shopifyTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("shopify_")
+        );
+        expect(shopifyTools?.length).toBeGreaterThan(0);
+        expect(
+          shopifyTools?.some((t) => t.name === "shopify_get_order")
+        ).toBe(true);
+        expect(
+          shopifyTools?.some((t) => t.name === "shopify_sales_report")
+        ).toBe(true);
+      });
+
       it("should include Intercom tools when OAuth-connected server is enabled", () => {
         const mcpServers: McpServerInfo[] = [
           {

@@ -118,6 +118,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/hubspot"
           );
           authUrl = generateHubspotAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "shopify") {
+          const { generateShopifyAuthUrl } = await import(
+            "../../../utils/oauth/mcp/shopify"
+          );
+          authUrl = await generateShopifyAuthUrl(workspaceId, serverId);
         } else if (server.serviceType === "slack") {
           const { generateSlackAuthUrl } = await import(
             "../../../utils/oauth/mcp/slack"
