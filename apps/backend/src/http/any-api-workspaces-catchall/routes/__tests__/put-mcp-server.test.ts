@@ -734,6 +734,66 @@ describe("PUT /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
     );
   });
 
+  it("should throw badRequest when setting OAuth authType with tokens in config", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const workspaceId = "workspace-123";
+    const workspaceResource = `workspaces/${workspaceId}`;
+    const serverId = "server-456";
+    const pk = `mcp-servers/${workspaceId}/${serverId}`;
+
+    const existingServer = {
+      pk,
+      sk: "server",
+      workspaceId,
+      name: "Test Server",
+      url: "https://example.com",
+      authType: "none" as const,
+      config: {},
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockGet = vi.fn().mockResolvedValue(existingServer);
+    const mcpServerMock = (mockDb as Record<string, unknown>)["mcp-server"] as {
+      get: typeof mockGet;
+    };
+    mcpServerMock.get = mockGet;
+
+    const req = createMockRequest({
+      workspaceResource,
+      params: {
+        workspaceId,
+        serverId,
+      },
+      body: {
+        authType: "oauth",
+        config: {
+          accessToken: "token",
+          refreshToken: "refresh",
+          expiresAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message:
+              "OAuth tokens cannot be updated via this endpoint. Use OAuth endpoints instead.",
+          }),
+        }),
+      })
+    );
+  });
+
   it("should throw badRequest when header authType config is missing headerValue", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);

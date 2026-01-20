@@ -6,7 +6,10 @@
 
 **Latest Work**:
 
+- **PR 198 review fixes (round 4)**: Ensured OAuth token update guard uses `finalAuthType` in `put-mcp-server-handler.ts` and added a regression test blocking token injection when switching to OAuth; ran `pnpm --filter backend test --run put-mcp-server`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **PR 198 review fixes (round 3)**: Restored `enabledMcpServerIds` validation to throw `resourceGone` for missing MCP servers in `agentUpdate.ts` and added a regression test in `put-workspace-agent.test.ts`. Ran `pnpm --filter backend test --run put-workspace-agent`, `pnpm lint --fix`, and `pnpm typecheck`.
+- **Push-time lint investigation**: Repo has no local git hooks or hook config; likely a global hook/alias running `eslint --fix` and stripping unused `eslint-disable complexity` markers (possibly due to a different config on that hook).
+- **Hook search notes**: Checked shell configs and git config for aliases/hooks, no `core.hooksPath` or aliases found; likely external tooling or global hook outside repo.
 - **PR 198 review fixes (round 2)**: Removed commented legacy block in `messageConversion.ts` and added a `hasClientTools` type guard in `agentSetup.ts` for clarity. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **MCP OAuth callback refactor**: Reduced `mcp-oauth-app.ts` complexity by extracting helpers for redirects, state parsing, permissions, token exchange, and config building; added `mcp-oauth-app` unit tests; ran `pnpm --filter backend test --run mcp-oauth-app`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **PR 198 review fixes**: Addressed CodeQL comments by adjusting `generationTimeMs` spreads in `webhookHandler.ts` and `slackTask.ts`, and removing the redundant `workspaceId` guard in widget `internalHandler.ts`. Ran `pnpm lint --fix` (fails on existing complexity in `mcp-oauth-app.ts`) and `pnpm typecheck`.

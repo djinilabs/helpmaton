@@ -50,10 +50,10 @@ const validateAuthType = (authType: unknown): authType is McpAuthType => {
 };
 
 const assertNoOAuthTokenUpdates = (
-  serverAuthType: string,
+  finalAuthType: McpAuthType,
   config: unknown
 ) => {
-  if (serverAuthType !== "oauth" || config === undefined) {
+  if (finalAuthType !== "oauth" || config === undefined) {
     return;
   }
   const configObj = config as Record<string, unknown>;
@@ -214,11 +214,11 @@ const validateShopifyOAuthConfig = (params: {
 };
 
 const mergeOAuthConfig = (params: {
-  serverAuthType: string;
+  finalAuthType: McpAuthType;
   config?: Record<string, unknown>;
   serverConfig?: Record<string, unknown>;
 }) => {
-  if (params.serverAuthType !== "oauth" || params.config === undefined) {
+  if (params.finalAuthType !== "oauth" || params.config === undefined) {
     return params.config !== undefined ? params.config : params.serverConfig;
   }
   const existingConfig = params.serverConfig || {};
@@ -260,15 +260,15 @@ export const handlePutMcpServer = async (
 
     validateName(name);
     validateUrl(url);
-    validateAuthType(authType);
-    assertNoOAuthTokenUpdates(server.authType, config);
-
     const { finalServiceType, finalAuthType } = resolveFinalTypes({
       serviceType,
       authType,
       serverServiceType: server.serviceType,
       serverAuthType: server.authType,
     });
+
+    validateAuthType(authType);
+    assertNoOAuthTokenUpdates(finalAuthType, config);
 
     validateConfigObject(config);
     validateAuthConfig({
@@ -298,7 +298,7 @@ export const handlePutMcpServer = async (
     });
 
     const finalConfig = mergeOAuthConfig({
-      serverAuthType: server.authType,
+      finalAuthType,
       config: config as Record<string, unknown> | undefined,
       serverConfig: server.config as Record<string, unknown> | undefined,
     });
