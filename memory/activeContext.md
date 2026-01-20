@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Auth gate for new users**: Added Turnstile + TOS gate for first-time email sign-ins (backend gate token + verify endpoint + callback enforcement, frontend `/auth/gate` UI + routing), plus unit tests; ran `pnpm typecheck`, `pnpm lint --fix` (lint fails on existing `McpServerModal.tsx` complexity).
 - **MCP server list popularity order**: Reordered MCP server type options in the create modal so popular services appear first.
 - **PR 198 review fixes (round 4)**: Ensured OAuth token update guard uses `finalAuthType` in `put-mcp-server-handler.ts` and added a regression test blocking token injection when switching to OAuth; ran `pnpm --filter backend test --run put-mcp-server`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **PR 198 review fixes (round 3)**: Restored `enabledMcpServerIds` validation to throw `resourceGone` for missing MCP servers in `agentUpdate.ts` and added a regression test in `put-workspace-agent.test.ts`. Ran `pnpm --filter backend test --run put-workspace-agent`, `pnpm lint --fix`, and `pnpm typecheck`.
