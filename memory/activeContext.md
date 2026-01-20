@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Conversation error refactor**: Extracted `buildConversationErrorInfo` into `apps/backend/src/utils/conversationErrorInfo.ts`, split helpers to lower complexity, added unit tests (`conversationErrorInfo.test.ts`), and regenerated complexity report. Ran `pnpm --filter backend test --run conversationErrorInfo`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Complexity report tooling**: Added ESLint-based complexity report script with `pnpm complexity:report`, generated `docs/complexity-report.md`, and ran `pnpm lint --fix` + `pnpm typecheck`.
 - **Eval judge JSON robustness**: Added fallback JSON extraction for eval judge responses, expanded parsing tests for extra text, and tightened the default eval prompt to demand JSON-only output. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Sentry env overrides**: Added optional `SENTRY_ENVIRONMENT` (backend) and `VITE_SENTRY_ENVIRONMENT` (frontend) with fallbacks to existing env detection; injected backend env var via esbuild config; set PR deploy workflow envs to `"staging"`. Ran `pnpm lint --fix` and `pnpm typecheck`.
