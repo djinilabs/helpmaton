@@ -326,6 +326,14 @@ export async function callAgentNonStreaming(
     tools,
     options?.abortSignal
   );
+  console.log("[Non-Streaming Handler] LLM response received:", {
+    workspaceId,
+    agentId,
+    conversationId: options?.conversationId,
+    endpointType: options?.endpointType || "bridge",
+    receivedAt: new Date().toISOString(),
+    text: processedResult.text,
+  });
 
   // Use token usage from processedResult if available (includes continuation tokens),
   // otherwise fall back to initial extraction

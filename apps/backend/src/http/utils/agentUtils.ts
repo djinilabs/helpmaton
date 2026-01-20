@@ -1226,6 +1226,9 @@ export async function callAgentInternal(
     // LLM call succeeded - mark as attempted
     llmCallAttempted = true;
     shouldTrackRequest = true;
+    if (result) {
+      llmObserver.recordFromResult(result);
+    }
 
     // Extract token usage, generation IDs, and costs for credit adjustment
     const extractionResult = extractTokenUsageAndCosts(

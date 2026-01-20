@@ -88,8 +88,10 @@ jobs:
           NODE_ENV: "production"
           VITE_ENV: "production"
           ARC_ENV: "staging"
+          SENTRY_ENVIRONMENT: "staging"
+          VITE_SENTRY_ENVIRONMENT: "staging"
           NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -227,8 +229,10 @@ jobs:
         env:
           NODE_ENV: "production"
           VITE_ENV: "production"
+          SENTRY_ENVIRONMENT: "staging"
+          VITE_SENTRY_ENVIRONMENT: "staging"
           NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

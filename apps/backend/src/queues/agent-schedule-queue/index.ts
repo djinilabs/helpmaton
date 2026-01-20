@@ -192,6 +192,7 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
       ? buildConversationMessagesFromObserver({
           observerEvents: agentResult.observerEvents,
           fallbackInputMessages: [userMessage],
+          fallbackAssistantText: agentResult.text,
           assistantMeta: {
             tokenUsage: agentResult.tokenUsage,
             modelName: finalModelName,
