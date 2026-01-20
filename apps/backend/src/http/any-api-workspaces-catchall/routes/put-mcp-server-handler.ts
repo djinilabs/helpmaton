@@ -6,6 +6,7 @@ import {
   isValidPosthogBaseUrl,
   normalizePosthogBaseUrl,
 } from "../../../utils/posthog/constants";
+import { assertValidShopifyShopDomain } from "../../../utils/shopify/utils";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateMcpServerSchema } from "../../utils/schemas/workspaceSchemas";
@@ -180,6 +181,31 @@ const validateZendeskOAuthConfig = (params: {
   }
 };
 
+const validateShopifyOAuthConfig = (params: {
+  finalServiceType?: string;
+  finalAuthType: McpAuthType;
+  serverConfig?: Record<string, unknown>;
+  config?: Record<string, unknown>;
+}) => {
+  if (params.finalServiceType !== "shopify" || params.finalAuthType !== "oauth") {
+    return;
+  }
+  const existingConfig = params.serverConfig as {
+    shopDomain?: string;
+  };
+  const newConfig = (params.config ?? {}) as {
+    shopDomain?: string;
+  };
+  const shopDomain = newConfig.shopDomain ?? existingConfig.shopDomain;
+  if (!shopDomain) {
+    throw badRequest("config.shopDomain is required for Shopify OAuth");
+  }
+  const normalizedShopDomain = assertValidShopifyShopDomain(shopDomain);
+  if (params.config && typeof params.config === "object") {
+    (params.config as { shopDomain?: string }).shopDomain = normalizedShopDomain;
+  }
+};
+
 const mergeOAuthConfig = (params: {
   serverAuthType: string;
   config?: Record<string, unknown>;
@@ -252,6 +278,12 @@ export const handlePutMcpServer = async (
       serverConfig: server.config as Record<string, unknown> | undefined,
     });
     validateZendeskOAuthConfig({
+      finalServiceType,
+      finalAuthType,
+      serverConfig: server.config as Record<string, unknown> | undefined,
+      config: config as Record<string, unknown> | undefined,
+    });
+    validateShopifyOAuthConfig({
       finalServiceType,
       finalAuthType,
       serverConfig: server.config as Record<string, unknown> | undefined,
