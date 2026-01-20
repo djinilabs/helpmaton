@@ -597,6 +597,7 @@ export const handler = adaptHttpHandler(
           ? buildConversationMessagesFromObserver({
               observerEvents: agentResult.observerEvents,
               fallbackInputMessages: [uiMessage],
+              fallbackAssistantText: agentResult.text,
               assistantMeta: {
                 tokenUsage: agentResult.tokenUsage,
                 modelName: finalModelName,

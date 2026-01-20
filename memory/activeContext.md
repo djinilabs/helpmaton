@@ -23,6 +23,7 @@
 - **Observer dedupe + response logs**: Deduped tool call/result events when both steps and arrays are present, added stream response logging, and expanded llmObserver tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Tool-result dedupe in conversations**: Deduplicated tool-result entries in `expandMessagesWithToolCalls` to prevent duplicate tool messages, with unit coverage. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test --run`.
 - **Tool execution fallback logging**: Added tool-call/result synthesis from tool execution events when model tool events are missing, with unit coverage. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test --run`.
+- **Webhook conversation text fallback**: Passed webhook assistant text into observer logging and added test to ensure assistant text is recorded when observer only has tool events. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test --run`.
 - **PR deploy polling script**: Added `scripts/poll-pr-deploy.sh` to poll Deploy PR workflow status for a given PR number. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **SQS commit error handling**: Stopped rethrowing commit failures in `handlingSQSErrors`, now logs + reports to Sentry while keeping partial batch failures; added unit test coverage. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Staging weekday test**: Agent tests now ask for day of week, require `get_datetime` tool invocation, and assert reply matches the expected weekday. Ran `pnpm lint --fix`.
