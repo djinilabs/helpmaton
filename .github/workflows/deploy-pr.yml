@@ -410,6 +410,10 @@ jobs:
     name: Staging Agent Tests
     needs: deploy
     uses: ./.github/workflows/staging-agent-tests.yml
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     with:
       pr_number: ${{ needs.deploy.outputs.pr_number || github.event.pull_request.number || github.event.inputs.pr_number }}
     secrets: inherit
