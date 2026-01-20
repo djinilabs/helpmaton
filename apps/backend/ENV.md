@@ -526,6 +526,25 @@ These environment variables are used by the frontend application and must be pre
 - **How to obtain**: Found in the HubSpot app settings
 - **Note**: Keep this secret secure and never commit it to version control
 
+### `SHOPIFY_OAUTH_CLIENT_ID`
+
+- **Description**: Shopify OAuth client ID for Shopify MCP servers
+- **Required**: No (required only if using Shopify MCP servers)
+- **Example**: `shopify-client-id`
+- **How to obtain**:
+  1. Go to [Shopify Partner Dashboard](https://partners.shopify.com/)
+  2. Create or open your app
+  3. Add the redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/shopify/callback`
+  4. Copy the Client ID
+
+### `SHOPIFY_OAUTH_CLIENT_SECRET`
+
+- **Description**: Shopify OAuth client secret for Shopify MCP servers
+- **Required**: No (required only if using Shopify MCP servers)
+- **Example**: `shopify-client-secret`
+- **How to obtain**: Found in the Shopify app settings
+- **Note**: Keep this secret secure and never commit it to version control
+
 ### `SALESFORCE_OAUTH_CLIENT_ID`
 
 - **Description**: Salesforce OAuth client ID for Salesforce MCP servers

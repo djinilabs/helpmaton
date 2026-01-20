@@ -1455,6 +1455,7 @@ export interface McpServer {
     | "github"
     | "linear"
     | "hubspot"
+    | "shopify"
     | "slack"
     | "stripe"
     | "salesforce"
@@ -1480,6 +1481,7 @@ export interface CreateMcpServerInput {
     | "github"
     | "linear"
     | "hubspot"
+    | "shopify"
     | "slack"
     | "stripe"
     | "salesforce"
@@ -1495,6 +1497,7 @@ export interface CreateMcpServerInput {
     subdomain?: string;
     clientId?: string;
     clientSecret?: string;
+    shopDomain?: string;
   };
 }
 
@@ -1511,6 +1514,7 @@ export interface UpdateMcpServerInput {
     | "github"
     | "linear"
     | "hubspot"
+    | "shopify"
     | "slack"
     | "stripe"
     | "salesforce"
@@ -1526,6 +1530,7 @@ export interface UpdateMcpServerInput {
     subdomain?: string;
     clientId?: string;
     clientSecret?: string;
+    shopDomain?: string;
   };
 }
 

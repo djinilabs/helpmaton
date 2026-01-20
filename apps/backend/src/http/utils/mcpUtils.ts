@@ -229,6 +229,7 @@ const OAUTH_SERVICE_TYPES = new Set([
   "github",
   "linear",
   "hubspot",
+  "shopify",
   "slack",
   "stripe",
   "salesforce",
@@ -707,6 +708,35 @@ const addHubspotTools = async (params: {
   );
 };
 
+const addShopifyTools = async (params: {
+  tools: Record<string, ReturnType<typeof createMcpServerTool>>;
+  workspaceId: string;
+  serverId: string;
+  suffix: string;
+}) => {
+  const {
+    createShopifyGetOrderTool,
+    createShopifySearchProductsTool,
+    createShopifySalesReportTool,
+  } = await import("./shopifyTools");
+
+  registerTool(
+    params.tools,
+    `shopify_get_order${params.suffix}`,
+    createShopifyGetOrderTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `shopify_search_products${params.suffix}`,
+    createShopifySearchProductsTool(params.workspaceId, params.serverId)
+  );
+  registerTool(
+    params.tools,
+    `shopify_sales_report${params.suffix}`,
+    createShopifySalesReportTool(params.workspaceId, params.serverId)
+  );
+};
+
 const addSlackTools = async (params: {
   tools: Record<string, ReturnType<typeof createMcpServerTool>>;
   workspaceId: string;
@@ -1020,6 +1050,10 @@ const createDedicatedTools = async (params: {
   }
   if (server.authType === "oauth" && server.serviceType === "hubspot") {
     await addHubspotTools(params);
+    return true;
+  }
+  if (server.authType === "oauth" && server.serviceType === "shopify") {
+    await addShopifyTools(params);
     return true;
   }
   if (server.authType === "oauth" && server.serviceType === "slack") {

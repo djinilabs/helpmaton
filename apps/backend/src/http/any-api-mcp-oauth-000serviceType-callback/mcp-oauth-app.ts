@@ -102,6 +102,7 @@ export const createApp: () => express.Application = () => {
           "github",
           "linear",
           "hubspot",
+          "shopify",
           "slack",
           "stripe",
           "salesforce",
@@ -246,6 +247,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/hubspot"
             );
             tokenInfo = await exchangeHubspotCode(code);
+          } else if (serviceType === "shopify") {
+            const { exchangeShopifyCode } = await import(
+              "../../utils/oauth/mcp/shopify"
+            );
+            tokenInfo = await exchangeShopifyCode(workspaceId, serverId, code);
           } else if (serviceType === "slack") {
             const { exchangeSlackCode } = await import(
               "../../utils/oauth/mcp/slack"
@@ -333,7 +339,7 @@ export const createApp: () => express.Application = () => {
           refreshToken: String(tokenInfo.refreshToken),
           expiresAt: String(tokenInfo.expiresAt),
         };
-        if (serviceType === "zendesk") {
+        if (serviceType === "zendesk" || serviceType === "shopify") {
           config = {
             ...(server.config as Record<string, unknown>),
             ...config,

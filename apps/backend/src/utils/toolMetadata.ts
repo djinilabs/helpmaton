@@ -2626,6 +2626,73 @@ function getMcpServerToolMetadata(
       condition,
       parameters: [],
     });
+  } else if (serviceType === "shopify") {
+    const condition = oauthConnected
+      ? `Available (Shopify "${serverName}" connected)`
+      : `Not available (Shopify "${serverName}" not connected)`;
+
+    tools.push({
+      name: `shopify_get_order${suffix}`,
+      description:
+        "Finds an order by ID or order number (e.g., #1001) to check status and tracking.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "orderNumber",
+          type: "string",
+          required: true,
+          description: "Order number or ID (e.g., #1001)",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `shopify_search_products${suffix}`,
+      description:
+        "Searches for products by title to check inventory levels and pricing.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description: "Product title or keyword to search for",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `shopify_sales_report${suffix}`,
+      description:
+        "Retrieves order counts and gross sales for a specific date range.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "startDate",
+          type: "string",
+          required: true,
+          description: "Start date (ISO 8601)",
+        },
+        {
+          name: "endDate",
+          type: "string",
+          required: true,
+          description: "End date (ISO 8601)",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Maximum number of orders to sum (default: 250)",
+        },
+      ],
+    });
   } else if (serviceType === "slack") {
     const condition = oauthConnected
       ? `Available (Slack "${serverName}" connected)`
@@ -3235,6 +3302,7 @@ export function generateToolList(
       "github",
       "linear",
       "hubspot",
+      "shopify",
       "slack",
       "stripe",
       "salesforce",
