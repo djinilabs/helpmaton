@@ -192,7 +192,7 @@ importers:
         version: 0.23.0(apache-arrow@18.1.0)
       '@openrouter/ai-sdk-provider':
         specifier: ^1.0.0
-        version: 1.5.4(ai@6.0.39(zod@4.3.5))(zod@4.3.5)
+        version: 1.5.4(ai@6.0.38(zod@4.3.5))(zod@4.3.5)
       '@sentry/aws-serverless':
         specifier: ^10.34.0
         version: 10.34.0(@opentelemetry/context-async-hooks@2.4.0(@opentelemetry/api@1.9.0))(@opentelemetry/core@2.4.0(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.4.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.4.0(@opentelemetry/api@1.9.0))
@@ -213,7 +213,7 @@ importers:
         version: 4.12.6
       ai:
         specifier: ^6.0.0
-        version: 6.0.39(zod@4.3.5)
+        version: 6.0.38(zod@4.3.5)
       aws-sdk:
         specifier: ^2.1692.0
         version: 2.1693.0
@@ -310,7 +310,7 @@ importers:
     dependencies:
       '@ai-sdk/react':
         specifier: ^3.0.0
-        version: 3.0.41(react@19.2.3)(zod@4.3.5)
+        version: 3.0.40(react@19.2.3)(zod@4.3.5)
       '@heroicons/react':
         specifier: ^2.2.0
         version: 2.2.0(react@19.2.3)
@@ -322,16 +322,16 @@ importers:
         version: 10.34.0(react@19.2.3)
       '@tanstack/react-query':
         specifier: ^5.90.9
-        version: 5.90.18(react@19.2.3)
+        version: 5.90.17(react@19.2.3)
       ai:
         specifier: ^6.0.0
-        version: 6.0.39(zod@4.3.5)
+        version: 6.0.38(zod@4.3.5)
       next-auth:
         specifier: 5.0.0-beta.30
         version: 5.0.0-beta.30(next@16.1.2(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)
       posthog-js:
         specifier: ^1.297.2
-        version: 1.325.0
+        version: 1.324.1
       react:
         specifier: ^19.2.0
         version: 19.2.3
@@ -410,13 +410,13 @@ importers:
     dependencies:
       '@ai-sdk/react':
         specifier: ^3.0.0
-        version: 3.0.41(react@19.2.3)(zod@4.3.5)
+        version: 3.0.40(react@19.2.3)(zod@4.3.5)
       '@tanstack/react-query':
         specifier: ^5.90.9
-        version: 5.90.18(react@19.2.3)
+        version: 5.90.17(react@19.2.3)
       ai:
         specifier: ^6.0.0
-        version: 6.0.39(zod@4.3.5)
+        version: 6.0.38(zod@4.3.5)
       react:
         specifier: ^19.0.0
         version: 19.2.3
@@ -490,8 +490,8 @@ packages:
     resolution: {integrity: sha512-5KXyBOSEX+l67elrEa+wqo/LSsSTtrPj9Uoh3zMbe/ceQX4ucHI3b9nUEfNkGF3Ry1svv90widAt+aiKdIJasQ==}
     engines: {node: '>=18'}
 
-  '@ai-sdk/react@3.0.41':
-    resolution: {integrity: sha512-mTyfkM+WVUIlaqIpOPSgHlKL1sRQ9df+hdhs7EmDi804m/Ouw+Cq++HCJ9GFAnpnLizcO8huBoTNIrgdjewjzQ==}
+  '@ai-sdk/react@3.0.40':
+    resolution: {integrity: sha512-I/GUogzjduEtp7g3ZNvxjVCmR5KFRKzfjKM6X/aShQcKFYiAmzmUZexvQ9jX5TJxhuQwk65xJmtmU2iYcWRjRw==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
@@ -2470,8 +2470,8 @@ packages:
   '@posthog/core@1.9.1':
     resolution: {integrity: sha512-kRb1ch2dhQjsAapZmu6V66551IF2LnCbc1rnrQqnR7ArooVyJN9KOPXre16AJ3ObJz2eTfuP7x25BMyS2Y5Exw==}
 
-  '@posthog/types@1.325.0':
-    resolution: {integrity: sha512-cBOZvVwpL8VHnNmkOVNxVsbwuf0/Fbxl32SjveQGapvkDojzFbpuj9wQPzrzF/wtCukkPjlPEDKAG/f1c8oPVQ==}
+  '@posthog/types@1.324.1':
+    resolution: {integrity: sha512-OV1DWoLFwYVMiIz6dTkzxOp502brOb8XGh6YHUJ3411Qi8gHyWY1lEGTcWnPFkTKE2KW+6alHlj7g3MMSCZ1kw==}
 
   '@prisma/instrumentation@6.19.0':
     resolution: {integrity: sha512-QcuYy25pkXM8BJ37wVFBO7Zh34nyRV1GOb2n3lPkkbRYfl4hWl3PTcImP41P0KrzVXfa/45p6eVCos27x3exIg==}
@@ -3133,11 +3133,11 @@ packages:
   '@swc/helpers@0.5.18':
     resolution: {integrity: sha512-TXTnIcNJQEKwThMMqBXsZ4VGAza6bvN4pa41Rkqoio6QBKMvo+5lexeTMScGCIxtzgQJzElcvIltani+adC5PQ==}
 
-  '@tanstack/query-core@5.90.18':
-    resolution: {integrity: sha512-rbGx6bHgPNVzutP7BEr+53UPKohpckqlMAad+To9UxTbeaQ+kC/1SDRj+QzkwbQ7qhLT/1IKp34yS6thda6fzA==}
+  '@tanstack/query-core@5.90.17':
+    resolution: {integrity: sha512-hDww+RyyYhjhUfoYQ4es6pbgxY7LNiPWxt4l1nJqhByjndxJ7HIjDxTBtfvMr5HwjYavMrd+ids5g4Rfev3lVQ==}
 
-  '@tanstack/react-query@5.90.18':
-    resolution: {integrity: sha512-KqNZX0C5IFz4639zR1ilnQ288tQdJrMNLtzmlzyJ14xauBkhtLEy3mPU/V4KiHsr41eL1ILZbDP36TB12lYfCQ==}
+  '@tanstack/react-query@5.90.17':
+    resolution: {integrity: sha512-PGc2u9KLwohDUSchjW9MZqeDQJfJDON7y4W7REdNBgiFKxQy+Pf7eGjiFWEj5xPqKzAeHYdAb62IWI1a9UJyGQ==}
     peerDependencies:
       react: ^18 || ^19
 
@@ -3626,8 +3626,8 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai@6.0.39:
-    resolution: {integrity: sha512-hF05gF4H+IxuilA8kNANVVHQXduTJsJaH74jmlmy8mcQt3NZgPYe2zZNyGBV4DPDYTUDt1h31hbLgQqJTn5LGA==}
+  ai@6.0.38:
+    resolution: {integrity: sha512-X8AaZFrdsPO1RNCAQLsaWfmE/SL9zgsiIZN3XqEHs3jIZ7ycR5aQZRg5XpNtbLWJxKXzK2b1ZXLx13AFOjksSg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -6646,8 +6646,8 @@ packages:
     resolution: {integrity: sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==}
     engines: {node: '>=0.10.0'}
 
-  posthog-js@1.325.0:
-    resolution: {integrity: sha512-u4A/QPtI742X4lnXmdr9fl00jwg22mUIs3SrbHg7i8Ju5uBa4CThV/2n+4XSXyre3LygOASshFxhzT3UMpcQPQ==}
+  posthog-js@1.324.1:
+    resolution: {integrity: sha512-V9mum4EK9BrN6KzVLnamdTcjLBP80mY7q8f+Y3VIvVexUtU6egUwniFeq2efrTFG3sWnU78DERhByePx86nbeQ==}
 
   posthog-node@5.21.0:
     resolution: {integrity: sha512-M7v/+Zyz/z3ZDC4u896K2Lb/pLbPA1Czo6Tp/WeQ1vuBsJtJajqWO3vRev3BHFTP92nao5YCrU0aIM+Flwbv1A==}
@@ -8157,10 +8157,10 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@3.0.41(react@19.2.3)(zod@4.3.5)':
+  '@ai-sdk/react@3.0.40(react@19.2.3)(zod@4.3.5)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.8(zod@4.3.5)
-      ai: 6.0.39(zod@4.3.5)
+      ai: 6.0.38(zod@4.3.5)
       react: 19.2.3
       swr: 2.3.8(react@19.2.3)
       throttleit: 2.1.0
@@ -11066,10 +11066,10 @@ snapshots:
     dependencies:
       '@octokit/openapi-types': 27.0.0
 
-  '@openrouter/ai-sdk-provider@1.5.4(ai@6.0.39(zod@4.3.5))(zod@4.3.5)':
+  '@openrouter/ai-sdk-provider@1.5.4(ai@6.0.38(zod@4.3.5))(zod@4.3.5)':
     dependencies:
       '@openrouter/sdk': 0.1.27
-      ai: 6.0.39(zod@4.3.5)
+      ai: 6.0.38(zod@4.3.5)
       zod: 4.3.5
 
   '@openrouter/sdk@0.1.27':
@@ -11428,7 +11428,7 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
 
-  '@posthog/types@1.325.0': {}
+  '@posthog/types@1.324.1': {}
 
   '@prisma/instrumentation@6.19.0(@opentelemetry/api@1.9.0)':
     dependencies:
@@ -12491,11 +12491,11 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@tanstack/query-core@5.90.18': {}
+  '@tanstack/query-core@5.90.17': {}
 
-  '@tanstack/react-query@5.90.18(react@19.2.3)':
+  '@tanstack/react-query@5.90.17(react@19.2.3)':
     dependencies:
-      '@tanstack/query-core': 5.90.18
+      '@tanstack/query-core': 5.90.17
       react: 19.2.3
 
   '@tanstack/virtual-core@3.13.18': {}
@@ -13092,7 +13092,7 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@6.0.39(zod@4.3.5):
+  ai@6.0.38(zod@4.3.5):
     dependencies:
       '@ai-sdk/gateway': 3.0.16(zod@4.3.5)
       '@ai-sdk/provider': 3.0.4
@@ -16664,7 +16664,7 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  posthog-js@1.325.0:
+  posthog-js@1.324.1:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/api-logs': 0.208.0
@@ -16672,7 +16672,7 @@ snapshots:
       '@opentelemetry/resources': 2.4.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-logs': 0.208.0(@opentelemetry/api@1.9.0)
       '@posthog/core': 1.9.1
-      '@posthog/types': 1.325.0
+      '@posthog/types': 1.324.1
       core-js: 3.47.0
       dompurify: 3.3.1
       fflate: 0.4.8
