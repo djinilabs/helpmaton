@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Put-agent refactor**: Extracted update/validation logic into `apps/backend/src/http/any-api-workspaces-catchall/routes/agentUpdate.ts`, rewired `put-workspace-agent` handler and tests to use helpers, and updated model pricing checks to openrouter in tests. Ran `pnpm --filter backend test --run put-workspace-agent`, `pnpm lint --fix`, `pnpm typecheck`, and regenerated `docs/complexity-report.md`.
 - **Conversation error refactor**: Extracted `buildConversationErrorInfo` into `apps/backend/src/utils/conversationErrorInfo.ts`, split helpers to lower complexity, added unit tests (`conversationErrorInfo.test.ts`), and regenerated complexity report. Ran `pnpm --filter backend test --run conversationErrorInfo`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Complexity report tooling**: Added ESLint-based complexity report script with `pnpm complexity:report`, generated `docs/complexity-report.md`, and ran `pnpm lint --fix` + `pnpm typecheck`.
 - **Eval judge JSON robustness**: Added fallback JSON extraction for eval judge responses, expanded parsing tests for extra text, and tightened the default eval prompt to demand JSON-only output. Ran `pnpm typecheck` and `pnpm lint --fix`.
