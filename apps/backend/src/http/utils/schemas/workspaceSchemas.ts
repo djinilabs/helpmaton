@@ -356,6 +356,7 @@ export const createMcpServerSchema = z
         "stripe",
         "salesforce",
         "intercom",
+        "todoist",
         "zendesk",
         "posthog",
       ])
@@ -396,6 +397,7 @@ export const updateMcpServerSchema = z
         "stripe",
         "salesforce",
         "intercom",
+        "todoist",
         "zendesk",
         "posthog",
       ])

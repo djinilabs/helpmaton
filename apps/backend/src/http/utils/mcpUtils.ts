@@ -235,6 +235,7 @@ export async function createMcpServerTools(
     "stripe",
     "salesforce",
     "intercom",
+    "todoist",
     "zendesk",
   ];
 
@@ -714,6 +715,27 @@ export async function createMcpServerTools(
         searchConversationsTool as ReturnType<typeof createMcpServerTool>;
       tools[`intercom_reply_conversation${suffix}`] =
         replyConversationTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "todoist") {
+      const {
+        createTodoistAddTaskTool,
+        createTodoistGetTasksTool,
+        createTodoistCloseTaskTool,
+        createTodoistGetProjectsTool,
+      } = await import("./todoistTools");
+
+      const addTaskTool = createTodoistAddTaskTool(workspaceId, serverId);
+      const getTasksTool = createTodoistGetTasksTool(workspaceId, serverId);
+      const closeTaskTool = createTodoistCloseTaskTool(workspaceId, serverId);
+      const getProjectsTool = createTodoistGetProjectsTool(workspaceId, serverId);
+
+      tools[`todoist_add_task${suffix}`] =
+        addTaskTool as ReturnType<typeof createMcpServerTool>;
+      tools[`todoist_get_tasks${suffix}`] =
+        getTasksTool as ReturnType<typeof createMcpServerTool>;
+      tools[`todoist_close_task${suffix}`] =
+        closeTaskTool as ReturnType<typeof createMcpServerTool>;
+      tools[`todoist_get_projects${suffix}`] =
+        getProjectsTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.authType === "oauth" && server.serviceType === "zendesk") {
       const {
         createZendeskSearchTicketsTool,

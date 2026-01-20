@@ -753,6 +753,47 @@ Once connected, agents can use the following Intercom tools:
 - Intercom OAuth does not provide refresh tokens; reconnect if the token is revoked
 - Replies are sent using the admin account that completed OAuth
 
+### Todoist Integration
+
+```json
+{
+  "name": "My Todoist Workspace",
+  "authType": "oauth",
+  "serviceType": "todoist",
+  "config": {}
+}
+```
+
+**Setup Requirements**:
+
+1. Create a Todoist OAuth app:
+   - Go to [Todoist App Management](https://developer.todoist.com/appconsole.html)
+   - Create or open your OAuth application
+   - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/todoist/callback`
+   - Enable scopes: `tasks:read`, `tasks:write`, `projects:read`
+   - Copy the client ID and client secret
+
+2. Configure Environment Variables:
+   - Set `TODOIST_OAUTH_CLIENT_ID` to your Todoist OAuth client ID
+   - Set `TODOIST_OAUTH_CLIENT_SECRET` to your Todoist OAuth client secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Connect Your Todoist Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+
+**Available Tools**:
+
+Once connected, agents can use the following Todoist tools:
+
+- `todoist_add_task_{serverName}` - Create a task with natural language due dates
+- `todoist_get_tasks_{serverName}` - List active tasks using Todoist filters
+- `todoist_close_task_{serverName}` - Complete a task by ID
+- `todoist_get_projects_{serverName}` - List projects to resolve project IDs
+
+**Important Notes**:
+
+- Todoist OAuth does not provide refresh tokens; reconnect if the token is revoked
+
 ### Zendesk Integration
 
 ```json

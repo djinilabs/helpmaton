@@ -2550,6 +2550,82 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "todoist") {
+    const condition = oauthConnected
+      ? `Available (Todoist "${serverName}" connected)`
+      : `Not available (Todoist "${serverName}" not connected)`;
+
+    tools.push({
+      name: `todoist_add_task${suffix}`,
+      description:
+        "Create a new Todoist task. Supports natural language dates.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "content",
+          type: "string",
+          required: true,
+          description: "The task name (e.g., 'Buy milk').",
+        },
+        {
+          name: "due_string",
+          type: "string",
+          required: false,
+          description:
+            "Natural language due date (e.g., 'tomorrow at 5pm', 'every friday').",
+        },
+        {
+          name: "priority",
+          type: "number",
+          required: false,
+          description: "Task priority from 1 (Normal) to 4 (Urgent).",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `todoist_get_tasks${suffix}`,
+      description:
+        "List active Todoist tasks. Use this to summarize what is due today or this week.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "filter",
+          type: "string",
+          required: true,
+          description: "Todoist filter syntax (e.g., 'today', 'overdue').",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `todoist_close_task${suffix}`,
+      description: "Complete a Todoist task by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "id",
+          type: "string",
+          required: true,
+          description: "The Todoist task ID to close.",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `todoist_get_projects${suffix}`,
+      description: "List Todoist projects to find the correct project ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [],
+    });
   } else if (serviceType === "slack") {
     const condition = oauthConnected
       ? `Available (Slack "${serverName}" connected)`
@@ -3163,6 +3239,7 @@ export function generateToolList(
       "stripe",
       "salesforce",
       "intercom",
+      "todoist",
       "zendesk",
     ];
 

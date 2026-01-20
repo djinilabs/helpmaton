@@ -5,6 +5,7 @@ import {
   DocumentTextIcon,
   CodeBracketIcon,
   Squares2X2Icon,
+  ClipboardDocumentListIcon,
   ServerIcon,
   ChartBarIcon,
   BuildingOfficeIcon,
@@ -34,6 +35,7 @@ type McpServerType =
   | "salesforce"
   | "slack"
   | "intercom"
+  | "todoist"
   | "zendesk"
   | "stripe"
   | "posthog"
@@ -118,6 +120,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: ChatBubbleLeftRightIcon,
   },
   {
+    value: "todoist",
+    name: "Todoist",
+    description:
+      "Create, list, and complete tasks. Summarize what is due today or this week.",
+    icon: ClipboardDocumentListIcon,
+  },
+  {
     value: "zendesk",
     name: "Zendesk",
     description:
@@ -177,6 +186,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "salesforce"
     | "slack"
     | "intercom"
+    | "todoist"
     | "zendesk"
     | "stripe"
     | "posthog"
@@ -267,6 +277,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server.serviceType === "intercom"
         ) {
           setMcpType("intercom");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "todoist"
+        ) {
+          setMcpType("todoist");
           // OAuth servers don't have authType in the UI
         } else if (
           server.authType === "oauth" &&
@@ -459,6 +475,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "salesforce"
             | "slack"
             | "intercom"
+            | "todoist"
             | "zendesk"
             | "stripe"
             | "posthog";
@@ -486,6 +503,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "slack" ||
           server?.serviceType === "stripe" ||
           server?.serviceType === "intercom" ||
+          server?.serviceType === "todoist" ||
           server?.serviceType === "zendesk");
         const isPosthogServer = server?.serviceType === "posthog";
         const isZendeskServer =
@@ -719,6 +737,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server_id: result.id,
             auth_type: "oauth",
             service_type: "intercom",
+          });
+        } else if (mcpType === "todoist") {
+          // Todoist - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "todoist",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "todoist",
           });
         } else if (mcpType === "zendesk") {
           const result = await createServer.mutateAsync({
@@ -1186,6 +1218,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     This is an Intercom MCP server. OAuth connection is
                     managed separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" &&
+                server.serviceType === "todoist" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a Todoist MCP server. OAuth connection is managed
+                    separately.
                   </p>
                 </div>
               ) : server.authType === "oauth" &&
