@@ -1,11 +1,11 @@
 # Function Complexity Report
 
-Generated: 2026-01-20T12:02:01.728Z
+Generated: 2026-01-20T12:11:43.614Z
 
 ## Summary
 
-- Total functions analyzed: 9469
-- Functions with complexity >= 2: 2575
+- Total functions analyzed: 9473
+- Functions with complexity >= 2: 2578
 
 ## Top 10 most complex functions
 
@@ -13,14 +13,14 @@ Generated: 2026-01-20T12:02:01.728Z
 | --- | --- | --- | --- |
 | 1 | 170 | <anonymous> | apps/frontend/src/pages/AgentDetail.tsx:344 |
 | 2 | 127 | <anonymous> | apps/frontend/src/components/McpServerModal.tsx:369 |
-| 3 | 88 | <anonymous> | apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts:168 |
-| 4 | 88 | <anonymous> | apps/backend/src/utils/handlingErrors.ts:22 |
-| 5 | 87 | expandMessagesWithToolCalls | apps/backend/src/utils/conversationLogger.ts:439 |
-| 6 | 85 | buildConversationErrorInfo | apps/backend/src/utils/conversationErrorInfo.ts:632 |
-| 7 | 84 | processDiscordTask | apps/backend/src/queues/bot-webhook-queue/index.ts:37 |
-| 8 | 82 | query | apps/backend/src/utils/vectordb/readClient.ts:172 |
-| 9 | 73 | callAgentInternal | apps/backend/src/http/utils/call-agent-internal.ts:285 |
-| 10 | 73 | <anonymous> | apps/frontend/src/components/McpServerModal.tsx:171 |
+| 3 | 88 | <anonymous> | apps/backend/src/utils/handlingErrors.ts:22 |
+| 4 | 87 | expandMessagesWithToolCalls | apps/backend/src/utils/conversationLogger.ts:439 |
+| 5 | 85 | buildConversationErrorInfo | apps/backend/src/utils/conversationErrorInfo.ts:632 |
+| 6 | 84 | processDiscordTask | apps/backend/src/queues/bot-webhook-queue/index.ts:37 |
+| 7 | 82 | query | apps/backend/src/utils/vectordb/readClient.ts:172 |
+| 8 | 73 | callAgentInternal | apps/backend/src/http/utils/call-agent-internal.ts:285 |
+| 9 | 73 | <anonymous> | apps/frontend/src/components/McpServerModal.tsx:171 |
+| 10 | 72 | <anonymous> | apps/backend/src/http/any-api-streams-catchall/index.ts:88 |
 
 ## How to run
 
