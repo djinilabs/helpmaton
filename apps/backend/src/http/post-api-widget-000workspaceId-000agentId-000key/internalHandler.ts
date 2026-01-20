@@ -240,7 +240,6 @@ const validateWidgetKeyOrRespond = async (params: {
 };
 
 const handleTimeoutError = async (params: {
-  error: Error;
   context?: StreamRequestContext;
   responseStream: HttpResponseStream;
   origin: string | undefined;
@@ -480,7 +479,6 @@ export const internalHandler = async (
 
     if (isTimeoutError(error)) {
       await handleTimeoutError({
-        error,
         context,
         responseStream,
         origin,
