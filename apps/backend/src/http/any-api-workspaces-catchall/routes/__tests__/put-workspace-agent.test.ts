@@ -666,6 +666,51 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     ).toContain("valid timeFrame");
   });
 
+  it("should throw resourceGone when enabledMcpServerIds contains missing server", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "Test Prompt",
+      provider: "google",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.get = mockAgentGet;
+
+    const mockMcpServerGet = vi.fn().mockResolvedValue(null);
+    mockDb["mcp-server"].get = mockMcpServerGet;
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      body: {
+        enabledMcpServerIds: ["missing-server"],
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    const error = next.mock.calls[0][0];
+    expect(error).toBeInstanceOf(Error);
+    expect(
+      (error as { output?: { payload: { message: string } } }).output?.payload
+        .message
+    ).toContain("MCP server missing-server not found");
+  });
+
   it("should throw badRequest when delegatableAgentIds includes self", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);

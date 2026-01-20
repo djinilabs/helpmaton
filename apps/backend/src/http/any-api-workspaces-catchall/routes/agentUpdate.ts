@@ -203,10 +203,7 @@ export async function cleanEnabledMcpServerIds(params: {
       const serverPk = `mcp-servers/${params.workspaceId}/${id}`;
       const server = await params.db["mcp-server"].get(serverPk, "server");
       if (!server) {
-        console.warn(
-          `MCP server ${id} not found, filtering out from enabledMcpServerIds`
-        );
-        continue;
+        throw resourceGone(`MCP server ${id} not found`);
       }
       if (server.workspaceId !== params.workspaceId) {
         throw forbidden(`MCP server ${id} does not belong to this workspace`);
