@@ -79,10 +79,7 @@ After completing a task (or significant step), you must:
 
 ## Refactor complex functions
 
-11. When asked to refactor complex functions, do the following:
-
-- Use the `scripts/complexity-report.mjs` script to generate a complexity report.
-- Locate the function with the highest complexity.
+11. When needing to refactor a complex function, do the following:
 - Make sure there are enough unit tests to thoroughly test the function, covering edge cases and particular behaviours.
 - Once you are satisfied with the unit test coverage and the tests pass, do the following:
   - Relocate the complex function into a dedicated file
@@ -90,3 +87,9 @@ After completing a task (or significant step), you must:
    - The function is easy to read.
    - The function body uses functions with clear names and distinct responsabilities.
 - Make sure the unit tests still pass
+
+12. When asked to refactor complex functions, do the following:
+- Use the `scripts/complexity-report.mjs` script to generate a complexity report.
+- Locate the function with the highest complexity.
+- Refactor the function following the rules above
+
