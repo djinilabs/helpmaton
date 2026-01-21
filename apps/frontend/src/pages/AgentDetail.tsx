@@ -1556,9 +1556,12 @@ function useAgentDetailState({
   };
 
   const selectedModelName = modelName || defaultModel;
-  const modelCapabilityLabels = getCapabilityLabels(
-    getModelCapabilities(modelCapabilities, selectedModelName)
+  const selectedModelCapabilities = getModelCapabilities(
+    modelCapabilities,
+    selectedModelName
   );
+  const modelCapabilityLabels = getCapabilityLabels(selectedModelCapabilities);
+  const isToolCallingSupported = selectedModelCapabilities?.tool_calling === true;
   const rerankingCapabilityLabels = getCapabilityLabels(
     getModelCapabilities(modelCapabilities, knowledgeRerankingModel)
   );
@@ -1661,6 +1664,7 @@ function useAgentDetailState({
     isLoadingModels,
     modelLoadError,
     modelCapabilityLabels,
+    isToolCallingSupported,
     temperature,
     setTemperature,
     topP,
@@ -2111,6 +2115,7 @@ interface AgentOverviewCardProps {
   availableModels: string[];
   modelLoadError: string | null;
   capabilityLabels: string[];
+  isToolCallingSupported: boolean;
   isSavingModel: boolean;
   onSaveModelName: () => void;
   onOpenModelPrices: () => void;
@@ -2133,6 +2138,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
   availableModels,
   modelLoadError,
   capabilityLabels,
+  isToolCallingSupported,
   isSavingModel,
   onSaveModelName,
   onOpenModelPrices,
@@ -2260,6 +2266,18 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
             ? `Capabilities: ${capabilityLabels.join(", ")}`
             : "Capabilities: unavailable"}
         </p>
+        {!isToolCallingSupported && (
+          <div className="mt-3 rounded-lg border-2 border-yellow-400 bg-yellow-50 p-3">
+            <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-yellow-900">
+              <ExclamationTriangleIcon className="size-4" />
+              Tool calling unavailable
+            </p>
+            <p className="text-sm text-yellow-900">
+              This model does not support tool calling. Built-in tools, MCP
+              integrations, and client tools will be disabled.
+            </p>
+          </div>
+        )}
       </div>
       <div className="mt-4">
         <div className="mb-2 flex items-center justify-between">
@@ -2514,6 +2532,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     isLoadingModels,
     modelLoadError,
     modelCapabilityLabels,
+    isToolCallingSupported,
     temperature,
     setTemperature,
     topP,
@@ -2573,6 +2592,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           availableModels={availableModels}
           modelLoadError={modelLoadError}
           capabilityLabels={modelCapabilityLabels}
+          isToolCallingSupported={isToolCallingSupported}
           isSavingModel={updateAgent.isPending}
           onSaveModelName={handleSaveModelName}
           onOpenModelPrices={() => {

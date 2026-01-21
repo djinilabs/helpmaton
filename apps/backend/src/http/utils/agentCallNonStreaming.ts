@@ -27,6 +27,10 @@ import {
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
 } from "./messageConversion";
+import {
+  resolveModelCapabilities,
+  resolveToolsForCapabilities,
+} from "./modelCapabilities";
 import { processNonStreamingResponse } from "./streaming";
 
 export interface AgentCallNonStreamingOptions {
@@ -162,6 +166,15 @@ const executeNonStreamingLLMCall = async (params: {
   let tokenUsage: TokenUsage | undefined;
   let extractionResult: ReturnType<typeof extractTokenUsageAndCosts> | undefined;
 
+  const modelCapabilities = resolveModelCapabilities(
+    "openrouter",
+    params.finalModelName
+  );
+  const effectiveTools = resolveToolsForCapabilities(
+    params.tools,
+    modelCapabilities
+  );
+
   try {
     reservationId = await validateAndReserveCredits(
       params.db,
@@ -171,7 +184,7 @@ const executeNonStreamingLLMCall = async (params: {
       params.finalModelName,
       params.modelMessagesWithKnowledge,
       params.agent.systemPrompt,
-      params.tools,
+      effectiveTools,
       params.usesByok,
       params.endpointType,
       params.context
@@ -179,7 +192,7 @@ const executeNonStreamingLLMCall = async (params: {
 
     const generateOptions = prepareLLMCall(
       params.agent,
-      params.tools,
+      effectiveTools,
       params.modelMessagesWithKnowledge,
       params.endpointType,
       params.workspaceId,
@@ -192,7 +205,7 @@ const executeNonStreamingLLMCall = async (params: {
       model: params.finalModelName,
       systemPromptLength: params.agent.systemPrompt.length,
       messagesCount: params.modelMessagesWithKnowledge.length,
-      toolsCount: params.tools ? Object.keys(params.tools).length : 0,
+      toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
       hasAbortSignal: Boolean(params.abortSignal),
       ...generateOptions,
     });
@@ -202,7 +215,7 @@ const executeNonStreamingLLMCall = async (params: {
       model: params.model as unknown as Parameters<typeof generateText>[0]["model"],
       system: params.agent.systemPrompt,
       messages: params.modelMessagesWithKnowledge,
-      tools: params.tools,
+      ...(effectiveTools ? { tools: effectiveTools } : {}),
       ...generateOptions,
       ...(params.abortSignal && { abortSignal: params.abortSignal }),
     });

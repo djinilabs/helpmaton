@@ -6,6 +6,10 @@ import { getModelPricing, loadPricingConfig } from "../../utils/pricing";
 
 import type { LlmObserver } from "./llmObserver";
 import { withLlmObserver } from "./llmObserver";
+import {
+  filterModelSettingsForCapabilities,
+  resolveModelCapabilities,
+} from "./modelCapabilities";
 
 export type Provider = "openrouter";
 
@@ -189,6 +193,11 @@ export async function createModel(
   // Use the final model name (always a valid model ID, never "auto")
   const modelNameToUse = finalModelName;
 
+  const modelCapabilities = resolveModelCapabilities(
+    "openrouter",
+    modelNameToUse
+  );
+
   // Build model settings from agent config
   // Note: temperature, topP, etc. are typically passed to generateText/streamText,
   // but we include them here for model-level configuration if the provider supports it
@@ -241,11 +250,16 @@ export async function createModel(
     }
   }
 
+  const filteredModelSettings = filterModelSettingsForCapabilities(
+    modelSettings,
+    modelCapabilities
+  );
+
   // Enable attachments support (OpenRouter supports file attachments by default)
   // The model will automatically handle file attachments in messages
   const model = openrouter.chat(
     modelNameToUse,
-    modelSettings as Parameters<typeof openrouter.chat>[1]
+    filteredModelSettings as Parameters<typeof openrouter.chat>[1]
   );
 
   // Wrap with PostHog tracking if available
