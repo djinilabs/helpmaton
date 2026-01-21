@@ -151,6 +151,7 @@ jobs:
           DECODO_PROXY_URLS: ${{ secrets.DECODO_PROXY_URLS }}
           TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
           E2E_OVERRIDE_MAX_USERS: "10"
+          E2E_AUTH_GATE_BYPASS: "true"
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
           # Set URL environment variables using PR_NUMBER (needed for build)
@@ -293,6 +294,7 @@ jobs:
           DECODO_PROXY_URLS: ${{ secrets.DECODO_PROXY_URLS }}
           TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
           E2E_OVERRIDE_MAX_USERS: "10"
+          E2E_AUTH_GATE_BYPASS: "true"
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
           echo "✅ Deploying PR"
@@ -376,6 +378,7 @@ jobs:
           [ -n "${DECODO_PROXY_URLS}" ] && ENV_VARS+=(DECODO_PROXY_URLS "${DECODO_PROXY_URLS}")
           [ -n "${TWOCAPTCHA_API_KEY}" ] && ENV_VARS+=(TWOCAPTCHA_API_KEY "${TWOCAPTCHA_API_KEY}")
           [ -n "${E2E_OVERRIDE_MAX_USERS}" ] && ENV_VARS+=(E2E_OVERRIDE_MAX_USERS "${E2E_OVERRIDE_MAX_USERS}")
+          [ -n "${E2E_AUTH_GATE_BYPASS}" ] && ENV_VARS+=(E2E_AUTH_GATE_BYPASS "${E2E_AUTH_GATE_BYPASS}")
 
           # Environment variables are now injected directly into Lambda bundles at build time
           # via esbuild's define option (see esbuild-config.cjs). This ensures each PR deployment
