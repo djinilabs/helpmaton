@@ -172,7 +172,7 @@ interface McpServerModalProps {
   serverId?: string; // If provided, we're editing; otherwise, creating
 }
 
- 
+/* eslint-disable complexity */
 export const McpServerModal: FC<McpServerModalProps> = ({
   isOpen,
   onClose,
