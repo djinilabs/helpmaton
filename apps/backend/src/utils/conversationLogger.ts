@@ -71,7 +71,7 @@ export interface ConversationLogData {
   awsRequestId?: string; // AWS Lambda/API Gateway request ID for this message addition
 }
 
-export { buildConversationErrorInfo } from "./conversationErrorInfo";
+export { buildConversationErrorInfo, extractErrorMessage } from "./conversationErrorInfo";
 export type { ConversationErrorInfo } from "./conversationErrorInfo";
 
 /**

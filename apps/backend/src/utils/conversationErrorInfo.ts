@@ -924,3 +924,25 @@ export function buildConversationErrorInfo(
 
   return cleanErrorInfo;
 }
+
+export function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") {
+    try {
+      const parsed = JSON.parse(error) as Record<string, unknown>;
+      if (typeof parsed.error === "string" && parsed.error.length > 0) {
+        return parsed.error;
+      }
+      if (typeof parsed.message === "string" && parsed.message.length > 0) {
+        return parsed.message;
+      }
+    } catch {
+      // Ignore JSON parse failures and fall back to raw string
+    }
+    return error;
+  }
+  const info = buildConversationErrorInfo(error);
+  if (info.message) {
+    return info.message;
+  }
+  return error instanceof Error ? error.message : String(error);
+}

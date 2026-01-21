@@ -3,6 +3,7 @@ import type { APIGatewayProxyResultV2 } from "aws-lambda";
 
 import {
   buildConversationErrorInfo,
+  extractErrorMessage,
   updateConversation,
 } from "../../utils/conversationLogger";
 import { Sentry, ensureError } from "../../utils/sentry";
@@ -11,6 +12,7 @@ import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { cleanupReservationOnError } from "./generationCreditManagement";
 import {
   isByokAuthenticationError,
+  isNoOutputError,
   normalizeByokError,
   logErrorDetails,
   handleCreditErrors,
@@ -28,7 +30,7 @@ export async function writeErrorResponse(
   responseStream: HttpResponseStream,
   error: unknown
 ): Promise<void> {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = extractErrorMessage(error);
   // Boomify the original error to check if it's a server error
   const boomed = boomify(ensureError(error));
   const errorChunk = `data: ${JSON.stringify({
@@ -97,6 +99,31 @@ export async function writeErrorResponse(
     }
   }
 }
+
+const AI_ERROR_NAME_MARKERS = [
+  "AI_",
+  "APICallError",
+  "NoOutputGeneratedError",
+];
+
+const isAiSdkError = (error: unknown): boolean => {
+  if (isNoOutputError(error)) {
+    return true;
+  }
+  if (error instanceof Error) {
+    const name = error.name || error.constructor.name;
+    if (AI_ERROR_NAME_MARKERS.some((marker) => name.includes(marker))) {
+      return true;
+    }
+    if (error.cause instanceof Error) {
+      const causeName = error.cause.name || error.cause.constructor.name;
+      if (AI_ERROR_NAME_MARKERS.some((marker) => causeName.includes(marker))) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
 
 /**
  * Persists conversation error to database
@@ -236,6 +263,12 @@ export async function handleStreamingError(
     }
   }
 
+  if (isAiSdkError(error)) {
+    await persistConversationError(context, error);
+    await writeErrorResponse(responseStream, error);
+    return true;
+  }
+
   return false;
 }
 
@@ -351,6 +384,32 @@ export async function handleStreamingErrorForApiGateway(
         lambdaContext
       );
     }
+  }
+
+  const errorInfo = buildConversationErrorInfo(error, {
+    provider: "openrouter",
+    modelName: context.finalModelName,
+    endpoint: context.endpointType,
+    metadata: {
+      usesByok: context.usesByok,
+    },
+  });
+  const shouldReturnClientError =
+    isAiSdkError(error) ||
+    (typeof errorInfo.statusCode === "number" &&
+      errorInfo.statusCode >= 400 &&
+      errorInfo.statusCode < 500);
+
+  if (shouldReturnClientError) {
+    await persistConversationError(context, error);
+    return {
+      statusCode: errorInfo.statusCode ?? 400,
+      headers: {
+        ...responseHeaders,
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+      body: errorInfo.message,
+    };
   }
 
   return null;

@@ -18,6 +18,7 @@ import type { BotIntegrationRecord } from "../../tables/schema";
 import { runPeriodicTask } from "../../utils/asyncTasks";
 import type { BotWebhookTaskMessage } from "../../utils/botWebhookQueue";
 import {
+  extractErrorMessage,
   startConversation,
   updateConversation,
 } from "../../utils/conversationLogger";
@@ -878,7 +879,7 @@ export async function processSlackTask(
         client,
         safeChannel,
         safeMessageTs,
-        `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
+        `❌ Error: ${extractErrorMessage(error)}`
       );
     } catch (updateError) {
       console.error(
@@ -906,7 +907,7 @@ export async function processSlackTask(
       platform: "slack",
       agent_id: agentId,
       error_type: error instanceof Error ? error.constructor.name : "Unknown",
-      error_message: error instanceof Error ? error.message : String(error),
+      error_message: extractErrorMessage(error),
     });
 
     throw error;

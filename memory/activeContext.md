@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **AI error extraction for test endpoint**: Added `extractErrorMessage` helper to normalize wrapped AI errors and JSON strings, return plain-text AI errors from API Gateway handling, and update Slack/Discord bot error text. Added unit test for wrapped AI errors and reran `pnpm lint --fix` and `pnpm typecheck`.
 - **PR 202 review fixes**: Destructured `isOpen` in `McpServerModalContent`, added eager-load rationale for the stream server accordion. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **AgentDetail complexity bypass**: Disabled ESLint complexity rule for `apps/frontend/src/pages/AgentDetail.tsx` in `eslint.config.js`.
 - **AgentDetail typecheck pass**: Replaced manual sync refs in handlers, added `AgentOverviewCard` and helper hooks, and ensured `pnpm typecheck` passes (lint still fails on complexity).

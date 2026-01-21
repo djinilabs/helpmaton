@@ -15,7 +15,11 @@ import { database } from "../../tables";
 import type { BotIntegrationRecord } from "../../tables/schema";
 import { runPeriodicTask } from "../../utils/asyncTasks";
 import type { BotWebhookTaskMessage } from "../../utils/botWebhookQueue";
-import { startConversation, updateConversation } from "../../utils/conversationLogger";
+import {
+  extractErrorMessage,
+  startConversation,
+  updateConversation,
+} from "../../utils/conversationLogger";
 import type { UIMessage } from "../../utils/messageTypes";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { trackEvent } from "../../utils/tracking";
@@ -708,7 +712,7 @@ export async function processDiscordTask(
         safeBotToken,
         safeApplicationId,
         safeInteractionToken,
-        `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
+        `❌ Error: ${extractErrorMessage(error)}`
       );
     } catch (updateError) {
       console.error(
@@ -736,7 +740,7 @@ export async function processDiscordTask(
       platform: "discord",
       agent_id: agentId,
       error_type: error instanceof Error ? error.constructor.name : "Unknown",
-      error_message: error instanceof Error ? error.message : String(error),
+      error_message: extractErrorMessage(error),
     });
 
     throw error;
