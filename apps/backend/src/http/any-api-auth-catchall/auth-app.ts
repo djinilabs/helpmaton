@@ -9,12 +9,16 @@ import {
 import { getUserByEmail } from "../../utils/subscriptionUtils";
 import { expressErrorHandler } from "../utils/errorHandler";
 
-export const createApp: () => Promise<express.Application> = async () => {
-  const app = express();
-  app.set("trust proxy", true);
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+const resolveFrontendUrl = () =>
+  process.env.FRONTEND_URL || "http://localhost:5173";
 
-  app.use("/api/auth/callback/email", async (req, res, next) => {
+export const buildAuthGateMiddleware =
+  (frontendUrl: string) =>
+  async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
     try {
       const email =
         typeof req.query.email === "string" ? req.query.email : undefined;
@@ -31,22 +35,17 @@ export const createApp: () => Promise<express.Application> = async () => {
         return next();
       }
 
-      const fallbackUrl = new URL(frontendUrl);
-      const requestHost = req.get("host") || fallbackUrl.host;
-      const requestProtocol =
-        req.protocol || fallbackUrl.protocol.replace(":", "");
-      const fullCallbackUrl = new URL(
-        req.originalUrl,
-        `${requestProtocol}://${requestHost}`
-      ).toString();
+      const fullCallbackUrl = new URL(req.originalUrl, frontendUrl).toString();
       const normalizedCallbackUrl = normalizeAuthCallbackUrl(
         fullCallbackUrl,
-        `${requestProtocol}://${requestHost}`,
-        [`${requestProtocol}://${requestHost}`]
+        frontendUrl,
+        [frontendUrl]
       ).toString();
 
       const gateToken =
-        typeof req.query.gateToken === "string" ? req.query.gateToken : undefined;
+        typeof req.query.gateToken === "string"
+          ? req.query.gateToken
+          : undefined;
       if (!gateToken) {
         const redirectUrl = new URL("/auth/gate", frontendUrl);
         redirectUrl.searchParams.set("callbackUrl", normalizedCallbackUrl);
@@ -77,7 +76,14 @@ export const createApp: () => Promise<express.Application> = async () => {
     } catch (error) {
       return next(error);
     }
-  });
+  };
+
+export const createApp: () => Promise<express.Application> = async () => {
+  const app = express();
+  app.set("trust proxy", true);
+  const frontendUrl = resolveFrontendUrl();
+
+  app.use("/api/auth/callback/email", buildAuthGateMiddleware(frontendUrl));
   app.use("/api/auth", ExpressAuth(await authConfig()));
   // Error handler must be last
   app.use(expressErrorHandler);

@@ -85,7 +85,8 @@ describe("POST /api/user/verify-gate", () => {
     );
     expect(mockNormalizeAuthCallbackUrl).toHaveBeenCalledWith(
       callbackUrl,
-      "http://localhost:5173"
+      "http://localhost:5173",
+      ["http://localhost:5173"]
     );
     expect(mockExtractEmailFromCallbackUrl).toHaveBeenCalledWith(normalizedUrl);
     expect(mockCreateAuthGateToken).toHaveBeenCalledWith({

@@ -75,7 +75,8 @@ export const registerPostVerifyAuthGate = (app: express.Application) => {
 
       const normalizedCallbackUrl = normalizeAuthCallbackUrl(
         callbackUrl,
-        FRONTEND_URL
+        FRONTEND_URL,
+        [FRONTEND_URL]
       );
       const email = extractEmailFromCallbackUrl(normalizedCallbackUrl);
 

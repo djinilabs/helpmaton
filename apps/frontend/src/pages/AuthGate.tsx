@@ -27,6 +27,28 @@ const appendGateToken = (callbackUrl: string, gateToken: string) => {
   return url.toString();
 };
 
+const getErrorMessage = async (response: Response) => {
+  try {
+    const data = (await response.clone().json()) as { message?: string };
+    if (data?.message) {
+      return data.message;
+    }
+  } catch {
+    // ignore JSON parse failures
+  }
+
+  try {
+    const text = await response.text();
+    if (text) {
+      return text;
+    }
+  } catch {
+    // ignore read failures
+  }
+
+  return "Verification failed. Please try again.";
+};
+
 const mapGateErrorMessage = (error?: string | null) => {
   if (error === "missing_gate") {
     return null;
@@ -52,6 +74,13 @@ const AuthGate: FC = () => {
   const callbackUrl = searchParams.get("callbackUrl") || "";
   const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY;
 
+  const resetCaptcha = () => {
+    if (captchaWidgetId.current && window.turnstile) {
+      window.turnstile.reset(captchaWidgetId.current);
+    }
+    setCaptchaToken(null);
+  };
+
   useEffect(() => {
     if (!callbackUrl) {
       setError("Invalid sign-in link. Please request a new one.");
@@ -59,29 +88,47 @@ const AuthGate: FC = () => {
   }, [callbackUrl]);
 
   useEffect(() => {
-    if (
-      turnstileSiteKey &&
-      captchaContainerRef.current &&
-      !captchaWidgetId.current
-    ) {
-      if (window.turnstile) {
-        const widgetId = window.turnstile.render(captchaContainerRef.current, {
-          sitekey: turnstileSiteKey,
-          callback: (token: string) => {
-            setCaptchaToken(token);
-          },
-          "error-callback": () => {
-            setCaptchaToken(null);
-          },
-          "expired-callback": () => {
-            setCaptchaToken(null);
-          },
-        });
-        captchaWidgetId.current = widgetId;
+    const renderTurnstile = () => {
+      if (
+        !turnstileSiteKey ||
+        !captchaContainerRef.current ||
+        captchaWidgetId.current ||
+        !window.turnstile
+      ) {
+        return false;
       }
+
+      const widgetId = window.turnstile.render(captchaContainerRef.current, {
+        sitekey: turnstileSiteKey,
+        callback: (token: string) => {
+          setCaptchaToken(token);
+        },
+        "error-callback": () => {
+          resetCaptcha();
+        },
+        "expired-callback": () => {
+          resetCaptcha();
+        },
+      });
+      captchaWidgetId.current = widgetId;
+      return true;
+    };
+
+    if (!turnstileSiteKey) {
+      return;
     }
 
+    renderTurnstile();
+    let attempts = 0;
+    const intervalId = window.setInterval(() => {
+      attempts += 1;
+      if (renderTurnstile() || attempts >= 40) {
+        window.clearInterval(intervalId);
+      }
+    }, 250);
+
     return () => {
+      window.clearInterval(intervalId);
       if (captchaWidgetId.current && window.turnstile) {
         window.turnstile.remove(captchaWidgetId.current);
         captchaWidgetId.current = null;
@@ -111,17 +158,16 @@ const AuthGate: FC = () => {
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        setError(text || "Verification failed. Please try again.");
-        if (captchaWidgetId.current && window.turnstile) {
-          window.turnstile.reset(captchaWidgetId.current);
-        }
+        const message = await getErrorMessage(response);
+        setError(message);
+        resetCaptcha();
         return;
       }
 
       const data = (await response.json()) as { gateToken?: string };
       if (!data.gateToken) {
         setError("Verification failed. Please try again.");
+        resetCaptcha();
         return;
       }
 
@@ -129,9 +175,7 @@ const AuthGate: FC = () => {
       window.location.href = redirectUrl;
     } catch {
       toast.error("Verification failed. Please check your connection.");
-      if (captchaWidgetId.current && window.turnstile) {
-        window.turnstile.reset(captchaWidgetId.current);
-      }
+      resetCaptcha();
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +195,7 @@ const AuthGate: FC = () => {
         </p>
 
         {error && (
-          <div className="dark:bg-error-950 mb-6 rounded-xl border border-error-200 bg-error-50 p-3 text-sm text-error-700 dark:border-error-700 dark:text-error-300">
+          <div className="mb-6 rounded-xl border border-error-300 bg-error-100 p-3 text-sm text-error-950 dark:border-error-600 dark:bg-error-950 dark:text-error-100">
             {error}
           </div>
         )}

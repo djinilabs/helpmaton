@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 200 review fixes**: Added auth gate middleware unit tests, hardened auth callback origin validation, improved auth gate error handling/reset + Turnstile render retry, and enforced allowed origins for verify gate; ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test --run auth-app.middleware`.
 - **Auth gate for new users**: Added Turnstile + TOS gate for first-time email sign-ins (backend gate token + verify endpoint + callback enforcement, frontend `/auth/gate` UI + routing), plus unit tests; added E2E bypass flag for auth gate and confirmed `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test:e2e` pass.
 - **MCP server list popularity order**: Reordered MCP server type options in the create modal so popular services appear first.
 - **PR 198 review fixes (round 4)**: Ensured OAuth token update guard uses `finalAuthType` in `put-mcp-server-handler.ts` and added a regression test blocking token injection when switching to OAuth; ran `pnpm --filter backend test --run put-mcp-server`, `pnpm lint --fix`, and `pnpm typecheck`.
