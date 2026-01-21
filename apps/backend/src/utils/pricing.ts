@@ -30,6 +30,10 @@ export interface CurrencyPricing {
   tiers?: PricingTier[];
 }
 
+export interface ModelCapabilities {
+  image?: boolean;
+}
+
 /**
  * Pricing for a model in USD.
  * All prices are per 1 million tokens.
@@ -37,6 +41,7 @@ export interface CurrencyPricing {
  */
 export interface ModelPricing {
   usd: CurrencyPricing;
+  capabilities?: ModelCapabilities;
 }
 
 export interface ProviderPricing {
@@ -111,6 +116,33 @@ export function getModelPricing(
   }
 
   return undefined;
+}
+
+export function isImageCapableModel(
+  provider: string,
+  modelName: string
+): boolean {
+  const modelPricing = getModelPricing(provider, modelName);
+  return modelPricing?.capabilities?.image === true;
+}
+
+export function getImageCapableModels(provider: string): string[] {
+  const pricingConfig = loadPricingConfig();
+  const providerPricing = pricingConfig.providers[provider];
+  if (!providerPricing) {
+    return [];
+  }
+  const imageCapableModels = Object.entries(providerPricing.models)
+    .filter(([, model]) => model.capabilities?.image === true)
+    .map(([modelName]) => modelName);
+
+  if (imageCapableModels.length > 0) {
+    return imageCapableModels.sort();
+  }
+
+  return Object.keys(providerPricing.models)
+    .filter((modelName) => modelName.toLowerCase().includes("image"))
+    .sort();
 }
 
 /**

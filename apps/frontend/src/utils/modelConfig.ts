@@ -60,6 +60,16 @@ export async function fetchAvailableModels(): Promise<AvailableModels> {
         );
         throw new Error("Invalid models response structure");
       }
+    if (
+      models.openrouter.imageModels !== undefined &&
+      !Array.isArray(models.openrouter.imageModels)
+    ) {
+      console.error(
+        "[modelConfig] Invalid models response structure (imageModels):",
+        models
+      );
+      throw new Error("Invalid models response structure");
+    }
       // Google is optional (for backward compatibility), so we don't validate it here
       cachedModels = models;
       return models;
@@ -113,6 +123,17 @@ export async function getModelsForProvider(
 ): Promise<string[]> {
   const config = await getProviderConfig(provider);
   return config?.models || [];
+}
+
+export async function getImageModelsForProvider(
+  provider: Provider
+): Promise<string[]> {
+  const availableModels = await fetchAvailableModels();
+  const providerData = availableModels[provider];
+  if (!providerData) {
+    return [];
+  }
+  return providerData.imageModels || [];
 }
 
 /**

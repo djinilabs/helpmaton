@@ -38,6 +38,8 @@ export interface ToolListOptions {
     searchWebProvider?: "tavily" | "jina" | null;
     fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
     enableExaSearch?: boolean;
+    enableImageGeneration?: boolean;
+    imageGenerationModel?: string;
     delegatableAgentIds?: string[];
     enabledMcpServerIds?: string[];
     clientTools?: Array<{
@@ -215,6 +217,44 @@ function getStandardToolMetadata(
           required: false,
           description:
             "Optional text query for semantic search. If provided, will search for similar content. If not provided, returns most recent events.",
+        },
+      ],
+    });
+  }
+
+  if (agent.enableImageGeneration) {
+    tools.push({
+      name: "generate_image",
+      description:
+        "Generate an image from a text prompt using the configured image model. Returns a public image URL.",
+      category: "Image Tools",
+      alwaysAvailable: false,
+      condition: "Available (image generation enabled)",
+      parameters: [
+        {
+          name: "prompt",
+          type: "string",
+          required: true,
+          description:
+            "Text prompt describing the image to generate. Be specific about style, subject, and composition.",
+        },
+      ],
+    });
+  } else {
+    tools.push({
+      name: "generate_image",
+      description:
+        "Generate an image from a text prompt using the configured image model. Returns a public image URL.",
+      category: "Image Tools",
+      alwaysAvailable: false,
+      condition: "Not available (image generation not enabled)",
+      parameters: [
+        {
+          name: "prompt",
+          type: "string",
+          required: true,
+          description:
+            "Text prompt describing the image to generate. Be specific about style, subject, and composition.",
         },
       ],
     });

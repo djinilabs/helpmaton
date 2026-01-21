@@ -142,6 +142,8 @@ export const registerGetAgentTools = (app: express.Application) => {
             searchWebProvider: agent.searchWebProvider ?? null,
             fetchWebProvider: agent.fetchWebProvider ?? null,
             enableExaSearch: agent.enableExaSearch ?? false,
+            enableImageGeneration: agent.enableImageGeneration ?? false,
+            imageGenerationModel: agent.imageGenerationModel,
             delegatableAgentIds: agent.delegatableAgentIds ?? [],
             enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
             clientTools: agent.clientTools ?? [],

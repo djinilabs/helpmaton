@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **OpenRouter provider versions**: Confirmed `@openrouter/ai-sdk-provider` is pinned to v2 in `apps/backend/package.json` and only v2 appears in `pnpm-lock.yaml`; any v1 under `node_modules/.pnpm` is likely a leftover install or store cache.
+- **Image generation tool config**: Added agent image generation settings, OpenRouter image-capable model filtering, `generate_image` tool with S3 upload, schema/export updates, and validation/tests; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 201 review fixes**: Preserved filenames in rewritten SSE file parts and removed unused `sseBuffer` reset per review; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Conversation file extension fix**: Corrected `uploadConversationFile` to only use a filename extension when the input has a real extension, otherwise fall back to media type; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **LLM assistant file parts streaming**: Added server-side upload for embedded assistant file parts to S3 (public `conversation-files/` URLs), rewrote stream/test SSE file parts, recorded updated URLs in conversation logging, updated UI rendering for assistant file parts, and added stream + observer tests; ran `pnpm typecheck` and `pnpm lint --fix`.

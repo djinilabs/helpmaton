@@ -111,6 +111,8 @@ export interface Agent {
   searchWebProvider?: "tavily" | "jina" | null;
   fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableExaSearch?: boolean;
+  enableImageGeneration?: boolean;
+  imageGenerationModel?: string;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number;
@@ -138,6 +140,8 @@ export interface CreateAgentInput {
   notificationChannelId?: string | null;
   modelName?: string | null;
   clientTools?: ClientTool[];
+  enableImageGeneration?: boolean;
+  imageGenerationModel?: string | null;
   avatar?: string | null;
   summarizationPrompts?: SummarizationPromptsInput;
 }
@@ -160,6 +164,8 @@ export interface UpdateAgentInput {
   searchWebProvider?: "tavily" | "jina" | null;
   fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableExaSearch?: boolean;
+  enableImageGeneration?: boolean;
+  imageGenerationModel?: string | null;
   clientTools?: ClientTool[];
   summarizationPrompts?: SummarizationPromptsInput;
   spendingLimits?: SpendingLimit[];
@@ -1897,10 +1903,12 @@ export interface AvailableModels {
   google?: {
     models: string[];
     defaultModel: string;
+    imageModels?: string[];
   };
   openrouter: {
     models: string[];
     defaultModel: string;
+    imageModels?: string[];
   };
 }
 

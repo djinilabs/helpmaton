@@ -2,7 +2,7 @@ import type { APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
-import { loadPricingConfig } from "../../utils/pricing";
+import { getImageCapableModels, loadPricingConfig } from "../../utils/pricing";
 import { getDefaultModel } from "../utils/modelFactory";
 
 /**
@@ -30,7 +30,7 @@ export const handler = adaptHttpHandler(
     // Extract available models from pricing config (OpenRouter only)
     const availableModels: Record<
       string,
-      { models: string[]; defaultModel: string }
+      { models: string[]; defaultModel: string; imageModels?: string[] }
     > = {};
 
     // Only include OpenRouter provider
@@ -45,9 +45,11 @@ export const handler = adaptHttpHandler(
         // Use shared utility function to get default model (OpenRouter only)
         const defaultModel = getDefaultModel();
 
+        const imageModels = getImageCapableModels(provider);
         availableModels[provider] = {
           models: allModels,
           defaultModel,
+          imageModels,
         };
       }
     }

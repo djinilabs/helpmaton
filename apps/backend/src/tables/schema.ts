@@ -110,6 +110,8 @@ export const tableSchemas = {
     enableTavilyFetch: z.boolean().optional(), // @deprecated Use fetchWebProvider instead. Legacy field for backward compatibility (default: false)
     fetchWebProvider: z.enum(["tavily", "jina", "scrape"]).optional(), // Web fetch provider: "tavily" uses Tavily extract API, "jina" uses Jina Reader API, "scrape" uses Puppeteer with residential proxies (default: undefined, no fetch tool)
     enableExaSearch: z.boolean().optional(), // enable Exa.ai search tool for this agent (default: false)
+    enableImageGeneration: z.boolean().optional(), // enable image generation tool for this agent (default: false)
+    imageGenerationModel: z.string().optional(), // image generation model name from OpenRouter (required if enableImageGeneration is true)
     spendingLimits: z
       .array(
         z.object({

@@ -22,6 +22,7 @@ import {
   ArrowTopRightOnSquareIcon,
   ArrowPathIcon,
   ClockIcon,
+  PhotoIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -163,6 +164,7 @@ import {
   getDefaultModelForProvider,
   fetchAvailableModels,
   getRerankingModels,
+  getImageModelsForProvider,
   type Provider,
 } from "../utils/modelConfig";
 import { trackEvent } from "../utils/tracking";
@@ -335,7 +337,7 @@ interface AgentDetailContentProps {
   agentId: string;
 }
 
-/* eslint-disable complexity */
+// eslint-disable-next-line complexity
 const AgentDetailContent: FC<AgentDetailContentProps> = ({
   workspace,
   agent,
@@ -536,6 +538,26 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.enableExaSearch ?? false
   );
 
+  const [enableImageGeneration, setEnableImageGeneration] = useState<boolean>(
+    () => agent?.enableImageGeneration ?? false
+  );
+  const [imageGenerationModel, setImageGenerationModel] = useState<
+    string | null
+  >(() => agent?.imageGenerationModel || null);
+  const [imageModels, setImageModels] = useState<string[]>([]);
+  const [isLoadingImageModels, setIsLoadingImageModels] = useState(false);
+  const [imageModelLoadError, setImageModelLoadError] = useState<string | null>(
+    null
+  );
+  const imageGenerationModelInputRef = useRef<string | null>(
+    agent?.imageGenerationModel || null
+  );
+  const isImageModelUnavailable =
+    enableImageGeneration &&
+    !!imageGenerationModel &&
+    !isLoadingImageModels &&
+    !imageModels.includes(imageGenerationModel);
+
   // Knowledge injection state
   const [enableKnowledgeInjection, setEnableKnowledgeInjection] =
     useState<boolean>(() => agent?.enableKnowledgeInjection ?? false);
@@ -607,14 +629,26 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
 
     async function loadModels() {
       setIsLoadingModels(true);
+      setIsLoadingImageModels(true);
+      setImageModelLoadError(null);
       try {
-        const [models, defaultModelName] = await Promise.all([
+        const [models, defaultModelName, imageCapableModels] =
+          await Promise.all([
           getModelsForProvider(provider),
           getDefaultModelForProvider(provider),
+          getImageModelsForProvider(provider),
         ]);
         if (!cancelled) {
-          setAvailableModels(models);
-          setDefaultModel(defaultModelName);
+          const filteredModels = models.filter(
+            (model) => !imageCapableModels.includes(model)
+          );
+          const resolvedDefaultModel = filteredModels.includes(defaultModelName)
+            ? defaultModelName
+            : filteredModels[0] || "";
+
+          setAvailableModels(filteredModels);
+          setDefaultModel(resolvedDefaultModel);
+          setImageModels(imageCapableModels);
         }
       } catch (error) {
         console.error("Failed to load models:", error);
@@ -624,10 +658,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           setModelLoadError(
             "Failed to load available models. Please refresh the page."
           );
+          setImageModels([]);
+          setImageModelLoadError(
+            "Failed to load image-capable models. Please refresh the page."
+          );
         }
       } finally {
         if (!cancelled) {
           setIsLoadingModels(false);
+          setIsLoadingImageModels(false);
         }
       }
     }
@@ -885,6 +924,47 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableExaSearch(currentValue);
     }
   }, [agent?.id, agent?.enableExaSearch]);
+
+  // Synchronize image generation state with agent prop using useEffect
+  const prevEnableImageGenerationRef = useRef<boolean | undefined>(
+    agent?.enableImageGeneration
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableImageGeneration ?? false;
+    const prevValue = prevEnableImageGenerationRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableImageGenerationRef.current = currentValue;
+      setEnableImageGeneration(currentValue);
+    }
+  }, [agent?.id, agent?.enableImageGeneration]);
+
+  const prevImageGenerationModelRef = useRef<string | null | undefined>(
+    agent?.imageGenerationModel
+  );
+  useEffect(() => {
+    const currentValue = agent?.imageGenerationModel || null;
+    const prevValue = prevImageGenerationModelRef.current ?? null;
+    if (currentValue !== prevValue) {
+      prevImageGenerationModelRef.current = currentValue;
+      setImageGenerationModel(currentValue);
+    }
+  }, [agent?.id, agent?.imageGenerationModel]);
+
+  useEffect(() => {
+    imageGenerationModelInputRef.current = imageGenerationModel || null;
+  }, [imageGenerationModel]);
+
+  useEffect(() => {
+    if (
+      enableImageGeneration &&
+      !imageGenerationModel &&
+      imageModels.length > 0
+    ) {
+      const fallbackModel = imageModels[0] || null;
+      imageGenerationModelInputRef.current = fallbackModel;
+      setImageGenerationModel(fallbackModel);
+    }
+  }, [enableImageGeneration, imageGenerationModel, imageModels]);
 
   // Synchronize clientTools state with agent prop using useEffect
   useEffect(() => {
@@ -1318,6 +1398,39 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // Error is handled by toast in the hook
       // Reset ref on error so useEffect can sync properly
       prevEnableExaSearchRef.current = agent?.enableExaSearch;
+    }
+  };
+
+  const handleSaveImageGeneration = async () => {
+    try {
+      const trimmedModel =
+        imageGenerationModelInputRef.current?.trim() ||
+        imageGenerationModel?.trim() ||
+        imageModels[0]?.trim() ||
+        null;
+      if (enableImageGeneration && !trimmedModel) {
+        toast.error("Please select an image model before saving.");
+        return;
+      }
+      // Update refs immediately to prevent useEffect from overwriting changes
+      prevEnableImageGenerationRef.current = enableImageGeneration;
+      prevImageGenerationModelRef.current = trimmedModel;
+      const updated = await updateAgent.mutateAsync({
+        enableImageGeneration,
+        imageGenerationModel: trimmedModel,
+      });
+      // Sync local state with updated agent data
+      const savedEnable = updated.enableImageGeneration ?? false;
+      const savedModel = updated.imageGenerationModel ?? null;
+      prevEnableImageGenerationRef.current = savedEnable;
+      prevImageGenerationModelRef.current = savedModel;
+      setEnableImageGeneration(savedEnable);
+      setImageGenerationModel(savedModel);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset refs on error so useEffect can sync properly
+      prevEnableImageGenerationRef.current = agent?.enableImageGeneration;
+      prevImageGenerationModelRef.current = agent?.imageGenerationModel;
     }
   };
 
@@ -2952,6 +3065,109 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending
                       ? "Saving..."
                       : "Save Exa Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Image Generation Section */}
+          {canEdit && (
+            <AccordionSection
+              id="image-generation"
+              title={
+                <>
+                  <PhotoIcon className="mr-2 inline-block size-5" />
+                  IMAGE GENERATION
+                </>
+              }
+              isExpanded={expandedSection === "image-generation"}
+              onToggle={() => toggleSection("image-generation")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "image-generation"}
+              >
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                  Enable the <span className="font-semibold">generate_image</span>{" "}
+                  tool so this assistant can create images from text prompts.
+                  Only OpenRouter models that support image output are listed.
+                </p>
+                <div className="space-y-4">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableImageGeneration}
+                      onChange={(e) =>
+                        setEnableImageGeneration(e.target.checked)
+                      }
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Image Generation</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to call <span className="font-mono">generate_image</span>{" "}
+                        and receive an image URL in tool output.
+                      </div>
+                    </div>
+                  </label>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      Image Model
+                    </label>
+                    <select
+                      disabled={!enableImageGeneration || isLoadingImageModels}
+                      value={
+                        enableImageGeneration
+                          ? imageGenerationModel || ""
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const value = e.target.value || null;
+                        imageGenerationModelInputRef.current = value;
+                        setImageGenerationModel(value);
+                      }}
+                      className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    >
+                      {isLoadingImageModels ? (
+                        <option value="">Loading image models...</option>
+                      ) : imageModels.length === 0 ? (
+                        <option value="">
+                          No image-capable models available
+                        </option>
+                      ) : (
+                        imageModels.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                      Choose a model that supports image output. These are
+                      filtered from OpenRouter based on capabilities.
+                    </p>
+                    {isImageModelUnavailable && (
+                      <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                        The currently selected model is not image-capable.
+                        Please choose a supported model.
+                      </p>
+                    )}
+                    {imageModelLoadError && (
+                      <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                        {imageModelLoadError}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleSaveImageGeneration}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Image Generation Settings"}
                   </button>
                 </div>
               </LazyAccordionContent>

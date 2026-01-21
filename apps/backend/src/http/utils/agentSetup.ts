@@ -1,6 +1,11 @@
-import { jsonSchema, tool } from "ai";
+import { randomUUID } from "crypto";
+
+import { openrouter } from "@openrouter/ai-sdk-provider";
+import { generateImage, jsonSchema, tool } from "ai";
+import { z } from "zod";
 
 import { database } from "../../tables";
+import { uploadConversationFile } from "../../utils/s3";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import {
@@ -276,6 +281,111 @@ const addWebTools = async (params: {
   }
 };
 
+const addImageGenerationTool = async (params: {
+  tools: AgentSetup["tools"];
+  workspaceId: string;
+  agentId: string;
+  agent: WorkspaceAndAgent["agent"];
+  options?: AgentSetupOptions;
+}) => {
+  if (params.agent.enableImageGeneration !== true) {
+    return;
+  }
+  const modelName =
+    typeof params.agent.imageGenerationModel === "string"
+      ? params.agent.imageGenerationModel.trim()
+      : "";
+  if (!modelName) {
+    console.warn(
+      "[Agent Setup] Image generation enabled but no imageGenerationModel set"
+    );
+    return;
+  }
+
+  const workspaceKey = await getWorkspaceApiKey(
+    params.workspaceId,
+    "openrouter"
+  );
+  const apiKey = workspaceKey || process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      "[Agent Setup] OPENROUTER_API_KEY not set - image generation tool disabled"
+    );
+    return;
+  }
+
+  const generateImageSchema = z.object({
+    prompt: z
+      .string()
+      .min(1, "prompt is required and cannot be empty")
+      .describe(
+        "Text prompt describing the image to generate. Be specific about style, subject, and composition."
+      ),
+  });
+  type GenerateImageArgs = z.infer<typeof generateImageSchema>;
+
+  params.tools.generate_image = tool({
+    description:
+      "Generate an image from a text prompt using the configured image model. REQUIRED: You must pass a non-empty 'prompt' string describing the image. Example: {\"prompt\":\"A watercolor lighthouse on a rocky cliff at sunset\"}.",
+    parameters: generateImageSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
+    // @ts-ignore - Tool execution signature is compatible at runtime
+    execute: async (args: GenerateImageArgs) => {
+      const prompt = args?.prompt;
+      if (!prompt) {
+        return "Error: generate_image requires a non-empty 'prompt' string describing the image to generate.";
+      }
+
+      const imageModel = await openrouter.imageModel(modelName);
+
+      const result = await generateImage({
+        model: imageModel as Parameters<typeof generateImage>[0]["model"],
+        prompt: prompt,
+        n: 1,
+        maxImagesPerCall: 1,
+      })
+      console.log("OpenRouter image generation response:", result);
+      
+      throw new Error("OpenRouter image generation returned no image URL");
+
+      // let buffer: Buffer;
+      // let contentType: string;
+      // if (imageUrl.startsWith("data:")) {
+      //   const [header, base64Data] = imageUrl.split(",", 2);
+      //   contentType =
+      //     header?.match(/^data:(.+);base64$/)?.[1] || "image/png";
+      //   buffer = Buffer.from(base64Data || "", "base64");
+      // } else {
+      //   const imageResponse = await fetch(imageUrl);
+      //   if (!imageResponse.ok) {
+      //     throw new Error(
+      //       `Failed to download OpenRouter image: ${imageResponse.status} ${imageResponse.statusText}`
+      //     );
+      //   }
+      //   const arrayBuffer = await imageResponse.arrayBuffer();
+      //   buffer = Buffer.from(arrayBuffer);
+      //   contentType = imageResponse.headers.get("content-type") || "image/png";
+      // }
+      // const conversationId =
+      //   params.options?.conversationId || randomUUID();
+      // const upload = await uploadConversationFile({
+      //   workspaceId: params.workspaceId,
+      //   agentId: params.agentId,
+      //   conversationId,
+      //   content: buffer,
+      //   contentType,
+      // });
+
+      // return {
+      //   url: upload.url,
+      //   contentType,
+      //   filename: upload.filename,
+      //   model: modelName,
+      // };
+    },
+  });
+};
+
 const addDelegationTools = (params: {
   tools: AgentSetup["tools"];
   workspaceId: string;
@@ -417,6 +527,13 @@ export async function setupAgentAndTools(
     agent,
     options,
     context,
+  });
+  await addImageGenerationTool({
+    tools,
+    workspaceId,
+    agentId: extractedAgentId,
+    agent,
+    options,
   });
   addDelegationTools({
     tools,

@@ -32,8 +32,6 @@ const EXCLUDED_MODELS = [
 const EXCLUDED_PATTERNS = [
   "-tts",           // TTS models (e.g., gemini-2.5-flash-preview-tts)
   "tts-",           // TTS models with prefix
-  "-image",         // Image generation models (e.g., gemini-2.5-flash-image, gemini-2.0-flash-exp-image-generation)
-  "image-",         // Image generation models with prefix
 ];
 
 /**
@@ -663,6 +661,21 @@ function getGooglePricingForModels(models) {
  */
 function getOpenRouterPricingForModels(rawModels, modelNames) {
   const pricing = {};
+  const imageCapableModelIds = new Set(
+    rawModels
+      .filter((model) => {
+        const outputModalities =
+          model?.architecture?.output_modalities ||
+          model?.output_modalities ||
+          model?.outputModalities;
+        return (
+          Array.isArray(outputModalities) &&
+          outputModalities.includes("image")
+        );
+      })
+      .map((model) => model.id)
+      .filter(Boolean)
+  );
   
   // Create a map of model ID to model object for quick lookup
   const modelMap = new Map();
@@ -863,7 +876,11 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
     
     // Check for tiered pricing (OpenRouter may provide this in the future)
     // For now, we use flat pricing structure
-    pricing[modelId] = pricingStructure;
+    const isImageCapable = imageCapableModelIds.has(modelId);
+    pricing[modelId] = {
+      usd: pricingStructure,
+      ...(isImageCapable ? { capabilities: { image: true } } : {}),
+    };
     
     if (isReranking) {
       processedRerankingModels++;
@@ -992,7 +1009,9 @@ async function fetchOpenRouterPricing() {
         continue;
       }
       
-      pricing[modelName] = pricingCopy;
+      pricing[modelName] = {
+        usd: pricingCopy,
+      };
       const action = existingOpenRouterModels.includes(modelName) ? "Updated" : "Added";
       console.log(`[Update Pricing] ${action} known re-ranking model ${modelName} with pricing:`, JSON.stringify(pricingCopy));
     }
@@ -1103,18 +1122,28 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
       
       // Check if this is a re-ranking model
       const isReranking = isRerankingModel(modelName);
+      const pricingEntry =
+        pricing && typeof pricing === "object" ? pricing : {};
+      const usdPricing =
+        pricingEntry.usd && typeof pricingEntry.usd === "object"
+          ? pricingEntry.usd
+          : pricing;
+      const capabilities =
+        pricingEntry.capabilities && typeof pricingEntry.capabilities === "object"
+          ? pricingEntry.capabilities
+          : undefined;
       
       // Skip models with invalid or negative pricing
-      if (hasInvalidOrNegativePricing(pricing, isReranking)) {
+      if (hasInvalidOrNegativePricing(usdPricing, isReranking)) {
         console.log(`[Update Pricing] Skipping OpenRouter model ${modelName} in merge due to invalid or negative pricing`);
         continue;
       }
       
       // Ensure pricing structure is valid
       const validPricing = {
-        ...pricing,
+        ...usdPricing,
         // Ensure we have either flat pricing or tiered pricing
-        ...(pricing.tiers === undefined && pricing.input === undefined && pricing.output === undefined
+        ...(usdPricing.tiers === undefined && usdPricing.input === undefined && usdPricing.output === undefined
           ? { input: 0, output: 0 } // Default fallback
           : {}),
       };
@@ -1122,11 +1151,16 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
       if (updatedPricing.providers.openrouter.models[modelName]) {
         // Update existing model pricing (USD only)
         updatedPricing.providers.openrouter.models[modelName].usd = validPricing;
+        if (capabilities) {
+          updatedPricing.providers.openrouter.models[modelName].capabilities =
+            capabilities;
+        }
         console.log(`[Update Pricing] Updated OpenRouter model ${modelName} pricing`);
       } else {
         // Add new model with USD pricing only
         updatedPricing.providers.openrouter.models[modelName] = {
           usd: validPricing,
+          ...(capabilities ? { capabilities } : {}),
         };
         console.log(`[Update Pricing] Added new OpenRouter model ${modelName} with pricing`);
       }

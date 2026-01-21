@@ -373,6 +373,16 @@ const agentSchema = z
       .boolean()
       .optional()
       .describe("Enable Exa.ai search tool for this agent (default: false)"),
+    enableImageGeneration: z
+      .boolean()
+      .optional()
+      .describe("Enable image generation tool for this agent (default: false)"),
+    imageGenerationModel: z
+      .string()
+      .optional()
+      .describe(
+        "Image generation model name from OpenRouter (required if enableImageGeneration is true)"
+      ),
     spendingLimits: z
       .array(spendingLimitSchema)
       .optional()

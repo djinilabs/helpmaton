@@ -133,6 +133,8 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           searchWebProvider: searchWebProvider ?? null,
           fetchWebProvider: fetchWebProvider ?? null,
           enableExaSearch: agent.enableExaSearch ?? false,
+          enableImageGeneration: agent.enableImageGeneration ?? false,
+          imageGenerationModel: agent.imageGenerationModel ?? null,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
           temperature: agent.temperature ?? null,

@@ -174,6 +174,15 @@ export const openApiSchemas = {
         type: "boolean",
         description: "Enable the email sending tool for this agent (requires workspace email connection)",
       },
+      enableImageGeneration: {
+        type: "boolean",
+        description: "Enable the image generation tool for this agent",
+      },
+      imageGenerationModel: {
+        type: "string",
+        description: "Image generation model name from OpenRouter",
+        nullable: true,
+      },
       summarizationPrompts: {
         $ref: "#/components/schemas/SummarizationPrompts",
       },
@@ -302,6 +311,15 @@ export const openApiSchemas = {
         type: "boolean",
         description: "Enable the email sending tool for this agent (requires workspace email connection)",
       },
+      enableImageGeneration: {
+        type: "boolean",
+        description: "Enable the image generation tool for this agent",
+      },
+      imageGenerationModel: {
+        type: "string",
+        description: "Image generation model name from OpenRouter",
+        nullable: true,
+      },
       summarizationPrompts: {
         $ref: "#/components/schemas/SummarizationPrompts",
       },
@@ -355,6 +373,15 @@ export const openApiSchemas = {
       enableSendEmail: {
         type: "boolean",
         description: "Enable the email sending tool for this agent (requires workspace email connection)",
+      },
+      enableImageGeneration: {
+        type: "boolean",
+        description: "Enable the image generation tool for this agent",
+      },
+      imageGenerationModel: {
+        type: "string",
+        description: "Image generation model name from OpenRouter",
+        nullable: true,
       },
       summarizationPrompts: {
         $ref: "#/components/schemas/SummarizationPrompts",
@@ -535,6 +562,12 @@ export const openApiSchemas = {
         },
         defaultModel: {
           type: "string",
+        },
+        imageModels: {
+          type: "array",
+          items: {
+            type: "string",
+          },
         },
       },
     },
