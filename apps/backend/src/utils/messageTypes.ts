@@ -10,6 +10,7 @@ export type FileContent = {
   type: "file";
   file: string; // S3 URL - must be a URL, never base64/data URL
   mediaType?: string;
+  filename?: string;
 };
 
 // For backward compatibility, ImageContent maps to FileContent
@@ -84,7 +85,14 @@ export type UIMessage =
       role: "assistant";
       content:
         | string
-        | Array<TextContent | ToolCallContent | ToolResultContent | ReasoningContent | DelegationContent>;
+        | Array<
+            | TextContent
+            | FileContent
+            | ToolCallContent
+            | ToolResultContent
+            | ReasoningContent
+            | DelegationContent
+          >;
       tokenUsage?: {
         promptTokens: number;
         completionTokens: number;

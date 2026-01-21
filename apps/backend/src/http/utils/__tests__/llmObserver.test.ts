@@ -153,6 +153,42 @@ describe("buildConversationMessagesFromObserver", () => {
     }
   });
 
+  it("includes assistant file parts from observer events", () => {
+    const events: LlmObserverEvent[] = [
+      {
+        type: "input-messages",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        messages: [{ role: "user", content: "share file" }],
+      },
+      {
+        type: "assistant-file",
+        timestamp: "2025-01-01T00:00:02.000Z",
+        fileUrl: "https://example.com/file.pdf",
+        mediaType: "application/pdf",
+        filename: "file.pdf",
+      },
+    ];
+
+    const messages = buildConversationMessagesFromObserver({
+      observerEvents: events,
+      assistantMeta: {
+        provider: "openrouter",
+      },
+    });
+
+    const assistantMessage = messages[1];
+    expect(assistantMessage.role).toBe("assistant");
+    expect(Array.isArray(assistantMessage.content)).toBe(true);
+    if (Array.isArray(assistantMessage.content)) {
+      expect(assistantMessage.content).toContainEqual({
+        type: "file",
+        file: "https://example.com/file.pdf",
+        mediaType: "application/pdf",
+        filename: "file.pdf",
+      });
+    }
+  });
+
   it("adds tool call/results from tool execution events", () => {
     const events: LlmObserverEvent[] = [
       {

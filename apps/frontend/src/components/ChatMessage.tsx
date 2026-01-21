@@ -160,10 +160,12 @@ export const ChatMessage = memo<ChatMessageProps>(
       // File part
       if (
         (partType === "file" || partType === "image") &&
-        ("file" in part || "image" in part || "data" in part)
+        ("file" in part || "image" in part || "data" in part || "url" in part)
       ) {
         let fileUrl: string | null = null;
-        if ("file" in part && typeof part.file === "string") {
+        if ("url" in part && typeof part.url === "string") {
+          fileUrl = part.url;
+        } else if ("file" in part && typeof part.file === "string") {
           fileUrl = part.file;
         } else if ("image" in part && typeof part.image === "string") {
           fileUrl = part.image;
