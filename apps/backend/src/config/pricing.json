@@ -586,9 +586,9 @@
         },
         "qwen/qwen3-vl-235b-a22b-thinking": {
           "usd": {
-            "input": 0.98,
-            "output": 3.95,
-            "cachedInput": 0.098
+            "input": 0.44999999999999996,
+            "output": 3.5,
+            "cachedInput": 0.045
           }
         },
         "qwen/qwen3-vl-235b-a22b-instruct": {
@@ -2240,9 +2240,9 @@
         },
         "nousresearch/hermes-2-pro-llama-3-8b": {
           "usd": {
-            "input": 0.024999999999999998,
-            "output": 0.08,
-            "cachedInput": 0.0025
+            "input": 0.14,
+            "output": 0.14,
+            "cachedInput": 0.014000000000000002
           }
         },
         "mistralai/mistral-7b-instruct:free": {
@@ -2608,6 +2608,20 @@
             "output": 0.39999999999999997,
             "cachedInput": 0.007000000000000001
           }
+        },
+        "liquid/lfm-2.5-1.2b-thinking:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          }
+        },
+        "liquid/lfm-2.5-1.2b-instruct:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          }
         }
       }
     }
@@ -2624,5 +2638,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-20T00:15:11.734Z"
+  "lastUpdated": "2026-01-21T00:15:53.190Z"
 }
