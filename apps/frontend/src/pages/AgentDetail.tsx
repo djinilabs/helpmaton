@@ -30,7 +30,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useState, Suspense, useRef, useEffect, lazy } from "react";
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 
@@ -221,6 +221,28 @@ const PERMISSION_LEVELS = {
   OWNER: 3,
 };
 
+const MODEL_PROVIDER: Provider = "openrouter";
+
+const DEFAULT_WIDGET_CONFIG = {
+  enabled: false,
+  allowedOrigins: undefined,
+  theme: "auto",
+} as const;
+
+const DEFAULT_WIDGET_CUSTOMIZATION = {
+  primaryColor: "#3b82f6",
+  backgroundColor: "#ffffff",
+  textColor: "#1f2937",
+  borderColor: "#e5e7eb",
+  borderRadius: "8px",
+  outerBorderEnabled: true,
+  internalBorderThickness: "2px",
+  internalBorderColor: "#e5e7eb",
+};
+
+const DEFAULT_KNOWLEDGE_SNIPPET_COUNT = 5;
+const DEFAULT_KNOWLEDGE_MIN_SIMILARITY = 0;
+
 const SUMMARIZATION_PROMPT_GRAINS: SummarizationPromptGrain[] = [
   "daily",
   "weekly",
@@ -237,6 +259,84 @@ const SUMMARIZATION_PROMPT_LABELS: Record<SummarizationPromptGrain, string> = {
   yearly: "Yearly summaries",
 };
 
+const normalizeValue = (val: number | null | undefined) => val ?? undefined;
+const normalizeArray = (val: string[] | null | undefined) => val ?? undefined;
+
+function useStreamUrlErrorToast(
+  streamUrlError: unknown,
+  toast: ReturnType<typeof useToast>
+) {
+  useEffect(() => {
+    if (!streamUrlError) {
+      return;
+    }
+    const errorMessage =
+      streamUrlError instanceof Error
+        ? streamUrlError.message
+        : "Failed to fetch streaming function URL";
+    toast.error(
+      `Unable to fetch streaming function URL: ${errorMessage}. Stream server features may be unavailable.`
+    );
+  }, [streamUrlError, toast]);
+}
+
+function useSyncDelegatableAgentIds(
+  agent: ReturnType<typeof useAgent>["data"],
+  setDelegatableAgentIds: (value: string[]) => void
+) {
+  const prevDelegatableAgentIdsRef = useRef<string[] | undefined>(
+    agent?.delegatableAgentIds
+  );
+  useEffect(() => {
+    const currentValue = agent?.delegatableAgentIds || [];
+    const prevValue = prevDelegatableAgentIdsRef.current || [];
+    if (
+      currentValue.length !== prevValue.length ||
+      !currentValue.every((id, index) => id === prevValue[index])
+    ) {
+      prevDelegatableAgentIdsRef.current = currentValue;
+      setDelegatableAgentIds(currentValue);
+    }
+  }, [agent?.id, agent?.delegatableAgentIds, setDelegatableAgentIds]);
+}
+
+function useSyncEnabledMcpServerIds(
+  agent: ReturnType<typeof useAgent>["data"],
+  setEnabledMcpServerIds: (value: string[]) => void
+) {
+  const prevEnabledMcpServerIdsRef = useRef<string[] | undefined>(
+    agent?.enabledMcpServerIds
+  );
+  useEffect(() => {
+    const currentValue = agent?.enabledMcpServerIds || [];
+    const prevValue = prevEnabledMcpServerIdsRef.current || [];
+    if (
+      currentValue.length !== prevValue.length ||
+      !currentValue.every((id, index) => id === prevValue[index])
+    ) {
+      prevEnabledMcpServerIdsRef.current = currentValue;
+      setEnabledMcpServerIds(currentValue);
+    }
+  }, [agent?.id, agent?.enabledMcpServerIds, setEnabledMcpServerIds]);
+}
+
+function useSyncEnableMemorySearch(
+  agent: ReturnType<typeof useAgent>["data"],
+  setEnableMemorySearch: (value: boolean) => void
+) {
+  const prevEnableMemorySearchRef = useRef<boolean | undefined>(
+    agent?.enableMemorySearch
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableMemorySearch ?? false;
+    const prevValue = prevEnableMemorySearchRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableMemorySearchRef.current = currentValue;
+      setEnableMemorySearch(currentValue);
+    }
+  }, [agent?.id, agent?.enableMemorySearch, setEnableMemorySearch]);
+}
+
 const AgentDataLoader: FC<{ workspaceId: string; agentId: string }> = ({
   workspaceId,
   agentId,
@@ -252,6 +352,42 @@ const AgentDataLoader: FC<{ workspaceId: string; agentId: string }> = ({
       workspaceId={workspaceId}
       agentId={agentId}
     />
+  );
+};
+
+interface AgentAccordionSectionProps {
+  id: string;
+  title: ReactNode;
+  expandedSection: string | null;
+  onToggle: (id: string) => void;
+  children: ReactNode;
+  lazy?: boolean;
+}
+
+const AgentAccordionSection: FC<AgentAccordionSectionProps> = ({
+  id,
+  title,
+  expandedSection,
+  onToggle,
+  children,
+  lazy = true,
+}) => {
+  const isExpanded = expandedSection === id;
+  return (
+    <AccordionSection
+      id={id}
+      title={title}
+      isExpanded={isExpanded}
+      onToggle={() => onToggle(id)}
+    >
+      {lazy ? (
+        <LazyAccordionContent isExpanded={isExpanded}>
+          {children}
+        </LazyAccordionContent>
+      ) : (
+        children
+      )}
+    </AccordionSection>
   );
 };
 
@@ -335,14 +471,13 @@ interface AgentDetailContentProps {
   agentId: string;
 }
 
-/* eslint-disable complexity */
-const AgentDetailContent: FC<AgentDetailContentProps> = ({
+function useAgentDetailState({
   workspace,
   agent,
   keys,
   workspaceId,
   agentId,
-}) => {
+}: AgentDetailContentProps) {
   const navigate = useNavigate();
   const deleteAgent = useDeleteAgent(workspaceId, agentId);
   const createKey = useCreateAgentKey(workspaceId, agentId);
@@ -465,18 +600,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
 
   useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
 
-  // Display error toast when stream URL fetch fails (non-404 errors)
-  useEffect(() => {
-    if (streamUrlError) {
-      const errorMessage =
-        streamUrlError instanceof Error
-          ? streamUrlError.message
-          : "Failed to fetch streaming function URL";
-      toast.error(
-        `Unable to fetch streaming function URL: ${errorMessage}. Stream server features may be unavailable.`
-      );
-    }
-  }, [streamUrlError, toast]);
+  useStreamUrlErrorToast(streamUrlError, toast);
 
   const canEdit = !!(
     workspace.permissionLevel &&
@@ -540,9 +664,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const [enableKnowledgeInjection, setEnableKnowledgeInjection] =
     useState<boolean>(() => agent?.enableKnowledgeInjection ?? false);
   const [knowledgeInjectionSnippetCount, setKnowledgeInjectionSnippetCount] =
-    useState<number>(() => agent?.knowledgeInjectionSnippetCount ?? 5);
+    useState<number>(
+      () =>
+        agent?.knowledgeInjectionSnippetCount ?? DEFAULT_KNOWLEDGE_SNIPPET_COUNT
+    );
   const [knowledgeInjectionMinSimilarity, setKnowledgeInjectionMinSimilarity] =
-    useState<number>(() => agent?.knowledgeInjectionMinSimilarity ?? 0);
+    useState<number>(
+      () =>
+        agent?.knowledgeInjectionMinSimilarity ??
+        DEFAULT_KNOWLEDGE_MIN_SIMILARITY
+    );
   const [enableKnowledgeReranking, setEnableKnowledgeReranking] =
     useState<boolean>(() => agent?.enableKnowledgeReranking ?? false);
   const [knowledgeRerankingModel, setKnowledgeRerankingModel] = useState<
@@ -563,9 +694,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     allowedOrigins?: string[];
     theme?: "light" | "dark" | "auto";
   }>(() => ({
-    enabled: agent?.widgetConfig?.enabled || false,
+    ...DEFAULT_WIDGET_CONFIG,
+    enabled: agent?.widgetConfig?.enabled || DEFAULT_WIDGET_CONFIG.enabled,
     allowedOrigins: agent?.widgetConfig?.allowedOrigins,
-    theme: agent?.widgetConfig?.theme || "auto",
+    theme: agent?.widgetConfig?.theme || DEFAULT_WIDGET_CONFIG.theme,
   }));
 
   // Widget customization options (saved locally per agent)
@@ -578,19 +710,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     outerBorderEnabled?: boolean;
     internalBorderThickness?: string;
     internalBorderColor?: string;
-  }>(`widget-customization-${agentId}`, {
-    primaryColor: "#3b82f6",
-    backgroundColor: "#ffffff",
-    textColor: "#1f2937",
-    borderColor: "#e5e7eb",
-    borderRadius: "8px",
-    outerBorderEnabled: true,
-    internalBorderThickness: "2px",
-    internalBorderColor: "#e5e7eb",
-  });
+  }>(`widget-customization-${agentId}`, DEFAULT_WIDGET_CUSTOMIZATION);
 
   // Model state - provider is always "openrouter", only modelName can be changed
-  const provider: Provider = "openrouter";
+  const provider: Provider = MODEL_PROVIDER;
   const [modelName, setModelName] = useState<string | null>(() => {
     return agent?.modelName || null;
   });
@@ -692,11 +815,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     number | undefined
   >(() => agent?.maxToolRoundtrips ?? undefined);
 
-  // Refs to track previous values and avoid unnecessary updates
-  // Normalize null to undefined for consistency
-  const normalizeValue = (val: number | null | undefined) => val ?? undefined;
-  const normalizeArray = (val: string[] | null | undefined) => val ?? undefined;
-
   const prevAdvancedConfigRef = useRef<{
     temperature?: number;
     topP?: number;
@@ -713,53 +831,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     maxToolRoundtrips: normalizeValue(agent?.maxToolRoundtrips),
   });
 
-  // Synchronize delegatableAgentIds state with agent prop using useEffect
-  // Use ref to track previous value and avoid unnecessary updates
-  const prevDelegatableAgentIdsRef = useRef<string[] | undefined>(
-    agent?.delegatableAgentIds
-  );
-  useEffect(() => {
-    const currentValue = agent?.delegatableAgentIds || [];
-    const prevValue = prevDelegatableAgentIdsRef.current || [];
-    // Only update if the value actually changed
-    if (
-      currentValue.length !== prevValue.length ||
-      !currentValue.every((id, index) => id === prevValue[index])
-    ) {
-      prevDelegatableAgentIdsRef.current = currentValue;
-      setDelegatableAgentIds(currentValue);
-    }
-  }, [agent?.id, agent?.delegatableAgentIds]);
-
-  // Synchronize enabledMcpServerIds state with agent prop using useEffect
-  const prevEnabledMcpServerIdsRef = useRef<string[] | undefined>(
-    agent?.enabledMcpServerIds
-  );
-  useEffect(() => {
-    const currentValue = agent?.enabledMcpServerIds || [];
-    const prevValue = prevEnabledMcpServerIdsRef.current || [];
-    // Only update if the value actually changed
-    if (
-      currentValue.length !== prevValue.length ||
-      !currentValue.every((id, index) => id === prevValue[index])
-    ) {
-      prevEnabledMcpServerIdsRef.current = currentValue;
-      setEnabledMcpServerIds(currentValue);
-    }
-  }, [agent?.id, agent?.enabledMcpServerIds]);
-
-  // Synchronize enableMemorySearch state with agent prop using useEffect
-  const prevEnableMemorySearchRef = useRef<boolean | undefined>(
-    agent?.enableMemorySearch
-  );
-  useEffect(() => {
-    const currentValue = agent?.enableMemorySearch ?? false;
-    const prevValue = prevEnableMemorySearchRef.current ?? false;
-    if (currentValue !== prevValue) {
-      prevEnableMemorySearchRef.current = currentValue;
-      setEnableMemorySearch(currentValue);
-    }
-  }, [agent?.id, agent?.enableMemorySearch]);
+  useSyncDelegatableAgentIds(agent, setDelegatableAgentIds);
+  useSyncEnabledMcpServerIds(agent, setEnabledMcpServerIds);
+  useSyncEnableMemorySearch(agent, setEnableMemorySearch);
 
   const prevSummarizationPromptsRef = useRef(agent?.summarizationPrompts);
   useEffect(() => {
@@ -804,10 +878,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   useEffect(() => {
     setEnableKnowledgeInjection(agent?.enableKnowledgeInjection ?? false);
     setKnowledgeInjectionSnippetCount(
-      agent?.knowledgeInjectionSnippetCount ?? 5
+      agent?.knowledgeInjectionSnippetCount ?? DEFAULT_KNOWLEDGE_SNIPPET_COUNT
     );
     setKnowledgeInjectionMinSimilarity(
-      agent?.knowledgeInjectionMinSimilarity ?? 0
+      agent?.knowledgeInjectionMinSimilarity ?? DEFAULT_KNOWLEDGE_MIN_SIMILARITY
     );
     setEnableKnowledgeReranking(agent?.enableKnowledgeReranking ?? false);
     setKnowledgeRerankingModel(agent?.knowledgeRerankingModel || null);
@@ -896,16 +970,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   useEffect(() => {
     if (agent?.widgetConfig) {
       setWidgetConfig({
-        enabled: agent.widgetConfig.enabled || false,
+        ...DEFAULT_WIDGET_CONFIG,
+        enabled: agent.widgetConfig.enabled || DEFAULT_WIDGET_CONFIG.enabled,
         allowedOrigins: agent.widgetConfig.allowedOrigins,
-        theme: agent.widgetConfig.theme || "auto",
+        theme: agent.widgetConfig.theme || DEFAULT_WIDGET_CONFIG.theme,
       });
     } else {
-      setWidgetConfig({
-        enabled: false,
-        allowedOrigins: undefined,
-        theme: "auto",
-      });
+      setWidgetConfig({ ...DEFAULT_WIDGET_CONFIG });
     }
   }, [agent?.id, agent?.widgetConfig]);
 
@@ -1108,9 +1179,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       const updated = await updateAgent.mutateAsync({
         delegatableAgentIds,
       });
-      // Sync local state with updated agent data
-      // Update ref immediately so useEffect doesn't overwrite our changes
-      prevDelegatableAgentIdsRef.current = updated.delegatableAgentIds;
       setDelegatableAgentIds(updated.delegatableAgentIds || []);
     } catch {
       // Error is handled by toast in the hook
@@ -1132,8 +1200,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       const updated = await updateAgent.mutateAsync({
         enabledMcpServerIds,
       });
-      // Sync local state with updated agent data
-      prevEnabledMcpServerIdsRef.current = updated.enabledMcpServerIds;
       setEnabledMcpServerIds(updated.enabledMcpServerIds || []);
     } catch {
       // Error is handled by toast in the hook
@@ -1145,8 +1211,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       const updated = await updateAgent.mutateAsync({
         enableMemorySearch,
       });
-      // Sync local state with updated agent data
-      prevEnableMemorySearchRef.current = updated.enableMemorySearch;
       setEnableMemorySearch(updated.enableMemorySearch ?? false);
     } catch {
       // Error is handled by toast in the hook
@@ -1231,10 +1295,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // Sync local state with updated agent data
       setEnableKnowledgeInjection(updated.enableKnowledgeInjection ?? false);
       setKnowledgeInjectionSnippetCount(
-        updated.knowledgeInjectionSnippetCount ?? 5
+        updated.knowledgeInjectionSnippetCount ?? DEFAULT_KNOWLEDGE_SNIPPET_COUNT
       );
       setKnowledgeInjectionMinSimilarity(
-        updated.knowledgeInjectionMinSimilarity ?? 0
+        updated.knowledgeInjectionMinSimilarity ??
+          DEFAULT_KNOWLEDGE_MIN_SIMILARITY
       );
       setEnableKnowledgeReranking(updated.enableKnowledgeReranking ?? false);
       setKnowledgeRerankingModel(updated.knowledgeRerankingModel || null);
@@ -1342,11 +1407,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       if (updated.widgetConfig) {
         setWidgetConfig(updated.widgetConfig);
       } else {
-        setWidgetConfig({
-          enabled: false,
-          allowedOrigins: undefined,
-          theme: "auto",
-        });
+        setWidgetConfig({ ...DEFAULT_WIDGET_CONFIG });
       }
     } catch {
       // Error is handled by toast in the hook
@@ -1447,9 +1508,1023 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     setMaxToolRoundtrips(undefined);
   };
 
+  const handleSaveModelName = async () => {
+    try {
+      const updated = await updateAgent.mutateAsync({
+        modelName: modelName || null,
+      });
+      const updatedModelName = updated.modelName || null;
+      setModelName(updatedModelName);
+      prevModelNameRef.current = updatedModelName;
+    } catch {
+      // Error handled by toast
+    }
+  };
+
+  return {
+    agent,
+    keys,
+    workspaceId,
+    agentId,
+    navigate,
+    createKey,
+    updateAgent,
+    allAgents,
+    mcpServersData,
+    emailConnection,
+    streamServerConfig,
+    createStreamServer,
+    updateStreamServer,
+    deleteStreamServer,
+    streamUrlData,
+    isEditing,
+    setIsEditing,
+    isDeleting,
+    setIsDeleting,
+    isCreatingKey,
+    setIsCreatingKey,
+    newKeyName,
+    setNewKeyName,
+    newlyCreatedKey,
+    setNewlyCreatedKey,
+    isConfiguringStreamServer,
+    setIsConfiguringStreamServer,
+    allowedOrigins,
+    setAllowedOrigins,
+    isStreamTestModalOpen,
+    setIsStreamTestModalOpen,
+    isModelPricesOpen,
+    setIsModelPricesOpen,
+    selectedConversationId,
+    setSelectedConversationId,
+    showScrollIndicator,
+    setShowScrollIndicator,
+    isHelpOpen,
+    setIsHelpOpen,
+    showSlackModal,
+    setShowSlackModal,
+    showDiscordModal,
+    setShowDiscordModal,
+    commandDialogState,
+    setCommandDialogState,
+    systemPromptRef,
+    expandedSection,
+    toggleSection,
+    chatClearKey,
+    setChatClearKey,
+    queryClient,
+    agentIntegrations,
+    canEdit,
+    delegatableAgentIds,
+    enabledMcpServerIds,
+    enableMemorySearch,
+    setEnableMemorySearch,
+    summarizationPrompts,
+    enableSearchDocuments,
+    setEnableSearchDocuments,
+    enableSendEmail,
+    setEnableSendEmail,
+    searchWebProvider,
+    setSearchWebProvider,
+    fetchWebProvider,
+    setFetchWebProvider,
+    enableExaSearch,
+    setEnableExaSearch,
+    enableKnowledgeInjection,
+    setEnableKnowledgeInjection,
+    knowledgeInjectionSnippetCount,
+    setKnowledgeInjectionSnippetCount,
+    knowledgeInjectionMinSimilarity,
+    setKnowledgeInjectionMinSimilarity,
+    enableKnowledgeReranking,
+    setEnableKnowledgeReranking,
+    knowledgeRerankingModel,
+    setKnowledgeRerankingModel,
+    rerankingModels,
+    isLoadingRerankingModels,
+    clientTools,
+    setClientTools,
+    widgetConfig,
+    setWidgetConfig,
+    widgetCustomization,
+    setWidgetCustomization,
+    provider,
+    modelName,
+    setModelName,
+    availableModels,
+    defaultModel,
+    isLoadingModels,
+    modelLoadError,
+    temperature,
+    setTemperature,
+    topP,
+    setTopP,
+    topK,
+    setTopK,
+    maxOutputTokens,
+    setMaxOutputTokens,
+    stopSequences,
+    setStopSequences,
+    maxToolRoundtrips,
+    setMaxToolRoundtrips,
+    handleDeleteIntegration,
+    handleUpdateIntegration,
+    handleInstallCommand,
+    handleCommandDialogSuccess,
+    handleEdit,
+    handleCloseModal,
+    handleDelete,
+    handleCreateKey,
+    getWebhookUrl,
+    getStreamUrl,
+    handleCreateStreamServer,
+    handleUpdateStreamServer,
+    handleDeleteStreamServer,
+    handleDelegationToggle,
+    handleSaveDelegation,
+    handleMcpServerToggle,
+    handleSaveMcpServers,
+    handleSaveMemorySearch,
+    handleSummarizationPromptChange,
+    handleResetSummarizationPrompt,
+    handleSaveSummarizationPrompts,
+    handleSaveSearchDocuments,
+    handleSaveKnowledgeInjection,
+    handleSaveSendEmail,
+    handleSaveSearchWebProvider,
+    handleSaveFetchWebProvider,
+    handleSaveExaSearch,
+    handleSaveClientTools,
+    handleSaveWidgetConfig,
+    handleSaveModelName,
+    handleSaveAdvanced,
+    handleResetAdvanced,
+  };
+}
+
+/*
+interface AgentHeaderCardProps {
+  agent: NonNullable<AgentDetailContentProps["agent"]>;
+  canEdit: boolean;
+  isEditing: boolean;
+  onEdit: () => void;
+  onBack: () => void;
+  systemPromptRef: React.RefObject<HTMLDivElement | null>;
+  showScrollIndicator: boolean;
+  setShowScrollIndicator: (value: boolean) => void;
+}
+
+const AgentHeaderCard: FC<AgentHeaderCardProps> = ({
+  agent,
+  canEdit,
+  isEditing,
+  onEdit,
+  onBack,
+  systemPromptRef,
+  showScrollIndicator,
+  setShowScrollIndicator,
+}) => {
+  return (
+    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="mb-4 flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+        >
+          ← Back to workspace
+        </button>
+        {canEdit && !isEditing && (
+          <button
+            onClick={onEdit}
+            className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
+          >
+            Edit settings
+          </button>
+        )}
+      </div>
+      <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+        Set how this assistant behaves, its instructions, and spending limits.
+        Use the sections below to test it, view conversations, and check usage.
+      </p>
+
+      <div>
+        <div className="mb-4 flex items-center gap-4">
+          <img
+            src={agent.avatar || getDefaultAvatar()}
+            alt={`${agent.name} avatar`}
+            className="size-16 rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+          />
+          <h1 className="text-4xl font-bold dark:text-neutral-50">
+            {agent.name}
+          </h1>
+        </div>
+        <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+          Created: {new Date(agent.createdAt).toLocaleString()}
+          {agent.updatedAt &&
+            ` • Updated: ${new Date(agent.updatedAt).toLocaleString()}`}
+        </p>
+        <div className="mb-4 rounded-lg border-2 border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+          <h3 className="mb-2 text-lg font-semibold dark:text-neutral-50">
+            System Prompt
+          </h3>
+          <div
+            ref={systemPromptRef}
+            onScroll={(e) => {
+              const element = e.currentTarget;
+              const isAtBottom =
+                element.scrollHeight - element.scrollTop <=
+                element.clientHeight + 10;
+              setShowScrollIndicator(!isAtBottom);
+            }}
+            className="relative max-h-64 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+          >
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <Suspense fallback={<LoadingScreen compact />}>
+                <LazyMarkdownRenderer
+                  components={{
+                    // Code blocks
+                    code: ({ children }) => (
+                      <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-sm dark:bg-neutral-800">
+                        {children}
+                      </code>
+                    ),
+                    pre: ({ children }) => (
+                      <pre className="overflow-x-auto rounded-lg bg-neutral-100 p-4 dark:bg-neutral-800">
+                        {children}
+                      </pre>
+                    ),
+                    // Lists
+                    ul: ({ children }) => (
+                      <ul className="list-disc space-y-1 pl-6">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal space-y-1 pl-6">
+                        {children}
+                      </ol>
+                    ),
+                    // Blockquotes
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-neutral-300 pl-4 italic text-neutral-600 dark:border-neutral-600 dark:text-neutral-400">
+                        {children}
+                      </blockquote>
+                    ),
+                    // Links
+                    a: ({ href, children }) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        {children}
+                      </a>
+                    ),
+                    // Headers
+                    h1: ({ children }) => (
+                      <h1 className="text-2xl font-bold">{children}</h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-xl font-semibold">{children}</h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-lg font-semibold">{children}</h3>
+                    ),
+                    h4: ({ children }) => (
+                      <h4 className="text-base font-semibold">{children}</h4>
+                    ),
+                    h5: ({ children }) => (
+                      <h5 className="text-sm font-semibold">{children}</h5>
+                    ),
+                    h6: ({ children }) => (
+                      <h6 className="text-xs font-semibold">{children}</h6>
+                    ),
+                    // Paragraphs
+                    p: ({ children }) => <p className="mb-2">{children}</p>,
+                    // Horizontal rule
+                    hr: () => (
+                      <hr className="my-4 border-t border-neutral-300" />
+                    ),
+                    // Tables
+                    table: ({ children }) => (
+                      <div className="my-2 overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+                        <table className="min-w-full border-collapse">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-gradient-primary text-white">
+                        {children}
+                      </thead>
+                    ),
+                    tbody: ({ children }) => <tbody>{children}</tbody>,
+                    tr: ({ children }) => (
+                      <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                        {children}
+                      </tr>
+                    ),
+                    th: ({ children }) => (
+                      <th className="border-r border-neutral-200 p-2 text-left font-semibold last:border-r-0 dark:border-neutral-700 dark:text-neutral-50">
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="border-r border-neutral-200 p-2 last:border-r-0 dark:border-neutral-700 dark:text-neutral-200">
+                        {children}
+                      </td>
+                    ),
+                  }}
+                >
+                  {agent.systemPrompt}
+                </LazyMarkdownRenderer>
+              </Suspense>
+            </div>
+            {showScrollIndicator && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-neutral-800">
+                <div className="text-center">
+                  <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                    ▼ More below
+                  </span>
+                  <div aria-live="polite" className="sr-only">
+                    More content available below
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+*/
+interface AgentDetailModalsProps {
+  workspaceId: string;
+  agentId: string;
+  agent: NonNullable<AgentDetailContentProps["agent"]>;
+  isEditing: boolean;
+  onCloseEdit: () => void;
+  selectedConversationId: string | null;
+  onCloseConversation: () => void;
+  isHelpOpen: boolean;
+  onCloseHelp: () => void;
+  isModelPricesOpen: boolean;
+  onCloseModelPrices: () => void;
+  isStreamTestModalOpen: boolean;
+  onCloseStreamTestModal: () => void;
+  streamServerConfig: ReturnType<typeof useStreamServer>["data"];
+  streamUrlData: ReturnType<typeof useStreamUrl>["data"];
+  showSlackModal: boolean;
+  onCloseSlackModal: () => void;
+  onSlackSuccess: () => void;
+  showDiscordModal: boolean;
+  onCloseDiscordModal: () => void;
+  onDiscordSuccess: () => void;
+  commandDialogState: {
+    integrationId: string;
+    currentCommandName?: string;
+  } | null;
+  onCloseCommandDialog: () => void;
+  onCommandDialogSuccess: () => void;
+}
+
+const AgentDetailModals: FC<AgentDetailModalsProps> = ({
+  workspaceId,
+  agentId,
+  agent,
+  isEditing,
+  onCloseEdit,
+  selectedConversationId,
+  onCloseConversation,
+  isHelpOpen,
+  onCloseHelp,
+  isModelPricesOpen,
+  onCloseModelPrices,
+  isStreamTestModalOpen,
+  onCloseStreamTestModal,
+  streamServerConfig,
+  streamUrlData,
+  showSlackModal,
+  onCloseSlackModal,
+  onSlackSuccess,
+  showDiscordModal,
+  onCloseDiscordModal,
+  onDiscordSuccess,
+  commandDialogState,
+  onCloseCommandDialog,
+  onCommandDialogSuccess,
+}) => {
+  return (
+    <>
+      {isEditing && (
+        <Suspense fallback={<LoadingScreen />}>
+          <AgentModal
+            isOpen={isEditing}
+            onClose={onCloseEdit}
+            workspaceId={workspaceId}
+            agent={agent}
+          />
+        </Suspense>
+      )}
+
+      {selectedConversationId && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+              <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700">
+                <div className="text-2xl font-semibold">
+                  Loading conversation...
+                </div>
+              </div>
+            </div>
+          }
+        >
+          <QueryPanel
+            fallback={
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700">
+                  <div className="text-2xl font-semibold">
+                    Loading conversation...
+                  </div>
+                </div>
+              </div>
+            }
+          >
+            <ConversationDetailModal
+              isOpen={!!selectedConversationId}
+              onClose={onCloseConversation}
+              workspaceId={workspaceId}
+              agentId={agentId}
+              conversationId={selectedConversationId}
+            />
+          </QueryPanel>
+        </Suspense>
+      )}
+
+      {isHelpOpen && (
+        <Suspense fallback={<LoadingScreen />}>
+          <ToolsHelpDialog
+            isOpen={isHelpOpen}
+            onClose={onCloseHelp}
+            workspaceId={workspaceId}
+            agent={agent}
+          />
+        </Suspense>
+      )}
+
+      {isModelPricesOpen && (
+        <Suspense fallback={<LoadingScreen />}>
+          <ModelPricesDialog
+            isOpen={isModelPricesOpen}
+            onClose={onCloseModelPrices}
+          />
+        </Suspense>
+      )}
+
+      {isStreamTestModalOpen &&
+        streamServerConfig &&
+        streamUrlData?.url &&
+        streamServerConfig.secret && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+              <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4 dark:border-neutral-700">
+                <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+                  Test Stream Server
+                </h2>
+                <button
+                  onClick={onCloseStreamTestModal}
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                >
+                  Close
+                </button>
+              </div>
+              <Suspense fallback={<LoadingScreen />}>
+                <AgentChat
+                  workspaceId={workspaceId}
+                  agentId={agentId}
+                  api={`${streamUrlData.url.replace(
+                    /\/+$/,
+                    ""
+                  )}/api/streams/${workspaceId}/${agentId}/${
+                    streamServerConfig.secret
+                  }`}
+                />
+              </Suspense>
+            </div>
+          </div>
+        )}
+
+      {showSlackModal && (
+        <Suspense fallback={<LoadingScreen />}>
+          <SlackConnectModal
+            workspaceId={workspaceId}
+            agentId={agentId}
+            onClose={onCloseSlackModal}
+            onSuccess={onSlackSuccess}
+          />
+        </Suspense>
+      )}
+
+      {showDiscordModal && (
+        <Suspense fallback={<LoadingScreen />}>
+          <DiscordConnectModal
+            workspaceId={workspaceId}
+            agentId={agentId}
+            onClose={onCloseDiscordModal}
+            onSuccess={onDiscordSuccess}
+          />
+        </Suspense>
+      )}
+
+      {commandDialogState && (
+        <Suspense fallback={<LoadingScreen />}>
+          <DiscordCommandDialog
+            workspaceId={workspaceId}
+            integrationId={commandDialogState.integrationId}
+            currentCommandName={commandDialogState.currentCommandName}
+            onClose={onCloseCommandDialog}
+            onSuccess={onCommandDialogSuccess}
+          />
+        </Suspense>
+      )}
+    </>
+  );
+};
+
+interface AgentOverviewCardProps {
+  agent: NonNullable<AgentDetailContentProps["agent"]>;
+  canEdit: boolean;
+  isEditing: boolean;
+  isLoadingModels: boolean;
+  modelName: string | null;
+  defaultModel: string;
+  availableModels: string[];
+  modelLoadError: string | null;
+  isSavingModel: boolean;
+  onSaveModelName: () => void;
+  onOpenModelPrices: () => void;
+  onOpenToolsHelp: () => void;
+  onEdit: () => void;
+  onBack: () => void;
+  systemPromptRef: React.RefObject<HTMLDivElement | null>;
+  showScrollIndicator: boolean;
+  setShowScrollIndicator: (value: boolean) => void;
+  setModelName: (value: string | null) => void;
+}
+
+const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
+  agent,
+  canEdit,
+  isEditing,
+  isLoadingModels,
+  modelName,
+  defaultModel,
+  availableModels,
+  modelLoadError,
+  isSavingModel,
+  onSaveModelName,
+  onOpenModelPrices,
+  onOpenToolsHelp,
+  onEdit,
+  onBack,
+  systemPromptRef,
+  showScrollIndicator,
+  setShowScrollIndicator,
+  setModelName,
+}) => (
+  <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="mb-4 flex items-center justify-between">
+      <button
+        onClick={onBack}
+        className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+      >
+        ← Back to workspace
+      </button>
+      {canEdit && !isEditing && (
+        <button
+          onClick={onEdit}
+          className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
+        >
+          Edit settings
+        </button>
+      )}
+    </div>
+    <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+      Set how this assistant behaves, its instructions, and spending limits. Use
+      the sections below to test it, view conversations, and check usage.
+    </p>
+
+    <div>
+      <div className="mb-4 flex items-center gap-4">
+        <img
+          src={agent.avatar || getDefaultAvatar()}
+          alt={`${agent.name} avatar`}
+          className="size-16 rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+        />
+        <h1 className="text-4xl font-bold dark:text-neutral-50">
+          {agent.name}
+        </h1>
+      </div>
+      <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+        Created: {new Date(agent.createdAt).toLocaleString()}
+        {agent.updatedAt &&
+          ` • Updated: ${new Date(agent.updatedAt).toLocaleString()}`}
+      </p>
+      <div className="mb-4">
+        <div className="flex items-center gap-4">
+          <div>
+            <span className="text-sm font-semibold dark:text-neutral-300">
+              AI provider:{" "}
+            </span>
+            <span className="text-sm dark:text-neutral-300">Google</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold dark:text-neutral-300">
+                Model:{" "}
+              </span>
+              <span className="text-sm dark:text-neutral-300">
+                {isEditing ? (
+                  <>
+                    <select
+                      disabled={isLoadingModels}
+                      value={isLoadingModels ? "" : modelName || defaultModel}
+                      onChange={(e) => {
+                        const selectedModel = e.target.value;
+                        setModelName(
+                          selectedModel === defaultModel ? null : selectedModel
+                        );
+                      }}
+                      className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    >
+                      {isLoadingModels ? (
+                        <option value="">Loading...</option>
+                      ) : availableModels.length === 0 ? (
+                        <option value="">No models available</option>
+                      ) : (
+                        availableModels.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {modelLoadError && (
+                      <span className="ml-2 text-xs text-red-600 dark:text-red-400">
+                        {modelLoadError}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  agent.modelName || defaultModel
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={onOpenModelPrices}
+                className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              >
+                See model prices
+              </button>
+            </div>
+          </div>
+          {isEditing && (
+            <button
+              type="button"
+              onClick={onSaveModelName}
+              disabled={isSavingModel}
+              className="rounded-lg bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:opacity-50"
+            >
+              {isSavingModel ? "Saving..." : "Save"}
+            </button>
+          )}
+        </div>
+        <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+          The provider is the company that runs the model. The model is the
+          specific AI engine your assistant uses.
+        </p>
+      </div>
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-sm font-semibold dark:text-neutral-300">
+            Agent instructions:
+          </p>
+          <button
+            type="button"
+            onClick={onOpenToolsHelp}
+            className="rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
+          >
+            Tools this assistant can use
+          </button>
+        </div>
+        <p className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
+          This is the main guidance the assistant follows for every
+          conversation.
+        </p>
+        <div className="relative rounded-lg border border-neutral-200 dark:border-neutral-700">
+          <div
+            ref={systemPromptRef}
+            onScroll={(e) => {
+              const element = e.currentTarget;
+              const isAtBottom =
+                element.scrollHeight - element.scrollTop <=
+                element.clientHeight + 10;
+              setShowScrollIndicator(!isAtBottom);
+            }}
+            className="max-h-[400px] overflow-y-auto rounded-lg bg-neutral-50 p-4 text-sm dark:bg-neutral-800"
+          >
+            <Suspense
+              fallback={<LoadingScreen compact message="Loading markdown..." />}
+            >
+              <LazyMarkdownRenderer
+                components={{
+                  // Code blocks
+                  code: (props) => {
+                    const { className, children, ...rest } = props;
+                    const isInline =
+                      !className || !className.includes("language-");
+                    if (isInline) {
+                      return (
+                        <code
+                          className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                          {...rest}
+                        >
+                          {children}
+                        </code>
+                      );
+                    }
+                    return (
+                      <code
+                        className="block overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                        {...rest}
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+                  // Lists
+                  ul: ({ children }) => (
+                    <ul className="list-disc space-y-1 pl-6">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal space-y-1 pl-6">{children}</ol>
+                  ),
+                  // Blockquotes
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-neutral-300 pl-4 italic text-neutral-600 dark:border-neutral-600 dark:text-neutral-400">
+                      {children}
+                    </blockquote>
+                  ),
+                  // Links
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  // Headers
+                  h1: ({ children }) => (
+                    <h1 className="text-2xl font-bold">{children}</h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-xl font-semibold">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-lg font-semibold">{children}</h3>
+                  ),
+                  h4: ({ children }) => (
+                    <h4 className="text-base font-semibold">{children}</h4>
+                  ),
+                  h5: ({ children }) => (
+                    <h5 className="text-sm font-semibold">{children}</h5>
+                  ),
+                  h6: ({ children }) => (
+                    <h6 className="text-xs font-semibold">{children}</h6>
+                  ),
+                  // Paragraphs
+                  p: ({ children }) => <p className="mb-2">{children}</p>,
+                  // Horizontal rule
+                  hr: () => <hr className="my-4 border-t border-neutral-300" />,
+                  // Tables
+                  table: ({ children }) => (
+                    <div className="my-2 overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+                      <table className="min-w-full border-collapse">
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  thead: ({ children }) => (
+                    <thead className="bg-gradient-primary text-white">
+                      {children}
+                    </thead>
+                  ),
+                  tbody: ({ children }) => <tbody>{children}</tbody>,
+                  tr: ({ children }) => (
+                    <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                      {children}
+                    </tr>
+                  ),
+                  th: ({ children }) => (
+                    <th className="border-r border-neutral-200 p-2 text-left font-semibold last:border-r-0 dark:border-neutral-700 dark:text-neutral-50">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="border-r border-neutral-200 p-2 last:border-r-0 dark:border-neutral-700 dark:text-neutral-200">
+                      {children}
+                    </td>
+                  ),
+                }}
+              >
+                {agent.systemPrompt}
+              </LazyMarkdownRenderer>
+            </Suspense>
+          </div>
+          {showScrollIndicator && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-neutral-800">
+              <div className="text-center">
+                <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                  ▼ More below
+                </span>
+                <div aria-live="polite" className="sr-only">
+                  More content available below
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
+  const {
+    agent,
+    keys,
+    workspaceId,
+    agentId,
+    navigate,
+    createKey,
+    updateAgent,
+    allAgents,
+    mcpServersData,
+    emailConnection,
+    streamServerConfig,
+    createStreamServer,
+    updateStreamServer,
+    deleteStreamServer,
+    streamUrlData,
+    isEditing,
+    isDeleting,
+    isCreatingKey,
+    setIsCreatingKey,
+    newKeyName,
+    setNewKeyName,
+    newlyCreatedKey,
+    isConfiguringStreamServer,
+    setIsConfiguringStreamServer,
+    allowedOrigins,
+    setAllowedOrigins,
+    isStreamTestModalOpen,
+    setIsStreamTestModalOpen,
+    isModelPricesOpen,
+    setIsModelPricesOpen,
+    selectedConversationId,
+    setSelectedConversationId,
+    showScrollIndicator,
+    setShowScrollIndicator,
+    isHelpOpen,
+    setIsHelpOpen,
+    showSlackModal,
+    setShowSlackModal,
+    showDiscordModal,
+    setShowDiscordModal,
+    commandDialogState,
+    setCommandDialogState,
+    systemPromptRef,
+    expandedSection,
+    toggleSection,
+    chatClearKey,
+    setChatClearKey,
+    queryClient,
+    agentIntegrations,
+    canEdit,
+    delegatableAgentIds,
+    enabledMcpServerIds,
+    enableMemorySearch,
+    setEnableMemorySearch,
+    summarizationPrompts,
+    enableSearchDocuments,
+    setEnableSearchDocuments,
+    enableSendEmail,
+    setEnableSendEmail,
+    searchWebProvider,
+    setSearchWebProvider,
+    fetchWebProvider,
+    setFetchWebProvider,
+    enableExaSearch,
+    setEnableExaSearch,
+    enableKnowledgeInjection,
+    setEnableKnowledgeInjection,
+    knowledgeInjectionSnippetCount,
+    setKnowledgeInjectionSnippetCount,
+    knowledgeInjectionMinSimilarity,
+    setKnowledgeInjectionMinSimilarity,
+    enableKnowledgeReranking,
+    setEnableKnowledgeReranking,
+    knowledgeRerankingModel,
+    setKnowledgeRerankingModel,
+    rerankingModels,
+    isLoadingRerankingModels,
+    clientTools,
+    setClientTools,
+    widgetConfig,
+    setWidgetConfig,
+    widgetCustomization,
+    setWidgetCustomization,
+    modelName,
+    setModelName,
+    availableModels,
+    defaultModel,
+    isLoadingModels,
+    modelLoadError,
+    temperature,
+    setTemperature,
+    topP,
+    setTopP,
+    topK,
+    setTopK,
+    maxOutputTokens,
+    setMaxOutputTokens,
+    stopSequences,
+    setStopSequences,
+    maxToolRoundtrips,
+    setMaxToolRoundtrips,
+    handleDeleteIntegration,
+    handleUpdateIntegration,
+    handleInstallCommand,
+    handleCommandDialogSuccess,
+    handleEdit,
+    handleCloseModal,
+    handleDelete,
+    handleCreateKey,
+    getWebhookUrl,
+    getStreamUrl,
+    handleCreateStreamServer,
+    handleUpdateStreamServer,
+    handleDeleteStreamServer,
+    handleDelegationToggle,
+    handleSaveDelegation,
+    handleMcpServerToggle,
+    handleSaveMcpServers,
+    handleSaveMemorySearch,
+    handleSummarizationPromptChange,
+    handleResetSummarizationPrompt,
+    handleSaveSummarizationPrompts,
+    handleSaveSearchDocuments,
+    handleSaveKnowledgeInjection,
+    handleSaveSendEmail,
+    handleSaveSearchWebProvider,
+    handleSaveFetchWebProvider,
+    handleSaveExaSearch,
+    handleSaveClientTools,
+    handleSaveWidgetConfig,
+    handleSaveModelName,
+    handleSaveAdvanced,
+    handleResetAdvanced,
+  } = useAgentDetailState(props);
+
   return (
     <div className="min-h-screen bg-white p-8 dark:bg-neutral-950">
       <div className="mx-auto max-w-4xl">
+        <AgentOverviewCard
+          agent={agent}
+          canEdit={canEdit}
+          isEditing={isEditing}
+          isLoadingModels={isLoadingModels}
+          modelName={modelName}
+          defaultModel={defaultModel}
+          availableModels={availableModels}
+          modelLoadError={modelLoadError}
+          isSavingModel={updateAgent.isPending}
+          onSaveModelName={handleSaveModelName}
+          onOpenModelPrices={() => setIsModelPricesOpen(true)}
+          onOpenToolsHelp={() => setIsHelpOpen(true)}
+          onEdit={handleEdit}
+          onBack={() => navigate(`/workspaces/${workspaceId}`)}
+          systemPromptRef={systemPromptRef}
+          showScrollIndicator={showScrollIndicator}
+          setShowScrollIndicator={setShowScrollIndicator}
+          setModelName={setModelName}
+        />
+
+        {/*
         <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
           <div className="mb-4 flex items-center justify-between">
             <button
@@ -1770,6 +2845,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </div>
           </div>
         </div>
+        */}
 
         <SectionGroup
           title={
@@ -1780,7 +2856,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           }
         >
           {/* Chat Test Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="test"
             title={
               <>
@@ -1788,21 +2864,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 TEST AGENT
               </>
             }
-            isExpanded={expandedSection === "test"}
-            onToggle={() => toggleSection("test")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent isExpanded={expandedSection === "test"}>
-              <AgentChatWithFunctionUrl
-                key={chatClearKey}
-                workspaceId={workspaceId}
-                agentId={agentId}
-                onClear={() => setChatClearKey((prev) => prev + 1)}
-              />
-            </LazyAccordionContent>
-          </AccordionSection>
+            <AgentChatWithFunctionUrl
+              key={chatClearKey}
+              workspaceId={workspaceId}
+              agentId={agentId}
+              onClear={() => setChatClearKey((prev) => prev + 1)}
+            />
+          </AgentAccordionSection>
 
           {/* Recent Conversations Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="conversations"
             title={
               <>
@@ -1810,22 +2884,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 RECENT CONVERSATIONS
               </>
             }
-            isExpanded={expandedSection === "conversations"}
-            onToggle={() => toggleSection("conversations")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent
-              isExpanded={expandedSection === "conversations"}
-            >
-              <ConversationList
-                workspaceId={workspaceId}
-                agentId={agentId}
-                onConversationClick={setSelectedConversationId}
-              />
-            </LazyAccordionContent>
-          </AccordionSection>
+            <ConversationList
+              workspaceId={workspaceId}
+              agentId={agentId}
+              onConversationClick={setSelectedConversationId}
+            />
+          </AgentAccordionSection>
 
           {/* Evaluations Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="evaluations"
             title={
               <>
@@ -1833,58 +2903,54 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 EVALUATIONS
               </>
             }
-            isExpanded={expandedSection === "evaluations"}
-            onToggle={() => toggleSection("evaluations")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent
-              isExpanded={expandedSection === "evaluations"}
+            <QueryPanel
+              fallback={
+                <LoadingScreen compact message="Loading evaluations..." />
+              }
             >
-              <QueryPanel
-                fallback={
-                  <LoadingScreen compact message="Loading evaluations..." />
-                }
-              >
-                <EvaluationsRefreshButton
-                  workspaceId={workspaceId}
-                  agentId={agentId}
-                />
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-                      Evaluation Judges
-                    </h3>
-                    <EvalJudgeList
-                      workspaceId={workspaceId}
-                      agentId={agentId}
-                      canEdit={canEdit}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-                      Evaluation Progress
-                    </h3>
-                    <EvalResultsChart
-                      workspaceId={workspaceId}
-                      agentId={agentId}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-                      Evaluation Results
-                    </h3>
-                    <EvalResultsList
-                      workspaceId={workspaceId}
-                      agentId={agentId}
-                      onConversationOpen={setSelectedConversationId}
-                    />
-                  </div>
+              <EvaluationsRefreshButton
+                workspaceId={workspaceId}
+                agentId={agentId}
+              />
+              <div className="space-y-6">
+                <div>
+                  <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                    Evaluation Judges
+                  </h3>
+                  <EvalJudgeList
+                    workspaceId={workspaceId}
+                    agentId={agentId}
+                    canEdit={canEdit}
+                  />
                 </div>
-              </QueryPanel>
-            </LazyAccordionContent>
-          </AccordionSection>
+                <div>
+                  <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                    Evaluation Progress
+                  </h3>
+                  <EvalResultsChart
+                    workspaceId={workspaceId}
+                    agentId={agentId}
+                  />
+                </div>
+                <div>
+                  <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                    Evaluation Results
+                  </h3>
+                  <EvalResultsList
+                    workspaceId={workspaceId}
+                    agentId={agentId}
+                    onConversationOpen={setSelectedConversationId}
+                  />
+                </div>
+              </div>
+            </QueryPanel>
+          </AgentAccordionSection>
 
           {/* Schedules Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="schedules"
             title={
               <>
@@ -1892,17 +2958,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 SCHEDULES
               </>
             }
-            isExpanded={expandedSection === "schedules"}
-            onToggle={() => toggleSection("schedules")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent isExpanded={expandedSection === "schedules"}>
-              <AgentScheduleList
-                workspaceId={workspaceId}
-                agentId={agentId}
-                canEdit={canEdit}
-              />
-            </LazyAccordionContent>
-          </AccordionSection>
+            <AgentScheduleList
+              workspaceId={workspaceId}
+              agentId={agentId}
+              canEdit={canEdit}
+            />
+          </AgentAccordionSection>
         </SectionGroup>
 
         <SectionGroup
@@ -1914,7 +2978,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           }
         >
           {/* Memory Records Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="memory"
             title={
               <>
@@ -1922,16 +2986,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 MEMORY RECORDS
               </>
             }
-            isExpanded={expandedSection === "memory"}
-            onToggle={() => toggleSection("memory")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent isExpanded={expandedSection === "memory"}>
-              <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
-            </LazyAccordionContent>
-          </AccordionSection>
+            <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
+          </AgentAccordionSection>
 
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="summarization-prompts"
               title={
                 <>
@@ -1939,77 +3001,73 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   SUMMARIZATION PROMPTS
                 </>
               }
-              isExpanded={expandedSection === "summarization-prompts"}
-              onToggle={() => toggleSection("summarization-prompts")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "summarization-prompts"}
-              >
+              <div className="space-y-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300">
+                  Customize the prompts used to summarize this agent&apos;s
+                  memory for each time period. If a prompt matches the default,
+                  the default will be used and stored prompts will be cleared.
+                </p>
                 <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Customize the prompts used to summarize this agent&apos;s
-                    memory for each time period. If a prompt matches the default,
-                    the default will be used and stored prompts will be cleared.
-                  </p>
-                  <div className="space-y-4">
-                    {SUMMARIZATION_PROMPT_GRAINS.map((grain) => {
-                      const currentValue = summarizationPrompts[grain] ?? "";
-                      const isDefault =
-                        currentValue.trim() ===
-                        DEFAULT_SUMMARIZATION_PROMPTS[grain].trim();
-                      return (
-                        <div key={grain} className="space-y-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <label className="text-sm font-semibold dark:text-neutral-300">
-                              {SUMMARIZATION_PROMPT_LABELS[grain]} prompt
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <span className="rounded-full border border-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
-                                {isDefault ? "Default" : "Customized"}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleResetSummarizationPrompt(grain)
-                                }
-                                className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
-                              >
-                                Use default
-                              </button>
-                            </div>
+                  {SUMMARIZATION_PROMPT_GRAINS.map((grain) => {
+                    const currentValue = summarizationPrompts[grain] ?? "";
+                    const isDefault =
+                      currentValue.trim() ===
+                      DEFAULT_SUMMARIZATION_PROMPTS[grain].trim();
+                    return (
+                      <div key={grain} className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="text-sm font-semibold dark:text-neutral-300">
+                            {SUMMARIZATION_PROMPT_LABELS[grain]} prompt
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full border border-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+                              {isDefault ? "Default" : "Customized"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleResetSummarizationPrompt(grain)
+                              }
+                              className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                            >
+                              Use default
+                            </button>
                           </div>
-                          <textarea
-                            value={currentValue}
-                            onChange={(e) =>
-                              handleSummarizationPromptChange(
-                                grain,
-                                e.target.value
-                              )
-                            }
-                            rows={6}
-                            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                          />
                         </div>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={handleSaveSummarizationPrompts}
-                    disabled={updateAgent.isPending}
-                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {updateAgent.isPending
-                      ? "Saving..."
-                      : "Save Summarization Prompts"}
-                  </button>
+                        <textarea
+                          value={currentValue}
+                          onChange={(e) =>
+                            handleSummarizationPromptChange(
+                              grain,
+                              e.target.value
+                            )
+                          }
+                          rows={6}
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+                <button
+                  onClick={handleSaveSummarizationPrompts}
+                  disabled={updateAgent.isPending}
+                  className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {updateAgent.isPending
+                    ? "Saving..."
+                    : "Save Summarization Prompts"}
+                </button>
+              </div>
+            </AgentAccordionSection>
           )}
 
           {/* Memory Search Tool Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="memory-search"
               title={
                 <>
@@ -2017,64 +3075,60 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   MEMORY SEARCH TOOL
                 </>
               }
-              isExpanded={expandedSection === "memory-search"}
-              onToggle={() => toggleSection("memory-search")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "memory-search"}
-              >
-                <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the memory search tool to allow this agent to search
-                    its factual memory across different time periods and recall
-                    past conversations.
+              <div className="space-y-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300">
+                  Enable the memory search tool to allow this agent to search
+                  its factual memory across different time periods and recall
+                  past conversations.
+                </p>
+                <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                  <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
+                    <ExclamationTriangleIcon className="size-4" />
+                    Privacy Warning
                   </p>
-                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
-                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
-                      <ExclamationTriangleIcon className="size-4" />
-                      Privacy Warning
-                    </p>
-                    <p className="text-sm text-yellow-900">
-                      Activating the memory search tool may result in data
-                      leakage between users. The agent will be able to search
-                      and recall information from all conversations, which could
-                      expose sensitive information across different user
-                      sessions. Only enable this if you understand the privacy
-                      implications.
-                    </p>
-                  </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableMemorySearch}
-                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">Enable Memory Search</div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the search_memory tool to recall
-                        past conversations and information
-                      </div>
-                    </div>
-                  </label>
-                  <button
-                    onClick={handleSaveMemorySearch}
-                    disabled={updateAgent.isPending}
-                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {updateAgent.isPending
-                      ? "Saving..."
-                      : "Save Memory Search Setting"}
-                  </button>
+                  <p className="text-sm text-yellow-900">
+                    Activating the memory search tool may result in data
+                    leakage between users. The agent will be able to search
+                    and recall information from all conversations, which could
+                    expose sensitive information across different user
+                    sessions. Only enable this if you understand the privacy
+                    implications.
+                  </p>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                  <input
+                    type="checkbox"
+                    checked={enableMemorySearch}
+                    onChange={(e) => setEnableMemorySearch(e.target.checked)}
+                    className="mt-1 rounded border-2 border-neutral-300"
+                  />
+                  <div className="flex-1">
+                    <div className="font-bold">Enable Memory Search</div>
+                    <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                      Allow this agent to use the search_memory tool to recall
+                      past conversations and information
+                    </div>
+                  </div>
+                </label>
+                <button
+                  onClick={handleSaveMemorySearch}
+                  disabled={updateAgent.isPending}
+                  className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {updateAgent.isPending
+                    ? "Saving..."
+                    : "Save Memory Search Setting"}
+                </button>
+              </div>
+            </AgentAccordionSection>
           )}
 
           {/* Inject Knowledge Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="inject-knowledge"
               title={
                 <>
@@ -2082,12 +3136,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   INJECT KNOWLEDGE
                 </>
               }
-              isExpanded={expandedSection === "inject-knowledge"}
-              onToggle={() => toggleSection("inject-knowledge")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "inject-knowledge"}
-              >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
                     Enable knowledge injection to automatically retrieve and
@@ -2137,7 +3188,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           max={50}
                           step={1}
                           onChange={(value) =>
-                            setKnowledgeInjectionSnippetCount(value ?? 5)
+                            setKnowledgeInjectionSnippetCount(
+                              value ?? DEFAULT_KNOWLEDGE_SNIPPET_COUNT
+                            )
                           }
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
@@ -2153,7 +3206,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           max={1}
                           step={0.01}
                           onChange={(value) =>
-                            setKnowledgeInjectionMinSimilarity(value ?? 0)
+                            setKnowledgeInjectionMinSimilarity(
+                              value ?? DEFAULT_KNOWLEDGE_MIN_SIMILARITY
+                            )
                           }
                           formatValue={(v) => `${Math.round(v * 100)}%`}
                         />
@@ -2250,13 +3305,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       : "Save Knowledge Injection Settings"}
                   </button>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Document Search Tool Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="document-search"
               title={
                 <>
@@ -2264,12 +3318,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   DOCUMENT SEARCH TOOL
                 </>
               }
-              isExpanded={expandedSection === "document-search"}
-              onToggle={() => toggleSection("document-search")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "document-search"}
-              >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
                     Enable the document search tool to allow this agent to
@@ -2302,8 +3353,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       : "Save Document Search Setting"}
                   </button>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
         </SectionGroup>
 
@@ -2317,7 +3367,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         >
           {/* Delegation Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="delegation"
               title={
                 <>
@@ -2325,12 +3375,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   DELEGATION
                 </>
               }
-              isExpanded={expandedSection === "delegation"}
-              onToggle={() => toggleSection("delegation")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "delegation"}
-              >
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Configure which other agents in this workspace this agent can
                   delegate tasks to. When delegation is enabled, this agent will
@@ -2394,12 +3441,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     agent to enable delegation.
                   </p>
                 )}
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
           {/* Advanced Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="advanced"
               title={
                 <>
@@ -2407,10 +3453,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   ADVANCED
                 </>
               }
-              isExpanded={expandedSection === "advanced"}
-              onToggle={() => toggleSection("advanced")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent isExpanded={expandedSection === "advanced"}>
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Configure advanced model generation parameters. These settings
                   control how the AI model generates responses. Leave fields
@@ -2562,8 +3607,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </button>
                   </div>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
         </SectionGroup>
 
@@ -2577,7 +3621,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         >
           {/* MCP Servers Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="mcp-servers"
               title={
                 <>
@@ -2585,12 +3629,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   MCP SERVERS
                 </>
               }
-              isExpanded={expandedSection === "mcp-servers"}
-              onToggle={() => toggleSection("mcp-servers")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "mcp-servers"}
-              >
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Enable MCP servers from your workspace to make them available
                   as tools to this agent. When enabled, the agent will be able
@@ -2636,13 +3677,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     servers in the workspace settings to enable them for agents.
                   </p>
                 )}
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Email Tool Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="email-tool"
               title={
                 <>
@@ -2650,12 +3690,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   EMAIL TOOL
                 </>
               }
-              isExpanded={expandedSection === "email-tool"}
-              onToggle={() => toggleSection("email-tool")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "email-tool"}
-              >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
                     Enable the email tool to allow this agent to send emails
@@ -2701,13 +3738,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       : "Save Email Tool Setting"}
                   </button>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Web Search Tool Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="tavily-search"
               title={
                 <>
@@ -2715,12 +3751,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   WEB SEARCH TOOL
                 </>
               }
-              isExpanded={expandedSection === "tavily-search"}
-              onToggle={() => toggleSection("tavily-search")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "tavily-search"}
-              >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
                     Choose a provider for the search_web tool. Tavily: $0.008
@@ -2789,13 +3822,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       : "Save Web Search Provider"}
                   </button>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Web Fetch Tool Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="tavily-fetch"
               title={
                 <>
@@ -2803,12 +3835,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   WEB FETCH TOOL
                 </>
               }
-              isExpanded={expandedSection === "tavily-fetch"}
-              onToggle={() => toggleSection("tavily-fetch")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "tavily-fetch"}
-              >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
                     Choose a provider for the fetch_url tool. Tavily: $0.008 per
@@ -2899,13 +3928,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       : "Save URL Fetching Provider"}
                   </button>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Exa Search Tool Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="exa-search"
               title={
                 <>
@@ -2913,12 +3941,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   ADVANCED SEARCH TOOL
                 </>
               }
-              isExpanded={expandedSection === "exa-search"}
-              onToggle={() => toggleSection("exa-search")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "exa-search"}
-              >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
                     Enable Exa.ai search tool for category-specific searches.
@@ -2954,13 +3979,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       : "Save Exa Search Setting"}
                   </button>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Client-Side Tools Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="client-tools"
               title={
                 <>
@@ -2968,12 +3992,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   CLIENT-SIDE TOOLS
                 </>
               }
-              isExpanded={expandedSection === "client-tools"}
-              onToggle={() => toggleSection("client-tools")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "client-tools"}
-              >
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Define client-side tools that will be executed in the browser.
                   These tools should be made available to the AI model by the
@@ -2992,8 +4013,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending ? "Saving..." : "Save Client Tools"}
                   </button>
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
         </SectionGroup>
 
@@ -3007,7 +4027,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         >
           {/* Embeddable Widget Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="embeddable-widget"
               title={
                 <>
@@ -3015,12 +4035,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   EMBEDDABLE WIDGET
                 </>
               }
-              isExpanded={expandedSection === "embeddable-widget"}
-              onToggle={() => toggleSection("embeddable-widget")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "embeddable-widget"}
-              >
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Embed a chat interface in your website or web app. The widget
                   uses a Web Component with Shadow DOM for style isolation and
@@ -3792,13 +4809,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </>
                   )}
                 </div>
-              </LazyAccordionContent>
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Stream Server Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="stream-server"
               title={
                 <>
@@ -3806,8 +4822,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   STREAM SERVER
                 </>
               }
-              isExpanded={expandedSection === "stream-server"}
-              onToggle={() => toggleSection("stream-server")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
+              // Render eagerly so warnings and CORS guidance are immediate.
+              lazy={false}
             >
               <div className="mb-4 space-y-3 text-sm opacity-75 dark:text-neutral-300">
                 <p>
@@ -4084,11 +5102,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   )}
                 </div>
               )}
-            </AccordionSection>
+            </AgentAccordionSection>
           )}
 
           {/* Webhooks Management Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="keys"
             title={
               <>
@@ -4096,10 +5114,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 WEBHOOKS
               </>
             }
-            isExpanded={expandedSection === "keys"}
-            onToggle={() => toggleSection("keys")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent isExpanded={expandedSection === "keys"}>
               <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                 Webhook keys allow external services to send requests to this
                 agent. Each key generates a unique webhook URL that can be used
@@ -4181,11 +5198,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   })}
                 </div>
               )}
-            </LazyAccordionContent>
-          </AccordionSection>
+          </AgentAccordionSection>
 
           {/* Bot Integrations Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="bot-integrations"
             title={
               <>
@@ -4193,12 +5209,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 BOT INTEGRATIONS
               </>
             }
-            isExpanded={expandedSection === "bot-integrations"}
-            onToggle={() => toggleSection("bot-integrations")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent
-              isExpanded={expandedSection === "bot-integrations"}
-            >
               <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                 Connect this agent to Slack or Discord bots to make it available
                 to your team or community. Each integration creates a bot that
@@ -4243,8 +5256,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   ))}
                 </div>
               )}
-            </LazyAccordionContent>
-          </AccordionSection>
+          </AgentAccordionSection>
         </SectionGroup>
 
         <SectionGroup
@@ -4257,7 +5269,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         >
           {/* Spending Limits Section */}
           {canEdit && (
-            <AccordionSection
+            <AgentAccordionSection
               id="spending-limits"
               title={
                 <>
@@ -4265,24 +5277,20 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   SPENDING LIMITS
                 </>
               }
-              isExpanded={expandedSection === "spending-limits"}
-              onToggle={() => toggleSection("spending-limits")}
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
             >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "spending-limits"}
-              >
-                <SpendingLimitsManager
-                  workspaceId={workspaceId}
-                  agentId={agentId}
-                  spendingLimits={agent.spendingLimits}
-                  canEdit={!!canEdit}
-                />
-              </LazyAccordionContent>
-            </AccordionSection>
+              <SpendingLimitsManager
+                workspaceId={workspaceId}
+                agentId={agentId}
+                spendingLimits={agent.spendingLimits}
+                canEdit={!!canEdit}
+              />
+            </AgentAccordionSection>
           )}
 
           {/* Usage Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="usage"
             title={
               <>
@@ -4290,16 +5298,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 Assistant usage
               </>
             }
-            isExpanded={expandedSection === "usage"}
-            onToggle={() => toggleSection("usage")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent isExpanded={expandedSection === "usage"}>
-              <AgentUsageSection workspaceId={workspaceId} agentId={agentId} />
-            </LazyAccordionContent>
-          </AccordionSection>
+            <AgentUsageSection workspaceId={workspaceId} agentId={agentId} />
+          </AgentAccordionSection>
 
           {/* Transactions Section */}
-          <AccordionSection
+          <AgentAccordionSection
             id="transactions"
             title={
               <>
@@ -4307,25 +5313,21 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 Payment history
               </>
             }
-            isExpanded={expandedSection === "transactions"}
-            onToggle={() => toggleSection("transactions")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent
-              isExpanded={expandedSection === "transactions"}
+            <QueryPanel
+              fallback={
+                <LoadingScreen compact message="Loading transactions..." />
+              }
             >
-              <QueryPanel
-                fallback={
-                  <LoadingScreen compact message="Loading transactions..." />
-                }
-              >
-                <TransactionTable workspaceId={workspaceId} agentId={agentId} />
-              </QueryPanel>
-            </LazyAccordionContent>
-          </AccordionSection>
+              <TransactionTable workspaceId={workspaceId} agentId={agentId} />
+            </QueryPanel>
+          </AgentAccordionSection>
         </SectionGroup>
 
         {canEdit && (
-          <AccordionSection
+          <AgentAccordionSection
             id="danger"
             title={
               <>
@@ -4333,10 +5335,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 DANGER ZONE
               </>
             }
-            isExpanded={expandedSection === "danger"}
-            onToggle={() => toggleSection("danger")}
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
           >
-            <LazyAccordionContent isExpanded={expandedSection === "danger"}>
               <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                 This section contains destructive actions. Deleting an agent
                 will permanently remove all its conversations, webhook keys, and
@@ -4352,153 +5353,48 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 {isDeleting ? "Deleting..." : "Delete Agent"}
               </button>
-            </LazyAccordionContent>
-          </AccordionSection>
+          </AgentAccordionSection>
         )}
 
-        {/* Modals - only load when opened */}
-        {isEditing && (
-          <Suspense fallback={<LoadingScreen />}>
-            <AgentModal
-              isOpen={isEditing}
-              onClose={handleCloseModal}
-              workspaceId={workspaceId}
-              agent={agent}
-            />
-          </Suspense>
-        )}
-
-        {selectedConversationId && (
-          <Suspense
-            fallback={
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700">
-                  <div className="text-2xl font-semibold">
-                    Loading conversation...
-                  </div>
-                </div>
-              </div>
-            }
-          >
-            <QueryPanel
-              fallback={
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700">
-                    <div className="text-2xl font-semibold">
-                      Loading conversation...
-                    </div>
-                  </div>
-                </div>
-              }
-            >
-              <ConversationDetailModal
-                isOpen={!!selectedConversationId}
-                onClose={() => setSelectedConversationId(null)}
-                workspaceId={workspaceId}
-                agentId={agentId}
-                conversationId={selectedConversationId}
-              />
-            </QueryPanel>
-          </Suspense>
-        )}
-
-        {isHelpOpen && (
-          <Suspense fallback={<LoadingScreen />}>
-            <ToolsHelpDialog
-              isOpen={isHelpOpen}
-              onClose={() => setIsHelpOpen(false)}
-              workspaceId={workspaceId}
-              agent={agent}
-            />
-          </Suspense>
-        )}
-
-        {isModelPricesOpen && (
-          <Suspense fallback={<LoadingScreen />}>
-            <ModelPricesDialog
-              isOpen={isModelPricesOpen}
-              onClose={() => setIsModelPricesOpen(false)}
-            />
-          </Suspense>
-        )}
-
-        {isStreamTestModalOpen &&
-          streamServerConfig &&
-          streamUrlData?.url &&
-          streamServerConfig.secret && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-              <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
-                <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4 dark:border-neutral-700">
-                  <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-                    Test Stream Server
-                  </h2>
-                  <button
-                    onClick={() => setIsStreamTestModalOpen(false)}
-                    className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-800"
-                  >
-                    Close
-                  </button>
-                </div>
-                <Suspense fallback={<LoadingScreen />}>
-                  <AgentChat
-                    workspaceId={workspaceId}
-                    agentId={agentId}
-                    api={`${streamUrlData.url.replace(
-                      /\/+$/,
-                      ""
-                    )}/api/streams/${workspaceId}/${agentId}/${
-                      streamServerConfig.secret
-                    }`}
-                  />
-                </Suspense>
-              </div>
-            </div>
-          )}
-
-        {/* Integration Modals */}
-        {showSlackModal && (
-          <Suspense fallback={<LoadingScreen />}>
-            <SlackConnectModal
-              workspaceId={workspaceId}
-              agentId={agentId}
-              onClose={() => setShowSlackModal(false)}
-              onSuccess={() => {
-                queryClient.invalidateQueries({
-                  queryKey: ["integrations", workspaceId],
-                });
-                setShowSlackModal(false);
-              }}
-            />
-          </Suspense>
-        )}
-
-        {showDiscordModal && (
-          <Suspense fallback={<LoadingScreen />}>
-            <DiscordConnectModal
-              workspaceId={workspaceId}
-              agentId={agentId}
-              onClose={() => setShowDiscordModal(false)}
-              onSuccess={() => {
-                queryClient.invalidateQueries({
-                  queryKey: ["integrations", workspaceId],
-                });
-                setShowDiscordModal(false);
-              }}
-            />
-          </Suspense>
-        )}
-
-        {commandDialogState && (
-          <Suspense fallback={<LoadingScreen />}>
-            <DiscordCommandDialog
-              workspaceId={workspaceId}
-              integrationId={commandDialogState.integrationId}
-              currentCommandName={commandDialogState.currentCommandName}
-              onClose={() => setCommandDialogState(null)}
-              onSuccess={handleCommandDialogSuccess}
-            />
-          </Suspense>
-        )}
+        <AgentDetailModals
+          workspaceId={workspaceId}
+          agentId={agentId}
+          agent={agent}
+          isEditing={isEditing}
+          onCloseEdit={handleCloseModal}
+          selectedConversationId={selectedConversationId}
+          onCloseConversation={() => setSelectedConversationId(null)}
+          isHelpOpen={isHelpOpen}
+          onCloseHelp={() => setIsHelpOpen(false)}
+          isModelPricesOpen={isModelPricesOpen}
+          onCloseModelPrices={() => setIsModelPricesOpen(false)}
+          isStreamTestModalOpen={isStreamTestModalOpen}
+          onCloseStreamTestModal={() => setIsStreamTestModalOpen(false)}
+          streamServerConfig={streamServerConfig}
+          streamUrlData={streamUrlData}
+          showSlackModal={showSlackModal}
+          onCloseSlackModal={() => setShowSlackModal(false)}
+          onSlackSuccess={() => {
+            queryClient.invalidateQueries({
+              queryKey: ["integrations", workspaceId],
+            });
+            setShowSlackModal(false);
+          }}
+          showDiscordModal={showDiscordModal}
+          onCloseDiscordModal={() => setShowDiscordModal(false)}
+          onDiscordSuccess={() => {
+            queryClient.invalidateQueries({
+              queryKey: ["integrations", workspaceId],
+            });
+            setShowDiscordModal(false);
+          }}
+          commandDialogState={commandDialogState}
+          onCloseCommandDialog={() => setCommandDialogState(null)}
+          onCommandDialogSuccess={handleCommandDialogSuccess}
+        />
+        {/*
+        Modals - only load when opened
+        */}
       </div>
     </div>
   );
