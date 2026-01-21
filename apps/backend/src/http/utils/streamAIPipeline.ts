@@ -182,6 +182,7 @@ async function rewriteFilePartsInMessage(
       ...part,
       [fileValue.key]: uploadResult.url,
       mediaType: uploadResult.mediaType,
+      filename: uploadResult.filename,
     };
     fileParts.push({
       fileUrl: uploadResult.url,
@@ -449,7 +450,6 @@ export async function pipeAIStreamToResponse(
 
     if (sseBuffer.length > 0) {
       await writeChunkToStream(responseStream, sseBuffer);
-      sseBuffer = "";
     }
 
     // If no data was written, write an SSE comment to initialize the stream
