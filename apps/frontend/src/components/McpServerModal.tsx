@@ -879,6 +879,7 @@ const useMcpServerModalState = ({
 };
 
 const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
+  const { isOpen } = props;
   const {
     isEditing,
     server,
@@ -896,7 +897,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
     isPending,
   } = useMcpServerModalState(props);
 
-  if (!props.isOpen) return null;
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">

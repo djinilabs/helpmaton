@@ -4824,6 +4824,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               }
               expandedSection={expandedSection}
               onToggle={toggleSection}
+              // Render eagerly so warnings and CORS guidance are immediate.
               lazy={false}
             >
               <div className="mb-4 space-y-3 text-sm opacity-75 dark:text-neutral-300">

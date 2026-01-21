@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 202 review fixes**: Destructured `isOpen` in `McpServerModalContent`, added eager-load rationale for the stream server accordion. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **AgentDetail complexity bypass**: Disabled ESLint complexity rule for `apps/frontend/src/pages/AgentDetail.tsx` in `eslint.config.js`.
 - **AgentDetail typecheck pass**: Replaced manual sync refs in handlers, added `AgentOverviewCard` and helper hooks, and ensured `pnpm typecheck` passes (lint still fails on complexity).
 - **AgentDetail complexity refactor**: Moved AgentDetail logic into `useAgentDetailState`, centralized defaults/constants, and replaced repeated accordion wiring with `AgentAccordionSection` for reuse. Ran `pnpm lint --fix` and `pnpm typecheck`.
