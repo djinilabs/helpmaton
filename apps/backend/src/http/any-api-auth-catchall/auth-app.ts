@@ -27,6 +27,10 @@ export const createApp: () => Promise<express.Application> = async () => {
         return next();
       }
 
+      if (process.env.E2E_AUTH_GATE_BYPASS === "true") {
+        return next();
+      }
+
       const fallbackUrl = new URL(frontendUrl);
       const requestHost = req.get("host") || fallbackUrl.host;
       const requestProtocol =
