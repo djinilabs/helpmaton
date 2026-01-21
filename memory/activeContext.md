@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **PlanComparison downgrade guard fix**: Restored downgrade button gating on `onDowngrade` by threading `hasDowngradeHandler` into `PlanActions`. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **PlanComparison complexity refactor**: Centralized plan data/constants, added `usePlanComparisonState`, extracted `PlanCard`/`FeatureList`/`PlanActions` components, and simplified feature construction. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **McpServerModal complexity refactor**: Consolidated modal logic into `useMcpServerModalState`, added reusable `FormField`, `ServerTypeCard`, and `OAuthManagedNotice` components, centralized create/update payload builders, and simplified helper text rendering. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **MCP server list popularity order**: Reordered MCP server type options in the create modal so popular services appear first.
 - **PR 198 review fixes (round 4)**: Ensured OAuth token update guard uses `finalAuthType` in `put-mcp-server-handler.ts` and added a regression test blocking token injection when switching to OAuth; ran `pnpm --filter backend test --run put-mcp-server`, `pnpm lint --fix`, and `pnpm typecheck`.
