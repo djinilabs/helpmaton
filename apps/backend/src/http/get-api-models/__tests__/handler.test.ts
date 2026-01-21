@@ -50,6 +50,9 @@ describe("get-api-models handler", () => {
           models: {
             "google/gemini-2.5-flash": {
               usd: { input: 0.075, output: 0.3, cachedInput: 0.0075 },
+              capabilities: {
+                text_generation: true,
+              },
             },
             "anthropic/claude-3.5-sonnet": {
               usd: { input: 3, output: 15, cachedInput: 0.3 },
@@ -88,6 +91,11 @@ describe("get-api-models handler", () => {
     expect(body.openrouter.models).toContain("auto");
     expect(body.openrouter.models).toContain("google/gemini-2.5-flash");
     expect(body.openrouter.defaultModel).toBe("auto");
+    expect(body.openrouter.capabilities).toEqual({
+      "google/gemini-2.5-flash": {
+        text_generation: true,
+      },
+    });
     // Verify Google models are not included
     expect(body.google).toBeUndefined();
 

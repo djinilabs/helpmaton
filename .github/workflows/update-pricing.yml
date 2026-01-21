@@ -45,3 +45,19 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Check pricing changes
+        id: pricing-changes
+        run: |
+          if git diff --quiet -- "apps/backend/src/config/pricing.json"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push pricing changes
+        if: steps.pricing-changes.outputs.changed == 'true'
+        run: |
+          git add "apps/backend/src/config/pricing.json"
+          git commit -m "chore: update pricing for tokens: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          git push origin HEAD:main

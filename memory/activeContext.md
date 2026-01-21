@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **OpenRouter model capabilities**: Added capability extraction + merge in `scripts/update-pricing.mjs`, exported helper with node:test coverage, extended pricing/available model types and OpenAPI schema, and included capabilities in `/api/models` when present; ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Pricing update workflow fix**: Removed commit/push from `scripts/update-pricing.mjs` and moved commit logic into `.github/workflows/update-pricing.yml`, gated on `apps/backend/src/config/pricing.json` changes.
 - **AI error extraction for test endpoint**: Added `extractErrorMessage` helper to normalize wrapped AI errors and JSON strings, return plain-text AI errors from API Gateway handling, and update Slack/Discord bot error text. Added unit test for wrapped AI errors and reran `pnpm lint --fix` and `pnpm typecheck`.
 - **PR 202 review fixes**: Destructured `isOpen` in `McpServerModalContent`, added eager-load rationale for the stream server accordion. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **AgentDetail complexity bypass**: Disabled ESLint complexity rule for `apps/frontend/src/pages/AgentDetail.tsx` in `eslint.config.js`.

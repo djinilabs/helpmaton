@@ -536,6 +536,53 @@ export const openApiSchemas = {
         defaultModel: {
           type: "string",
         },
+        capabilities: {
+          type: "object",
+          additionalProperties: {
+            $ref: "#/components/schemas/ModelCapabilities",
+          },
+        },
+      },
+    },
+  },
+  ModelCapabilities: {
+    type: "object",
+    properties: {
+      input_modalities: {
+        type: "array",
+        items: {
+          type: "string",
+        },
+      },
+      output_modalities: {
+        type: "array",
+        items: {
+          type: "string",
+        },
+      },
+      supported_parameters: {
+        type: "array",
+        items: {
+          type: "string",
+        },
+      },
+      text_generation: {
+        type: "boolean",
+      },
+      image_generation: {
+        type: "boolean",
+      },
+      rerank: {
+        type: "boolean",
+      },
+      tool_calling: {
+        type: "boolean",
+      },
+      structured_output: {
+        type: "boolean",
+      },
+      image: {
+        type: "boolean",
       },
     },
   },

@@ -44,10 +44,21 @@ export const handler = adaptHttpHandler(
       if (allModels.length > 0) {
         // Use shared utility function to get default model (OpenRouter only)
         const defaultModel = getDefaultModel();
+        const capabilities: Record<string, unknown> = {};
+
+        for (const modelName of allModels) {
+          const modelInfo = providerPricing.models[modelName];
+          if (modelInfo?.capabilities) {
+            capabilities[modelName] = modelInfo.capabilities;
+          }
+        }
 
         availableModels[provider] = {
           models: allModels,
           defaultModel,
+          ...(Object.keys(capabilities).length > 0
+            ? { capabilities }
+            : {}),
         };
       }
     }

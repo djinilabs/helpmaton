@@ -1,7 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
 import dotenv from "dotenv";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -69,6 +68,147 @@ function isRerankingModel(modelName) {
   }
   const lowerModel = modelName.toLowerCase();
   return lowerModel.includes("rerank");
+}
+
+/**
+ * Normalize arrays of strings for capability fields
+ * @param {*} value - Potential array of strings
+ * @returns {string[]} Normalized list of lowercase strings
+ */
+function normalizeStringArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalized = value
+    .filter((entry) => typeof entry === "string")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry.length > 0);
+
+  return Array.from(new Set(normalized));
+}
+
+/**
+ * Merge derived capabilities with existing capabilities from pricing.json
+ * Existing capabilities override derived values when explicitly set.
+ * @param {Object | undefined} derived - Capabilities derived from API
+ * @param {Object | undefined} existing - Existing capabilities from pricing.json
+ * @returns {Object | undefined} Merged capabilities
+ */
+function mergeCapabilities(derived, existing) {
+  if (!derived && !existing) {
+    return undefined;
+  }
+
+  const merged = {
+    ...(derived || {}),
+    ...(existing || {}),
+  };
+
+  const applyExistingValue = (key) => {
+    if (!existing) return;
+    if (Object.prototype.hasOwnProperty.call(existing, key)) {
+      merged[key] = existing[key];
+    }
+  };
+
+  applyExistingValue("input_modalities");
+  applyExistingValue("output_modalities");
+  applyExistingValue("supported_parameters");
+
+  if (existing && Object.prototype.hasOwnProperty.call(existing, "image")) {
+    merged.image = existing.image;
+    if (!Object.prototype.hasOwnProperty.call(existing, "image_generation")) {
+      merged.image_generation = existing.image;
+    }
+  }
+
+  if (merged.image_generation === undefined && merged.image !== undefined) {
+    merged.image_generation = merged.image;
+  }
+
+  if (merged.image === undefined && merged.image_generation !== undefined) {
+    merged.image = merged.image_generation;
+  }
+
+  return merged;
+}
+
+/**
+ * Build OpenRouter capabilities object for pricing.json
+ * @param {Object} options
+ * @param {Object | undefined} options.model - OpenRouter model data
+ * @param {boolean} options.isReranking - Whether the model is a re-ranking model
+ * @param {Object | undefined} options.existingCapabilities - Existing capabilities from pricing.json
+ * @returns {Object | undefined} Capabilities object
+ */
+export function buildOpenRouterCapabilities({
+  model,
+  isReranking,
+  existingCapabilities,
+} = {}) {
+  const architecture = model?.architecture || {};
+
+  const inputModalities = normalizeStringArray(
+    architecture.input_modalities ?? model?.input_modalities
+  );
+  const outputModalities = normalizeStringArray(
+    architecture.output_modalities ?? model?.output_modalities
+  );
+  const supportedParameters = normalizeStringArray(
+    model?.supported_parameters ??
+      architecture.supported_parameters ??
+      model?.supportedParameters
+  );
+
+  const hasOutputModalities = outputModalities.length > 0;
+  const hasSupportedParameters = supportedParameters.length > 0;
+
+  const derived = {};
+
+  if (inputModalities.length > 0) {
+    derived.input_modalities = inputModalities;
+  }
+
+  if (outputModalities.length > 0) {
+    derived.output_modalities = outputModalities;
+  }
+
+  if (supportedParameters.length > 0) {
+    derived.supported_parameters = supportedParameters;
+  }
+
+  if (isReranking !== undefined) {
+    derived.rerank = Boolean(isReranking);
+  }
+
+  if (isReranking) {
+    derived.text_generation = false;
+  } else if (hasOutputModalities) {
+    derived.text_generation = outputModalities.includes("text");
+  }
+
+  if (hasOutputModalities) {
+    derived.image_generation = outputModalities.includes("image");
+  }
+
+  if (hasSupportedParameters) {
+    derived.tool_calling =
+      supportedParameters.includes("tools") ||
+      supportedParameters.includes("tool_choice");
+    derived.structured_output = supportedParameters.includes("response_format");
+  }
+
+  if (derived.image_generation !== undefined && derived.image === undefined) {
+    derived.image = derived.image_generation;
+  }
+
+  const merged = mergeCapabilities(derived, existingCapabilities);
+  if (!merged || Object.keys(merged).length === 0) {
+    return undefined;
+  }
+
+  return merged;
 }
 
 /**
@@ -659,9 +799,10 @@ function getGooglePricingForModels(models) {
  * OpenRouter API returns pricing in different formats, we need to normalize it
  * @param {Array} rawModels - Raw model objects from OpenRouter API
  * @param {Array} modelNames - Filtered model names to process
+ * @param {Object} currentPricing - Current pricing config (for capability merges)
  * @returns {Object} Pricing object with model names as keys
  */
-function getOpenRouterPricingForModels(rawModels, modelNames) {
+function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
   const pricing = {};
   
   // Create a map of model ID to model object for quick lookup
@@ -861,9 +1002,20 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
       continue;
     }
     
+    const existingCapabilities =
+      currentPricing?.providers?.openrouter?.models?.[modelId]?.capabilities;
+    const capabilities = buildOpenRouterCapabilities({
+      model,
+      isReranking,
+      existingCapabilities,
+    });
+
     // Check for tiered pricing (OpenRouter may provide this in the future)
     // For now, we use flat pricing structure
-    pricing[modelId] = pricingStructure;
+    pricing[modelId] = {
+      ...pricingStructure,
+      ...(capabilities ? { capabilities } : {}),
+    };
     
     if (isReranking) {
       processedRerankingModels++;
@@ -964,13 +1116,15 @@ async function fetchOpenRouterPricing() {
 
   console.log(`[Update Pricing] Found ${models.length} OpenRouter models: ${models.slice(0, 5).join(", ")}${models.length > 5 ? "..." : ""}`);
   
+  // Load current pricing for capability merging
+  const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
+  const currentPricing = loadPricingFileOrCreateDefault(pricingPath);
+
   // Get pricing for available models
-  const pricing = getOpenRouterPricingForModels(rawModels, models);
+  const pricing = getOpenRouterPricingForModels(rawModels, models, currentPricing);
   
   // Add known re-ranking models (not in /api/v1/models endpoint but available via /api/v1/rerank)
   // Re-ranking models use per-request pricing, not per-token pricing
-  const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
-  const currentPricing = loadPricingFileOrCreateDefault(pricingPath);
   const existingOpenRouterModels = Object.keys(currentPricing.providers?.openrouter?.models || {});
   
   // Add known re-ranking models - always include them if they're in the known list
@@ -992,7 +1146,17 @@ async function fetchOpenRouterPricing() {
         continue;
       }
       
-      pricing[modelName] = pricingCopy;
+      const existingCapabilities =
+        currentPricing.providers?.openrouter?.models?.[modelName]?.capabilities;
+      const capabilities = buildOpenRouterCapabilities({
+        model: undefined,
+        isReranking: true,
+        existingCapabilities,
+      });
+      pricing[modelName] = {
+        ...pricingCopy,
+        ...(capabilities ? { capabilities } : {}),
+      };
       const action = existingOpenRouterModels.includes(modelName) ? "Updated" : "Added";
       console.log(`[Update Pricing] ${action} known re-ranking model ${modelName} with pricing:`, JSON.stringify(pricingCopy));
     }
@@ -1016,7 +1180,11 @@ async function fetchOpenRouterPricing() {
         
         if (existsInApi) {
           // Get pricing for this model from API
-          const modelPricing = getOpenRouterPricingForModels(rawModels, [existingModel]);
+          const modelPricing = getOpenRouterPricingForModels(
+            rawModels,
+            [existingModel],
+            currentPricing
+          );
           if (modelPricing[existingModel]) {
             pricing[existingModel] = modelPricing[existingModel];
             console.log(`[Update Pricing] Added pricing for existing OpenRouter model ${existingModel} from API`);
@@ -1104,17 +1272,19 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
       // Check if this is a re-ranking model
       const isReranking = isRerankingModel(modelName);
       
+      const { capabilities, ...pricingValues } = pricing;
+
       // Skip models with invalid or negative pricing
-      if (hasInvalidOrNegativePricing(pricing, isReranking)) {
+      if (hasInvalidOrNegativePricing(pricingValues, isReranking)) {
         console.log(`[Update Pricing] Skipping OpenRouter model ${modelName} in merge due to invalid or negative pricing`);
         continue;
       }
       
       // Ensure pricing structure is valid
       const validPricing = {
-        ...pricing,
+        ...pricingValues,
         // Ensure we have either flat pricing or tiered pricing
-        ...(pricing.tiers === undefined && pricing.input === undefined && pricing.output === undefined
+        ...(pricingValues.tiers === undefined && pricingValues.input === undefined && pricingValues.output === undefined
           ? { input: 0, output: 0 } // Default fallback
           : {}),
       };
@@ -1122,12 +1292,24 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
       if (updatedPricing.providers.openrouter.models[modelName]) {
         // Update existing model pricing (USD only)
         updatedPricing.providers.openrouter.models[modelName].usd = validPricing;
+        const mergedCapabilities = mergeCapabilities(
+          capabilities,
+          updatedPricing.providers.openrouter.models[modelName].capabilities
+        );
+        if (mergedCapabilities) {
+          updatedPricing.providers.openrouter.models[modelName].capabilities =
+            mergedCapabilities;
+        }
         console.log(`[Update Pricing] Updated OpenRouter model ${modelName} pricing`);
       } else {
         // Add new model with USD pricing only
         updatedPricing.providers.openrouter.models[modelName] = {
           usd: validPricing,
         };
+        if (capabilities) {
+          updatedPricing.providers.openrouter.models[modelName].capabilities =
+            capabilities;
+        }
         console.log(`[Update Pricing] Added new OpenRouter model ${modelName} with pricing`);
       }
     }
@@ -1368,58 +1550,6 @@ function pricingChanged(oldPricing, newPricing) {
 }
 
 /**
- * Commit and push pricing changes
- */
-function commitAndPushChanges(date) {
-  try {
-    const relativePath = "apps/backend/src/config/pricing.json";
-    
-    // Stage the pricing file
-    execSync(`git add "${relativePath}"`, { encoding: "utf-8" });
-    console.log("[Update Pricing] Staged pricing.json");
-
-    // Check if there are actually changes to commit
-    // git diff --cached --quiet returns exit code 0 if no changes, 1 if there are changes
-    try {
-      execSync(`git diff --cached --quiet "${relativePath}"`, { encoding: "utf-8" });
-      // If we get here, there are no changes
-      console.log("[Update Pricing] No changes to commit after staging");
-      return false;
-    } catch (error) {
-      // Exit code 1 means there are changes, which is what we want
-      // Continue with commit
-    }
-
-    // Commit with the specified message format
-    const commitMessage = `chore: update pricing for tokens: ${date}`;
-    execSync(`git commit -m "${commitMessage}"`, { encoding: "utf-8" });
-    console.log("[Update Pricing] Committed changes:", commitMessage);
-
-    // Push to main branch
-    // In GitHub Actions, the checkout action with token already configures git to use the token
-    // For local runs, this will use existing git credentials
-    // Note: This requires write access to main branch. If branch protection is enabled,
-    // the workflow may need additional permissions or the repository settings may need adjustment.
-    const currentBranch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8" }).trim();
-    if (currentBranch === "main") {
-      execSync("git push origin main", { encoding: "utf-8" });
-    } else {
-      // In GitHub Actions, we're typically on a detached HEAD, so push directly to main
-      execSync("git push origin HEAD:main", { encoding: "utf-8" });
-    }
-    
-    console.log("[Update Pricing] Pushed changes to main branch");
-    return true;
-  } catch (error) {
-    console.error("[Update Pricing] Error committing/pushing changes:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    throw error;
-  }
-}
-
-/**
  * Update pricing configuration file
  */
 async function updatePricingConfig() {
@@ -1494,10 +1624,6 @@ async function updatePricingConfig() {
       openRouterModels: Object.keys(finalCleanedPricing.providers?.openrouter?.models || {}).length,
     });
 
-    // Commit and push changes
-    const date = new Date().toISOString(); // Full ISO format
-    await commitAndPushChanges(date);
-
     console.log("[Update Pricing] Pricing update completed successfully");
   } catch (error) {
     console.error("[Update Pricing] Error updating pricing:", {
@@ -1509,5 +1635,7 @@ async function updatePricingConfig() {
 }
 
 // Run if called directly
-updatePricingConfig();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  updatePricingConfig();
+}
 

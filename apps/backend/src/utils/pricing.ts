@@ -37,6 +37,19 @@ export interface CurrencyPricing {
  */
 export interface ModelPricing {
   usd: CurrencyPricing;
+  capabilities?: ModelCapabilities;
+}
+
+export interface ModelCapabilities {
+  input_modalities?: string[];
+  output_modalities?: string[];
+  supported_parameters?: string[];
+  text_generation?: boolean;
+  image_generation?: boolean;
+  rerank?: boolean;
+  tool_calling?: boolean;
+  structured_output?: boolean;
+  image?: boolean;
 }
 
 export interface ProviderPricing {
