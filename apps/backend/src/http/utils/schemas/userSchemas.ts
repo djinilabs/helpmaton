@@ -23,3 +23,18 @@ export const refreshTokenSchema = z.object({
       { message: "Invalid refresh token format" }
     ),
 }).strict();
+
+export const authGateVerificationSchema = z
+  .object({
+    captchaToken: z.string().min(1, "captchaToken is required"),
+    acceptedTerms: z
+      .boolean()
+      .refine((value) => value === true, {
+        message: "Terms of service must be accepted",
+      }),
+    callbackUrl: z
+      .string()
+      .min(1, "callbackUrl is required")
+      .transform((value) => value.trim()),
+  })
+  .strict();

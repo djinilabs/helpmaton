@@ -8,6 +8,7 @@ import { registerGetUserApiKeys } from "./routes/get-user-api-keys";
 import { registerPostGenerateTokens } from "./routes/post-generate-tokens";
 import { registerPostRefreshToken } from "./routes/post-refresh-token";
 import { registerPostUserApiKeys } from "./routes/post-user-api-keys";
+import { registerPostVerifyAuthGate } from "./routes/post-verify-auth-gate";
 
 export const createApp = (): express.Application => {
   const app = express();
@@ -28,6 +29,7 @@ export const createApp = (): express.Application => {
   // Register token management routes
   registerPostGenerateTokens(app);
   registerPostRefreshToken(app);
+  registerPostVerifyAuthGate(app);
 
   // Error handler must be last
   app.use(expressErrorHandler);

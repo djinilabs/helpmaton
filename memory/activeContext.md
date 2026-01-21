@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **PR 200 review fixes**: Added auth gate middleware unit tests, hardened auth callback origin validation, improved auth gate error handling/reset + Turnstile render retry, and enforced allowed origins for verify gate; ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test --run auth-app.middleware`.
+- **Auth gate for new users**: Added Turnstile + TOS gate for first-time email sign-ins (backend gate token + verify endpoint + callback enforcement, frontend `/auth/gate` UI + routing), plus unit tests; added E2E bypass flag for auth gate and confirmed `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test:e2e` pass.
 - **PR 201 review fixes**: Preserved filenames in rewritten SSE file parts and removed unused `sseBuffer` reset per review; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Conversation file extension fix**: Corrected `uploadConversationFile` to only use a filename extension when the input has a real extension, otherwise fall back to media type; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **LLM assistant file parts streaming**: Added server-side upload for embedded assistant file parts to S3 (public `conversation-files/` URLs), rewrote stream/test SSE file parts, recorded updated URLs in conversation logging, updated UI rendering for assistant file parts, and added stream + observer tests; ran `pnpm typecheck` and `pnpm lint --fix`.
