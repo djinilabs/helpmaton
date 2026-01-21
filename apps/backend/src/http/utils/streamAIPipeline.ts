@@ -54,7 +54,10 @@ function looksLikeBase64(value: string): boolean {
 function extractGenerateImageFileFromToolResult(
   parsed: Record<string, unknown>
 ): FilePartPayload | null {
-  if (parsed.type !== "tool-result") {
+  if (
+    parsed.type !== "tool-result" &&
+    parsed.type !== "tool-output-available"
+  ) {
     return null;
   }
   if (parsed.toolName !== "generate_image") {
@@ -309,7 +312,7 @@ function recordObserverEvent(params: {
     }
     return;
   }
-  if (parsed.type === "tool-result") {
+  if (parsed.type === "tool-result" || parsed.type === "tool-output-available") {
     if (parsed.toolCallId && parsed.toolName) {
       observer?.recordToolResult({
         toolCallId: String(parsed.toolCallId),
@@ -329,12 +332,19 @@ async function transformSseLine(params: {
   observer?: LlmObserver;
   onTextChunk: (text: string) => void;
   fileUploadContext?: FileUploadContext;
+  toolNamesByCallId: Map<string, string>;
 }): Promise<{
   line: string;
   fileParts: FilePartPayload[];
   extraLines: string[];
 }> {
-  const { line, observer, onTextChunk, fileUploadContext } = params;
+  const {
+    line,
+    observer,
+    onTextChunk,
+    fileUploadContext,
+    toolNamesByCallId,
+  } = params;
   if (!line.startsWith("data: ")) {
     return { line, fileParts: [], extraLines: [] };
   }
@@ -364,52 +374,36 @@ async function transformSseLine(params: {
     }
   }
 
-  recordObserverEvent({ parsed, observer, onTextChunk });
+  const toolCallId =
+    typeof parsed.toolCallId === "string" ? parsed.toolCallId : undefined;
+  const toolName = typeof parsed.toolName === "string" ? parsed.toolName : undefined;
+  if (toolCallId && toolName) {
+    toolNamesByCallId.set(toolCallId, toolName);
+  }
 
-  const injectedFilePart = extractGenerateImageFileFromToolResult(parsed);
+  const parsedWithToolName =
+    !toolName && toolCallId && toolNamesByCallId.has(toolCallId)
+      ? {
+          ...parsed,
+          toolName: toolNamesByCallId.get(toolCallId),
+        }
+      : parsed;
+
+  recordObserverEvent({ parsed: parsedWithToolName, observer, onTextChunk });
+
+  const injectedFilePart = extractGenerateImageFileFromToolResult(
+    parsedWithToolName
+  );
   if (injectedFilePart) {
-    const messageEvent = {
-      type: "message",
-      message: {
-        role: "assistant",
-        content: [
-          {
-            type: "file",
-            file: injectedFilePart.fileUrl,
-            ...(injectedFilePart.mediaType && {
-              mediaType: injectedFilePart.mediaType,
-            }),
-            ...(injectedFilePart.filename && {
-              filename: injectedFilePart.filename,
-            }),
-          },
-        ],
-        parts: [
-          {
-            type: "file",
-            file: injectedFilePart.fileUrl,
-            ...(injectedFilePart.mediaType && {
-              mediaType: injectedFilePart.mediaType,
-            }),
-            ...(injectedFilePart.filename && {
-              filename: injectedFilePart.filename,
-            }),
-          },
-        ],
-      },
+    const mediaType = injectedFilePart.mediaType || "application/octet-stream";
+    const fileEvent = {
+      type: "file",
+      url: injectedFilePart.fileUrl,
+      mediaType,
     };
-    let messageLine = `data: ${JSON.stringify(messageEvent)}`;
+    const messageLine = `data: ${JSON.stringify(fileEvent)}`;
     if (fileUploadContext) {
-      const rewrite = await rewriteStreamEventWithFiles({
-        event: messageEvent,
-        uploadContext: fileUploadContext,
-      });
-      if (rewrite.fileParts.length > 0) {
-        fileParts.push(...rewrite.fileParts);
-        messageLine = `data: ${JSON.stringify(rewrite.updatedEvent)}`;
-      } else {
-        fileParts.push(injectedFilePart);
-      }
+      fileParts.push(injectedFilePart);
     } else {
       fileParts.push(injectedFilePart);
     }
@@ -496,6 +490,7 @@ export async function pipeAIStreamToResponse(
   let sseBuffer = "";
   let streamCompletedSuccessfully = false; // Track if stream completed without error
   let hasWrittenData = false; // Track if we've written any data to the stream
+  const toolNamesByCallId = new Map<string, string>();
 
   try {
     while (true) {
@@ -527,6 +522,7 @@ export async function pipeAIStreamToResponse(
               observer,
               onTextChunk,
               fileUploadContext,
+              toolNamesByCallId,
             });
             for (const filePart of transformed.fileParts) {
               observer?.recordFilePart({
@@ -535,9 +531,9 @@ export async function pipeAIStreamToResponse(
                 filename: filePart.filename,
               });
             }
-            await writeChunkToStream(responseStream, `${transformed.line}\n`);
+            await writeChunkToStream(responseStream, `${transformed.line}\n\n`);
             for (const extraLine of transformed.extraLines) {
-              await writeChunkToStream(responseStream, `${extraLine}\n`);
+              await writeChunkToStream(responseStream, `${extraLine}\n\n`);
             }
           } catch (error) {
             console.error("[Stream Handler] Error parsing JSON:", line);

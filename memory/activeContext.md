@@ -6,6 +6,9 @@
 
 **Latest Work**:
 
+- **Stream file schema alignment**: Emitted file stream events with only `url` + `mediaType` to satisfy AI SDK validation; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Tool output mapping for image events**: Mapped toolCallId to toolName for tool-output-available so file events are injected even when toolName is missing; updated stream test; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Streaming image file events**: Injected `file` stream events for generate_image tool outputs (tool-output-available), removed invalid message injection, and updated stream tests; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Chat stream file injection fix**: Updated generate_image SSE injection to include file parts in both message `content` and `parts` for useChat compatibility; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Image tool SSE order test**: Added stream test coverage to verify generate_image emits an assistant file message after the tool result; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Image prompt fallback**: Allowed optional generate_image prompt, added observer-based fallback to last user message, and covered in unit tests; ran `pnpm typecheck` and `pnpm lint --fix`.

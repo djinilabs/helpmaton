@@ -18,10 +18,14 @@ describe("pipeAIStreamToResponse generate_image tool results", () => {
 
     const ssePayload = [
       `data: ${JSON.stringify({
-        type: "tool-result",
+        type: "tool-input-start",
         toolCallId: "call-1",
         toolName: "generate_image",
-        result: {
+      })}\n\n`,
+      `data: ${JSON.stringify({
+        type: "tool-output-available",
+        toolCallId: "call-1",
+        output: {
           url: "https://example.com/image.png",
           contentType: "image/png",
           filename: "image.png",
@@ -74,31 +78,10 @@ describe("pipeAIStreamToResponse generate_image tool results", () => {
       .filter((payload) => payload.startsWith("{"))
       .map((payload) => JSON.parse(payload) as Record<string, unknown>);
 
-    expect(events[0]).toMatchObject({
-      type: "tool-result",
-      toolName: "generate_image",
-    });
     expect(events[1]).toMatchObject({
-      type: "message",
-      message: {
-        role: "assistant",
-        content: [
-          {
-            type: "file",
-            file: "https://example.com/image.png",
-            mediaType: "image/png",
-            filename: "image.png",
-          },
-        ],
-        parts: [
-          {
-            type: "file",
-            file: "https://example.com/image.png",
-            mediaType: "image/png",
-            filename: "image.png",
-          },
-        ],
-      },
+      type: "file",
+      url: "https://example.com/image.png",
+      mediaType: "image/png",
     });
   });
 });
