@@ -8,9 +8,15 @@ import {
   useUpdateEvalJudge,
   useEvalJudge,
 } from "../hooks/useEvalJudges";
+import type { ModelCapabilities } from "../utils/api";
 import {
+  filterModelsByCapability,
+  getCapabilitiesForProvider,
+  getCapabilityLabels,
+  getModelCapabilities,
   getModelsForProvider,
   getDefaultModelForProvider,
+  resolveDefaultModel,
 } from "../utils/modelConfig";
 
 const ModelPricesDialog = lazy(() =>
@@ -94,6 +100,9 @@ You must respond with valid JSON only. Do not include markdown formatting like \
 
   const [evalPrompt, setEvalPrompt] = useState(defaultEvalPrompt);
   const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
+  const [modelCapabilities, setModelCapabilities] = useState<
+    Record<string, ModelCapabilities> | undefined
+  >(undefined);
 
   // Model fetching state
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -110,19 +119,34 @@ You must respond with valid JSON only. Do not include markdown formatting like \
     async function loadModels() {
       setIsLoadingModels(true);
       try {
-        const [models, defaultModelName] = await Promise.all([
+        const [models, defaultModelName, capabilities] = await Promise.all([
           getModelsForProvider(provider),
           getDefaultModelForProvider(provider),
+          getCapabilitiesForProvider(provider),
         ]);
+        const filteredModels = filterModelsByCapability(
+          models,
+          capabilities,
+          "text_generation"
+        );
+        const resolvedDefaultModel = resolveDefaultModel(
+          filteredModels,
+          defaultModelName
+        );
         if (!cancelled) {
-          setAvailableModels(models);
-          setDefaultModel(defaultModelName);
+          setAvailableModels(filteredModels);
+          setDefaultModel(resolvedDefaultModel);
+          setModelCapabilities(capabilities);
+          setModelName((current) =>
+            current && !filteredModels.includes(current) ? null : current
+          );
         }
       } catch (error) {
         console.error("Failed to load models:", error);
         if (!cancelled) {
           setAvailableModels([]);
           setDefaultModel("");
+          setModelCapabilities(undefined);
           setModelLoadError(
             "Failed to load available models. Please refresh the page."
           );
@@ -214,6 +238,12 @@ You must respond with valid JSON only. Do not include markdown formatting like \
   };
 
   const isPending = isEditing ? updateJudge.isPending : createJudge.isPending;
+  const selectedModelName = modelName || defaultModel;
+  const selectedCapabilities = getModelCapabilities(
+    modelCapabilities,
+    selectedModelName
+  );
+  const capabilityLabels = getCapabilityLabels(selectedCapabilities);
 
   if (!isOpen) return null;
 
@@ -334,6 +364,13 @@ You must respond with valid JSON only. Do not include markdown formatting like \
                   : "Select a model to use for evaluation"}
               </p>
             )}
+            {!modelLoadError && (
+              <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                {capabilityLabels.length > 0
+                  ? `Capabilities: ${capabilityLabels.join(", ")}`
+                  : "Capabilities: unavailable"}
+              </p>
+            )}
           </div>
 
           <div>
@@ -388,6 +425,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
             <ModelPricesDialog
               isOpen={isModelPricesOpen}
               onClose={() => setIsModelPricesOpen(false)}
+              capabilityFilter="text_generation"
             />
           </Suspense>
         )}

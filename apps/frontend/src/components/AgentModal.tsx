@@ -6,10 +6,15 @@ import { useDialogTracking } from "../contexts/DialogContext";
 import { useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
 import { useChannels } from "../hooks/useChannels";
 import { useEscapeKey } from "../hooks/useEscapeKey";
-import type { Agent } from "../utils/api";
+import type { Agent, ModelCapabilities } from "../utils/api";
 import {
+  filterModelsByCapability,
+  getCapabilitiesForProvider,
+  getCapabilityLabels,
+  getModelCapabilities,
   getModelsForProvider,
   getDefaultModelForProvider,
+  resolveDefaultModel,
   type Provider,
 } from "../utils/modelConfig";
 import { trackEvent } from "../utils/tracking";
@@ -37,6 +42,7 @@ const AgentModalContent: FC<{
   avatar: string | null;
   availableModels: string[];
   defaultModel: string;
+  capabilityLabels: string[];
   isLoadingModels: boolean;
   modelLoadError: string | null;
   onNameChange: (name: string) => void;
@@ -60,6 +66,7 @@ const AgentModalContent: FC<{
   avatar,
   availableModels,
   defaultModel,
+  capabilityLabels,
   isLoadingModels,
   modelLoadError,
   onNameChange,
@@ -174,6 +181,11 @@ const AgentModalContent: FC<{
         </select>
         <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
           Select the AI model to use for this agent. Default: {defaultModel}
+        </p>
+        <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+          {capabilityLabels.length > 0
+            ? `Capabilities: ${capabilityLabels.join(", ")}`
+            : "Capabilities: unavailable"}
         </p>
         {modelLoadError && (
           <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
@@ -292,6 +304,9 @@ export const AgentModal: FC<AgentModalProps> = ({
   const [defaultModel, setDefaultModel] = useState<string>("");
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  const [modelCapabilities, setModelCapabilities] = useState<
+    Record<string, ModelCapabilities> | undefined
+  >(undefined);
 
   // Fetch models on mount
   useEffect(() => {
@@ -300,19 +315,34 @@ export const AgentModal: FC<AgentModalProps> = ({
     async function loadModels() {
       setIsLoadingModels(true);
       try {
-        const [models, defaultModelName] = await Promise.all([
+        const [models, defaultModelName, capabilities] = await Promise.all([
           getModelsForProvider(provider),
           getDefaultModelForProvider(provider),
+          getCapabilitiesForProvider(provider),
         ]);
+        const filteredModels = filterModelsByCapability(
+          models,
+          capabilities,
+          "text_generation"
+        );
+        const resolvedDefaultModel = resolveDefaultModel(
+          filteredModels,
+          defaultModelName
+        );
         if (!cancelled) {
-          setAvailableModels(models);
-          setDefaultModel(defaultModelName);
+          setAvailableModels(filteredModels);
+          setDefaultModel(resolvedDefaultModel);
+          setModelCapabilities(capabilities);
+          setModelName((current) =>
+            current && !filteredModels.includes(current) ? null : current
+          );
         }
       } catch (error) {
         console.error("Failed to load models:", error);
         if (!cancelled) {
           setAvailableModels([]);
           setDefaultModel("");
+          setModelCapabilities(undefined);
           setModelLoadError(
             "Failed to load available models. Please refresh the page."
           );
@@ -415,6 +445,12 @@ export const AgentModal: FC<AgentModalProps> = ({
   };
 
   const isPending = isEditing ? updateAgent.isPending : createAgent.isPending;
+  const selectedModelName = modelName || defaultModel;
+  const selectedCapabilities = getModelCapabilities(
+    modelCapabilities,
+    selectedModelName
+  );
+  const capabilityLabels = getCapabilityLabels(selectedCapabilities);
 
   if (!isOpen) return null;
 
@@ -443,6 +479,7 @@ export const AgentModal: FC<AgentModalProps> = ({
             avatar={avatar}
             availableModels={availableModels}
             defaultModel={defaultModel}
+            capabilityLabels={capabilityLabels}
             isLoadingModels={isLoadingModels}
             modelLoadError={modelLoadError}
             onNameChange={setName}
@@ -484,6 +521,7 @@ export const AgentModal: FC<AgentModalProps> = ({
         <ModelPricesDialog
           isOpen={isModelPricesOpen}
           onClose={() => setIsModelPricesOpen(false)}
+          capabilityFilter="text_generation"
         />
       </div>
     </div>

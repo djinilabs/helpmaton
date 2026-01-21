@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Model capability filters + pricing UI**: Filtered selectable models by capabilities (text_generation/rerank), added capability labels in model selectors and pricing dialog, added rerank pricing button, and introduced modelConfig helpers + unit tests; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **OpenRouter model capabilities**: Added capability extraction + merge in `scripts/update-pricing.mjs`, exported helper with node:test coverage, extended pricing/available model types and OpenAPI schema, and included capabilities in `/api/models` when present; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Pricing update workflow fix**: Removed commit/push from `scripts/update-pricing.mjs` and moved commit logic into `.github/workflows/update-pricing.yml`, gated on `apps/backend/src/config/pricing.json` changes.
 - **AI error extraction for test endpoint**: Added `extractErrorMessage` helper to normalize wrapped AI errors and JSON strings, return plain-text AI errors from API Gateway handling, and update Slack/Discord bot error text. Added unit test for wrapped AI errors and reran `pnpm lint --fix` and `pnpm typecheck`.
