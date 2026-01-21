@@ -78,7 +78,8 @@ describe("pipeAIStreamToResponse generate_image tool results", () => {
       .filter((payload) => payload.startsWith("{"))
       .map((payload) => JSON.parse(payload) as Record<string, unknown>);
 
-    expect(events[1]).toMatchObject({
+    const fileEvent = events.find((event) => event.type === "file");
+    expect(fileEvent).toMatchObject({
       type: "file",
       url: "https://example.com/image.png",
       mediaType: "image/png",

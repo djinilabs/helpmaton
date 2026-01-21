@@ -662,6 +662,7 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
   return wrapped as TTools;
 }
 
+// eslint-disable-next-line complexity -- stream observer assembly is intentionally centralised
 export function buildConversationMessagesFromObserver(params: {
   observerEvents: LlmObserverEvent[];
   fallbackInputMessages?: UIMessage[];
@@ -740,6 +741,7 @@ export function buildConversationMessagesFromObserver(params: {
     | { type: "file"; file: string; mediaType?: string; filename?: string }
     | DelegationContent
   > = [];
+  const filePartKeys = new Set<string>();
 
   let generationStartedAt: string | undefined;
   let generationEndedAt: string | undefined;
@@ -752,6 +754,27 @@ export function buildConversationMessagesFromObserver(params: {
       content.push({ type: "text", text: textBuffer });
       textBuffer = "";
     }
+  };
+
+  const buildFileKey = (file: string, mediaType?: string, filename?: string) =>
+    `${file}::${mediaType ?? ""}::${filename ?? ""}`;
+
+  const pushFilePart = (part: {
+    file: string;
+    mediaType?: string;
+    filename?: string;
+  }) => {
+    const key = buildFileKey(part.file, part.mediaType, part.filename);
+    if (filePartKeys.has(key)) {
+      return;
+    }
+    filePartKeys.add(key);
+    content.push({
+      type: "file",
+      file: part.file,
+      ...(part.mediaType && { mediaType: part.mediaType }),
+      ...(part.filename && { filename: part.filename }),
+    });
   };
 
   for (const event of observerEvents) {
@@ -805,7 +828,25 @@ export function buildConversationMessagesFromObserver(params: {
             ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
           });
           if (Array.isArray(formattedToolResult.content)) {
-            content.push(...formattedToolResult.content);
+            for (const item of formattedToolResult.content) {
+              if (
+                item &&
+                typeof item === "object" &&
+                "type" in item &&
+                item.type === "file" &&
+                "file" in item &&
+                typeof item.file === "string"
+              ) {
+                const fileItem = item as {
+                  file: string;
+                  mediaType?: string;
+                  filename?: string;
+                };
+                pushFilePart(fileItem);
+              } else {
+                content.push(item);
+              }
+            }
           }
         }
         break;
@@ -861,7 +902,25 @@ export function buildConversationMessagesFromObserver(params: {
               ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
             });
             if (Array.isArray(formattedToolResult.content)) {
-              content.push(...formattedToolResult.content);
+              for (const item of formattedToolResult.content) {
+                if (
+                  item &&
+                  typeof item === "object" &&
+                  "type" in item &&
+                  item.type === "file" &&
+                  "file" in item &&
+                  typeof item.file === "string"
+                ) {
+                  const fileItem = item as {
+                    file: string;
+                    mediaType?: string;
+                    filename?: string;
+                  };
+                  pushFilePart(fileItem);
+                } else {
+                  content.push(item);
+                }
+              }
             }
           }
         }
@@ -872,8 +931,7 @@ export function buildConversationMessagesFromObserver(params: {
         break;
       case "assistant-file":
         flushTextBuffer();
-        content.push({
-          type: "file",
+        pushFilePart({
           file: event.fileUrl,
           ...(event.mediaType && { mediaType: event.mediaType }),
           ...(event.filename && { filename: event.filename }),

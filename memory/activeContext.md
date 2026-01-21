@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **AgentChat step separator removal**: Stopped rendering the step-start separator in chat messages while keeping agent avatars; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Deduped assistant file parts**: Prevented duplicate file parts when both tool results and assistant-file events are present, added unit test, and disabled complexity lint for observer assembly; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Stream file schema alignment**: Emitted file stream events with only `url` + `mediaType` to satisfy AI SDK validation; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Tool output mapping for image events**: Mapped toolCallId to toolName for tool-output-available so file events are injected even when toolName is missing; updated stream test; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Streaming image file events**: Injected `file` stream events for generate_image tool outputs (tool-output-available), removed invalid message injection, and updated stream tests; ran `pnpm typecheck` and `pnpm lint --fix`.
