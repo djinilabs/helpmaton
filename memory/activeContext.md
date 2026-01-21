@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **External image URLs**: Updated `generate_image` to return external URLs directly (no S3 upload) while keeping S3 upload for data/base64; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Image output extraction fix**: Added support for OpenRouter `message.images` payloads and refactored extraction helpers in `agentSetup.ts`; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Merge conflict resolution (capabilities + image tools)**: Resolved conflicts across pricing/model capability updates, `/api/models` response, and AgentDetail UI; preserved image generation settings and tool-calling gating; ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
 - **Prod webhook timeout investigation**: Found `/api/webhook` Lambda request at 2026-01-21 17:03:24Z taking 32.6s (OpenRouter generation), exceeding API Gateway timeout; request completed and enqueued cost verification.
 - **Merge conflict resolution**: Resolved merge conflicts in `AgentDetail.tsx` and `memory/activeContext.md`, restored `generate_image` tool to use direct OpenRouter fetch + S3 upload (removed `imageModel` usage), and re-ran `pnpm typecheck` + `pnpm lint --fix`.

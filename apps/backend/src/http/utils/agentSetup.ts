@@ -327,6 +327,102 @@ const addImageGenerationTool = async (params: {
       ),
   });
   type GenerateImageArgs = z.infer<typeof generateImageSchema>;
+  const extractFromContentParts = (
+    content:
+      | string
+      | Array<{
+          type?: string;
+          url?: string;
+          data?: string;
+          contentType?: string;
+          mime_type?: string;
+          image_url?: { url?: string };
+          image?: { url?: string; data?: string; mime_type?: string };
+        }>
+      | undefined
+  ): { url?: string; base64?: string; contentType?: string } | null => {
+    if (!Array.isArray(content)) {
+      return null;
+    }
+    for (const part of content) {
+      if (typeof part?.image_url?.url === "string") {
+        return { url: part.image_url.url };
+      }
+      if (typeof part?.image?.url === "string") {
+        return { url: part.image.url };
+      }
+      if (typeof part?.image?.data === "string") {
+        return {
+          base64: part.image.data,
+          contentType: part.image.mime_type,
+        };
+      }
+      if (typeof part?.url === "string" && part.type?.includes("image")) {
+        return { url: part.url };
+      }
+      if (typeof part?.data === "string" && part.type?.includes("image")) {
+        return {
+          base64: part.data,
+          contentType: part.mime_type || part.contentType,
+        };
+      }
+    }
+    return null;
+  };
+  const extractFromImages = (
+    images:
+      | Array<{
+          type?: string;
+          image_url?: { url?: string };
+          url?: string;
+          data?: string;
+          mime_type?: string;
+          contentType?: string;
+        }>
+      | undefined
+  ): { url?: string; base64?: string; contentType?: string } | null => {
+    if (!Array.isArray(images)) {
+      return null;
+    }
+    for (const image of images) {
+      if (typeof image?.image_url?.url === "string") {
+        return { url: image.image_url.url };
+      }
+      if (typeof image?.url === "string") {
+        return { url: image.url };
+      }
+      if (typeof image?.data === "string") {
+        return {
+          base64: image.data,
+          contentType: image.mime_type || image.contentType,
+        };
+      }
+    }
+    return null;
+  };
+  const extractFromContentString = (
+    content: string | undefined
+  ): { url?: string } | null => {
+    if (typeof content !== "string") {
+      return null;
+    }
+    if (content.startsWith("data:image/") || content.startsWith("http")) {
+      return { url: content };
+    }
+    return null;
+  };
+  const extractFromFallback = (
+    data: { data?: Array<{ url?: string; b64_json?: string }> }
+  ): { url?: string; base64?: string } | null => {
+    const fallback = data.data?.[0];
+    if (typeof fallback?.url === "string") {
+      return { url: fallback.url };
+    }
+    if (typeof fallback?.b64_json === "string") {
+      return { base64: fallback.b64_json };
+    }
+    return null;
+  };
   const extractImageOutput = (
     payload: unknown
   ): { url?: string; base64?: string; contentType?: string } | null => {
@@ -347,53 +443,36 @@ const addImageGenerationTool = async (params: {
                 image_url?: { url?: string };
                 image?: { url?: string; data?: string; mime_type?: string };
               }>;
+          images?: Array<{
+            type?: string;
+            image_url?: { url?: string };
+            url?: string;
+            data?: string;
+            mime_type?: string;
+            contentType?: string;
+          }>;
         };
       }>;
       data?: Array<{ url?: string; b64_json?: string }>;
     };
 
-    const content = data.choices?.[0]?.message?.content;
-    if (Array.isArray(content)) {
-      for (const part of content) {
-        if (typeof part?.image_url?.url === "string") {
-          return { url: part.image_url.url };
-        }
-        if (typeof part?.image?.url === "string") {
-          return { url: part.image.url };
-        }
-        if (typeof part?.image?.data === "string") {
-          return {
-            base64: part.image.data,
-            contentType: part.image.mime_type,
-          };
-        }
-        if (typeof part?.url === "string" && part.type?.includes("image")) {
-          return { url: part.url };
-        }
-        if (typeof part?.data === "string" && part.type?.includes("image")) {
-          return {
-            base64: part.data,
-            contentType: part.mime_type || part.contentType,
-          };
-        }
-      }
-    }
+    console.log("[Agent Setup] Image generation payload:", payload);
+    console.log("[Agent Setup] Image generation data:", data);
+    console.log("[Agent Setup] Image generation choices:", data.choices);
+    console.log("[Agent Setup] Image generation choice 0:", data.choices?.[0]);
+    console.log("[Agent Setup] Image generation choice 0 message:", data.choices?.[0]?.message);
+    console.log("[Agent Setup] Image generation choice 0 message content:", data.choices?.[0]?.message?.content);
 
-    if (typeof content === "string") {
-      if (content.startsWith("data:image/") || content.startsWith("http")) {
-        return { url: content };
-      }
-    }
+    const message = data.choices?.[0]?.message;
+    const content = message?.content;
+    console.log("[Agent Setup] Image generation images:", message?.images);
 
-    const fallback = data.data?.[0];
-    if (typeof fallback?.url === "string") {
-      return { url: fallback.url };
-    }
-    if (typeof fallback?.b64_json === "string") {
-      return { base64: fallback.b64_json };
-    }
-
-    return null;
+    return (
+      extractFromContentParts(content) ||
+      extractFromImages(message?.images) ||
+      extractFromContentString(content as string | undefined) ||
+      extractFromFallback(data)
+    );
   };
 
   params.tools.generate_image = tool({
@@ -443,7 +522,8 @@ const addImageGenerationTool = async (params: {
       const result = (await response.json()) as unknown;
       const imageOutput = extractImageOutput(result);
       if (!imageOutput?.url && !imageOutput?.base64) {
-        throw new Error("OpenRouter image generation returned no image output");
+        console.log("[Agent Setup] Image generation result:", result);
+        throw new Error("image generation returned no image output");
       }
 
       let buffer: Buffer;
@@ -457,16 +537,20 @@ const addImageGenerationTool = async (params: {
           contentType = match[1] || contentType;
           buffer = Buffer.from(match[2] || "", "base64");
         } else {
-          const imageResponse = await fetch(imageOutput.url);
-          if (!imageResponse.ok) {
-            throw new Error(
-              `Failed to download OpenRouter image: ${imageResponse.status} ${imageResponse.statusText}`
-            );
+          let filenameFromUrl: string | undefined;
+          try {
+            const parsedUrl = new URL(imageOutput.url);
+            const basename = parsedUrl.pathname.split("/").pop();
+            filenameFromUrl = basename || undefined;
+          } catch {
+            filenameFromUrl = imageOutput.url.split("/").pop();
           }
-          const arrayBuffer = await imageResponse.arrayBuffer();
-          buffer = Buffer.from(arrayBuffer);
-          contentType =
-            imageResponse.headers.get("content-type") || contentType;
+          return {
+            url: imageOutput.url,
+            contentType,
+            filename: filenameFromUrl || "image.png",
+            model: modelName,
+          };
         }
       } else {
         buffer = Buffer.from(imageOutput.base64 || "", "base64");
