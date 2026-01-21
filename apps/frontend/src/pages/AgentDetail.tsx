@@ -145,6 +145,7 @@ import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
 import type {
   ClientTool,
+  ModelCapabilities,
   SummarizationPromptGrain,
   SummarizationPromptsInput,
 } from "../utils/api";
@@ -160,11 +161,16 @@ import {
   getEffectiveSummarizationPrompts,
 } from "../utils/memoryPrompts";
 import {
+  filterModelsByCapability,
+  getCapabilitiesForProvider,
+  getCapabilityLabels,
+  getModelCapabilities,
   getModelsForProvider,
   getDefaultModelForProvider,
   fetchAvailableModels,
   getRerankingModels,
   getImageModelsForProvider,
+  resolveDefaultModel,
   type Provider,
 } from "../utils/modelConfig";
 import { trackEvent } from "../utils/tracking";
@@ -506,6 +512,9 @@ function useAgentDetailState({
   const [allowedOrigins, setAllowedOrigins] = useState<string>("");
   const [isStreamTestModalOpen, setIsStreamTestModalOpen] = useState(false);
   const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
+  const [modelPricesFilter, setModelPricesFilter] = useState<
+    keyof ModelCapabilities | undefined
+  >("text_generation");
   const [selectedConversationId, setSelectedConversationId] =
     useState<string | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
@@ -745,6 +754,9 @@ function useAgentDetailState({
   const [defaultModel, setDefaultModel] = useState<string>("");
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  const [modelCapabilities, setModelCapabilities] = useState<
+    Record<string, ModelCapabilities> | undefined
+  >(undefined);
 
   // Fetch models on mount
   useEffect(() => {
@@ -755,29 +767,39 @@ function useAgentDetailState({
       setIsLoadingImageModels(true);
       setImageModelLoadError(null);
       try {
-        const [models, defaultModelName, imageCapableModels] =
+        const [models, defaultModelName, imageCapableModels, capabilities] =
           await Promise.all([
-          getModelsForProvider(provider),
-          getDefaultModelForProvider(provider),
-          getImageModelsForProvider(provider),
-        ]);
-        if (!cancelled) {
-          const filteredModels = models.filter(
-            (model) => !imageCapableModels.includes(model)
-          );
-          const resolvedDefaultModel = filteredModels.includes(defaultModelName)
-            ? defaultModelName
-            : filteredModels[0] || "";
+            getModelsForProvider(provider),
+            getDefaultModelForProvider(provider),
+            getImageModelsForProvider(provider),
+            getCapabilitiesForProvider(provider),
+          ]);
 
-          setAvailableModels(filteredModels);
+        const capabilityFilteredModels = capabilities
+          ? filterModelsByCapability(models, capabilities, "text_generation")
+          : [];
+        const resolvedModels =
+          capabilityFilteredModels.length > 0 ? capabilityFilteredModels : models;
+        const resolvedDefaultModel = resolveDefaultModel(
+          resolvedModels,
+          defaultModelName
+        );
+
+        if (!cancelled) {
+          setAvailableModels(resolvedModels);
           setDefaultModel(resolvedDefaultModel);
           setImageModels(imageCapableModels);
+          setModelCapabilities(capabilities);
+          setModelName((current) =>
+            current && !resolvedModels.includes(current) ? null : current
+          );
         }
       } catch (error) {
         console.error("Failed to load models:", error);
         if (!cancelled) {
           setAvailableModels([]);
           setDefaultModel("");
+          setModelCapabilities(undefined);
           setModelLoadError(
             "Failed to load available models. Please refresh the page."
           );
@@ -940,9 +962,19 @@ function useAgentDetailState({
       fetchAvailableModels()
         .then((models) => {
           const openrouterModels = models.openrouter?.models || [];
-          const rerankModels = getRerankingModels(openrouterModels);
-          setRerankingModels(rerankModels);
+          const capabilities = models.openrouter?.capabilities;
+          const capabilityFiltered = capabilities
+            ? filterModelsByCapability(openrouterModels, capabilities, "rerank")
+            : [];
+          const resolvedRerankModels =
+            capabilityFiltered.length > 0
+              ? capabilityFiltered
+              : getRerankingModels(openrouterModels);
+          setRerankingModels(resolvedRerankModels);
           setIsLoadingRerankingModels(false);
+          setKnowledgeRerankingModel((current) =>
+            current && !resolvedRerankModels.includes(current) ? null : current
+          );
         })
         .catch((error) => {
           console.error("Failed to load re-ranking models:", error);
@@ -1634,6 +1666,17 @@ function useAgentDetailState({
     }
   };
 
+  const selectedModelName = modelName || defaultModel;
+  const selectedModelCapabilities = getModelCapabilities(
+    modelCapabilities,
+    selectedModelName
+  );
+  const modelCapabilityLabels = getCapabilityLabels(selectedModelCapabilities);
+  const isToolCallingSupported = selectedModelCapabilities?.tool_calling !== false;
+  const rerankingCapabilityLabels = getCapabilityLabels(
+    getModelCapabilities(modelCapabilities, knowledgeRerankingModel)
+  );
+
   return {
     agent,
     keys,
@@ -1668,6 +1711,8 @@ function useAgentDetailState({
     setIsStreamTestModalOpen,
     isModelPricesOpen,
     setIsModelPricesOpen,
+    modelPricesFilter,
+    setModelPricesFilter,
     selectedConversationId,
     setSelectedConversationId,
     showScrollIndicator,
@@ -1724,6 +1769,7 @@ function useAgentDetailState({
     imageModelLoadError,
     imageGenerationModelInputRef,
     isImageModelUnavailable,
+    rerankingCapabilityLabels,
     clientTools,
     setClientTools,
     widgetConfig,
@@ -1737,6 +1783,8 @@ function useAgentDetailState({
     defaultModel,
     isLoadingModels,
     modelLoadError,
+    modelCapabilityLabels,
+    isToolCallingSupported,
     temperature,
     setTemperature,
     topP,
@@ -1994,6 +2042,7 @@ interface AgentDetailModalsProps {
   onCloseHelp: () => void;
   isModelPricesOpen: boolean;
   onCloseModelPrices: () => void;
+  modelPricesFilter?: keyof ModelCapabilities;
   isStreamTestModalOpen: boolean;
   onCloseStreamTestModal: () => void;
   streamServerConfig: ReturnType<typeof useStreamServer>["data"];
@@ -2024,6 +2073,7 @@ const AgentDetailModals: FC<AgentDetailModalsProps> = ({
   onCloseHelp,
   isModelPricesOpen,
   onCloseModelPrices,
+  modelPricesFilter,
   isStreamTestModalOpen,
   onCloseStreamTestModal,
   streamServerConfig,
@@ -2101,6 +2151,7 @@ const AgentDetailModals: FC<AgentDetailModalsProps> = ({
           <ModelPricesDialog
             isOpen={isModelPricesOpen}
             onClose={onCloseModelPrices}
+            capabilityFilter={modelPricesFilter}
           />
         </Suspense>
       )}
@@ -2184,6 +2235,8 @@ interface AgentOverviewCardProps {
   defaultModel: string;
   availableModels: string[];
   modelLoadError: string | null;
+  capabilityLabels: string[];
+  isToolCallingSupported: boolean;
   isSavingModel: boolean;
   onSaveModelName: () => void;
   onOpenModelPrices: () => void;
@@ -2205,6 +2258,8 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
   defaultModel,
   availableModels,
   modelLoadError,
+  capabilityLabels,
+  isToolCallingSupported,
   isSavingModel,
   onSaveModelName,
   onOpenModelPrices,
@@ -2327,6 +2382,23 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
           The provider is the company that runs the model. The model is the
           specific AI engine your assistant uses.
         </p>
+        <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+          {capabilityLabels.length > 0
+            ? `Capabilities: ${capabilityLabels.join(", ")}`
+            : "Capabilities: unavailable"}
+        </p>
+        {!isToolCallingSupported && (
+          <div className="mt-3 rounded-lg border-2 border-yellow-400 bg-yellow-50 p-3">
+            <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-yellow-900">
+              <ExclamationTriangleIcon className="size-4" />
+              Tool calling unavailable
+            </p>
+            <p className="text-sm text-yellow-900">
+              This model does not support tool calling. Built-in tools, MCP
+              integrations, and client tools will be disabled.
+            </p>
+          </div>
+        )}
       </div>
       <div className="mt-4">
         <div className="mb-2 flex items-center justify-between">
@@ -2518,6 +2590,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     setIsStreamTestModalOpen,
     isModelPricesOpen,
     setIsModelPricesOpen,
+    modelPricesFilter,
+    setModelPricesFilter,
     selectedConversationId,
     setSelectedConversationId,
     showScrollIndicator,
@@ -2574,6 +2648,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     imageModelLoadError,
     imageGenerationModelInputRef,
     isImageModelUnavailable,
+    rerankingCapabilityLabels,
     clientTools,
     setClientTools,
     widgetConfig,
@@ -2586,6 +2661,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     defaultModel,
     isLoadingModels,
     modelLoadError,
+    modelCapabilityLabels,
+    isToolCallingSupported,
     temperature,
     setTemperature,
     topP,
@@ -2645,9 +2722,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           defaultModel={defaultModel}
           availableModels={availableModels}
           modelLoadError={modelLoadError}
+          capabilityLabels={modelCapabilityLabels}
+          isToolCallingSupported={isToolCallingSupported}
           isSavingModel={updateAgent.isPending}
           onSaveModelName={handleSaveModelName}
-          onOpenModelPrices={() => setIsModelPricesOpen(true)}
+          onOpenModelPrices={() => {
+            setModelPricesFilter("text_generation");
+            setIsModelPricesOpen(true);
+          }}
           onOpenToolsHelp={() => setIsHelpOpen(true)}
           onEdit={handleEdit}
           onBack={() => navigate(`/workspaces/${workspaceId}`)}
@@ -3372,9 +3454,21 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       </label>
                       {enableKnowledgeReranking && (
                         <div className="space-y-2">
-                          <label className="block text-sm font-semibold dark:text-neutral-300">
-                            Re-ranking Model
-                          </label>
+                          <div className="flex items-center gap-2">
+                            <label className="block text-sm font-semibold dark:text-neutral-300">
+                              Re-ranking Model
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModelPricesFilter("rerank");
+                                setIsModelPricesOpen(true);
+                              }}
+                              className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                            >
+                              💰 Model prices
+                            </button>
+                          </div>
                           {isLoadingRerankingModels ? (
                             <div className="text-sm opacity-75 dark:text-neutral-300">
                               Loading re-ranking models...
@@ -3408,6 +3502,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 </option>
                               ))}
                             </select>
+                          )}
+                          {!isLoadingRerankingModels && (
+                            <p className="text-xs text-neutral-600 dark:text-neutral-300">
+                              {rerankingCapabilityLabels.length > 0
+                                ? `Capabilities: ${rerankingCapabilityLabels.join(
+                                    ", "
+                                  )}`
+                                : "Capabilities: unavailable"}
+                            </p>
                           )}
                           {!knowledgeRerankingModel &&
                             enableKnowledgeReranking &&
@@ -5604,6 +5707,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           onCloseHelp={() => setIsHelpOpen(false)}
           isModelPricesOpen={isModelPricesOpen}
           onCloseModelPrices={() => setIsModelPricesOpen(false)}
+          modelPricesFilter={modelPricesFilter}
           isStreamTestModalOpen={isStreamTestModalOpen}
           onCloseStreamTestModal={() => setIsStreamTestModalOpen(false)}
           streamServerConfig={streamServerConfig}

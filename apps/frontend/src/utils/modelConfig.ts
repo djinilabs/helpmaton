@@ -1,4 +1,4 @@
-import type { AvailableModels } from "./api";
+import type { AvailableModels, ModelCapabilities } from "./api";
 import { getAvailableModels } from "./api";
 
 export type Provider = "google" | "openrouter";
@@ -8,6 +8,7 @@ export interface ModelConfig {
   models: string[];
   defaultModel: string;
   displayName: string;
+  capabilities?: Record<string, ModelCapabilities>;
 }
 
 const PROVIDER_DISPLAY_NAMES: Record<Provider, string> = {
@@ -107,11 +108,15 @@ export async function getProviderConfig(
     return undefined;
   }
 
+  const capabilities =
+    "capabilities" in providerData ? providerData.capabilities : undefined;
+
   return {
     provider,
     models: providerData.models,
     defaultModel: providerData.defaultModel,
     displayName: PROVIDER_DISPLAY_NAMES[provider],
+    ...(capabilities ? { capabilities } : {}),
   };
 }
 
@@ -147,6 +152,79 @@ export async function getDefaultModelForProvider(
 }
 
 /**
+ * Get capabilities map for a provider
+ */
+export async function getCapabilitiesForProvider(
+  provider: Provider
+): Promise<Record<string, ModelCapabilities> | undefined> {
+  const config = await getProviderConfig(provider);
+  return config?.capabilities;
+}
+
+/**
+ * Filter models to only those with a required capability
+ */
+export function filterModelsByCapability(
+  models: string[],
+  capabilities: Record<string, ModelCapabilities> | undefined,
+  requiredCapability: keyof ModelCapabilities
+): string[] {
+  if (!capabilities) {
+    return [];
+  }
+
+  return models.filter(
+    (model) => capabilities[model]?.[requiredCapability] === true
+  );
+}
+
+/**
+ * Resolve a default model after filtering
+ */
+export function resolveDefaultModel(
+  models: string[],
+  defaultModel: string
+): string {
+  if (defaultModel && models.includes(defaultModel)) {
+    return defaultModel;
+  }
+  return models[0] || "";
+}
+
+/**
+ * Get capabilities for a specific model
+ */
+export function getModelCapabilities(
+  capabilities: Record<string, ModelCapabilities> | undefined,
+  modelName: string | null | undefined
+): ModelCapabilities | undefined {
+  if (!capabilities || !modelName) {
+    return undefined;
+  }
+  return capabilities[modelName];
+}
+
+const BOOLEAN_CAPABILITY_KEYS: Array<keyof ModelCapabilities> = [
+  "text_generation",
+  "image_generation",
+  "rerank",
+  "tool_calling",
+  "structured_output",
+];
+
+export function getCapabilityLabels(
+  capabilities: ModelCapabilities | undefined
+): string[] {
+  if (!capabilities) {
+    return [];
+  }
+
+  return BOOLEAN_CAPABILITY_KEYS.filter(
+    (key) => capabilities[key] === true
+  ).map((key) => String(key));
+}
+
+/**
  * Get all provider configs (OpenRouter, and Google if available)
  */
 export async function getProviderConfigs(): Promise<ModelConfig[]> {
@@ -159,11 +237,14 @@ export async function getProviderConfigs(): Promise<ModelConfig[]> {
       if (!providerData) {
         return null;
       }
+      const capabilities =
+        "capabilities" in providerData ? providerData.capabilities : undefined;
       return {
         provider,
         models: providerData.models,
         defaultModel: providerData.defaultModel,
         displayName: PROVIDER_DISPLAY_NAMES[provider],
+        ...(capabilities ? { capabilities } : {}),
       };
     })
     .filter((config): config is ModelConfig => config !== null);

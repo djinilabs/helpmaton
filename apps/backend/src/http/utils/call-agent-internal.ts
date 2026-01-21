@@ -29,6 +29,13 @@ import {
   wrapToolsWithObserver,
 } from "./llmObserver";
 import { createMcpServerTools } from "./mcpUtils";
+import {
+  filterGenerateTextOptionsForCapabilities,
+  resolveModelCapabilities,
+  resolveToolsForCapabilities,
+  supportsToolCalling,
+} from "./modelCapabilities";
+import { getDefaultModel } from "./modelFactory";
 import type { Provider } from "./modelFactory";
 
 type CreditContext = Awaited<
@@ -286,7 +293,7 @@ type GenerateTextResult = Awaited<ReturnType<typeof generateText>>;
 type TokenUsage = ReturnType<typeof extractTokenUsage>;
 
 const buildToolDefinitionsForReservation = (
-  wrappedTools: DelegationTools
+  wrappedTools: DelegationTools | undefined
 ):
   | Array<{ name: string; description: string; parameters: unknown }>
   | undefined => {
@@ -304,7 +311,7 @@ const executeGenerateTextWithTimeout = async (params: {
   model: Parameters<typeof generateText>[0]["model"];
   system: string;
   messages: ModelMessage[];
-  tools: DelegationTools;
+  tools?: DelegationTools;
   generateOptions: ReturnType<typeof buildGenerateTextOptions>;
   abortSignal?: AbortSignal;
   timeoutMs: number;
@@ -319,7 +326,7 @@ const executeGenerateTextWithTimeout = async (params: {
       model: params.model,
       system: params.system,
       messages: params.messages,
-      tools: params.tools,
+      ...(params.tools ? { tools: params.tools } : {}),
       ...params.generateOptions,
       ...(effectiveSignal && { abortSignal: effectiveSignal }),
     });
@@ -818,6 +825,11 @@ export async function callAgentInternal(
   const usesByok = workspaceApiKey !== null;
   const modelName =
     typeof targetAgent.modelName === "string" ? targetAgent.modelName : undefined;
+  const resolvedModelName = modelName || getDefaultModel();
+  const modelCapabilities = resolveModelCapabilities(
+    agentProvider,
+    resolvedModelName
+  );
 
   const agentConfig = {
     temperature: targetAgent.temperature,
@@ -840,21 +852,30 @@ export async function callAgentInternal(
     llmObserver
   );
 
-  const tools = await buildDelegationTools({
-    workspaceId,
-    targetAgentId,
-    extractedTargetAgentId,
-    targetAgentConversationId,
-    targetAgent,
-    message,
-    context,
-    conversationId,
-    conversationOwnerAgentId,
-    callDepth,
-    maxDepth,
-  });
+  const shouldBuildTools = supportsToolCalling(modelCapabilities);
+  const tools = shouldBuildTools
+    ? await buildDelegationTools({
+        workspaceId,
+        targetAgentId,
+        extractedTargetAgentId,
+        targetAgentConversationId,
+        targetAgent,
+        message,
+        context,
+        conversationId,
+        conversationOwnerAgentId,
+        callDepth,
+        maxDepth,
+      })
+    : undefined;
 
-  const wrappedTools = wrapToolsWithObserver(tools, llmObserver);
+  const wrappedTools = tools
+    ? wrapToolsWithObserver(tools, llmObserver)
+    : undefined;
+  const effectiveTools = resolveToolsForCapabilities(
+    wrappedTools,
+    modelCapabilities
+  );
 
   const modelMessages: ModelMessage[] = [
     {
@@ -911,14 +932,14 @@ export async function callAgentInternal(
   let tokenUsage: TokenUsage | undefined;
 
   try {
-    const toolDefinitions = buildToolDefinitionsForReservation(wrappedTools);
+    const toolDefinitions = buildToolDefinitionsForReservation(effectiveTools);
 
     const reservation = await validateCreditsAndLimitsAndReserve(
       db,
       workspaceId,
       targetAgentId,
       agentProvider,
-      modelName || MODEL_NAME,
+      resolvedModelName || MODEL_NAME,
       modelMessagesWithKnowledge,
       targetAgent.systemPrompt,
       toolDefinitions,
@@ -935,27 +956,30 @@ export async function callAgentInternal(
       });
     }
 
-    const generateOptions = buildGenerateTextOptions(targetAgent);
+    const generateOptions = filterGenerateTextOptionsForCapabilities(
+      buildGenerateTextOptions(targetAgent),
+      modelCapabilities
+    );
     console.log("[Agent Delegation] Executing generateText with parameters:", {
       workspaceId,
       targetAgentId,
-      model: MODEL_NAME,
+      model: resolvedModelName || MODEL_NAME,
       systemPromptLength: targetAgent.systemPrompt.length,
       messagesCount: modelMessagesWithKnowledge.length,
-      toolsCount: wrappedTools ? Object.keys(wrappedTools).length : 0,
+      toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
       hasAbortSignal: Boolean(abortSignal || timeoutMs > 0),
       ...generateOptions,
     });
-    if (wrappedTools) {
+    if (effectiveTools) {
       const { logToolDefinitions } = await import("./agentSetup");
-      logToolDefinitions(wrappedTools, "Agent Delegation", targetAgent);
+      logToolDefinitions(effectiveTools, "Agent Delegation", targetAgent);
     }
 
     result = await executeGenerateTextWithTimeout({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
       system: targetAgent.systemPrompt,
       messages: modelMessagesWithKnowledge,
-      tools: wrappedTools,
+      tools: effectiveTools,
       generateOptions,
       abortSignal,
       timeoutMs,
@@ -970,7 +994,7 @@ export async function callAgentInternal(
     const extractionResult = extractTokenUsageAndCosts(
       result,
       undefined,
-      modelName || MODEL_NAME,
+      resolvedModelName || MODEL_NAME,
       "test"
     );
     tokenUsage = extractionResult.tokenUsage;
@@ -985,7 +1009,7 @@ export async function callAgentInternal(
       workspaceId,
       targetAgentId,
       agentProvider,
-      modelName: modelName || MODEL_NAME,
+      modelName: resolvedModelName || MODEL_NAME,
       context,
       openrouterGenerationId,
       openrouterGenerationIds,
@@ -1004,7 +1028,7 @@ export async function callAgentInternal(
       inputUserMessage,
       tokenUsage,
       usesByok,
-      modelName: modelName || MODEL_NAME,
+      modelName: resolvedModelName || MODEL_NAME,
       openrouterGenerationId,
       provisionalCostUsd,
       message,
@@ -1025,7 +1049,7 @@ export async function callAgentInternal(
       workspaceId,
       targetAgentId,
       agentProvider,
-      modelName: modelName || MODEL_NAME,
+      modelName: resolvedModelName || MODEL_NAME,
       context,
     });
 
@@ -1051,7 +1075,7 @@ export async function callAgentInternal(
       targetAgentConversationId,
       message,
       usesByok,
-      modelName: modelName || MODEL_NAME,
+      modelName: resolvedModelName || MODEL_NAME,
       error,
     });
 

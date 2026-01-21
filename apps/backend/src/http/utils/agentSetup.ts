@@ -25,6 +25,11 @@ import type { LlmObserver } from "./llmObserver";
 import { wrapToolsWithObserver } from "./llmObserver";
 import { createMcpServerTools } from "./mcpUtils";
 import { createSearchMemoryTool } from "./memorySearchTool";
+import {
+  resolveModelCapabilities,
+  supportsToolCalling,
+} from "./modelCapabilities";
+import { getDefaultModel } from "./modelFactory";
 
 export interface AgentSetup {
   agent: WorkspaceAndAgent["agent"];
@@ -596,6 +601,12 @@ export async function setupAgentAndTools(
 
   // Use agent's modelName if set, otherwise use default
   const modelName = resolveModelName(agent);
+  const resolvedModelName = modelName || getDefaultModel();
+  const modelCapabilities = resolveModelCapabilities(
+    agentProvider,
+    resolvedModelName
+  );
+  const canUseTools = supportsToolCalling(modelCapabilities);
 
   // Extract agent config for advanced options
   const agentConfig = buildAgentConfig(agent);
@@ -618,32 +629,38 @@ export async function setupAgentAndTools(
 
   const tools: AgentSetup["tools"] = {};
 
-  addCoreTools(tools, workspaceId, extractedAgentId, agent, messages, options);
-  await addEmailToolIfAvailable(tools, workspaceId, agent.enableSendEmail === true);
-  await addWebTools({
-    tools,
-    workspaceId,
-    agentId: extractedAgentId,
-    agent,
-    options,
-    context,
-  });
-  await addImageGenerationTool({
-    tools,
-    workspaceId,
-    agentId: extractedAgentId,
-    agent,
-    options,
-  });
-  addDelegationTools({
-    tools,
-    workspaceId,
-    agent,
-    agentId: extractedAgentId,
-    options,
-  });
-  await addMcpTools({ tools, workspaceId, agent });
-  addClientTools(tools, agent);
+  if (canUseTools) {
+    addCoreTools(tools, workspaceId, extractedAgentId, agent, messages, options);
+    await addEmailToolIfAvailable(
+      tools,
+      workspaceId,
+      agent.enableSendEmail === true
+    );
+    await addWebTools({
+      tools,
+      workspaceId,
+      agentId: extractedAgentId,
+      agent,
+      options,
+      context,
+    });
+    await addImageGenerationTool({
+      tools,
+      workspaceId,
+      agentId: extractedAgentId,
+      agent,
+      options,
+    });
+    addDelegationTools({
+      tools,
+      workspaceId,
+      agent,
+      agentId: extractedAgentId,
+      options,
+    });
+    await addMcpTools({ tools, workspaceId, agent });
+    addClientTools(tools, agent);
+  }
 
   return {
     agent,

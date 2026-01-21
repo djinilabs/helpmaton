@@ -5,11 +5,18 @@ import type { FC } from "react";
 
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
-import { getModelPricing, type ModelPricing } from "../utils/api";
+import {
+  getAvailableModels,
+  getModelPricing,
+  type ModelCapabilities,
+  type ModelPricing,
+} from "../utils/api";
+import { getCapabilityLabels } from "../utils/modelConfig";
 
 interface ModelPricesDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  capabilityFilter?: keyof ModelCapabilities;
 }
 
 // Apply 5.5% markup to OpenRouter prices (same as backend calculation)
@@ -50,8 +57,15 @@ const formatTieredPrice = (pricing: ModelPricing): string => {
 export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
   isOpen,
   onClose,
+  capabilityFilter,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+
+  const { data: modelsData } = useQuery({
+    queryKey: ["availableModels"],
+    queryFn: getAvailableModels,
+    enabled: isOpen,
+  });
 
   const { data: pricingData, isLoading, error } = useQuery({
     queryKey: ["modelPricing"],
@@ -69,21 +83,32 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
     }
   }, [isOpen, registerDialog, unregisterDialog]);
 
-  const filteredModels = useMemo(() => {
+  const capabilityScopedModels = useMemo(() => {
     if (!pricingData?.openrouter) {
       return [];
     }
 
-    const models = Object.entries(pricingData.openrouter);
+    const capabilities = modelsData?.openrouter?.capabilities;
+    let models = Object.entries(pricingData.openrouter);
+    if (capabilityFilter) {
+      models = models.filter(
+        ([modelName]) => capabilities?.[modelName]?.[capabilityFilter] === true
+      );
+    }
+
+    return models.sort(([a], [b]) => a.localeCompare(b));
+  }, [pricingData, modelsData, capabilityFilter]);
+
+  const filteredModels = useMemo(() => {
     if (!searchQuery.trim()) {
-      return models.sort(([a], [b]) => a.localeCompare(b));
+      return capabilityScopedModels;
     }
 
     const query = searchQuery.toLowerCase();
-    return models
-      .filter(([modelName]) => modelName.toLowerCase().includes(query))
-      .sort(([a], [b]) => a.localeCompare(b));
-  }, [pricingData, searchQuery]);
+    return capabilityScopedModels.filter(([modelName]) =>
+      modelName.toLowerCase().includes(query)
+    );
+  }, [capabilityScopedModels, searchQuery]);
 
   if (!isOpen) return null;
 
@@ -135,8 +160,9 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
           <>
             <div className="mb-4 text-sm text-neutral-600 dark:text-neutral-300">
               Showing {filteredModels.length} of{" "}
-              {Object.keys(pricingData.openrouter).length} models
+              {capabilityScopedModels.length} models
               {searchQuery && ` matching "${searchQuery}"`}
+              {capabilityFilter && ` filtered by ${capabilityFilter}`}
             </div>
 
             <div className="overflow-x-auto">
@@ -158,13 +184,16 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
                     <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
                       Request (per request)
                     </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                      Capabilities
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredModels.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300"
                       >
                         No models found
@@ -172,6 +201,9 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
                     </tr>
                   ) : (
                     filteredModels.map(([modelName, pricing]) => {
+                      const capabilityLabels = getCapabilityLabels(
+                        modelsData?.openrouter?.capabilities?.[modelName]
+                      );
                       const hasTiers = pricing.tiers && pricing.tiers.length > 0;
                       const inputPrice = hasTiers
                         ? formatTieredPrice(pricing)
@@ -211,6 +243,11 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
                           </td>
                           <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
                             {requestPrice}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300">
+                            {capabilityLabels.length > 0
+                              ? capabilityLabels.join(", ")
+                              : "N/A"}
                           </td>
                         </tr>
                       );

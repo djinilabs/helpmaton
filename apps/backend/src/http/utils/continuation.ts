@@ -14,7 +14,12 @@ import {
   MODEL_NAME,
 } from "./agentUtils";
 import { convertUIMessagesToModelMessages } from "./messageConversion";
-import { createModel } from "./modelFactory";
+import {
+  filterGenerateTextOptionsForCapabilities,
+  resolveModelCapabilities,
+  resolveToolsForCapabilities,
+} from "./modelCapabilities";
+import { createModel, getDefaultModel } from "./modelFactory";
 import {
   formatToolCallMessage,
   formatToolResultMessage,
@@ -148,30 +153,44 @@ export async function handleToolContinuation(
   );
 
   try {
-    const generateOptions = buildGenerateTextOptions(agent);
+    const resolvedModelName =
+      typeof agent.modelName === "string" && agent.modelName.length > 0
+        ? agent.modelName
+        : getDefaultModel();
+    const modelCapabilities = resolveModelCapabilities(
+      "openrouter",
+      resolvedModelName
+    );
+    const generateOptions = filterGenerateTextOptionsForCapabilities(
+      buildGenerateTextOptions(agent),
+      modelCapabilities
+    );
+    const effectiveTools = resolveToolsForCapabilities(
+      tools,
+      modelCapabilities
+    );
     // Use agent's modelName for logging - simpler and more reliable than extracting from model object
-    const modelNameForLog =
-      typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
+    const modelNameForLog = resolvedModelName || MODEL_NAME;
     console.log(
       "[Continuation Handler] Executing generateText with parameters:",
       {
         model: modelNameForLog,
         systemPromptLength: continuationSystemPrompt.length,
         messagesCount: continuationModelMessages.length,
-        toolsCount: tools ? Object.keys(tools).length : 0,
+        toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
         ...generateOptions,
       }
     );
     // Log tool definitions before LLM call
-    if (tools) {
+    if (effectiveTools) {
       const { logToolDefinitions } = await import("./agentSetup");
-      logToolDefinitions(tools, "Continuation Handler", agent);
+      logToolDefinitions(effectiveTools, "Continuation Handler", agent);
     }
     continuationResult = await generateText({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
       system: continuationSystemPrompt,
       messages: continuationModelMessages,
-      tools,
+      ...(effectiveTools ? { tools: effectiveTools } : {}),
       ...generateOptions,
       ...(abortSignal && { abortSignal }),
     });

@@ -6,9 +6,16 @@
 
 **Latest Work**:
 
+- **Merge conflict resolution (capabilities + image tools)**: Resolved conflicts across pricing/model capability updates, `/api/models` response, and AgentDetail UI; preserved image generation settings and tool-calling gating; ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **Prod webhook timeout investigation**: Found `/api/webhook` Lambda request at 2026-01-21 17:03:24Z taking 32.6s (OpenRouter generation), exceeding API Gateway timeout; request completed and enqueued cost verification.
 - **Merge conflict resolution**: Resolved merge conflicts in `AgentDetail.tsx` and `memory/activeContext.md`, restored `generate_image` tool to use direct OpenRouter fetch + S3 upload (removed `imageModel` usage), and re-ran `pnpm typecheck` + `pnpm lint --fix`.
 - **OpenRouter provider versions**: Confirmed `@openrouter/ai-sdk-provider` is pinned to v2 in `apps/backend/package.json` and only v2 appears in `pnpm-lock.yaml`; any v1 under `node_modules/.pnpm` is likely a leftover install or store cache.
 - **Image generation tool config**: Added agent image generation settings, OpenRouter image-capable model filtering, `generate_image` tool with S3 upload, schema/export updates, and validation/tests; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Model capability gating + UI warning**: Added capability-based filtering for model settings, generateText options, and tool usage; introduced shared modelCapabilities helper with tests; disabled tool setup when unsupported; and added Agent Detail warning when tool calling isn't available. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Model capability filters + pricing UI**: Filtered selectable models by capabilities (text_generation/rerank), added capability labels in model selectors and pricing dialog, added rerank pricing button, and introduced modelConfig helpers + unit tests; ran `pnpm lint --fix` and `pnpm typecheck`.
+- **OpenRouter model capabilities**: Added capability extraction + merge in `scripts/update-pricing.mjs`, exported helper with node:test coverage, extended pricing/available model types and OpenAPI schema, and included capabilities in `/api/models` when present; ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Pricing update workflow fix**: Removed commit/push from `scripts/update-pricing.mjs` and moved commit logic into `.github/workflows/update-pricing.yml`, gated on `apps/backend/src/config/pricing.json` changes.
+- **AI error extraction for test endpoint**: Added `extractErrorMessage` helper to normalize wrapped AI errors and JSON strings, return plain-text AI errors from API Gateway handling, and update Slack/Discord bot error text. Added unit test for wrapped AI errors and reran `pnpm lint --fix` and `pnpm typecheck`.
 - **PR 202 review fixes**: Destructured `isOpen` in `McpServerModalContent`, added eager-load rationale for the stream server accordion. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **AgentDetail complexity bypass**: Disabled ESLint complexity rule for `apps/frontend/src/pages/AgentDetail.tsx` in `eslint.config.js`.
 - **AgentDetail typecheck pass**: Replaced manual sync refs in handlers, added `AgentOverviewCard` and helper hooks, and ensured `pnpm typecheck` passes (lint still fails on complexity).

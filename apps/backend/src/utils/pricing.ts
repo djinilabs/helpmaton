@@ -30,10 +30,6 @@ export interface CurrencyPricing {
   tiers?: PricingTier[];
 }
 
-export interface ModelCapabilities {
-  image?: boolean;
-}
-
 /**
  * Pricing for a model in USD.
  * All prices are per 1 million tokens.
@@ -42,6 +38,18 @@ export interface ModelCapabilities {
 export interface ModelPricing {
   usd: CurrencyPricing;
   capabilities?: ModelCapabilities;
+}
+
+export interface ModelCapabilities {
+  input_modalities?: string[];
+  output_modalities?: string[];
+  supported_parameters?: string[];
+  text_generation?: boolean;
+  image_generation?: boolean;
+  rerank?: boolean;
+  tool_calling?: boolean;
+  structured_output?: boolean;
+  image?: boolean;
 }
 
 export interface ProviderPricing {
