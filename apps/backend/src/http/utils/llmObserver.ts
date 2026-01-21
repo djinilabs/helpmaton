@@ -44,6 +44,13 @@ export type LlmObserverEvent =
       type: "assistant-text" | "assistant-reasoning";
       timestamp: string;
       text: string;
+    }
+  | {
+      type: "assistant-file";
+      timestamp: string;
+      fileUrl: string;
+      mediaType?: string;
+      filename?: string;
     };
 
 export interface LlmObserver {
@@ -76,6 +83,12 @@ export interface LlmObserver {
   }) => void;
   recordText: (text: string, timestamp?: string) => void;
   recordReasoning: (text: string, timestamp?: string) => void;
+  recordFilePart: (data: {
+    fileUrl: string;
+    mediaType?: string;
+    filename?: string;
+    timestamp?: string;
+  }) => void;
   recordFromResult: (result: unknown) => void;
   getEvents: () => LlmObserverEvent[];
 }
@@ -316,6 +329,15 @@ export function createLlmObserver(): LlmObserver {
         type: "assistant-reasoning",
         timestamp: timestamp || nowIso(),
         text,
+      });
+    },
+    recordFilePart: (data) => {
+      recordEvent({
+        type: "assistant-file",
+        timestamp: data.timestamp || nowIso(),
+        fileUrl: data.fileUrl,
+        ...(data.mediaType && { mediaType: data.mediaType }),
+        ...(data.filename && { filename: data.filename }),
       });
     },
     recordFromResult: (result) => {
@@ -715,6 +737,7 @@ export function buildConversationMessagesFromObserver(params: {
         toolExecutionTimeMs?: number;
       }
     | { type: "reasoning"; text: string }
+    | { type: "file"; file: string; mediaType?: string; filename?: string }
     | DelegationContent
   > = [];
 
@@ -846,6 +869,15 @@ export function buildConversationMessagesFromObserver(params: {
       case "assistant-reasoning":
         flushTextBuffer();
         content.push({ type: "reasoning", text: event.text });
+        break;
+      case "assistant-file":
+        flushTextBuffer();
+        content.push({
+          type: "file",
+          file: event.fileUrl,
+          ...(event.mediaType && { mediaType: event.mediaType }),
+          ...(event.filename && { filename: event.filename }),
+        });
         break;
       case "assistant-text":
         textBuffer += event.text;
