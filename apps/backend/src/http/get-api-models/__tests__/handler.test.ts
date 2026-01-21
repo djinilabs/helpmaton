@@ -8,16 +8,22 @@ import {
 } from "../../utils/__tests__/test-helpers";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockLoadPricingConfig, mockGetDefaultModel } = vi.hoisted(() => {
+const {
+  mockLoadPricingConfig,
+  mockGetDefaultModel,
+  mockGetImageCapableModels,
+} = vi.hoisted(() => {
   return {
     mockLoadPricingConfig: vi.fn(),
     mockGetDefaultModel: vi.fn(),
+    mockGetImageCapableModels: vi.fn(),
   };
 });
 
 // Mock the utility modules
 vi.mock("../../../utils/pricing", () => ({
   loadPricingConfig: mockLoadPricingConfig,
+  getImageCapableModels: mockGetImageCapableModels,
 }));
 
 // Mock @architect/functions for database initialization (used by handlingErrors)
@@ -41,6 +47,7 @@ describe("get-api-models handler", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetImageCapableModels.mockReturnValue([]);
   });
 
   it("should return OpenRouter models with default model", async () => {
@@ -88,6 +95,7 @@ describe("get-api-models handler", () => {
     expect(body.openrouter.models).toContain("auto");
     expect(body.openrouter.models).toContain("google/gemini-2.5-flash");
     expect(body.openrouter.defaultModel).toBe("auto");
+    expect(body.openrouter.imageModels).toEqual([]);
     // Verify Google models are not included
     expect(body.google).toBeUndefined();
 
@@ -214,6 +222,7 @@ describe("get-api-models handler", () => {
     expect(body.openrouter.models).toContain("openai/gpt-4o");
     // getDefaultModel mock returns "google/gemini-2.5-flash" for openrouter
     expect(body.openrouter.defaultModel).toBe("google/gemini-2.5-flash");
+    expect(body.openrouter.imageModels).toEqual([]);
     // Verify models are sorted alphabetically
     expect(body.openrouter.models).toEqual([
       "anthropic/claude-3.5-sonnet",
@@ -265,6 +274,7 @@ describe("get-api-models handler", () => {
     expect(body.openrouter.models).toContain("cohere/rerank-v3");
     expect(body.openrouter.models).toContain("jinaai/jina-reranker-v1-base-en");
     expect(body.openrouter.models).toContain("google/gemini-2.5-flash");
+    expect(body.openrouter.imageModels).toEqual([]);
   });
 
   it("should handle errors from loadPricingConfig", async () => {

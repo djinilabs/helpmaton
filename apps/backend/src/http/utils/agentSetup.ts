@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 
-import { openrouter } from "@openrouter/ai-sdk-provider";
-import { generateImage, jsonSchema, tool } from "ai";
+import { jsonSchema, tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
@@ -323,6 +322,74 @@ const addImageGenerationTool = async (params: {
       ),
   });
   type GenerateImageArgs = z.infer<typeof generateImageSchema>;
+  const extractImageOutput = (
+    payload: unknown
+  ): { url?: string; base64?: string; contentType?: string } | null => {
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+    const data = payload as {
+      choices?: Array<{
+        message?: {
+          content?:
+            | string
+            | Array<{
+                type?: string;
+                url?: string;
+                data?: string;
+                contentType?: string;
+                mime_type?: string;
+                image_url?: { url?: string };
+                image?: { url?: string; data?: string; mime_type?: string };
+              }>;
+        };
+      }>;
+      data?: Array<{ url?: string; b64_json?: string }>;
+    };
+
+    const content = data.choices?.[0]?.message?.content;
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        if (typeof part?.image_url?.url === "string") {
+          return { url: part.image_url.url };
+        }
+        if (typeof part?.image?.url === "string") {
+          return { url: part.image.url };
+        }
+        if (typeof part?.image?.data === "string") {
+          return {
+            base64: part.image.data,
+            contentType: part.image.mime_type,
+          };
+        }
+        if (typeof part?.url === "string" && part.type?.includes("image")) {
+          return { url: part.url };
+        }
+        if (typeof part?.data === "string" && part.type?.includes("image")) {
+          return {
+            base64: part.data,
+            contentType: part.mime_type || part.contentType,
+          };
+        }
+      }
+    }
+
+    if (typeof content === "string") {
+      if (content.startsWith("data:image/") || content.startsWith("http")) {
+        return { url: content };
+      }
+    }
+
+    const fallback = data.data?.[0];
+    if (typeof fallback?.url === "string") {
+      return { url: fallback.url };
+    }
+    if (typeof fallback?.b64_json === "string") {
+      return { base64: fallback.b64_json };
+    }
+
+    return null;
+  };
 
   params.tools.generate_image = tool({
     description:
@@ -335,53 +402,86 @@ const addImageGenerationTool = async (params: {
       if (!prompt) {
         return "Error: generate_image requires a non-empty 'prompt' string describing the image to generate.";
       }
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      };
+      if (params.options?.modelReferer) {
+        headers["HTTP-Referer"] = params.options.modelReferer;
+      }
 
-      const imageModel = await openrouter.imageModel(modelName);
+      const response = await fetch(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+            modalities: ["image", "text"],
+          }),
+        }
+      );
 
-      const result = await generateImage({
-        model: imageModel as Parameters<typeof generateImage>[0]["model"],
-        prompt: prompt,
-        n: 1,
-        maxImagesPerCall: 1,
-      })
-      console.log("OpenRouter image generation response:", result);
-      
-      throw new Error("OpenRouter image generation returned no image URL");
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => "");
+        throw new Error(
+          `OpenRouter image generation failed: ${response.status} ${response.statusText} ${errorBody}`
+        );
+      }
 
-      // let buffer: Buffer;
-      // let contentType: string;
-      // if (imageUrl.startsWith("data:")) {
-      //   const [header, base64Data] = imageUrl.split(",", 2);
-      //   contentType =
-      //     header?.match(/^data:(.+);base64$/)?.[1] || "image/png";
-      //   buffer = Buffer.from(base64Data || "", "base64");
-      // } else {
-      //   const imageResponse = await fetch(imageUrl);
-      //   if (!imageResponse.ok) {
-      //     throw new Error(
-      //       `Failed to download OpenRouter image: ${imageResponse.status} ${imageResponse.statusText}`
-      //     );
-      //   }
-      //   const arrayBuffer = await imageResponse.arrayBuffer();
-      //   buffer = Buffer.from(arrayBuffer);
-      //   contentType = imageResponse.headers.get("content-type") || "image/png";
-      // }
-      // const conversationId =
-      //   params.options?.conversationId || randomUUID();
-      // const upload = await uploadConversationFile({
-      //   workspaceId: params.workspaceId,
-      //   agentId: params.agentId,
-      //   conversationId,
-      //   content: buffer,
-      //   contentType,
-      // });
+      const result = (await response.json()) as unknown;
+      const imageOutput = extractImageOutput(result);
+      if (!imageOutput?.url && !imageOutput?.base64) {
+        throw new Error("OpenRouter image generation returned no image output");
+      }
 
-      // return {
-      //   url: upload.url,
-      //   contentType,
-      //   filename: upload.filename,
-      //   model: modelName,
-      // };
+      let buffer: Buffer;
+      let contentType = imageOutput?.contentType || "image/png";
+      if (imageOutput?.url) {
+        if (imageOutput.url.startsWith("data:")) {
+          const match = imageOutput.url.match(/^data:(.+);base64,(.*)$/);
+          if (!match) {
+            throw new Error("OpenRouter returned an invalid data URL");
+          }
+          contentType = match[1] || contentType;
+          buffer = Buffer.from(match[2] || "", "base64");
+        } else {
+          const imageResponse = await fetch(imageOutput.url);
+          if (!imageResponse.ok) {
+            throw new Error(
+              `Failed to download OpenRouter image: ${imageResponse.status} ${imageResponse.statusText}`
+            );
+          }
+          const arrayBuffer = await imageResponse.arrayBuffer();
+          buffer = Buffer.from(arrayBuffer);
+          contentType =
+            imageResponse.headers.get("content-type") || contentType;
+        }
+      } else {
+        buffer = Buffer.from(imageOutput.base64 || "", "base64");
+      }
+
+      const conversationId = params.options?.conversationId || randomUUID();
+      const upload = await uploadConversationFile({
+        workspaceId: params.workspaceId,
+        agentId: params.agentId,
+        conversationId,
+        content: buffer,
+        contentType,
+      });
+
+      return {
+        url: upload.url,
+        contentType,
+        filename: upload.filename,
+        model: modelName,
+      };
     },
   });
 };

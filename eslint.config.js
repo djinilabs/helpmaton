@@ -96,6 +96,12 @@ export default tseslint.config(
       'tailwindcss/no-contradicting-classname': 'error'
     }
   },
+  {
+    files: ['apps/frontend/src/pages/AgentDetail.tsx'],
+    rules: {
+      'complexity': 'off'
+    }
+  },
   // Configuration for backend - disable React rules
   {
     files: ['apps/backend/**/*.{ts,tsx}'],

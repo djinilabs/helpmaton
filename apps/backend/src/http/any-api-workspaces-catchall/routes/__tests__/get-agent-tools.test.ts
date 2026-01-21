@@ -479,8 +479,10 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/tools", () => {
         searchWebProvider: "tavily",
         fetchWebProvider: "tavily",
         enableExaSearch: true,
+        enableImageGeneration: false,
         delegatableAgentIds: ["agent-1", "agent-2"],
         enabledMcpServerIds: ["server-1"],
+        imageGenerationModel: undefined,
         clientTools: [
           {
             name: "custom_tool",

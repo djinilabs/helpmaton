@@ -152,6 +152,8 @@ async function globalSetup(config: FullConfig) {
       FRONTEND_URL: frontendUrl,
       // E2E test overrides - allow team invitations in tests
       E2E_OVERRIDE_MAX_USERS: process.env.E2E_OVERRIDE_MAX_USERS || "10",
+      // Bypass auth gate in E2E environment
+      E2E_AUTH_GATE_BYPASS: "true",
     };
 
     console.log(`Starting backend with environment variables:`);
@@ -190,6 +192,8 @@ async function globalSetup(config: FullConfig) {
       TESTMAIL_API_KEY: testmailApiKey,
       // E2E test overrides - allow team invitations in tests
       E2E_OVERRIDE_MAX_USERS: process.env.E2E_OVERRIDE_MAX_USERS || "10",
+      // Bypass auth gate in E2E environment
+      E2E_AUTH_GATE_BYPASS: "true",
     };
 
     // Add optional environment variables if they're set
