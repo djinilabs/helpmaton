@@ -106,6 +106,38 @@ export function formatToolResultMessage(
     outputValue = String(outputValue);
   }
 
+  const extractGenerateImageFilePart = () => {
+    if (toolResult.toolName !== "generate_image") {
+      return null;
+    }
+    if (!outputValue || typeof outputValue !== "object") {
+      return null;
+    }
+    const resultAny = outputValue as {
+      url?: unknown;
+      contentType?: unknown;
+      mediaType?: unknown;
+      filename?: unknown;
+    };
+    if (typeof resultAny.url !== "string" || resultAny.url.length === 0) {
+      return null;
+    }
+    const mediaType =
+      typeof resultAny.contentType === "string"
+        ? resultAny.contentType
+        : typeof resultAny.mediaType === "string"
+        ? resultAny.mediaType
+        : undefined;
+    return {
+      type: "file" as const,
+      file: resultAny.url,
+      ...(mediaType && { mediaType }),
+      ...(typeof resultAny.filename === "string" && {
+        filename: resultAny.filename,
+      }),
+    };
+  };
+
   // Build content array with tool result and optionally delegation
   const content: Array<
     | {
@@ -116,6 +148,7 @@ export function formatToolResultMessage(
         toolExecutionTimeMs?: number;
         costUsd?: number;
       }
+    | { type: "file"; file: string; mediaType?: string; filename?: string }
     | {
         type: "delegation";
         toolCallId: string;
@@ -153,6 +186,11 @@ export function formatToolResultMessage(
       timestamp: delegation.timestamp,
       ...(delegation.taskId && { taskId: delegation.taskId }),
     });
+  }
+
+  const generateImageFilePart = extractGenerateImageFilePart();
+  if (generateImageFilePart) {
+    content.push(generateImageFilePart);
   }
 
   // In AI SDK v5, tool results should be in assistant messages, not tool messages

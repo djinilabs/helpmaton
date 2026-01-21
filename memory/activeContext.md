@@ -6,6 +6,10 @@
 
 **Latest Work**:
 
+- **Chat stream file injection fix**: Updated generate_image SSE injection to include file parts in both message `content` and `parts` for useChat compatibility; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Image tool SSE order test**: Added stream test coverage to verify generate_image emits an assistant file message after the tool result; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Image prompt fallback**: Allowed optional generate_image prompt, added observer-based fallback to last user message, and covered in unit tests; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Image tool file parts in conversations**: Preserved assistant file parts when expanding tool calls/results, added generate_image file part handling in tool formatting and streaming, and added tests for expander/tool formatting/stream injection; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **External image URLs**: Updated `generate_image` to return external URLs directly (no S3 upload) while keeping S3 upload for data/base64; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Image output extraction fix**: Added support for OpenRouter `message.images` payloads and refactored extraction helpers in `agentSetup.ts`; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Merge conflict resolution (capabilities + image tools)**: Resolved conflicts across pricing/model capability updates, `/api/models` response, and AgentDetail UI; preserved image generation settings and tool-calling gating; ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.

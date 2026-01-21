@@ -4,6 +4,7 @@ import { jsonSchema, tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
+import type { UIMessage } from "../../utils/messageTypes";
 import { uploadConversationFile } from "../../utils/s3";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
@@ -285,6 +286,66 @@ const addWebTools = async (params: {
   }
 };
 
+const resolveImagePromptFromMessages = (messages: UIMessage[]): string | null => {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== "user") {
+      continue;
+    }
+    if (typeof message.content === "string") {
+      const trimmed = message.content.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+      continue;
+    }
+    if (Array.isArray(message.content)) {
+      const textParts = message.content
+        .map((part) => {
+          if (
+            part &&
+            typeof part === "object" &&
+            "type" in part &&
+            part.type === "text" &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            return part.text;
+          }
+          return "";
+        })
+        .filter((text) => text.trim().length > 0);
+      if (textParts.length > 0) {
+        return textParts.join("\n");
+      }
+    }
+  }
+  return null;
+};
+
+export const resolveImagePrompt = (
+  prompt: string | undefined,
+  observer?: LlmObserver
+): string | null => {
+  if (typeof prompt === "string") {
+    const trimmed = prompt.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  if (!observer) {
+    return null;
+  }
+  const events = observer.getEvents();
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event.type === "input-messages" && "messages" in event) {
+      return resolveImagePromptFromMessages(event.messages);
+    }
+  }
+  return null;
+};
+
 const addImageGenerationTool = async (params: {
   tools: AgentSetup["tools"];
   workspaceId: string;
@@ -318,14 +379,18 @@ const addImageGenerationTool = async (params: {
     return;
   }
 
-  const generateImageSchema = z.object({
-    prompt: z
-      .string()
-      .min(1, "prompt is required and cannot be empty")
-      .describe(
-        "Text prompt describing the image to generate. Be specific about style, subject, and composition."
-      ),
-  });
+  const generateImageSchema = z
+    .object({
+      prompt: z
+        .string()
+        .trim()
+        .min(1, "prompt is required and cannot be empty")
+        .optional()
+        .describe(
+          "Text prompt describing the image to generate. Be specific about style, subject, and composition."
+        ),
+    })
+    .strict();
   type GenerateImageArgs = z.infer<typeof generateImageSchema>;
   const extractFromContentParts = (
     content:
@@ -482,7 +547,10 @@ const addImageGenerationTool = async (params: {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - Tool execution signature is compatible at runtime
     execute: async (args: GenerateImageArgs) => {
-      const prompt = args?.prompt;
+      const prompt = resolveImagePrompt(
+        args?.prompt,
+        params.options?.llmObserver
+      );
       if (!prompt) {
         return "Error: generate_image requires a non-empty 'prompt' string describing the image to generate.";
       }

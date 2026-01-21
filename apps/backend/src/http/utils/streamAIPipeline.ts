@@ -51,6 +51,43 @@ function looksLikeBase64(value: string): boolean {
   return /^[A-Za-z0-9+/]+={0,2}$/.test(trimmed);
 }
 
+function extractGenerateImageFileFromToolResult(
+  parsed: Record<string, unknown>
+): FilePartPayload | null {
+  if (parsed.type !== "tool-result") {
+    return null;
+  }
+  if (parsed.toolName !== "generate_image") {
+    return null;
+  }
+  const resultValue =
+    (parsed as { result?: unknown }).result ??
+    (parsed as { output?: { value?: unknown } }).output?.value ??
+    (parsed as { output?: unknown }).output;
+  if (!resultValue || typeof resultValue !== "object") {
+    return null;
+  }
+  const resultAny = resultValue as {
+    url?: unknown;
+    contentType?: unknown;
+    mediaType?: unknown;
+    filename?: unknown;
+  };
+  if (typeof resultAny.url !== "string" || resultAny.url.length === 0) {
+    return null;
+  }
+  return {
+    fileUrl: resultAny.url,
+    mediaType:
+      typeof resultAny.contentType === "string"
+        ? resultAny.contentType
+        : typeof resultAny.mediaType === "string"
+        ? resultAny.mediaType
+        : undefined,
+    filename: typeof resultAny.filename === "string" ? resultAny.filename : undefined,
+  };
+}
+
 function parseDataUrl(
   dataUrl: string
 ): { mediaType?: string; buffer: Buffer } | null {
@@ -292,10 +329,14 @@ async function transformSseLine(params: {
   observer?: LlmObserver;
   onTextChunk: (text: string) => void;
   fileUploadContext?: FileUploadContext;
-}): Promise<{ line: string; fileParts: FilePartPayload[] }> {
+}): Promise<{
+  line: string;
+  fileParts: FilePartPayload[];
+  extraLines: string[];
+}> {
   const { line, observer, onTextChunk, fileUploadContext } = params;
   if (!line.startsWith("data: ")) {
-    return { line, fileParts: [] };
+    return { line, fileParts: [], extraLines: [] };
   }
 
   const jsonStr = line.substring(6).trim();
@@ -304,12 +345,13 @@ async function transformSseLine(params: {
     jsonStr === "[DONE]" ||
     (!jsonStr.startsWith("{") && !jsonStr.startsWith("["))
   ) {
-    return { line, fileParts: [] };
+    return { line, fileParts: [], extraLines: [] };
   }
 
   const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
   let outputLine = line;
   let fileParts: FilePartPayload[] = [];
+  const extraLines: string[] = [];
 
   if (fileUploadContext) {
     const rewrite = await rewriteStreamEventWithFiles({
@@ -324,7 +366,57 @@ async function transformSseLine(params: {
 
   recordObserverEvent({ parsed, observer, onTextChunk });
 
-  return { line: outputLine, fileParts };
+  const injectedFilePart = extractGenerateImageFileFromToolResult(parsed);
+  if (injectedFilePart) {
+    const messageEvent = {
+      type: "message",
+      message: {
+        role: "assistant",
+        content: [
+          {
+            type: "file",
+            file: injectedFilePart.fileUrl,
+            ...(injectedFilePart.mediaType && {
+              mediaType: injectedFilePart.mediaType,
+            }),
+            ...(injectedFilePart.filename && {
+              filename: injectedFilePart.filename,
+            }),
+          },
+        ],
+        parts: [
+          {
+            type: "file",
+            file: injectedFilePart.fileUrl,
+            ...(injectedFilePart.mediaType && {
+              mediaType: injectedFilePart.mediaType,
+            }),
+            ...(injectedFilePart.filename && {
+              filename: injectedFilePart.filename,
+            }),
+          },
+        ],
+      },
+    };
+    let messageLine = `data: ${JSON.stringify(messageEvent)}`;
+    if (fileUploadContext) {
+      const rewrite = await rewriteStreamEventWithFiles({
+        event: messageEvent,
+        uploadContext: fileUploadContext,
+      });
+      if (rewrite.fileParts.length > 0) {
+        fileParts.push(...rewrite.fileParts);
+        messageLine = `data: ${JSON.stringify(rewrite.updatedEvent)}`;
+      } else {
+        fileParts.push(injectedFilePart);
+      }
+    } else {
+      fileParts.push(injectedFilePart);
+    }
+    extraLines.push(messageLine);
+  }
+
+  return { line: outputLine, fileParts, extraLines };
 }
 
 /**
@@ -444,6 +536,9 @@ export async function pipeAIStreamToResponse(
               });
             }
             await writeChunkToStream(responseStream, `${transformed.line}\n`);
+            for (const extraLine of transformed.extraLines) {
+              await writeChunkToStream(responseStream, `${extraLine}\n`);
+            }
           } catch (error) {
             console.error("[Stream Handler] Error parsing JSON:", line);
             Sentry.captureException(ensureError(error), {
