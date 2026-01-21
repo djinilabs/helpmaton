@@ -447,9 +447,16 @@ export async function uploadConversationFile(params: {
 }): Promise<{ key: string; url: string; filename: string }> {
   const { workspaceId, agentId, conversationId, content, contentType } = params;
   const filenameFromInput = params.filename;
-  const extension =
-    (filenameFromInput && filenameFromInput.split(".").pop()) ||
-    inferExtensionFromMediaType(contentType);
+  let extension: string | undefined;
+  if (filenameFromInput) {
+    const lastDotIndex = filenameFromInput.lastIndexOf(".");
+    if (lastDotIndex > 0 && lastDotIndex < filenameFromInput.length - 1) {
+      extension = filenameFromInput.slice(lastDotIndex + 1);
+    }
+  }
+  if (!extension) {
+    extension = inferExtensionFromMediaType(contentType);
+  }
   const generatedFilename = generateHighEntropyFilename(extension);
   const key = buildConversationFileKey(
     workspaceId,

@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Conversation file extension fix**: Corrected `uploadConversationFile` to only use a filename extension when the input has a real extension, otherwise fall back to media type; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **LLM assistant file parts streaming**: Added server-side upload for embedded assistant file parts to S3 (public `conversation-files/` URLs), rewrote stream/test SSE file parts, recorded updated URLs in conversation logging, updated UI rendering for assistant file parts, and added stream + observer tests; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **MCP server list popularity order**: Reordered MCP server type options in the create modal so popular services appear first.
 - **PR 198 review fixes (round 4)**: Ensured OAuth token update guard uses `finalAuthType` in `put-mcp-server-handler.ts` and added a regression test blocking token injection when switching to OAuth; ran `pnpm --filter backend test --run put-mcp-server`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **PR 198 review fixes (round 3)**: Restored `enabledMcpServerIds` validation to throw `resourceGone` for missing MCP servers in `agentUpdate.ts` and added a regression test in `put-workspace-agent.test.ts`. Ran `pnpm --filter backend test --run put-workspace-agent`, `pnpm lint --fix`, and `pnpm typecheck`.

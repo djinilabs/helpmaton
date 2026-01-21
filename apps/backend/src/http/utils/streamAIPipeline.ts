@@ -238,6 +238,89 @@ async function rewriteStreamEventWithFiles(params: {
   return { updatedEvent, fileParts };
 }
 
+function recordObserverEvent(params: {
+  parsed: Record<string, unknown>;
+  observer?: LlmObserver;
+  onTextChunk: (text: string) => void;
+}): void {
+  const { parsed, observer, onTextChunk } = params;
+  if (parsed.type === "text-delta" && parsed.textDelta) {
+    observer?.recordText(String(parsed.textDelta));
+    onTextChunk(String(parsed.textDelta));
+    return;
+  }
+  if (parsed.type === "text" && parsed.text) {
+    observer?.recordText(String(parsed.text));
+    onTextChunk(String(parsed.text));
+    return;
+  }
+  if (parsed.type === "tool-call") {
+    if (parsed.toolCallId && parsed.toolName) {
+      observer?.recordToolCall({
+        toolCallId: String(parsed.toolCallId),
+        toolName: String(parsed.toolName),
+        args: (parsed as { args?: unknown; input?: unknown }).args ??
+          (parsed as { input?: unknown }).input ??
+          {},
+      });
+    }
+    return;
+  }
+  if (parsed.type === "tool-result") {
+    if (parsed.toolCallId && parsed.toolName) {
+      observer?.recordToolResult({
+        toolCallId: String(parsed.toolCallId),
+        toolName: String(parsed.toolName),
+        result:
+          (parsed as { result?: unknown }).result ??
+          (parsed as { output?: { value?: unknown } }).output?.value ??
+          (parsed as { output?: unknown }).output ??
+          (parsed as { value?: unknown }).value,
+      });
+    }
+  }
+}
+
+async function transformSseLine(params: {
+  line: string;
+  observer?: LlmObserver;
+  onTextChunk: (text: string) => void;
+  fileUploadContext?: FileUploadContext;
+}): Promise<{ line: string; fileParts: FilePartPayload[] }> {
+  const { line, observer, onTextChunk, fileUploadContext } = params;
+  if (!line.startsWith("data: ")) {
+    return { line, fileParts: [] };
+  }
+
+  const jsonStr = line.substring(6).trim();
+  if (
+    !jsonStr ||
+    jsonStr === "[DONE]" ||
+    (!jsonStr.startsWith("{") && !jsonStr.startsWith("["))
+  ) {
+    return { line, fileParts: [] };
+  }
+
+  const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+  let outputLine = line;
+  let fileParts: FilePartPayload[] = [];
+
+  if (fileUploadContext) {
+    const rewrite = await rewriteStreamEventWithFiles({
+      event: parsed,
+      uploadContext: fileUploadContext,
+    });
+    if (rewrite.fileParts.length > 0) {
+      fileParts = rewrite.fileParts;
+      outputLine = `data: ${JSON.stringify(rewrite.updatedEvent)}`;
+    }
+  }
+
+  recordObserverEvent({ parsed, observer, onTextChunk });
+
+  return { line: outputLine, fileParts };
+}
+
 /**
  * Pipes the AI stream to the response stream
  * Reads from the UI message stream and writes chunks to responseStream as they arrive
@@ -331,78 +414,35 @@ export async function pipeAIStreamToResponse(
         sseBuffer = lines.pop() || "";
 
         for (const line of lines) {
-          let outputLine = line;
-          if (line.startsWith("data: ")) {
-            try {
-              const jsonStr = line.substring(6).trim();
-              if (jsonStr && jsonStr !== "[DONE]" && (jsonStr.startsWith("{") || jsonStr.startsWith("["))) {
-                const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
-                if (fileUploadContext) {
-                  const rewrite = await rewriteStreamEventWithFiles({
-                    event: parsed,
-                    uploadContext: fileUploadContext,
-                  });
-                  if (rewrite.fileParts.length > 0) {
-                    for (const filePart of rewrite.fileParts) {
-                      observer?.recordFilePart({
-                        fileUrl: filePart.fileUrl,
-                        mediaType: filePart.mediaType,
-                        filename: filePart.filename,
-                      });
-                    }
-                    outputLine = `data: ${JSON.stringify(rewrite.updatedEvent)}`;
-                  }
-                }
-
-                if (parsed.type === "text-delta" && parsed.textDelta) {
-                  observer?.recordText(String(parsed.textDelta));
-                  onTextChunk(String(parsed.textDelta));
-                } else if (parsed.type === "text" && parsed.text) {
-                  observer?.recordText(String(parsed.text));
-                  onTextChunk(String(parsed.text));
-                } else if (parsed.type === "tool-call") {
-                  if (parsed.toolCallId && parsed.toolName) {
-                    observer?.recordToolCall({
-                      toolCallId: String(parsed.toolCallId),
-                      toolName: String(parsed.toolName),
-                      args: (parsed as { args?: unknown; input?: unknown }).args ??
-                        (parsed as { input?: unknown }).input ??
-                        {},
-                    });
-                  }
-                } else if (parsed.type === "tool-result") {
-                  if (parsed.toolCallId && parsed.toolName) {
-                    observer?.recordToolResult({
-                      toolCallId: String(parsed.toolCallId),
-                      toolName: String(parsed.toolName),
-                      result:
-                        (parsed as { result?: unknown }).result ??
-                        (parsed as { output?: { value?: unknown } }).output?.value ??
-                        (parsed as { output?: unknown }).output ??
-                        (parsed as { value?: unknown }).value,
-                    });
-                  }
-                }
-              }
-            } catch (error) {
-              console.error("[Stream Handler] Error parsing JSON:", line);
-              Sentry.captureException(
-                ensureError(error),
-                {
-                  tags: {
-                    context: "stream-ai-pipeline",
-                    operation: "parse-stream-chunk",
-                  },
-                  extra: {
-                    lineSnippet: line.substring(0, 200),
-                  },
-                  level: "warning",
-                }
-              );
+          try {
+            const transformed = await transformSseLine({
+              line,
+              observer,
+              onTextChunk,
+              fileUploadContext,
+            });
+            for (const filePart of transformed.fileParts) {
+              observer?.recordFilePart({
+                fileUrl: filePart.fileUrl,
+                mediaType: filePart.mediaType,
+                filename: filePart.filename,
+              });
             }
+            await writeChunkToStream(responseStream, `${transformed.line}\n`);
+          } catch (error) {
+            console.error("[Stream Handler] Error parsing JSON:", line);
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                context: "stream-ai-pipeline",
+                operation: "parse-stream-chunk",
+              },
+              extra: {
+                lineSnippet: line.substring(0, 200),
+              },
+              level: "warning",
+            });
+            await writeChunkToStream(responseStream, `${line}\n`);
           }
-
-          await writeChunkToStream(responseStream, `${outputLine}\n`);
         }
       }
     }

@@ -117,7 +117,7 @@ function buildToolResultContent(part: AiSdkPart): {
 function buildUserMessageFromParts(parts: unknown[]): UIMessage {
   const content: Array<
     | { type: "text"; text: string }
-    | { type: "file"; file: string; mediaType?: string }
+    | { type: "file"; file: string; mediaType?: string; filename?: string }
   > = [];
 
   for (const part of parts) {
