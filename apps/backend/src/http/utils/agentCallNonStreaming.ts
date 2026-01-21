@@ -382,7 +382,9 @@ export async function callAgentNonStreaming(
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
-    typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
+    typeof agent.modelName === "string" && agent.modelName.length > 0
+      ? agent.modelName
+      : MODEL_NAME;
 
   const execution = await executeNonStreamingLLMCall({
     db,
