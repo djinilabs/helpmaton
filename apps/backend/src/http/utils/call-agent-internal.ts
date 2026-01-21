@@ -867,9 +867,9 @@ export async function callAgentInternal(
         callDepth,
         maxDepth,
       })
-    : ({} as ToolSet);
+    : undefined;
 
-  const wrappedTools = shouldBuildTools
+  const wrappedTools = tools
     ? wrapToolsWithObserver(tools, llmObserver)
     : undefined;
   const effectiveTools = resolveToolsForCapabilities(

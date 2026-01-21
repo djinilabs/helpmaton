@@ -53,6 +53,27 @@ describe("modelCapabilities", () => {
     expect(supportsToolCalling(capabilities)).toBe(false);
   });
 
+  it("returns tools only when tool_calling is supported", () => {
+    const tools = { alpha: { description: "a" } };
+    const supported = resolveToolsForCapabilities(tools, {
+      tool_calling: true,
+    });
+    expect(supported).toBe(tools);
+
+    const unsupported = resolveToolsForCapabilities(tools, {
+      tool_calling: false,
+    });
+    expect(unsupported).toBeUndefined();
+  });
+
+  it("returns undefined when tools are empty", () => {
+    const tools = {};
+    const supported = resolveToolsForCapabilities(tools, {
+      tool_calling: true,
+    });
+    expect(supported).toBeUndefined();
+  });
+
   it("detects reasoning support from supported_parameters", () => {
     expect(
       supportsReasoning({

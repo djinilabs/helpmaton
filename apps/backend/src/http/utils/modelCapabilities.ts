@@ -35,6 +35,10 @@ export function resolveModelCapabilities(
   return pricing?.capabilities;
 }
 
+/**
+ * Check if a model capability supports a parameter name.
+ * Missing capabilities are treated as unsupported.
+ */
 export function supportsParameter(
   capabilities: ModelCapabilities | undefined,
   parameter: string
@@ -45,6 +49,10 @@ export function supportsParameter(
   return capabilities.supported_parameters.includes(parameter);
 }
 
+/**
+ * Determine whether reasoning parameters are supported.
+ * Missing capabilities are treated as unsupported.
+ */
 export function supportsReasoning(
   capabilities: ModelCapabilities | undefined
 ): boolean {
@@ -56,12 +64,20 @@ export function supportsReasoning(
   );
 }
 
+/**
+ * Determine whether tool calling is supported.
+ * Missing capabilities are treated as unsupported.
+ */
 export function supportsToolCalling(
   capabilities: ModelCapabilities | undefined
 ): boolean {
   return capabilities?.tool_calling === true;
 }
 
+/**
+ * Filter model-level settings to only include supported parameters.
+ * Reasoning and tool settings are dropped when unsupported or unknown.
+ */
 export function filterModelSettingsForCapabilities(
   modelSettings: ModelSettings,
   capabilities: ModelCapabilities | undefined
@@ -89,6 +105,10 @@ export function filterModelSettingsForCapabilities(
   return filtered;
 }
 
+/**
+ * Filter generateText options to only include supported parameters.
+ * stopWhen is always preserved since it is client-side logic.
+ */
 export function filterGenerateTextOptionsForCapabilities(
   options: GenerateTextOptions,
   capabilities: ModelCapabilities | undefined
@@ -114,6 +134,10 @@ export function filterGenerateTextOptionsForCapabilities(
   return filtered;
 }
 
+/**
+ * Resolve tools for a model, returning undefined when tool calling is unsupported
+ * or when no tools are provided.
+ */
 export function resolveToolsForCapabilities<T extends Record<string, unknown>>(
   tools: T | undefined,
   capabilities: ModelCapabilities | undefined

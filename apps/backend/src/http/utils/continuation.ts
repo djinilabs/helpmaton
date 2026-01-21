@@ -19,7 +19,7 @@ import {
   resolveModelCapabilities,
   resolveToolsForCapabilities,
 } from "./modelCapabilities";
-import { createModel , getDefaultModel } from "./modelFactory";
+import { createModel, getDefaultModel } from "./modelFactory";
 import {
   formatToolCallMessage,
   formatToolResultMessage,
