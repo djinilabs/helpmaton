@@ -8,6 +8,11 @@ import { Sentry, ensureError } from "../../utils/sentry";
 import { prepareLLMCall } from "./generationLLMSetup";
 import { createStreamObserverCallbacks, type LlmObserver } from "./llmObserver";
 import {
+  resolveModelCapabilities,
+  resolveToolsForCapabilities,
+} from "./modelCapabilities";
+import { getDefaultModel } from "./modelFactory";
+import {
   writeChunkToStream,
   type HttpResponseStream,
 } from "./streamResponseStream";
@@ -338,10 +343,20 @@ export async function pipeAIStreamToResponse(
   observer?: LlmObserver, // Optional LLM observer for event capture
   fileUploadContext?: FileUploadContext
 ): Promise<Awaited<ReturnType<typeof streamText>>> {
+  const resolvedModelName =
+    typeof agent.modelName === "string" && agent.modelName.length > 0
+      ? agent.modelName
+      : getDefaultModel();
+  const modelCapabilities = resolveModelCapabilities(
+    "openrouter",
+    resolvedModelName
+  );
+  const effectiveTools = resolveToolsForCapabilities(tools, modelCapabilities);
+
   // Prepare LLM call (logging and generate options)
   const generateOptions = prepareLLMCall(
     agent,
-    tools,
+    effectiveTools,
     modelMessages,
     "stream",
     "stream",
@@ -353,11 +368,10 @@ export async function pipeAIStreamToResponse(
     : undefined;
 
   console.log("[Stream Handler] streamText arguments:", {
-    model:
-      typeof agent.modelName === "string" ? agent.modelName : "default",
+    model: resolvedModelName || "default",
     systemPromptLength: agent.systemPrompt.length,
     messagesCount: modelMessages.length,
-    toolsCount: tools ? Object.keys(tools).length : 0,
+    toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
     hasAbortSignal: Boolean(abortSignal),
     hasObserverCallbacks: Boolean(observerCallbacks),
     ...generateOptions,
@@ -367,7 +381,7 @@ export async function pipeAIStreamToResponse(
     model: model as unknown as Parameters<typeof streamText>[0]["model"],
     system: agent.systemPrompt,
     messages: modelMessages,
-    tools,
+    ...(effectiveTools ? { tools: effectiveTools } : {}),
     ...generateOptions,
     ...(abortSignal && { abortSignal }),
     ...(observerCallbacks ? observerCallbacks : {}),

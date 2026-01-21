@@ -43,6 +43,15 @@ export async function createAgentModel(
 /**
  * Build generateText options from agent configuration
  */
+export type GenerateTextOptions = {
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  maxTokens?: number;
+  stopSequences?: string[];
+  stopWhen?: ReturnType<typeof stepCountIs>;
+};
+
 export function buildGenerateTextOptions(agent: {
   temperature?: number | null;
   topP?: number | null;
@@ -51,15 +60,8 @@ export function buildGenerateTextOptions(agent: {
   stopSequences?: string[] | null;
   maxToolRoundtrips?: number | null;
   [key: string]: unknown;
-}) {
-  const options: {
-    temperature?: number;
-    topP?: number;
-    topK?: number;
-    maxTokens?: number;
-    stopSequences?: string[];
-    stopWhen?: ReturnType<typeof stepCountIs>;
-  } = {};
+}): GenerateTextOptions {
+  const options: GenerateTextOptions = {};
 
   if (agent.temperature !== undefined && agent.temperature !== null) {
     options.temperature = agent.temperature;

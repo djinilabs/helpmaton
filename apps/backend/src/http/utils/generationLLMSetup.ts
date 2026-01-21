@@ -3,6 +3,11 @@ import type { ModelMessage } from "ai";
 import { logToolDefinitions } from "./agentSetup";
 import { buildGenerateTextOptions } from "./agentUtils";
 import type { GenerationEndpoint } from "./generationErrorHandling";
+import {
+  filterGenerateTextOptionsForCapabilities,
+  resolveModelCapabilities,
+} from "./modelCapabilities";
+import { getDefaultModel } from "./modelFactory";
 
 /**
  * Agent configuration for LLM calls
@@ -31,15 +36,25 @@ export function prepareLLMCall(
   workspaceId?: string,
   agentId?: string
 ): ReturnType<typeof buildGenerateTextOptions> {
-  const generateOptions = buildGenerateTextOptions(agent);
+  const resolvedModelName =
+    typeof agent.modelName === "string" && agent.modelName.length > 0
+      ? agent.modelName
+      : getDefaultModel();
+  const modelCapabilities = resolveModelCapabilities(
+    "openrouter",
+    resolvedModelName
+  );
+  const generateOptions = filterGenerateTextOptionsForCapabilities(
+    buildGenerateTextOptions(agent),
+    modelCapabilities
+  );
 
   console.log(
     `[${endpoint} Handler] Executing LLM call with parameters:`,
     {
       workspaceId: workspaceId || "unknown",
       agentId: agentId || "unknown",
-      model:
-        typeof agent.modelName === "string" ? agent.modelName : "default",
+      model: resolvedModelName || "default",
       systemPromptLength: agent.systemPrompt.length,
       messagesCount: modelMessages.length,
       toolsCount: tools ? Object.keys(tools).length : 0,
