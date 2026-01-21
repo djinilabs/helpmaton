@@ -20,8 +20,10 @@ type AiSdkPart = {
   image?: unknown;
   file?: unknown;
   data?: unknown;
+  url?: unknown;
   mimeType?: unknown;
   mediaType?: unknown;
+  filename?: unknown;
 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -51,6 +53,9 @@ function extractTextParts(parts: unknown[]): string[] {
 }
 
 function extractFileUrl(part: AiSdkPart): string | null {
+  if (typeof part.url === "string") {
+    return part.url;
+  }
   if (typeof part.image === "string") {
     return part.image;
   }
@@ -71,6 +76,10 @@ function resolveMediaType(part: AiSdkPart): string | undefined {
     return part.mediaType;
   }
   return undefined;
+}
+
+function resolveFilename(part: AiSdkPart): string | undefined {
+  return typeof part.filename === "string" ? part.filename : undefined;
 }
 
 function buildToolResultContent(part: AiSdkPart): {
@@ -108,7 +117,7 @@ function buildToolResultContent(part: AiSdkPart): {
 function buildUserMessageFromParts(parts: unknown[]): UIMessage {
   const content: Array<
     | { type: "text"; text: string }
-    | { type: "file"; file: string; mediaType?: string }
+    | { type: "file"; file: string; mediaType?: string; filename?: string }
   > = [];
 
   for (const part of parts) {
@@ -142,6 +151,7 @@ function buildUserMessageFromParts(parts: unknown[]): UIMessage {
           type: "file",
           file: fileUrl,
           mediaType: resolveMediaType(typedPart),
+          filename: resolveFilename(typedPart),
         });
       }
     }
@@ -174,6 +184,7 @@ function buildAssistantMessageFromParts(parts: unknown[]): UIMessage {
         type: "reasoning";
         text: string;
       }
+    | { type: "file"; file: string; mediaType?: string; filename?: string }
   > = [];
 
   for (const part of parts) {
@@ -190,6 +201,28 @@ function buildAssistantMessageFromParts(parts: unknown[]): UIMessage {
       }
       if (typedPart.type === "reasoning" && typeof typedPart.text === "string") {
         content.push({ type: "reasoning", text: typedPart.text });
+        continue;
+      }
+      if (
+        (typedPart.type === "image" || typedPart.type === "file") &&
+        ("image" in typedPart || "file" in typedPart || "data" in typedPart || "url" in typedPart)
+      ) {
+        const fileUrl = extractFileUrl(typedPart);
+        if (!fileUrl) {
+          continue;
+        }
+        if (!isHttpUrl(fileUrl)) {
+          console.warn(
+            "[convertAiSdkUIMessageToUIMessage] Skipping inline file data (base64/data URL)"
+          );
+          continue;
+        }
+        content.push({
+          type: "file",
+          file: fileUrl,
+          mediaType: resolveMediaType(typedPart),
+          filename: resolveFilename(typedPart),
+        });
         continue;
       }
       if (

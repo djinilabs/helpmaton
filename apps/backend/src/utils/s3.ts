@@ -404,6 +404,84 @@ function buildConversationFileKey(
   return `conversation-files/${workspaceId}/${agentId}/${conversationId}/${filename}`;
 }
 
+function isLocalS3(): boolean {
+  const arcEnv = process.env.ARC_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  return arcEnv === "testing" || (arcEnv !== "production" && nodeEnv !== "production");
+}
+
+function resolveConversationFileUrl(key: string): string {
+  if (isLocalS3()) {
+    const endpoint = process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+    return `${endpoint}/${BUCKET_NAME}/${key}`;
+  }
+
+  const region =
+    process.env.HELPMATON_S3_REGION || process.env.AWS_REGION || "eu-west-2";
+  return `https://s3.${region}.amazonaws.com/${BUCKET_NAME}/${key}`;
+}
+
+function inferExtensionFromMediaType(mediaType?: string): string | undefined {
+  if (!mediaType) return undefined;
+  const normalized = mediaType.toLowerCase();
+  const mapping: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "application/pdf": "pdf",
+    "text/plain": "txt",
+    "application/json": "json",
+  };
+  return mapping[normalized];
+}
+
+export async function uploadConversationFile(params: {
+  workspaceId: string;
+  agentId: string;
+  conversationId: string;
+  content: Buffer;
+  contentType: string;
+  filename?: string;
+}): Promise<{ key: string; url: string; filename: string }> {
+  const { workspaceId, agentId, conversationId, content, contentType } = params;
+  const filenameFromInput = params.filename;
+  let extension: string | undefined;
+  if (filenameFromInput) {
+    const lastDotIndex = filenameFromInput.lastIndexOf(".");
+    if (lastDotIndex > 0 && lastDotIndex < filenameFromInput.length - 1) {
+      extension = filenameFromInput.slice(lastDotIndex + 1);
+    }
+  }
+  if (!extension) {
+    extension = inferExtensionFromMediaType(contentType);
+  }
+  const generatedFilename = generateHighEntropyFilename(extension);
+  const key = buildConversationFileKey(
+    workspaceId,
+    agentId,
+    conversationId,
+    generatedFilename
+  );
+  const s3 = await getS3Client();
+
+  await withS3Span("PutObject", key, () =>
+    s3.PutObject({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: content,
+      ContentType: contentType,
+    })
+  );
+
+  return {
+    key,
+    url: resolveConversationFileUrl(key),
+    filename: generatedFilename,
+  };
+}
+
 /**
  * Get AWS SDK v3 S3 client for presigned URL generation
  * Uses AWS SDK v3 for presigned POST URL support
@@ -518,23 +596,7 @@ export async function generatePresignedPostUrl(
   // Construct final S3 URL
   // For local S3, use the endpoint directly
   // For production, construct the S3 URL
-  const arcEnv = process.env.ARC_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  const isLocal =
-    arcEnv === "testing" ||
-    (arcEnv !== "production" && nodeEnv !== "production");
-
-  let finalUrl: string;
-  if (isLocal) {
-    const endpoint =
-      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
-    finalUrl = `${endpoint}/${BUCKET_NAME}/${key}`;
-  } else {
-    const region =
-      process.env.HELPMATON_S3_REGION || process.env.AWS_REGION || "eu-west-2";
-    // Use path-style URL (bucket name with dots forces path-style)
-    finalUrl = `https://s3.${region}.amazonaws.com/${BUCKET_NAME}/${key}`;
-  }
+  const finalUrl = resolveConversationFileUrl(key);
 
   return {
     uploadUrl: presignedPost.url,

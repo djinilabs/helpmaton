@@ -88,7 +88,12 @@ export async function executeStream(
         // Callback to track when data is actually written to the stream
         hasWrittenData = true;
       },
-      context.llmObserver
+      context.llmObserver,
+      {
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+        conversationId: context.conversationId,
+      }
     );
     
     // Use observer timestamps if available, otherwise fall back to manual timing
@@ -220,7 +225,12 @@ export async function executeStreamForApiGateway(
     },
     abortSignal,
     undefined, // No need to track data written for API Gateway (buffered)
-    context.llmObserver
+    context.llmObserver,
+    {
+      workspaceId: context.workspaceId,
+      agentId: context.agentId,
+      conversationId: context.conversationId,
+    }
   );
 
   if (!streamResult) {

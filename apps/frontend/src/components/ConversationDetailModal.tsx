@@ -229,6 +229,55 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   </div>
                 );
               }
+              if (
+                "type" in item &&
+                (item.type === "file" || item.type === "image")
+              ) {
+                const fileItem = item as {
+                  type: "file" | "image";
+                  file?: string;
+                  image?: string;
+                  data?: string;
+                  url?: string;
+                  mediaType?: string;
+                  mimeType?: string;
+                  filename?: string;
+                };
+                const fileUrl =
+                  fileItem.url || fileItem.file || fileItem.image || fileItem.data;
+                if (!fileUrl) {
+                  return null;
+                }
+                const mediaType =
+                  fileItem.mediaType || fileItem.mimeType || undefined;
+                const isImage =
+                  (mediaType && mediaType.startsWith("image/")) ||
+                  /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(fileUrl);
+                if (isImage) {
+                  return (
+                    <div key={itemIndex} className="max-w-[80%]">
+                      <img
+                        src={fileUrl}
+                        alt={fileItem.filename || "Uploaded image"}
+                        className="max-h-96 max-w-full rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+                      />
+                    </div>
+                  );
+                }
+                const displayName =
+                  fileItem.filename || fileUrl.split("/").pop() || "File";
+                return (
+                  <a
+                    key={itemIndex}
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-[80%] items-center gap-2 rounded-lg border-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
+                  >
+                    {displayName}
+                  </a>
+                );
+              }
               // Reasoning content - skip redacted reasoning
               if (
                 "type" in item &&
