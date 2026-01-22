@@ -61,6 +61,8 @@ export interface PricingConfig {
   lastUpdated: string;
 }
 
+const REASONING_PARAMETERS = new Set(["reasoning", "include_reasoning"]);
+
 // Import pricing config directly (bundled with Lambda)
 const config = pricingConfigData as PricingConfig;
 
@@ -124,6 +126,45 @@ export function getModelPricing(
   }
 
   return undefined;
+}
+
+export function supportsReasoningTokens(
+  provider: string,
+  modelName: string
+): boolean {
+  const pricing = getModelPricing(provider, modelName);
+  const supportedParameters = pricing?.capabilities?.supported_parameters;
+  if (!supportedParameters) {
+    return false;
+  }
+  return supportedParameters.some((parameter) =>
+    REASONING_PARAMETERS.has(parameter)
+  );
+}
+
+export function isImageCapableModel(
+  provider: string,
+  modelName: string
+): boolean {
+  const modelPricing = getModelPricing(provider, modelName);
+  return modelPricing?.capabilities?.image === true;
+}
+
+export function getImageCapableModels(provider: string): string[] {
+  const pricingConfig = loadPricingConfig();
+  const providerPricing = pricingConfig.providers[provider];
+  if (!providerPricing) {
+    return [];
+  }
+  const imageCapableModels = Object.entries(providerPricing.models)
+    .filter(([, model]) => model.capabilities?.image === true)
+    .map(([modelName]) => modelName);
+
+  if (imageCapableModels.length > 0) {
+    return imageCapableModels.sort();
+  }
+
+  return [];
 }
 
 /**

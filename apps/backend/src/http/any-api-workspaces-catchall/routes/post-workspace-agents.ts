@@ -7,6 +7,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { getRandomAvatar, isValidAvatar } from "../../../utils/avatarUtils";
 import { normalizeSummarizationPrompts } from "../../../utils/memory/summarizeMemory";
+import { isImageCapableModel } from "../../../utils/pricing";
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
@@ -114,6 +115,8 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           notificationChannelId,
           modelName,
           clientTools,
+          enableImageGeneration,
+          imageGenerationModel,
           avatar,
           summarizationPrompts,
         } = body;
@@ -174,6 +177,20 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           }
         }
 
+        if (enableImageGeneration === true && !imageGenerationModel) {
+          throw badRequest(
+            "imageGenerationModel is required when enableImageGeneration is true"
+          );
+        }
+        if (imageGenerationModel) {
+          const resolvedImageModel = imageGenerationModel.trim();
+          if (!isImageCapableModel("openrouter", resolvedImageModel)) {
+            throw badRequest(
+              `Image generation model "${resolvedImageModel}" is not image-capable. Please select a model that supports image output.`
+            );
+          }
+        }
+
         // Validate avatar if provided, otherwise assign random (Zod already validated the type)
         let avatarPath: string | undefined;
         if (avatar !== undefined && avatar !== null) {
@@ -206,6 +223,13 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
               ? modelName.trim()
               : undefined,
           clientTools: clientTools || undefined,
+          enableImageGeneration:
+            enableImageGeneration !== undefined ? enableImageGeneration : undefined,
+          imageGenerationModel:
+            typeof imageGenerationModel === "string" &&
+            imageGenerationModel.trim()
+              ? imageGenerationModel.trim()
+              : undefined,
           avatar: avatarPath,
           createdBy: currentUserRef,
         });
@@ -233,6 +257,8 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
           enableMemorySearch: agent.enableMemorySearch ?? false,
+          enableImageGeneration: agent.enableImageGeneration ?? false,
+          imageGenerationModel: agent.imageGenerationModel ?? null,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
           avatar: agent.avatar ?? null,

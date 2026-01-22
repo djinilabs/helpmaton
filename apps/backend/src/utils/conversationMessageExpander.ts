@@ -19,6 +19,7 @@ type ToolResultPart = {
   result: unknown;
   toolExecutionTimeMs?: number;
   costUsd?: number;
+  openrouterGenerationId?: string;
 };
 
 type DelegationPart = {
@@ -34,6 +35,7 @@ type DelegationPart = {
 
 type ReasoningPart = { type: "reasoning"; text: string };
 type TextPart = { type: "text"; text: string };
+type FilePart = { type: "file"; file: string; mediaType?: string; filename?: string };
 type AssistantMessage = Extract<UIMessage, { role: "assistant" }>;
 
 type AssistantParts = {
@@ -42,6 +44,7 @@ type AssistantParts = {
   delegations: DelegationPart[];
   reasoning: ReasoningPart[];
   text: TextPart[];
+  fileParts: FilePart[];
 };
 
 type ToolCallMapEntry = {
@@ -55,6 +58,7 @@ const createEmptyAssistantParts = (): AssistantParts => ({
   delegations: [],
   reasoning: [],
   text: [],
+  fileParts: [],
 });
 
 const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
@@ -111,6 +115,7 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
         result?: unknown;
         toolExecutionTimeMs?: number;
         costUsd?: number;
+        openrouterGenerationId?: string;
       };
       if (
         toolResult.toolCallId &&
@@ -133,6 +138,9 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           }),
           ...(toolResult.costUsd !== undefined && {
             costUsd: toolResult.costUsd,
+          }),
+          ...(toolResult.openrouterGenerationId && {
+            openrouterGenerationId: toolResult.openrouterGenerationId,
           }),
         });
       }
@@ -191,6 +199,25 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
       if (typeof textItem.text === "string") {
         parts.text.push({ type: "text", text: textItem.text });
       }
+      continue;
+    }
+
+    if (
+      item.type === "file" &&
+      "file" in item &&
+      typeof (item as { file?: unknown }).file === "string"
+    ) {
+      const fileItem = item as {
+        file: string;
+        mediaType?: string;
+        filename?: string;
+      };
+      parts.fileParts.push({
+        type: "file",
+        file: fileItem.file,
+        ...(fileItem.mediaType && { mediaType: fileItem.mediaType }),
+        ...(fileItem.filename && { filename: fileItem.filename }),
+      });
     }
   }
 
@@ -303,11 +330,13 @@ const buildTextOnlyMessage = (options: {
   message: AssistantMessage;
   reasoning: ReasoningPart[];
   text: TextPart[];
+  fileParts: FilePart[];
   toolResultEndTimes: string[];
   awsRequestId?: string;
 }): AssistantMessage | null => {
-  const { message, reasoning, text, toolResultEndTimes, awsRequestId } = options;
-  if (reasoning.length === 0 && text.length === 0) {
+  const { message, reasoning, text, fileParts, toolResultEndTimes, awsRequestId } =
+    options;
+  if (reasoning.length === 0 && text.length === 0 && fileParts.length === 0) {
     return null;
   }
 
@@ -329,9 +358,10 @@ const buildTextOnlyMessage = (options: {
     textGenerationStartedAt = message.generationStartedAt;
   }
 
-  const reasoningAndTextContent: Array<ReasoningPart | TextPart> = [
+  const reasoningAndTextContent: Array<ReasoningPart | TextPart | FilePart> = [
     ...reasoning,
     ...text,
+    ...fileParts,
   ];
 
   return {
@@ -367,12 +397,13 @@ const buildDelegationOnlyMessage = (options: {
   delegations: DelegationPart[];
   reasoning: ReasoningPart[];
   text: TextPart[];
+  fileParts: FilePart[];
   awsRequestId?: string;
 }): AssistantMessage | null => {
-  const { message, delegations, reasoning, text, awsRequestId } = options;
+  const { message, delegations, reasoning, text, fileParts, awsRequestId } = options;
   const contentWithDelegations: Array<
-    TextPart | ReasoningPart | DelegationPart
-  > = [...reasoning, ...text, ...delegations];
+    TextPart | ReasoningPart | DelegationPart | FilePart
+  > = [...reasoning, ...text, ...fileParts, ...delegations];
 
   if (contentWithDelegations.length === 0) {
     return awsRequestId ? { ...message, awsRequestId } : message;
@@ -428,6 +459,7 @@ export function expandMessagesWithToolCalls(
           message: assistantMessage,
           reasoning: parts.reasoning,
           text: parts.text,
+          fileParts: parts.fileParts,
           toolResultEndTimes,
           awsRequestId,
         });
@@ -447,6 +479,7 @@ export function expandMessagesWithToolCalls(
           delegations: parts.delegations,
           reasoning: parts.reasoning,
           text: parts.text,
+          fileParts: parts.fileParts,
           awsRequestId,
         });
         if (delegationOnlyMessage) {

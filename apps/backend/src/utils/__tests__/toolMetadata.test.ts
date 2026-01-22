@@ -16,6 +16,8 @@ describe("toolMetadata", () => {
         searchWebProvider: null,
         fetchWebProvider: null,
         enableExaSearch: false,
+        enableImageGeneration: false,
+        imageGenerationModel: undefined,
         delegatableAgentIds: [],
         enabledMcpServerIds: [],
         clientTools: [],
@@ -152,6 +154,42 @@ describe("toolMetadata", () => {
       expect(sendEmailTool).toBeDefined();
       expect(sendEmailTool?.alwaysAvailable).toBe(false);
       expect(sendEmailTool?.condition).toContain("Available");
+    });
+
+    it("should include generate_image when enableImageGeneration is true", () => {
+      const options: ToolListOptions = {
+        ...baseOptions,
+        agent: {
+          ...baseOptions.agent,
+          enableImageGeneration: true,
+          imageGenerationModel: "openrouter/image-model",
+        },
+      };
+
+      const result = generateToolList(options);
+
+      const imageToolsGroup = result.find((g) => g.category === "Image Tools");
+      expect(imageToolsGroup).toBeDefined();
+      const generateImageTool = imageToolsGroup?.tools.find(
+        (t) => t.name === "generate_image"
+      );
+      expect(generateImageTool).toBeDefined();
+      expect(generateImageTool?.alwaysAvailable).toBe(false);
+      expect(generateImageTool?.condition).toContain("Available");
+    });
+
+    it("should mark generate_image as not available when disabled", () => {
+      const result = generateToolList(baseOptions);
+
+      const imageToolsGroup = result.find((g) => g.category === "Image Tools");
+      if (imageToolsGroup) {
+        const generateImageTool = imageToolsGroup.tools.find(
+          (t) => t.name === "generate_image"
+        );
+        if (generateImageTool) {
+          expect(generateImageTool.condition).toContain("Not available");
+        }
+      }
     });
 
     it("should not include send_email when emailConnection is false", () => {

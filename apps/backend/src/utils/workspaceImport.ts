@@ -531,6 +531,8 @@ async function createAgentsAndNestedEntities(
       enableTavilyFetch: agentData.enableTavilyFetch ?? false,
       fetchWebProvider: agentData.fetchWebProvider,
       enableExaSearch: agentData.enableExaSearch ?? false,
+      enableImageGeneration: agentData.enableImageGeneration ?? false,
+      imageGenerationModel: agentData.imageGenerationModel,
       spendingLimits: agentData.spendingLimits,
       temperature: agentData.temperature,
       topP: agentData.topP,

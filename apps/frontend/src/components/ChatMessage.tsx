@@ -15,7 +15,6 @@ import {
   ReasoningPart,
   SourceDocumentPart,
   SourceUrlPart,
-  StepStartPart,
   TextPart,
   ToolPart,
   UnknownPart,
@@ -405,17 +404,6 @@ export const ChatMessage = memo<ChatMessageProps>(
             dataName={dataName}
             data={dataPart.data}
             id={dataPart.id}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // Step start part
-      if (partType === "step-start") {
-        return (
-          <StepStartPart
-            key={`${message.id}-step-${partIndex}`}
             partIndex={partIndex}
             messageId={message.id}
           />

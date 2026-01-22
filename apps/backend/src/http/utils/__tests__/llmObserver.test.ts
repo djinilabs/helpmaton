@@ -189,6 +189,55 @@ describe("buildConversationMessagesFromObserver", () => {
     }
   });
 
+  it("deduplicates file parts from tool results and observer file events", () => {
+    const events: LlmObserverEvent[] = [
+      {
+        type: "input-messages",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        messages: [{ role: "user", content: "generate image" }],
+      },
+      {
+        type: "tool-result",
+        timestamp: "2025-01-01T00:00:01.000Z",
+        toolCallId: "call-1",
+        toolName: "generate_image",
+        result: {
+          url: "https://example.com/image.png",
+          contentType: "image/png",
+          filename: "image.png",
+        },
+      },
+      {
+        type: "assistant-file",
+        timestamp: "2025-01-01T00:00:02.000Z",
+        fileUrl: "https://example.com/image.png",
+        mediaType: "image/png",
+        filename: "image.png",
+      },
+    ];
+
+    const messages = buildConversationMessagesFromObserver({
+      observerEvents: events,
+      assistantMeta: {
+        provider: "openrouter",
+      },
+    });
+
+    const assistantMessage = messages[1];
+    expect(assistantMessage.role).toBe("assistant");
+    expect(Array.isArray(assistantMessage.content)).toBe(true);
+    if (Array.isArray(assistantMessage.content)) {
+      const fileParts = assistantMessage.content.filter(
+        (item) =>
+          typeof item === "object" &&
+          item !== null &&
+          "type" in item &&
+          item.type === "file"
+      );
+      expect(fileParts).toHaveLength(1);
+    }
+  });
+
   it("adds tool call/results from tool execution events", () => {
     const events: LlmObserverEvent[] = [
       {

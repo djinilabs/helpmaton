@@ -90,6 +90,8 @@ export const createAgentSchema = z
     notificationChannelId: z.string().nullable().optional(),
     modelName: z.string().nullable().optional(),
     clientTools: z.array(clientToolSchema).optional(),
+    enableImageGeneration: z.boolean().optional(),
+    imageGenerationModel: z.string().nullable().optional(),
     avatar: z.string().nullable().optional(),
     summarizationPrompts: summarizationPromptsSchema.optional(),
   })
@@ -116,6 +118,8 @@ export const updateAgentSchema = z
     enableTavilyFetch: z.boolean().optional(), // Legacy field
     fetchWebProvider: z.string().optional(),
     enableExaSearch: z.boolean().optional(),
+    enableImageGeneration: z.boolean().optional(),
+    imageGenerationModel: z.string().nullable().optional(),
     clientTools: z.array(clientToolSchema).optional(),
     summarizationPrompts: summarizationPromptsSchema.optional(),
     widgetConfig: z

@@ -1,6 +1,14 @@
+import { randomUUID } from "crypto";
+
 import { jsonSchema, tool } from "ai";
+import { z } from "zod";
 
 import { database } from "../../tables";
+import { enqueueCostVerification, refundReservation, reserveCredits } from "../../utils/creditManagement";
+import { estimateImageGenerationCost } from "../../utils/imageGenerationCredits";
+import type { UIMessage } from "../../utils/messageTypes";
+import { extractOpenRouterGenerationIdFromResponse } from "../../utils/openrouterUtils";
+import { uploadConversationFile } from "../../utils/s3";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import {
@@ -281,6 +289,453 @@ const addWebTools = async (params: {
   }
 };
 
+const resolveImagePromptFromMessages = (messages: UIMessage[]): string | null => {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role !== "user") {
+      continue;
+    }
+    if (typeof message.content === "string") {
+      const trimmed = message.content.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+      continue;
+    }
+    if (Array.isArray(message.content)) {
+      const textParts = message.content
+        .map((part) => {
+          if (
+            part &&
+            typeof part === "object" &&
+            "type" in part &&
+            part.type === "text" &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            return part.text;
+          }
+          return "";
+        })
+        .filter((text) => text.trim().length > 0);
+      if (textParts.length > 0) {
+        return textParts.join("\n");
+      }
+    }
+  }
+  return null;
+};
+
+export const resolveImagePrompt = (
+  prompt: string | undefined,
+  observer?: LlmObserver
+): string | null => {
+  if (typeof prompt === "string") {
+    const trimmed = prompt.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  if (!observer) {
+    return null;
+  }
+  const events = observer.getEvents();
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event.type === "input-messages" && "messages" in event) {
+      return resolveImagePromptFromMessages(event.messages);
+    }
+  }
+  return null;
+};
+
+const addImageGenerationTool = async (params: {
+  tools: AgentSetup["tools"];
+  workspaceId: string;
+  agentId: string;
+  agent: WorkspaceAndAgent["agent"];
+  options?: AgentSetupOptions;
+}) => {
+  if (params.agent.enableImageGeneration !== true) {
+    return;
+  }
+  const modelName =
+    typeof params.agent.imageGenerationModel === "string"
+      ? params.agent.imageGenerationModel.trim()
+      : "";
+  if (!modelName) {
+    console.warn(
+      "[Agent Setup] Image generation enabled but no imageGenerationModel set"
+    );
+    return;
+  }
+
+  const workspaceKey = await getWorkspaceApiKey(
+    params.workspaceId,
+    "openrouter"
+  );
+  const apiKey = workspaceKey || process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      "[Agent Setup] OPENROUTER_API_KEY not set - image generation tool disabled"
+    );
+    return;
+  }
+
+  const generateImageSchema = z
+    .object({
+      prompt: z
+        .string()
+        .trim()
+        .min(1, "prompt is required and cannot be empty")
+        .optional()
+        .describe(
+          "Text prompt describing the image to generate. Be specific about style, subject, and composition."
+        ),
+    })
+    .strict();
+  type GenerateImageArgs = z.infer<typeof generateImageSchema>;
+  const extractFromContentParts = (
+    content:
+      | string
+      | Array<{
+          type?: string;
+          url?: string;
+          data?: string;
+          contentType?: string;
+          mime_type?: string;
+          image_url?: { url?: string };
+          image?: { url?: string; data?: string; mime_type?: string };
+        }>
+      | undefined
+  ): { url?: string; base64?: string; contentType?: string } | null => {
+    if (!Array.isArray(content)) {
+      return null;
+    }
+    for (const part of content) {
+      if (typeof part?.image_url?.url === "string") {
+        return { url: part.image_url.url };
+      }
+      if (typeof part?.image?.url === "string") {
+        return { url: part.image.url };
+      }
+      if (typeof part?.image?.data === "string") {
+        return {
+          base64: part.image.data,
+          contentType: part.image.mime_type,
+        };
+      }
+      if (typeof part?.url === "string" && part.type?.includes("image")) {
+        return { url: part.url };
+      }
+      if (typeof part?.data === "string" && part.type?.includes("image")) {
+        return {
+          base64: part.data,
+          contentType: part.mime_type || part.contentType,
+        };
+      }
+    }
+    return null;
+  };
+  const extractFromImages = (
+    images:
+      | Array<{
+          type?: string;
+          image_url?: { url?: string };
+          url?: string;
+          data?: string;
+          mime_type?: string;
+          contentType?: string;
+        }>
+      | undefined
+  ): { url?: string; base64?: string; contentType?: string } | null => {
+    if (!Array.isArray(images)) {
+      return null;
+    }
+    for (const image of images) {
+      if (typeof image?.image_url?.url === "string") {
+        return { url: image.image_url.url };
+      }
+      if (typeof image?.url === "string") {
+        return { url: image.url };
+      }
+      if (typeof image?.data === "string") {
+        return {
+          base64: image.data,
+          contentType: image.mime_type || image.contentType,
+        };
+      }
+    }
+    return null;
+  };
+  const extractFromContentString = (
+    content: string | undefined
+  ): { url?: string } | null => {
+    if (typeof content !== "string") {
+      return null;
+    }
+    if (content.startsWith("data:image/") || content.startsWith("http")) {
+      return { url: content };
+    }
+    return null;
+  };
+  const extractFromFallback = (
+    data: { data?: Array<{ url?: string; b64_json?: string }> }
+  ): { url?: string; base64?: string } | null => {
+    const fallback = data.data?.[0];
+    if (typeof fallback?.url === "string") {
+      return { url: fallback.url };
+    }
+    if (typeof fallback?.b64_json === "string") {
+      return { base64: fallback.b64_json };
+    }
+    return null;
+  };
+  const extractImageOutput = (
+    payload: unknown
+  ): { url?: string; base64?: string; contentType?: string } | null => {
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+    const data = payload as {
+      choices?: Array<{
+        message?: {
+          content?:
+            | string
+            | Array<{
+                type?: string;
+                url?: string;
+                data?: string;
+                contentType?: string;
+                mime_type?: string;
+                image_url?: { url?: string };
+                image?: { url?: string; data?: string; mime_type?: string };
+              }>;
+          images?: Array<{
+            type?: string;
+            image_url?: { url?: string };
+            url?: string;
+            data?: string;
+            mime_type?: string;
+            contentType?: string;
+          }>;
+        };
+      }>;
+      data?: Array<{ url?: string; b64_json?: string }>;
+    };
+
+    const message = data.choices?.[0]?.message;
+    const content = message?.content;
+
+    return (
+      extractFromContentParts(content) ||
+      extractFromImages(message?.images) ||
+      extractFromContentString(content as string | undefined) ||
+      extractFromFallback(data)
+    );
+  };
+
+  const isTrustedImageUrl = (url: string): boolean => {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== "https:") {
+        return false;
+      }
+      const hostname = parsedUrl.hostname.toLowerCase();
+      return hostname === "openrouter.ai" || hostname.endsWith(".openrouter.ai");
+    } catch {
+      return false;
+    }
+  };
+
+  params.tools.generate_image = tool({
+    description:
+      "Generate an image from a text prompt using the configured image model. REQUIRED: You must pass a non-empty 'prompt' string describing the image. Example: {\"prompt\":\"A watercolor lighthouse on a rocky cliff at sunset\"}.",
+    parameters: generateImageSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
+    // @ts-ignore - Tool execution signature is compatible at runtime
+    execute: async (args: GenerateImageArgs) => {
+      const prompt = resolveImagePrompt(
+        args?.prompt,
+        params.options?.llmObserver
+      );
+      if (!prompt) {
+        return "Error: generate_image requires a non-empty 'prompt' string describing the image to generate.";
+      }
+      const provider = "openrouter";
+      const usesByok = workspaceKey !== null;
+      const db = await database();
+      const estimatedCostUsd = estimateImageGenerationCost({
+        provider,
+        modelName,
+        prompt,
+      });
+      let reservationId: string | undefined;
+
+      try {
+        const reservation = await reserveCredits(
+          db,
+          params.workspaceId,
+          estimatedCostUsd,
+          3,
+          usesByok,
+          params.options?.context,
+          provider,
+          modelName,
+          params.agentId,
+          params.options?.conversationId
+        );
+        reservationId = reservation.reservationId;
+      } catch (error) {
+        console.error("[Agent Setup] Image generation credit reservation failed:", {
+          workspaceId: params.workspaceId,
+          agentId: params.agentId,
+          modelName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      };
+      if (params.options?.modelReferer) {
+        headers["HTTP-Referer"] = params.options.modelReferer;
+      }
+
+      let response: Response | undefined;
+      let result: unknown;
+
+      try {
+        response = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: modelName,
+              messages: [
+                {
+                  role: "user",
+                  content: prompt,
+                },
+              ],
+              modalities: ["image", "text"],
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => "");
+          throw new Error(
+            `OpenRouter image generation failed: ${response.status} ${response.statusText} ${errorBody}`
+          );
+        }
+
+        result = (await response.json()) as unknown;
+      } catch (error) {
+        if (reservationId && reservationId !== "byok" && params.options?.context) {
+          try {
+            await refundReservation(db, reservationId, params.options.context, 3);
+          } catch (refundError) {
+            console.error("[Agent Setup] Failed to refund image reservation:", {
+              reservationId,
+              error:
+                refundError instanceof Error
+                  ? refundError.message
+                  : String(refundError),
+            });
+          }
+        }
+        throw error;
+      }
+
+      const openrouterGenerationId = response
+        ? extractOpenRouterGenerationIdFromResponse(response, result)
+        : undefined;
+      if (openrouterGenerationId) {
+        await enqueueCostVerification(
+          openrouterGenerationId,
+          params.workspaceId,
+          reservationId && reservationId !== "byok" ? reservationId : undefined,
+          params.options?.conversationId,
+          params.agentId
+        );
+      }
+      const imageOutput = extractImageOutput(result);
+      if (!imageOutput?.url && !imageOutput?.base64) {
+        console.error("[Agent Setup] Image generation result:", result);
+        throw new Error("image generation returned no image output");
+      }
+
+      let buffer: Buffer;
+      let contentType = imageOutput?.contentType || "image/png";
+      if (imageOutput?.url) {
+        if (imageOutput.url.startsWith("data:")) {
+          const match = imageOutput.url.match(/^data:(.+);base64,(.*)$/);
+          if (!match) {
+            throw new Error("OpenRouter returned an invalid data URL");
+          }
+          contentType = match[1] || contentType;
+          buffer = Buffer.from(match[2] || "", "base64");
+        } else {
+          let filenameFromUrl: string | undefined;
+          let parsedUrl: URL | undefined;
+          try {
+            parsedUrl = new URL(imageOutput.url);
+            const basename = parsedUrl.pathname.split("/").pop();
+            filenameFromUrl = basename || undefined;
+          } catch {
+            filenameFromUrl = imageOutput.url.split("/").pop();
+          }
+          if (isTrustedImageUrl(imageOutput.url)) {
+            return {
+              url: imageOutput.url,
+              contentType,
+              filename: filenameFromUrl || "image.png",
+              model: modelName,
+              ...(estimatedCostUsd > 0 && { costUsd: estimatedCostUsd }),
+              ...(openrouterGenerationId && { openrouterGenerationId }),
+            };
+          }
+
+          const imageResponse = await fetch(imageOutput.url);
+          if (!imageResponse.ok) {
+            throw new Error(
+              `Failed to download image from ${imageOutput.url}: ${imageResponse.status} ${imageResponse.statusText}`
+            );
+          }
+          const headerContentType = imageResponse.headers.get("content-type");
+          if (headerContentType) {
+            contentType = headerContentType;
+          }
+          buffer = Buffer.from(await imageResponse.arrayBuffer());
+        }
+      } else {
+        buffer = Buffer.from(imageOutput.base64 || "", "base64");
+      }
+
+      const conversationId = params.options?.conversationId || randomUUID();
+      const upload = await uploadConversationFile({
+        workspaceId: params.workspaceId,
+        agentId: params.agentId,
+        conversationId,
+        content: buffer,
+        contentType,
+      });
+
+      return {
+        url: upload.url,
+        contentType,
+        filename: upload.filename,
+        model: modelName,
+        ...(estimatedCostUsd > 0 && { costUsd: estimatedCostUsd }),
+        ...(openrouterGenerationId && { openrouterGenerationId }),
+      };
+    },
+  });
+};
+
 const addDelegationTools = (params: {
   tools: AgentSetup["tools"];
   workspaceId: string;
@@ -433,6 +888,13 @@ export async function setupAgentAndTools(
       agent,
       options,
       context,
+    });
+    await addImageGenerationTool({
+      tools,
+      workspaceId,
+      agentId: extractedAgentId,
+      agent,
+      options,
     });
     addDelegationTools({
       tools,
