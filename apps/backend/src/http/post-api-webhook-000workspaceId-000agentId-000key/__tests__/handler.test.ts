@@ -1,201 +1,38 @@
 import { badRequest, unauthorized } from "@hapi/boom";
-import { generateText } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
-// eslint-disable-next-line import/order
 import {
   createAPIGatewayEventV2,
-  createMockContext,
   createMockCallback,
-  createMockDatabase,
+  createMockContext,
 } from "../../utils/__tests__/test-helpers";
 
-// Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
-  mockDatabase,
   mockValidateWebhookRequest,
   mockValidateWebhookKey,
-  mockCheckFreePlanExpiration,
-  mockGetWorkspaceSubscription,
-  mockCheckDailyRequestLimit,
-  mockSetupAgentAndTools,
-  mockConvertTextToUIMessage,
-  mockConvertUIMessagesToModelMessages,
-  mockValidateCreditsAndLimitsAndReserve,
-  mockBuildGenerateTextOptions,
-  mockExtractTokenUsage,
-  mockAdjustCreditReservation,
-  mockStartConversation,
-  mockFormatToolCallMessage,
-  mockFormatToolResultMessage,
-  mockIsCreditDeductionEnabled,
-  mockExtractTokenUsageAndCosts,
-  mockAdjustCreditsAfterLLMCall,
-  mockEnqueueCostVerificationIfNeeded,
-  mockCallAgentNonStreaming,
-} = vi.hoisted(() => {
-  return {
-    mockDatabase: vi.fn(),
-    mockValidateWebhookRequest: vi.fn(),
-    mockValidateWebhookKey: vi.fn(),
-    mockCheckFreePlanExpiration: vi.fn(),
-    mockGetWorkspaceSubscription: vi.fn(),
-    mockCheckDailyRequestLimit: vi.fn(),
-    mockSetupAgentAndTools: vi.fn(),
-    mockConvertTextToUIMessage: vi.fn(),
-    mockConvertUIMessagesToModelMessages: vi.fn(),
-    mockValidateCreditsAndLimitsAndReserve: vi.fn(),
-    mockBuildGenerateTextOptions: vi.fn(),
-    mockExtractTokenUsage: vi.fn(),
-    mockAdjustCreditReservation: vi.fn(),
-    mockStartConversation: vi.fn(),
-    mockFormatToolCallMessage: vi.fn(),
-    mockFormatToolResultMessage: vi.fn(),
-    mockIsCreditDeductionEnabled: vi.fn(),
-    mockExtractTokenUsageAndCosts: vi.fn(),
-    mockAdjustCreditsAfterLLMCall: vi.fn(),
-    mockEnqueueCostVerificationIfNeeded: vi.fn(),
-    mockCallAgentNonStreaming: vi.fn(),
-  };
-});
-
-// Mock the modules
-vi.mock("../../../tables", () => ({
-  database: mockDatabase,
+  mockValidateSubscriptionAndLimits,
+  mockEnqueueWebhookTask,
+} = vi.hoisted(() => ({
+  mockValidateWebhookRequest: vi.fn(),
+  mockValidateWebhookKey: vi.fn(),
+  mockValidateSubscriptionAndLimits: vi.fn(),
+  mockEnqueueWebhookTask: vi.fn(),
 }));
 
-// Mock @architect/functions for database initialization
-vi.mock("@architect/functions", () => ({
-  tables: vi.fn().mockResolvedValue({
-    reflect: vi.fn().mockResolvedValue({}),
-    _client: {},
-  }),
+vi.mock("../../utils/requestValidation", () => ({
+  validateWebhookRequest: mockValidateWebhookRequest,
+  validateWebhookKey: mockValidateWebhookKey,
 }));
 
-vi.mock(
-  "../../utils/requestValidation",
-  () => ({
-    validateWebhookRequest: mockValidateWebhookRequest,
-    validateWebhookKey: mockValidateWebhookKey,
-  })
-);
-
-vi.mock("../../../utils/subscriptionUtils", () => ({
-  checkFreePlanExpiration: mockCheckFreePlanExpiration,
-  getWorkspaceSubscription: mockGetWorkspaceSubscription,
+vi.mock("../../../utils/webhookQueue", () => ({
+  enqueueWebhookTask: mockEnqueueWebhookTask,
 }));
 
-vi.mock("../../../utils/requestTracking", () => ({
-  checkDailyRequestLimit: mockCheckDailyRequestLimit,
-  incrementRequestBucket: vi.fn(),
+vi.mock("../../utils/generationRequestTracking", () => ({
+  validateSubscriptionAndLimits: mockValidateSubscriptionAndLimits,
+  trackSuccessfulRequest: vi.fn(),
 }));
 
-vi.mock("../../utils/agentSetup", () => ({
-  setupAgentAndTools: mockSetupAgentAndTools,
-  logToolDefinitions: vi.fn(),
-}));
-
-vi.mock("../../utils/messageConversion", () => ({
-  convertTextToUIMessage: mockConvertTextToUIMessage,
-  convertUIMessagesToModelMessages: mockConvertUIMessagesToModelMessages,
-}));
-
-vi.mock("../../../utils/creditValidation", () => ({
-  validateCreditsAndLimitsAndReserve: vi.fn(),
-}));
-
-vi.mock("../../utils/agentUtils", () => ({
-  buildGenerateTextOptions: mockBuildGenerateTextOptions,
-  MODEL_NAME: "gemini-2.5-flash",
-}));
-
-vi.mock("ai", async () => {
-  const actual = await vi.importActual("ai");
-  return {
-    ...actual,
-    generateText: vi.fn(),
-  };
-});
-
-vi.mock("../../../utils/conversationLogger", async () => {
-  const actual = await vi.importActual<
-    typeof import("../../../utils/conversationLogger")
-  >("../../../utils/conversationLogger");
-  return {
-    ...actual,
-    extractTokenUsage: mockExtractTokenUsage,
-    startConversation: mockStartConversation,
-  };
-});
-
-vi.mock("../../../utils/creditManagement", () => ({
-  adjustCreditReservation: mockAdjustCreditReservation,
-  refundReservation: vi.fn(),
-  adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
-  enqueueCostVerification: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("../../utils/agentCallNonStreaming", () => ({
-  callAgentNonStreaming: mockCallAgentNonStreaming,
-}));
-
-// Mock workspaceCreditContext
-const mockContext: AugmentedContext = {
-  awsRequestId: "test-request-id",
-  addWorkspaceCreditTransaction: vi.fn(),
-  getRemainingTimeInMillis: () => 30000,
-  functionName: "test-function",
-  functionVersion: "$LATEST",
-  invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
-  memoryLimitInMB: "128",
-  logGroupName: "/aws/lambda/test",
-  logStreamName: "2024/01/01/[$LATEST]test",
-  callbackWaitsForEmptyEventLoop: true,
-  succeed: vi.fn(),
-  fail: vi.fn(),
-  done: vi.fn(),
-} as AugmentedContext;
-
-vi.mock("../../../utils/workspaceCreditContext", () => ({
-  getContextFromRequestId: vi.fn(() => mockContext),
-  getTransactionBuffer: vi.fn(() => new Map()), // Return empty buffer for tests
-  augmentContextWithCreditTransactions: vi.fn((context) => ({
-    ...context,
-    addWorkspaceCreditTransaction: vi.fn(),
-  })),
-  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
-  setCurrentHTTPContext: vi.fn(),
-  clearCurrentHTTPContext: vi.fn(),
-}));
-
-vi.mock("../../../utils/workspaceCreditTransactions", () => ({
-  updateTransactionBufferConversationId: vi.fn(), // Mock the new function
-}));
-
-vi.mock("../../utils/toolFormatting", () => ({
-  formatToolCallMessage: mockFormatToolCallMessage,
-  formatToolResultMessage: mockFormatToolResultMessage,
-  })
-);
-
-vi.mock("../../../utils/featureFlags", () => ({
-  isCreditDeductionEnabled: mockIsCreditDeductionEnabled,
-}));
-
-vi.mock("../../utils/generationTokenExtraction", () => ({
-  extractTokenUsageAndCosts: mockExtractTokenUsageAndCosts,
-}));
-
-vi.mock("../../utils/generationCreditManagement", () => ({
-  adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
-  cleanupReservationOnError: vi.fn(),
-  cleanupReservationWithoutTokenUsage: vi.fn(),
-  enqueueCostVerificationIfNeeded: mockEnqueueCostVerificationIfNeeded,
-  validateAndReserveCredits: mockValidateCreditsAndLimitsAndReserve,
-}));
-
-// Mock crypto.randomUUID to return predictable values for tests
 const mockRandomUUID = vi.fn();
 vi.mock("crypto", async () => {
   const actual = await vi.importActual<typeof import("crypto")>("crypto");
@@ -204,9 +41,10 @@ vi.mock("crypto", async () => {
     randomUUID: () => mockRandomUUID(),
   };
 });
-
-// Import the handler after mocks are set up
-import { handler } from "../index";
+const getHandler = async () => {
+  const { handler } = await import("../index");
+  return handler;
+};
 
 describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
   const mockContext = createMockContext();
@@ -214,12 +52,11 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset randomUUID mock to return predictable values
-    // Each test can override this if needed
     mockRandomUUID.mockReturnValue("ff028639-8bb4-43f0-87fa-0618dada653c");
+    mockValidateSubscriptionAndLimits.mockResolvedValue("sub-123");
   });
 
-  it("should successfully process webhook request and return response", async () => {
+  it("returns 202 and enqueues webhook task", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-456";
     const key = "key-789";
@@ -231,80 +68,17 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       key,
       bodyText,
     });
-    // validateWebhookKey is async and doesn't return a value on success
     mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+    mockEnqueueWebhookTask.mockResolvedValue(undefined);
 
-    const mockSubscription = {
-      pk: "subscriptions/sub-123",
-      plan: "pro" as const,
-    };
-    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-
-    const mockAgent = {
-      pk: `agents/${workspaceId}/${agentId}`,
-      name: "Test Agent",
-      systemPrompt: "You are helpful",
-      provider: "google" as const,
-    };
-
-    const mockModel = {};
-    const mockTools = {};
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: mockAgent,
-      model: mockModel,
-      tools: mockTools,
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: bodyText,
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: bodyText,
-      },
-    ]);
-
-    // Mock callAgentNonStreaming to return the agent result
-    mockCallAgentNonStreaming.mockResolvedValue({
-      text: "Hello! How can I help you?",
-      tokenUsage: {
-        promptTokens: 10,
-        completionTokens: 5,
-        totalTokens: 15,
-      },
-      rawResult: {
-        text: "Hello! How can I help you?",
-        toolCalls: [],
-        toolResults: [],
-      } as unknown as Awaited<ReturnType<typeof generateText>>,
-      openrouterGenerationId: undefined,
-      openrouterGenerationIds: [],
-      provisionalCostUsd: 1000, // 0.001 USD in millionths
-    });
-
-    mockStartConversation.mockResolvedValue("conversation-id-123");
-    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const baseEvent = createAPIGatewayEventV2({
+    const event = createAPIGatewayEventV2({
       routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
       rawPath: "/api/webhook/workspace-123/agent-456/key-789",
       body: bodyText,
-    });
-    const event = {
-      ...baseEvent,
       requestContext: {
-        ...baseEvent.requestContext,
+        ...createAPIGatewayEventV2().requestContext,
         http: {
-          ...baseEvent.requestContext.http,
+          ...createAPIGatewayEventV2().requestContext.http,
           method: "POST",
         },
       },
@@ -313,37 +87,40 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
         agentId,
         key,
       },
-    };
+    });
 
+    const handler = await getHandler();
     const result = (await handler(event, mockContext, mockCallback)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
     };
 
-    expect(result.statusCode).toBe(200);
-    // Webhook returns plain text, not JSON
-    expect(result.body).toBe("Hello! How can I help you?");
-    expect(result.headers["Content-Type"]).toBe("text/plain; charset=utf-8");
+    expect(result.statusCode).toBe(202);
+    expect(result.headers["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(result.body)).toEqual({
+      conversationId: "ff028639-8bb4-43f0-87fa-0618dada653c",
+    });
     expect(mockValidateWebhookRequest).toHaveBeenCalledWith(event);
     expect(mockValidateWebhookKey).toHaveBeenCalledWith(
       workspaceId,
       agentId,
       key
     );
-    expect(mockCallAgentNonStreaming).toHaveBeenCalledWith(
+    expect(mockValidateSubscriptionAndLimits).toHaveBeenCalledWith(
+      workspaceId,
+      "webhook"
+    );
+    expect(mockEnqueueWebhookTask).toHaveBeenCalledWith(
       workspaceId,
       agentId,
       bodyText,
-      expect.objectContaining({
-        modelReferer: "http://localhost:3000/api/webhook",
-        endpointType: "webhook",
-      })
+      "ff028639-8bb4-43f0-87fa-0618dada653c",
+      "sub-123"
     );
   });
 
-  it("should throw badRequest when validation fails", async () => {
-    // Mock validateWebhookRequest to throw an error
+  it("returns 400 when request validation fails", async () => {
     mockValidateWebhookRequest.mockImplementation(() => {
       throw badRequest("Invalid request format");
     });
@@ -366,6 +143,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       },
     });
 
+    const handler = await getHandler();
     const result = (await handler(event, mockContext, mockCallback)) as {
       statusCode: number;
       headers: Record<string, string>;
@@ -377,7 +155,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     expect(body.message).toContain("Invalid request format");
   });
 
-  it("should throw unauthorized when webhook key validation fails", async () => {
+  it("returns 401 when webhook key validation fails", async () => {
     mockValidateWebhookRequest.mockReturnValue({
       workspaceId: "workspace-123",
       agentId: "agent-456",
@@ -404,6 +182,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       },
     });
 
+    const handler = await getHandler();
     const result = (await handler(event, mockContext, mockCallback)) as {
       statusCode: number;
       headers: Record<string, string>;
@@ -415,7 +194,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     expect(body.message).toContain("Invalid key");
   });
 
-  it("should handle free plan expiration check", async () => {
+  it("returns 500 when enqueue fails", async () => {
     mockValidateWebhookRequest.mockReturnValue({
       workspaceId: "workspace-123",
       agentId: "agent-456",
@@ -423,9 +202,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       bodyText: "test",
     });
     mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockRejectedValue(
-      badRequest("Free plan has expired")
-    );
+    mockEnqueueWebhookTask.mockRejectedValue(new Error("Queue failed"));
 
     const event = createAPIGatewayEventV2({
       routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
@@ -445,189 +222,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       },
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
-      statusCode: number;
-      headers: Record<string, string>;
-      body: string;
-    };
-
-    expect(result.statusCode).toBe(400);
-    const body = JSON.parse(result.body);
-    expect(body.message).toContain("Free plan has expired");
-  });
-
-  it("should handle missing subscription gracefully", async () => {
-    mockValidateWebhookRequest.mockReturnValue({
-      workspaceId: "workspace-123",
-      agentId: "agent-456",
-      key: "key-789",
-      bodyText: "test",
-    });
-    mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
-    mockGetWorkspaceSubscription.mockResolvedValue(undefined);
-
-    const mockAgent = {
-      pk: "agents/workspace-123/agent-456",
-      name: "Test Agent",
-      systemPrompt: "You are helpful",
-      provider: "google" as const,
-    };
-
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: mockAgent,
-      model: {},
-      tools: {},
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: "test",
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: "test",
-      },
-    ]);
-
-    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue("reservation-123");
-
-    mockBuildGenerateTextOptions.mockReturnValue({});
-
-    vi.mocked(generateText).mockResolvedValue({
-      text: "response",
-      usage: { promptTokens: 10, completionTokens: 5 },
-    } as unknown as Awaited<ReturnType<typeof generateText>>);
-
-    mockExtractTokenUsageAndCosts.mockReturnValue({
-      tokenUsage: {
-        promptTokens: 10,
-        completionTokens: 5,
-        totalTokens: 15,
-      },
-      openrouterGenerationId: undefined,
-      openrouterGenerationIds: [],
-      provisionalCostUsd: 1000,
-    });
-
-    mockIsCreditDeductionEnabled.mockReturnValue(true);
-    mockAdjustCreditsAfterLLMCall.mockResolvedValue(undefined);
-    mockCallAgentNonStreaming.mockResolvedValue({
-      text: "response",
-      tokenUsage: {
-        promptTokens: 10,
-        completionTokens: 5,
-        totalTokens: 15,
-      },
-      rawResult: {
-        text: "response",
-        toolCalls: [],
-        toolResults: [],
-      } as unknown as Awaited<ReturnType<typeof generateText>>,
-    });
-    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
-    mockStartConversation.mockResolvedValue("conv-id");
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const event = createAPIGatewayEventV2({
-      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
-      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
-      body: "test",
-      requestContext: {
-        ...createAPIGatewayEventV2().requestContext,
-        http: {
-          ...createAPIGatewayEventV2().requestContext.http,
-          method: "POST",
-        },
-      },
-      pathParameters: {
-        workspaceId: "workspace-123",
-        agentId: "agent-456",
-        key: "key-789",
-      },
-    });
-
-    const result = (await handler(event, mockContext, mockCallback)) as {
-      statusCode: number;
-      headers: Record<string, string>;
-      body: string;
-    };
-
-    // Should still process even without subscription
-    expect(result.statusCode).toBe(200);
-    expect(mockCheckDailyRequestLimit).not.toHaveBeenCalled();
-  });
-
-  it("should handle LLM call errors and refund credits", async () => {
-    mockValidateWebhookRequest.mockReturnValue({
-      workspaceId: "workspace-123",
-      agentId: "agent-456",
-      key: "key-789",
-      bodyText: "test",
-    });
-    mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
-    mockGetWorkspaceSubscription.mockResolvedValue({
-      pk: "subscriptions/sub-123",
-      plan: "pro" as const,
-    });
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: {
-        pk: "agents/workspace-123/agent-456",
-        name: "Test Agent",
-        systemPrompt: "You are helpful",
-        provider: "google" as const,
-      },
-      model: {},
-      tools: {},
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: "test",
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: "test",
-      },
-    ]);
-
-    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue("reservation-123");
-
-    const llmError = new Error("LLM API error");
-    mockCallAgentNonStreaming.mockRejectedValue(llmError);
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const event = createAPIGatewayEventV2({
-      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
-      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
-      body: "test",
-      requestContext: {
-        ...createAPIGatewayEventV2().requestContext,
-        http: {
-          ...createAPIGatewayEventV2().requestContext.http,
-          method: "POST",
-        },
-      },
-      pathParameters: {
-        workspaceId: "workspace-123",
-        agentId: "agent-456",
-        key: "key-789",
-      },
-    });
-
+    const handler = await getHandler();
     const result = (await handler(event, mockContext, mockCallback)) as {
       statusCode: number;
       headers: Record<string, string>;
@@ -635,1016 +230,5 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     };
 
     expect(result.statusCode).toBe(500);
-    const body = JSON.parse(result.body);
-    expect(body.message).toBeDefined();
-  });
-
-  it("should record tool calls in conversation when tools are used", async () => {
-    const workspaceId = "workspace-123";
-    const agentId = "agent-456";
-    const key = "key-789";
-    const bodyText = "Search for documents about testing";
-
-    mockValidateWebhookRequest.mockReturnValue({
-      workspaceId,
-      agentId,
-      key,
-      bodyText,
-    });
-    mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
-
-    const mockSubscription = {
-      pk: "subscriptions/sub-123",
-      plan: "pro" as const,
-    };
-    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-
-    const mockAgent = {
-      pk: `agents/${workspaceId}/${agentId}`,
-      name: "Test Agent",
-      systemPrompt: "You are helpful",
-      provider: "google" as const,
-    };
-
-    const mockModel = {};
-    const mockTools = {
-      searchDocuments: {
-        description: "Search documents",
-        inputSchema: {},
-      },
-    };
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: mockAgent,
-      model: mockModel,
-      tools: mockTools,
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: bodyText,
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: bodyText,
-      },
-    ]);
-
-    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue("reservation-123");
-
-    mockBuildGenerateTextOptions.mockReturnValue({
-      temperature: 0.7,
-      maxTokens: 2048,
-    });
-
-    // Mock generateText result with tool calls and results
-    const mockToolCall = {
-      toolCallId: "call-123",
-      toolName: "searchDocuments",
-      args: { query: "testing" },
-    };
-
-    const mockToolResult = {
-      toolCallId: "call-123",
-      toolName: "searchDocuments",
-      result: "Found 3 documents about testing",
-    };
-
-    mockCallAgentNonStreaming.mockResolvedValue({
-      text: "I found some documents about testing.",
-      tokenUsage: {
-        promptTokens: 20,
-        completionTokens: 10,
-        totalTokens: 30,
-      },
-      rawResult: {
-        text: "I found some documents about testing.",
-        toolCalls: [mockToolCall],
-        toolResults: [mockToolResult],
-        steps: [
-          {
-            content: [
-              {
-                type: "tool-call",
-                toolCallId: "call-123",
-                toolName: "searchDocuments",
-                input: { query: "testing" },
-              },
-            ],
-          },
-          {
-            content: [
-              {
-                type: "tool-result",
-                toolCallId: "call-123",
-                toolName: "searchDocuments",
-                output: "Found 3 documents about testing",
-              },
-            ],
-          },
-          {
-            content: [
-              {
-                type: "text",
-                text: "I found some documents about testing.",
-              },
-            ],
-          },
-        ],
-      } as unknown as Awaited<ReturnType<typeof generateText>>,
-    });
-
-    // Mock formatToolCallMessage to return formatted tool call message
-    const formattedToolCallMessage = {
-      role: "assistant" as const,
-      content: [
-        {
-          type: "tool-call" as const,
-          toolCallId: "call-123",
-          toolName: "searchDocuments",
-          args: { query: "testing" },
-        },
-      ],
-    };
-
-    const formattedToolResultMessage = {
-      role: "assistant" as const,
-      content: [
-        {
-          type: "tool-result" as const,
-          toolCallId: "call-123",
-          toolName: "searchDocuments",
-          result: "Found 3 documents about testing",
-        },
-      ],
-    };
-
-    mockFormatToolCallMessage.mockReturnValue(formattedToolCallMessage);
-    mockFormatToolResultMessage.mockReturnValue(formattedToolResultMessage);
-
-    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
-    mockStartConversation.mockResolvedValue("conversation-id-123");
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const baseEvent = createAPIGatewayEventV2({
-      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
-      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
-      body: bodyText,
-    });
-    const event = {
-      ...baseEvent,
-      requestContext: {
-        ...baseEvent.requestContext,
-        http: {
-          ...baseEvent.requestContext.http,
-          method: "POST",
-        },
-      },
-      pathParameters: {
-        workspaceId,
-        agentId,
-        key,
-      },
-    };
-
-    const result = (await handler(event, mockContext, mockCallback)) as {
-      statusCode: number;
-      headers: Record<string, string>;
-      body: string;
-    };
-
-    expect(result.statusCode).toBe(200);
-    expect(result.body).toBe("I found some documents about testing.");
-
-    // Verify startConversation was called
-    expect(mockStartConversation).toHaveBeenCalled();
-
-    // Get the call arguments to verify tool calls are included
-    const startConversationCalls = mockStartConversation.mock.calls;
-    expect(startConversationCalls.length).toBeGreaterThan(0);
-
-    const conversationData = startConversationCalls[0][1];
-    expect(conversationData.workspaceId).toBe(workspaceId);
-    expect(conversationData.agentId).toBe(agentId);
-    expect(conversationData.conversationType).toBe("webhook");
-
-    // Verify messages include tool calls
-    const messages = conversationData.messages;
-    expect(Array.isArray(messages)).toBe(true);
-    expect(messages.length).toBe(2); // user message + assistant message
-
-    const assistantMessage = messages.find(
-      (msg: { role: string }) => msg.role === "assistant"
-    );
-    expect(assistantMessage).toBeDefined();
-    expect(Array.isArray(assistantMessage.content)).toBe(true);
-
-    const assistantContent = assistantMessage.content as Array<unknown>;
-    const toolCallsInContent = assistantContent.filter(
-      (item) =>
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-call"
-    );
-    const toolResultsInContent = assistantContent.filter(
-      (item) =>
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-result"
-    );
-
-    // Verify tool calls and results are in the assistant message content
-    expect(toolCallsInContent.length).toBe(1);
-    expect(toolResultsInContent.length).toBe(1);
-    expect(toolCallsInContent[0]).toMatchObject({
-      type: "tool-call",
-      toolCallId: "call-123",
-      toolName: "searchDocuments",
-    });
-    expect(toolResultsInContent[0]).toMatchObject({
-      type: "tool-result",
-      toolCallId: "call-123",
-      toolName: "searchDocuments",
-    });
-  });
-
-  it("should extract tool calls from _steps when toolCalls is empty", async () => {
-    const workspaceId = "workspace-123";
-    const agentId = "agent-456";
-    const key = "key-789";
-    const bodyText = "Search for documents";
-
-    mockValidateWebhookRequest.mockReturnValue({
-      workspaceId,
-      agentId,
-      key,
-      bodyText,
-    });
-    mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
-
-    const mockSubscription = {
-      pk: "subscriptions/sub-123",
-      plan: "pro" as const,
-    };
-    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-
-    const mockAgent = {
-      pk: `agents/${workspaceId}/${agentId}`,
-      name: "Test Agent",
-      systemPrompt: "You are helpful",
-      provider: "google" as const,
-    };
-
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: mockAgent,
-      model: {},
-      tools: {
-        searchDocuments: {
-          description: "Search documents",
-          inputSchema: {},
-        },
-      },
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: bodyText,
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: bodyText,
-      },
-    ]);
-
-    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue("reservation-123");
-
-    // Mock callAgentNonStreaming result with tool calls in _steps
-    mockCallAgentNonStreaming.mockResolvedValue({
-      text: "I found documents.",
-      tokenUsage: {
-        promptTokens: 20,
-        completionTokens: 10,
-        totalTokens: 30,
-      },
-      rawResult: {
-        text: "I found documents.",
-        toolCalls: [], // Empty - tool calls are in _steps
-        toolResults: [], // Empty - tool results are in _steps
-      _steps: {
-        status: {
-          value: [
-            {
-              content: [
-                {
-                  type: "tool-call",
-                  toolCallId: "call-456",
-                  toolName: "searchDocuments",
-                  input: { query: "documents" },
-                },
-              ],
-            },
-            {
-              content: [
-                {
-                  type: "tool-result",
-                  toolCallId: "call-456",
-                  toolName: "searchDocuments",
-                  output: { value: "Found 5 documents" },
-                },
-              ],
-            },
-          ],
-        },
-      },
-      } as unknown as Awaited<ReturnType<typeof generateText>>,
-    });
-
-    // Mock formatToolCallMessage to return formatted tool call message
-    const formattedToolCallMessage = {
-      role: "assistant" as const,
-      content: [
-        {
-          type: "tool-call" as const,
-          toolCallId: "call-456",
-          toolName: "searchDocuments",
-          args: { query: "documents" },
-        },
-      ],
-    };
-
-    const formattedToolResultMessage = {
-      role: "assistant" as const,
-      content: [
-        {
-          type: "tool-result" as const,
-          toolCallId: "call-456",
-          toolName: "searchDocuments",
-          result: "Found 5 documents",
-        },
-      ],
-    };
-
-    mockFormatToolCallMessage.mockReturnValue(formattedToolCallMessage);
-    mockFormatToolResultMessage.mockReturnValue(formattedToolResultMessage);
-
-    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
-    mockStartConversation.mockResolvedValue("conversation-id-456");
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const baseEvent = createAPIGatewayEventV2({
-      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
-      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
-      body: bodyText,
-    });
-    const event = {
-      ...baseEvent,
-      requestContext: {
-        ...baseEvent.requestContext,
-        http: {
-          ...baseEvent.requestContext.http,
-          method: "POST",
-        },
-      },
-      pathParameters: {
-        workspaceId,
-        agentId,
-        key,
-      },
-    };
-
-    const result = (await handler(event, mockContext, mockCallback)) as {
-      statusCode: number;
-      headers: Record<string, string>;
-      body: string;
-    };
-
-    expect(result.statusCode).toBe(200);
-
-    // Verify startConversation was called
-    expect(mockStartConversation).toHaveBeenCalled();
-
-    // Get the call arguments to verify tool calls from _steps are included
-    const startConversationCalls = mockStartConversation.mock.calls;
-    expect(startConversationCalls.length).toBeGreaterThan(0);
-
-    const conversationData = startConversationCalls[0][1];
-    const messages = conversationData.messages;
-
-    const assistantMessage = messages.find(
-      (msg: { role: string }) => msg.role === "assistant"
-    );
-    expect(assistantMessage).toBeDefined();
-    expect(Array.isArray(assistantMessage.content)).toBe(true);
-
-    const assistantContent = assistantMessage.content as Array<unknown>;
-    const toolCallsInContent = assistantContent.filter(
-      (item) =>
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-call"
-    );
-    const toolResultsInContent = assistantContent.filter(
-      (item) =>
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-result"
-    );
-
-    // Verify tool calls and results from _steps are in the assistant message
-    expect(toolCallsInContent.length).toBe(1);
-    expect(toolResultsInContent.length).toBe(1);
-    expect(toolCallsInContent[0]).toMatchObject({
-      type: "tool-call",
-      toolCallId: "call-456",
-      toolName: "searchDocuments",
-    });
-  });
-
-  it("should include assistant text when observer has only tool events", async () => {
-    const workspaceId = "workspace-123";
-    const agentId = "agent-456";
-    const key = "key-789";
-    const bodyText = "Fetch the current time";
-
-    mockValidateWebhookRequest.mockReturnValue({
-      workspaceId,
-      agentId,
-      key,
-      bodyText,
-    });
-    mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
-
-    const mockSubscription = {
-      pk: "subscriptions/sub-123",
-      plan: "pro" as const,
-    };
-    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: {
-        pk: `agents/${workspaceId}/${agentId}`,
-        name: "Test Agent",
-        systemPrompt: "You are helpful",
-        provider: "google" as const,
-      },
-      model: {},
-      tools: {
-        get_datetime: {
-          description: "Get datetime",
-          inputSchema: {},
-        },
-      },
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: bodyText,
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: bodyText,
-      },
-    ]);
-
-    mockCallAgentNonStreaming.mockResolvedValue({
-      text: "Here is the time.",
-      tokenUsage: {
-        promptTokens: 10,
-        completionTokens: 5,
-        totalTokens: 15,
-      },
-      observerEvents: [
-        {
-          type: "input-messages",
-          timestamp: "2026-01-01T00:00:00.000Z",
-          messages: [{ role: "user", content: bodyText }],
-        },
-        {
-          type: "tool-call",
-          timestamp: "2026-01-01T00:00:01.000Z",
-          toolCallId: "call-789",
-          toolName: "get_datetime",
-          args: {},
-        },
-        {
-          type: "tool-result",
-          timestamp: "2026-01-01T00:00:02.000Z",
-          toolCallId: "call-789",
-          toolName: "get_datetime",
-          result: "ok",
-        },
-      ],
-      rawResult: {
-        text: "Here is the time.",
-      } as unknown as Awaited<ReturnType<typeof generateText>>,
-      openrouterGenerationId: undefined,
-      openrouterGenerationIds: [],
-      provisionalCostUsd: 1000,
-    });
-
-    mockStartConversation.mockResolvedValue("conversation-id-123");
-    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const baseEvent = createAPIGatewayEventV2({
-      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
-      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
-      body: bodyText,
-    });
-    const event = {
-      ...baseEvent,
-      requestContext: {
-        ...baseEvent.requestContext,
-        http: {
-          ...baseEvent.requestContext.http,
-          method: "POST",
-        },
-      },
-      pathParameters: {
-        workspaceId,
-        agentId,
-        key,
-      },
-    };
-
-    const result = (await handler(event, mockContext, mockCallback)) as {
-      statusCode: number;
-    };
-
-    expect(result.statusCode).toBe(200);
-    const conversationData = mockStartConversation.mock.calls[0][1];
-    const assistantMessage = conversationData.messages.find(
-      (msg: { role: string }) => msg.role === "assistant"
-    );
-    expect(assistantMessage).toBeDefined();
-    expect(Array.isArray(assistantMessage.content)).toBe(true);
-    if (Array.isArray(assistantMessage.content)) {
-      const textParts = assistantMessage.content.filter(
-        (item: unknown) =>
-          typeof item === "object" &&
-          item !== null &&
-          "type" in item &&
-          item.type === "text"
-      );
-      expect(textParts.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("should extract tool calls, token usage, and costs from result.steps structure (generateText format)", async () => {
-    const workspaceId = "workspace-123";
-    const agentId = "agent-456";
-    const key = "key-789";
-    const bodyText = "Search for documents";
-
-    mockValidateWebhookRequest.mockReturnValue({
-      workspaceId,
-      agentId,
-      key,
-      bodyText,
-    });
-    mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
-
-    const mockSubscription = {
-      pk: "subscriptions/sub-123",
-      plan: "pro" as const,
-    };
-    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: {
-        pk: `agents/${workspaceId}/${agentId}`,
-        name: "Test Agent",
-        systemPrompt: "You are helpful",
-        provider: "google" as const,
-      },
-      model: {},
-      tools: {
-        searchDocuments: {
-          description: "Search documents",
-          inputSchema: {},
-        },
-      },
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: bodyText,
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: bodyText,
-      },
-    ]);
-
-    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue("reservation-123");
-
-    // Mock extractTokenUsageAndCosts to return aggregated values
-    const expectedTokenUsage = {
-      promptTokens: 1118, // 524 + 594
-      completionTokens: 37, // 9 + 28
-      totalTokens: 1155, // 533 + 622
-    };
-    const expectedCostUsd = Math.ceil(
-      (0.0001797 + 0.0002482) * 1_000_000 * 1.055
-    ); // Sum of costs with markup
-
-    const step1Usage = {
-      promptTokens: 524,
-      completionTokens: 9,
-      totalTokens: 533,
-      reasoningTokens: 0,
-      cachedPromptTokens: 0,
-    };
-    const step2Usage = {
-      promptTokens: 594,
-      completionTokens: 28,
-      totalTokens: 622,
-      reasoningTokens: 0,
-      cachedPromptTokens: 0,
-    };
-
-    // Mock callAgentNonStreaming result with steps array (generateText format)
-    mockCallAgentNonStreaming.mockResolvedValue({
-      text: "I found documents.",
-      tokenUsage: expectedTokenUsage,
-      rawResult: {
-      text: "I found documents.",
-      toolCalls: [], // Empty - tool calls are in steps
-      toolResults: [], // Empty - tool results are in steps
-      usage: undefined, // No top-level usage - it's in steps[].usage
-      totalUsage: {
-        // AI SDK provides totalUsage that aggregates all steps
-        promptTokens: step1Usage.promptTokens + step2Usage.promptTokens, // 1118
-        completionTokens: step1Usage.completionTokens + step2Usage.completionTokens, // 37
-        totalTokens: step1Usage.totalTokens + step2Usage.totalTokens, // 1155
-        reasoningTokens: 0,
-        cachedPromptTokens: 0,
-      },
-      steps: [
-        {
-          content: [
-            {
-              type: "tool-call",
-              toolCallId: "tool_search_abc123",
-              toolName: "searchDocuments",
-              input: { query: "documents" },
-            },
-            {
-              type: "tool-result",
-              toolCallId: "tool_search_abc123",
-              toolName: "searchDocuments",
-              output: {
-                type: "text",
-                value: "Found 5 documents",
-              },
-            },
-          ],
-          usage: step1Usage,
-          response: {
-            id: "gen-1766755634-mSZupEMPTYHYviRp0kbj",
-          },
-          providerMetadata: {
-            openrouter: {
-              usage: {
-                cost: 0.0001797,
-              },
-            },
-          },
-        },
-        {
-          content: [
-            {
-              type: "text",
-              text: "I found documents.",
-            },
-          ],
-          usage: step2Usage,
-          response: {
-            id: "gen-1766755635-GhZIxomllM8bIk1B2vXN",
-          },
-          providerMetadata: {
-            openrouter: {
-              usage: {
-                cost: 0.0002482,
-              },
-            },
-          },
-        },
-      ],
-      } as unknown as Awaited<ReturnType<typeof generateText>>,
-      openrouterGenerationId: "gen-1766755634-mSZupEMPTYHYviRp0kbj",
-      openrouterGenerationIds: [
-        "gen-1766755634-mSZupEMPTYHYviRp0kbj",
-        "gen-1766755635-GhZIxomllM8bIk1B2vXN",
-      ],
-      provisionalCostUsd: expectedCostUsd,
-    });
-
-    // Mock formatToolCallMessage to return formatted tool call message
-    const formattedToolCallMessage = {
-      role: "assistant" as const,
-      content: [
-        {
-          type: "tool-call" as const,
-          toolCallId: "tool_search_abc123",
-          toolName: "searchDocuments",
-          args: { query: "documents" },
-        },
-      ],
-    };
-
-    const formattedToolResultMessage = {
-      role: "assistant" as const,
-      content: [
-        {
-          type: "tool-result" as const,
-          toolCallId: "tool_search_abc123",
-          toolName: "searchDocuments",
-          result: "Found 5 documents",
-        },
-      ],
-    };
-
-    mockFormatToolCallMessage.mockReturnValue(formattedToolCallMessage);
-    mockFormatToolResultMessage.mockReturnValue(formattedToolResultMessage);
-
-    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
-    // Mock randomUUID to return the expected conversationId for this test
-    mockRandomUUID.mockReturnValue("conversation-id-steps");
-    mockStartConversation.mockResolvedValue("conversation-id-steps");
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const baseEvent = createAPIGatewayEventV2({
-      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
-      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
-      body: bodyText,
-    });
-    const event = {
-      ...baseEvent,
-      requestContext: {
-        ...baseEvent.requestContext,
-        http: {
-          ...baseEvent.requestContext.http,
-          method: "POST",
-        },
-      },
-      pathParameters: {
-        workspaceId,
-        agentId,
-        key,
-      },
-    };
-
-    const result = (await handler(event, mockContext, mockCallback)) as {
-      statusCode: number;
-      headers: Record<string, string>;
-      body: string;
-    };
-
-    expect(result.statusCode).toBe(200);
-
-    // Verify startConversation was called
-    expect(mockStartConversation).toHaveBeenCalled();
-
-    // Get the call arguments to verify tool calls, token usage, and costs
-    const startConversationCalls = mockStartConversation.mock.calls;
-    const conversationData = startConversationCalls[0][1];
-
-    // Verify token usage is passed
-    expect(conversationData.tokenUsage).toEqual(expectedTokenUsage);
-
-    // Verify messages include tool calls from steps
-    const messages = conversationData.messages;
-    const assistantMessage = messages.find(
-      (msg: { role: string }) => msg.role === "assistant"
-    );
-    expect(assistantMessage).toBeDefined();
-    expect(Array.isArray(assistantMessage.content)).toBe(true);
-
-    const assistantContent = assistantMessage.content as Array<unknown>;
-    const toolCallsInContent = assistantContent.filter(
-      (item) =>
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-call"
-    );
-    const toolResultsInContent = assistantContent.filter(
-      (item) =>
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-result"
-    );
-
-    // Verify tool calls and results from steps are in the assistant message
-    expect(toolCallsInContent.length).toBe(1);
-    expect(toolResultsInContent.length).toBe(1);
-    expect(toolCallsInContent[0]).toMatchObject({
-      type: "tool-call",
-      toolCallId: "tool_search_abc123",
-      toolName: "searchDocuments",
-    });
-
-    // Verify token usage is passed to startConversation
-    expect(conversationData.tokenUsage).toEqual(expectedTokenUsage);
-    
-    // Verify cost is in the assistant message (not in conversationData)
-    expect(assistantMessage.provisionalCostUsd).toBe(expectedCostUsd);
-    expect(assistantMessage.tokenUsage).toEqual(expectedTokenUsage);
-
-    // Verify cost verification was enqueued with both generation IDs
-    // Note: reservationId is undefined because it's handled internally by callAgentNonStreaming
-    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalledWith(
-      "gen-1766755634-mSZupEMPTYHYviRp0kbj",
-      [
-        "gen-1766755634-mSZupEMPTYHYviRp0kbj",
-        "gen-1766755635-GhZIxomllM8bIk1B2vXN",
-      ],
-      workspaceId,
-      undefined, // reservationId is handled internally
-      "conversation-id-steps",
-      agentId,
-      "webhook"
-    );
-  });
-
-  it("should calculate and pass token usage and costs to startConversation", async () => {
-    const workspaceId = "workspace-123";
-    const agentId = "agent-456";
-    const key = "key-789";
-    const bodyText = "Hello";
-
-    mockValidateWebhookRequest.mockReturnValue({
-      workspaceId,
-      agentId,
-      key,
-      bodyText,
-    });
-    mockValidateWebhookKey.mockResolvedValue(undefined);
-    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
-
-    const mockSubscription = {
-      pk: "subscriptions/sub-123",
-      plan: "pro" as const,
-    };
-    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: {
-        pk: `agents/${workspaceId}/${agentId}`,
-        name: "Test Agent",
-        systemPrompt: "You are helpful",
-        provider: "google" as const,
-      },
-      model: {},
-      tools: {},
-      usesByok: false,
-    });
-
-    mockConvertTextToUIMessage.mockReturnValue({
-      role: "user",
-      content: bodyText,
-    });
-
-    mockConvertUIMessagesToModelMessages.mockReturnValue([
-      {
-        role: "user",
-        content: bodyText,
-      },
-    ]);
-
-    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue("reservation-123");
-
-    const expectedTokenUsage = {
-      promptTokens: 50,
-      completionTokens: 25,
-      totalTokens: 75,
-    };
-    const expectedCostUsd = 5000; // 0.005 USD in millionths
-
-    mockCallAgentNonStreaming.mockResolvedValue({
-      text: "Hello!",
-      tokenUsage: expectedTokenUsage,
-      rawResult: {
-        text: "Hello!",
-        toolCalls: [],
-        toolResults: [],
-        usage: {
-          promptTokens: 50,
-          completionTokens: 25,
-        },
-      } as unknown as Awaited<ReturnType<typeof generateText>>,
-      openrouterGenerationId: "gen-123",
-      openrouterGenerationIds: ["gen-123"],
-      provisionalCostUsd: expectedCostUsd,
-    });
-
-    // Mock randomUUID to return the expected conversationId for this test
-    mockRandomUUID.mockReturnValue("conversation-id-789");
-    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
-    mockStartConversation.mockResolvedValue("conversation-id-789");
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const baseEvent = createAPIGatewayEventV2({
-      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
-      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
-      body: bodyText,
-    });
-    const event = {
-      ...baseEvent,
-      requestContext: {
-        ...baseEvent.requestContext,
-        http: {
-          ...baseEvent.requestContext.http,
-          method: "POST",
-        },
-      },
-      pathParameters: {
-        workspaceId,
-        agentId,
-        key,
-      },
-    };
-
-    const result = (await handler(event, mockContext, mockCallback)) as {
-      statusCode: number;
-      headers: Record<string, string>;
-      body: string;
-    };
-
-    expect(result.statusCode).toBe(200);
-
-    // Verify callAgentNonStreaming was called
-    expect(mockCallAgentNonStreaming).toHaveBeenCalledWith(
-      workspaceId,
-      agentId,
-      bodyText,
-      expect.objectContaining({
-        modelReferer: "http://localhost:3000/api/webhook",
-        endpointType: "webhook",
-      })
-    );
-
-    // Verify startConversation was called with token usage
-    expect(mockStartConversation).toHaveBeenCalled();
-    const startConversationCalls = mockStartConversation.mock.calls;
-    const conversationData = startConversationCalls[0][1];
-
-    expect(conversationData.tokenUsage).toEqual(expectedTokenUsage);
-
-    // Verify assistant message has tokenUsage and provisionalCostUsd
-    const messages = conversationData.messages;
-    const assistantMessage = messages.find(
-      (msg: { role: string }) => msg.role === "assistant"
-    );
-    expect(assistantMessage.tokenUsage).toEqual(expectedTokenUsage);
-    expect(assistantMessage.provisionalCostUsd).toBe(expectedCostUsd);
-
-    // Verify cost verification was enqueued
-    // Note: reservationId is undefined because it's handled internally by callAgentNonStreaming
-    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalledWith(
-      "gen-123",
-      ["gen-123"],
-      workspaceId,
-      undefined, // reservationId is handled internally
-      "conversation-id-789",
-      agentId,
-      "webhook"
-    );
   });
 });
