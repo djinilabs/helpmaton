@@ -359,23 +359,32 @@ run-agent-schedules rate(1 minute)
 
 @queues
 agent-temporal-grain-queue
+  timeout 660
   fifo true
-  visibilityTimeout 60
+  visibilityTimeout 1320
   messageRetentionPeriod 1209600
 openrouter-cost-verification-queue
-  visibilityTimeout 60
-  messageRetentionPeriod 604800
+  timeout 660
+  visibilityTimeout 1320
+  messageRetentionPeriod 1209600
 agent-delegation-queue
   timeout 660
-  visibilityTimeout 720
+  visibilityTimeout 1320
 bot-webhook-queue
-  visibilityTimeout 720
+  timeout 660
+  visibilityTimeout 1320
+  messageRetentionPeriod 1209600
+webhook-queue
+  timeout 660
+  visibilityTimeout 1320
   messageRetentionPeriod 1209600
 agent-eval-queue
-  visibilityTimeout 300
-  messageRetentionPeriod 604800
+  timeout 660
+  visibilityTimeout 1320
+  messageRetentionPeriod 1209600
 agent-schedule-queue
-  visibilityTimeout 720
+  timeout 660
+  visibilityTimeout 1320
   messageRetentionPeriod 1209600
 
 @api-throttling
@@ -414,6 +423,7 @@ queue agent-delegation-queue lancedb
 queue bot-webhook-queue lancedb
 queue agent-schedule-queue lancedb
 queue agent-eval-queue lancedb
+queue webhook-queue lancedb
 
 @plugins
 architect/plugin-typescript

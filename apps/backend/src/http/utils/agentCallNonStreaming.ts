@@ -56,6 +56,8 @@ export interface AgentCallNonStreamingResult {
   openrouterGenerationIds?: string[];
   provisionalCostUsd?: number;
   observerEvents?: LlmObserverEvent[];
+  usesByok?: boolean;
+  modelName?: string;
 }
 
 type NonStreamingExecutionResult = {
@@ -420,51 +422,66 @@ export async function callAgentNonStreaming(
       ? agent.modelName
       : MODEL_NAME;
 
-  const execution = await executeNonStreamingLLMCall({
-    db,
-    workspaceId,
-    agentId,
-    agent,
-    model,
-    tools,
-    usesByok,
-    modelMessagesWithKnowledge,
-    finalModelName,
-    endpointType,
-    context: options?.context,
-    conversationId: options?.conversationId,
-    abortSignal: options?.abortSignal,
-  });
+  try {
+    const execution = await executeNonStreamingLLMCall({
+      db,
+      workspaceId,
+      agentId,
+      agent,
+      model,
+      tools,
+      usesByok,
+      modelMessagesWithKnowledge,
+      finalModelName,
+      endpointType,
+      context: options?.context,
+      conversationId: options?.conversationId,
+      abortSignal: options?.abortSignal,
+    });
 
-  // Process response and handle tool continuation if needed
-  const processedResult = await processNonStreamingResponse(
-    execution.result as unknown as GenerateTextResultWithTotalUsage,
-    agent,
-    model,
-    modelMessages,
-    tools,
-    options?.abortSignal
-  );
-  console.log("[Non-Streaming Handler] LLM response received:", {
-    workspaceId,
-    agentId,
-    conversationId: options?.conversationId,
-    endpointType: options?.endpointType || "bridge",
-    receivedAt: new Date().toISOString(),
-    text: processedResult.text,
-  });
+    // Process response and handle tool continuation if needed
+    const processedResult = await processNonStreamingResponse(
+      execution.result as unknown as GenerateTextResultWithTotalUsage,
+      agent,
+      model,
+      modelMessages,
+      tools,
+      options?.abortSignal
+    );
+    console.log("[Non-Streaming Handler] LLM response received:", {
+      workspaceId,
+      agentId,
+      conversationId: options?.conversationId,
+      endpointType: options?.endpointType || "bridge",
+      receivedAt: new Date().toISOString(),
+      text: processedResult.text,
+    });
 
-  // Use token usage from processedResult if available (includes continuation tokens),
-  // otherwise fall back to initial extraction
-  const finalTokenUsage = processedResult.tokenUsage || execution.tokenUsage;
+    // Use token usage from processedResult if available (includes continuation tokens),
+    // otherwise fall back to initial extraction
+    const finalTokenUsage = processedResult.tokenUsage || execution.tokenUsage;
 
-  return {
-    text: processedResult.text,
-    tokenUsage: finalTokenUsage,
-    rawResult: execution.result,
-    openrouterGenerationId: execution.extractionResult.openrouterGenerationId,
-    openrouterGenerationIds: execution.extractionResult.openrouterGenerationIds,
-    provisionalCostUsd: execution.extractionResult.provisionalCostUsd,
-    observerEvents: llmObserver.getEvents(),
-  };
+    return {
+      text: processedResult.text,
+      tokenUsage: finalTokenUsage,
+      rawResult: execution.result,
+      openrouterGenerationId: execution.extractionResult.openrouterGenerationId,
+      openrouterGenerationIds: execution.extractionResult.openrouterGenerationIds,
+      provisionalCostUsd: execution.extractionResult.provisionalCostUsd,
+      observerEvents: llmObserver.getEvents(),
+      usesByok,
+      modelName: finalModelName,
+    };
+  } catch (error) {
+    if (error && typeof error === "object") {
+      const errorAny = error as Record<string, unknown>;
+      if (!("usesByok" in errorAny)) {
+        errorAny.usesByok = usesByok;
+      }
+      if (!("modelName" in errorAny)) {
+        errorAny.modelName = finalModelName;
+      }
+    }
+    throw error;
+  }
 }
