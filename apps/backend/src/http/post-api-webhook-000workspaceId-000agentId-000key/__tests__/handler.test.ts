@@ -8,13 +8,28 @@ import {
 } from "../../utils/__tests__/test-helpers";
 
 const {
+  mockDatabase,
   mockValidateWebhookRequest,
   mockValidateWebhookKey,
+  mockValidateSubscriptionAndLimits,
   mockEnqueueWebhookTask,
 } = vi.hoisted(() => ({
+  mockDatabase: vi.fn(),
   mockValidateWebhookRequest: vi.fn(),
   mockValidateWebhookKey: vi.fn(),
+  mockValidateSubscriptionAndLimits: vi.fn(),
   mockEnqueueWebhookTask: vi.fn(),
+}));
+
+vi.mock("../../../tables", () => ({
+  database: mockDatabase,
+}));
+
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
 }));
 
 vi.mock("../../utils/requestValidation", () => ({
@@ -24,6 +39,11 @@ vi.mock("../../utils/requestValidation", () => ({
 
 vi.mock("../../../utils/webhookQueue", () => ({
   enqueueWebhookTask: mockEnqueueWebhookTask,
+}));
+
+vi.mock("../../utils/generationRequestTracking", () => ({
+  validateSubscriptionAndLimits: mockValidateSubscriptionAndLimits,
+  trackSuccessfulRequest: vi.fn(),
 }));
 
 const mockRandomUUID = vi.fn();
@@ -46,6 +66,14 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRandomUUID.mockReturnValue("ff028639-8bb4-43f0-87fa-0618dada653c");
+    mockValidateSubscriptionAndLimits.mockResolvedValue(undefined);
+    mockDatabase.mockResolvedValue({
+      workspace: {
+        get: vi.fn().mockResolvedValue({
+          creditBalance: 1,
+        }),
+      },
+    });
   });
 
   it("returns 202 and enqueues webhook task", async () => {
@@ -99,12 +127,60 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       agentId,
       key
     );
+    expect(mockValidateSubscriptionAndLimits).toHaveBeenCalledWith(
+      workspaceId,
+      "webhook"
+    );
     expect(mockEnqueueWebhookTask).toHaveBeenCalledWith(
       workspaceId,
       agentId,
       bodyText,
       "ff028639-8bb4-43f0-87fa-0618dada653c"
     );
+  });
+
+  it("returns 402 when workspace has no credits", async () => {
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId: "workspace-123",
+      agentId: "agent-456",
+      key: "key-789",
+      bodyText: "test",
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockDatabase.mockResolvedValue({
+      workspace: {
+        get: vi.fn().mockResolvedValue({
+          creditBalance: 0,
+        }),
+      },
+    });
+
+    const event = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: "test",
+      requestContext: {
+        ...createAPIGatewayEventV2().requestContext,
+        http: {
+          ...createAPIGatewayEventV2().requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        key: "key-789",
+      },
+    });
+
+    const handler = await getHandler();
+    const result = (await handler(event, mockContext, mockCallback)) as {
+      statusCode: number;
+      headers: Record<string, string>;
+      body: string;
+    };
+
+    expect(result.statusCode).toBe(402);
   });
 
   it("returns 400 when request validation fails", async () => {

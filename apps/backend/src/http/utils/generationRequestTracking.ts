@@ -1,3 +1,5 @@
+import { forbidden } from "@hapi/boom";
+
 import {
   checkDailyRequestLimit,
   incrementRequestBucket,
@@ -33,10 +35,7 @@ export async function validateSubscriptionAndLimits(
     console.log(`[${endpoint} Handler] Found subscription:`, subscriptionId);
     await checkDailyRequestLimit(subscriptionId);
   } else {
-    console.warn(
-      `[${endpoint} Handler] No subscription found for workspace:`,
-      workspaceId
-    );
+    throw forbidden(`No subscription found for workspace: ${workspaceId}`);
   }
 
   return subscriptionId;

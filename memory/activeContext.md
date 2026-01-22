@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Webhook credit check**: Added webhook HTTP guard to return a 402 response when workspace credits are empty, and extended webhook handler tests for the new credit check; ran `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`, `pnpm lint --fix`, and `pnpm typecheck`.
+- **Webhook enqueue validation**: Added subscription/limit validation in webhook HTTP handler before enqueueing and updated webhook handler tests/mocks; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Webhook queue timeout + test cleanup**: Set `webhook-queue` timeout to 660s in `app.arc` and updated webhook handler tests to lazy-load the handler to satisfy import order lint; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Webhook async processing**: Added webhook SQS queue + worker, moved webhook processing into queue task while keeping `conversationType: "webhook"`, and updated `/api/webhook` to enqueue with 202 + `conversationId`. Added queue/enqueue tests and ran `pnpm --filter backend test --run webhook-queue`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **PR 204 review round 2**: Removed remaining image debug logs, added trusted image URL allowlist with fallback download+S3 upload, and tightened image-capable model detection to require explicit capabilities; ran `pnpm lint --fix` and `pnpm typecheck`.
