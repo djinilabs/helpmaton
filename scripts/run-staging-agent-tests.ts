@@ -1259,7 +1259,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
     }
 
     logStep("Testing webhook endpoint");
-    const webhookResponse = await fetchText(
+    const webhookResponse = await fetchJson<{ conversationId: string }>(
       `${apiBaseUrl}/api/webhook/${workspaceId}/${helloAgentId}/${webhookKey}`,
       {
         method: "POST",
@@ -1267,18 +1267,22 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           "Content-Type": "text/plain; charset=utf-8",
         },
         body: userQuestion,
-      }
+      },
+      [202]
     );
-    if (!webhookResponse.data.includes(replyMarker)) {
-      throw new Error("Webhook response did not contain expected reply");
+    const webhookConversationId = webhookResponse.data.conversationId;
+    if (!webhookConversationId) {
+      throw new Error("Webhook response missing conversationId");
     }
-    const webhookConversation = await waitForConversationByType(
+    const webhookConversation = await waitForConversation(
       docClient,
       tables.conversations,
+      workspaceId,
       helloAgentId,
+      webhookConversationId,
       "webhook",
       replyMarker,
-      null,
+      DATETIME_TOOL_NAME,
       timeoutMs
     );
     const webhookMessages = (webhookConversation as { messages?: unknown[] })
