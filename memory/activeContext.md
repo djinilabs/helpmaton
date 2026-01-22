@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 205 review fixes**: Simplified font size clamping, guarded file upload clearing effect, and validated hex parsing/rgba conversions for widget customization colors. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Widget customization chevrons**: Ensured "Customization Options" and "Preview Page Styling" summaries show chevrons with consistent spacing/marker hiding. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Widget preview styling controls**: Added preview-page theme/color/font settings with local persistence, query-param wiring, and optional CSS snippet; implemented preview settings helper + tests; updated widget preview page to apply styles. Added reset-to-defaults control and theme-aware preview defaults so dark theme swaps to a dark palette. Added widget font family/size customization in widget config, UI, preview params, and widget styling. Clarified embed code usage and font-scope copy in the UI. Added widget upload button toggle with embed/preview wiring. Made embed code and site styles sections collapsible by default. Updated customization and preview sections to be collapsible. Restored chevron indicators on customization and preview summaries, and hid native summary marker. Updated widget preview init to re-run when config/query params change. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **ECR cleanup retention reduction**: Lowered default production image retention to 5 and minimum age to 12h in the cleanup workflow and script; ran `pnpm typecheck` and `pnpm lint --fix`.

@@ -115,13 +115,18 @@ export const AgentChat: FC<AgentChatProps> = ({
     if (enableFileUpload) {
       return;
     }
-    pendingFiles.forEach((fileData) => {
-      if (fileData.preview) {
-        URL.revokeObjectURL(fileData.preview);
+    setPendingFiles((prevPendingFiles) => {
+      prevPendingFiles.forEach((fileData) => {
+        if (fileData.preview) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+      });
+      if (prevPendingFiles.length === 0) {
+        return prevPendingFiles;
       }
+      return [];
     });
-    setPendingFiles([]);
-  }, [enableFileUpload, pendingFiles]);
+  }, [enableFileUpload]);
 
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);

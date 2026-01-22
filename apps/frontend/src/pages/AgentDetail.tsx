@@ -276,13 +276,41 @@ const parseColor = (color?: string) => {
       .join("")}`;
     return { hex, opacity: a };
   }
-  return { hex: color, opacity: 1 };
+  const trimmedColor = color.trim();
+  const hexPattern = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  if (hexPattern.test(trimmedColor)) {
+    const normalizedHex =
+      trimmedColor.length === 4
+        ? `#${trimmedColor
+            .slice(1)
+            .split("")
+            .map((ch) => ch + ch)
+            .join("")}`
+        : trimmedColor;
+    return { hex: normalizedHex, opacity: 1 };
+  }
+  return { hex: "#000000", opacity: 1 };
 };
 
 const hexToRgba = (hex: string, opacity: number) => {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
+  if (typeof hex !== "string") {
+    return "";
+  }
+  const trimmed = hex.trim();
+  const match = trimmed.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!match) {
+    return trimmed;
+  }
+  let hexValue = match[1];
+  if (hexValue.length === 3) {
+    hexValue = hexValue
+      .split("")
+      .map((ch) => ch + ch)
+      .join("");
+  }
+  const r = parseInt(hexValue.slice(0, 2), 16);
+  const g = parseInt(hexValue.slice(2, 4), 16);
+  const b = parseInt(hexValue.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 

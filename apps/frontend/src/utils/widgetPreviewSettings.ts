@@ -64,12 +64,13 @@ export const DEFAULT_WIDGET_PREVIEW_DARK_SETTINGS: WidgetPreviewSettings = {
 };
 
 const clampFontSize = (value?: number | null) => {
-  if (!Number.isFinite(value)) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
     return DEFAULT_WIDGET_PREVIEW_SETTINGS.fontSize;
   }
   return Math.min(
     MAX_FONT_SIZE,
-    Math.max(MIN_FONT_SIZE, Math.round(value ?? MIN_FONT_SIZE))
+    Math.max(MIN_FONT_SIZE, Math.round(numericValue))
   );
 };
 
