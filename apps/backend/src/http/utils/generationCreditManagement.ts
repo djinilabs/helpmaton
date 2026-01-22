@@ -234,8 +234,8 @@ export async function cleanupReservationWithoutTokenUsage(
 }
 
 /**
- * Handles reservation cleanup on errors
- * Refunds if error occurred before LLM call, adjusts if error occurred after with token usage
+ * Handles reservation cleanup on errors.
+ * Always refunds the reservation when the LLM call fails, regardless of call stage.
  */
 export async function cleanupReservationOnError(
   db: Awaited<ReturnType<typeof import("../../tables").database>>,

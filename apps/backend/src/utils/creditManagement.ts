@@ -620,13 +620,12 @@ export async function adjustCreditReservation(
  * @param db - Database instance
  * @param reservationId - Reservation ID
  * @param context - Augmented Lambda context for transaction creation
- * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
+ * @param optionsOrMaxRetries - Options or legacy maxRetries number (default: 3)
  */
 export async function refundReservation(
   db: DatabaseSchema,
   reservationId: string,
   context: AugmentedContext,
-   
   optionsOrMaxRetries:
     | number
     | {
@@ -637,8 +636,6 @@ export async function refundReservation(
         reason?: string;
         actualCost?: number;
       } = 3,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _maxRetries: number = 3
 ): Promise<void> {
   const refundOptions =
     typeof optionsOrMaxRetries === "number" ? undefined : optionsOrMaxRetries;

@@ -455,7 +455,8 @@ export function createTavilyFetchTool(
         if (
           reservationId &&
           reservationId !== "byok" &&
-          reservationId !== "zero-cost"
+          reservationId !== "zero-cost" &&
+          reservationId !== "deduction-disabled"
         ) {
           if (!context) {
             throw new Error(

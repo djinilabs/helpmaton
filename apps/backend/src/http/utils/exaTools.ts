@@ -233,7 +233,8 @@ export function createExaSearchTool(
         if (
           reservationId &&
           reservationId !== "byok" &&
-          reservationId !== "zero-cost"
+          reservationId !== "zero-cost" &&
+          reservationId !== "deduction-disabled"
         ) {
           try {
             await db["credit-reservations"].delete(

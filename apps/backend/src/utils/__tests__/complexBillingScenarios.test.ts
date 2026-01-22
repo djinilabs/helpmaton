@@ -771,7 +771,10 @@ describe("Complex Billing Scenarios", () => {
         mockContext
       );
 
-      // Exa failure: no refund (reserved amount remains deducted)
+      // Exa failure: no refund (reserved amount remains deducted).
+      // NOTE: This models the new billing policy where tool failures consume
+      // the reservation and no refund is issued. This is a breaking billing
+      // change and should be called out in release notes when modified.
 
       // Adjust Tavily reservation (success)
       mockAdjustTavilyCreditReservation.mockResolvedValue(mockWorkspace);

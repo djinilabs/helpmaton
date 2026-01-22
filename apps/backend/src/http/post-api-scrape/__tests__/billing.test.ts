@@ -24,6 +24,26 @@ const {
   mockReservationDelete: vi.fn(),
 }));
 
+type ExpressRouter = {
+  stack: Array<{
+    route?: {
+      path?: string;
+      stack?: Array<{
+        handle: (
+          req: Request,
+          res: Response,
+          next: NextFunction
+        ) => Promise<void>;
+      }>;
+    };
+  }>;
+};
+
+const getAppRouter = (app: unknown): ExpressRouter | undefined => {
+  const appWithRouter = app as { _router?: ExpressRouter; router?: ExpressRouter };
+  return appWithRouter._router ?? appWithRouter.router;
+};
+
 vi.mock("../../../tables", () => ({
   database: mockDatabase,
 }));
@@ -140,8 +160,7 @@ describe("POST /api/scrape billing", () => {
 
   it("consumes the reservation on scrape failure without refund", async () => {
     const app = createApp();
-    const router = (app as unknown as { _router?: { stack: Array<{ route?: { path?: string; stack?: Array<{ handle: (req: Request, res: Response, next: NextFunction) => Promise<void> }>; } }> }; router?: { stack: Array<{ route?: { path?: string; stack?: Array<{ handle: (req: Request, res: Response, next: NextFunction) => Promise<void> }>; } }> } })._router
-      || (app as unknown as { router?: { stack: Array<{ route?: { path?: string; stack?: Array<{ handle: (req: Request, res: Response, next: NextFunction) => Promise<void> }>; } }> } }).router;
+    const router = getAppRouter(app);
 
     const handlerLayer = router?.stack.find(
       (layer) => layer.route?.path === "/api/scrape"
