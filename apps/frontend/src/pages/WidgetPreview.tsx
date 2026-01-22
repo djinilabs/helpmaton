@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FC } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { useAgent, useAgentKeys } from "../hooks/useAgents";
+import {
+  resolveWidgetPreviewFontFamily,
+  widgetPreviewSettingsFromSearchParams,
+} from "../utils/widgetPreviewSettings";
 
 // Declare global AgentWidget type
 declare global {
@@ -22,6 +26,9 @@ declare global {
         outerBorderEnabled?: boolean;
         internalBorderThickness?: string;
         internalBorderColor?: string;
+        fontFamily?: string;
+        fontSize?: string;
+        enableFileUpload?: boolean;
         tools?: Record<string, (...args: unknown[]) => Promise<unknown>>;
         baseUrl?: string;
         containerId: string;
@@ -36,6 +43,21 @@ const WidgetPreview: FC = () => {
     agentId: string;
   }>();
   const [searchParams] = useSearchParams();
+  const previewSettings = useMemo(
+    () => widgetPreviewSettingsFromSearchParams(searchParams),
+    [searchParams]
+  );
+  const previewFontFamily = useMemo(
+    () => resolveWidgetPreviewFontFamily(previewSettings.fontFamily),
+    [previewSettings.fontFamily]
+  );
+  const previewRootStyle = useMemo(
+    () => ({
+      fontFamily: previewFontFamily,
+      fontSize: `${previewSettings.fontSize}px`,
+    }),
+    [previewFontFamily, previewSettings.fontSize]
+  );
 
   const { data: agent } = useAgent(workspaceId!, agentId!);
   const { data: keys } = useAgentKeys(workspaceId!, agentId!);
@@ -43,6 +65,37 @@ const WidgetPreview: FC = () => {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scriptError, setScriptError] = useState<string | null>(null);
   const [widgetInitialized, setWidgetInitialized] = useState(false);
+  const widgetInitSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", previewSettings.theme === "dark");
+    return () => {
+      root.classList.remove("dark");
+    };
+  }, [previewSettings.theme]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const variables: Record<string, string> = {
+      "--preview-bg": previewSettings.backgroundColor,
+      "--preview-surface": previewSettings.surfaceColor,
+      "--preview-text": previewSettings.textColor,
+      "--preview-muted": previewSettings.mutedTextColor,
+      "--preview-accent": previewSettings.accentColor,
+      "--preview-border": previewSettings.borderColor,
+      "--preview-font-family": previewFontFamily,
+      "--preview-font-size": `${previewSettings.fontSize}px`,
+    };
+    Object.entries(variables).forEach(([key, value]) => {
+      root.style.setProperty(key, value);
+    });
+    return () => {
+      Object.keys(variables).forEach((key) => {
+        root.style.setProperty(key, "");
+      });
+    };
+  }, [previewFontFamily, previewSettings]);
 
   // Load widget script
   useEffect(() => {
@@ -89,7 +142,6 @@ const WidgetPreview: FC = () => {
       !scriptLoaded ||
       !agent ||
       !keys ||
-      widgetInitialized ||
       !workspaceId ||
       !agentId
     ) {
@@ -98,6 +150,20 @@ const WidgetPreview: FC = () => {
 
     // Wait for AgentWidget to be available
     const initWidget = () => {
+      const widgetKey = keys.find((k) => k.type === "widget");
+      const widgetInitSignature = JSON.stringify({
+        workspaceId,
+        agentId,
+        widgetKey: widgetKey?.key || "",
+        search: searchParams.toString(),
+        enabled: agent.widgetConfig?.enabled ?? false,
+        theme: agent.widgetConfig?.theme || "auto",
+      });
+      if (widgetInitSignatureRef.current === widgetInitSignature) {
+        return;
+      }
+      widgetInitSignatureRef.current = widgetInitSignature;
+
       // Check if widget is enabled
       if (!agent.widgetConfig?.enabled) {
         setTimeout(() => {
@@ -107,7 +173,6 @@ const WidgetPreview: FC = () => {
       }
 
       // Find widget key
-      const widgetKey = keys.find((k) => k.type === "widget");
       if (!widgetKey?.key) {
         setTimeout(() => {
           setScriptError(
@@ -145,6 +210,12 @@ const WidgetPreview: FC = () => {
           const outerBorderEnabled = searchParams.get("outerBorderEnabled") === "true" ? true : searchParams.get("outerBorderEnabled") === "false" ? false : undefined;
           const internalBorderThickness = searchParams.get("internalBorderThickness") || undefined;
           const internalBorderColor = searchParams.get("internalBorderColor") || undefined;
+          const fontFamily = searchParams.get("fontFamily") || undefined;
+          const fontSize = searchParams.get("fontSize") || undefined;
+          const enableFileUpload =
+            searchParams.get("enableFileUpload") === "false"
+              ? false
+              : undefined;
 
           window.AgentWidget.init({
             apiKey: widgetKey.key!,
@@ -159,6 +230,9 @@ const WidgetPreview: FC = () => {
             outerBorderEnabled,
             internalBorderThickness,
             internalBorderColor,
+            fontFamily,
+            fontSize,
+            enableFileUpload,
             baseUrl: window.location.origin,
             containerId,
           });
@@ -193,12 +267,15 @@ const WidgetPreview: FC = () => {
 
   if (scriptError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4 dark:bg-neutral-900">
-        <div className="max-w-md rounded-lg border border-red-200 bg-white p-6 shadow-lg dark:border-red-800 dark:bg-neutral-800">
-          <h2 className="mb-2 text-xl font-bold text-red-600 dark:text-red-400">
+      <div
+        className="flex min-h-screen items-center justify-center bg-[color:var(--preview-bg)] p-4 text-[color:var(--preview-text)]"
+        style={previewRootStyle}
+      >
+        <div className="max-w-md rounded-lg border border-red-200 bg-[color:var(--preview-surface)] p-6 shadow-lg">
+          <h2 className="mb-2 text-xl font-bold text-red-600">
             Widget preview isn&apos;t ready
           </h2>
-          <p className="text-neutral-600 dark:text-neutral-300">{scriptError}</p>
+          <p className="text-[color:var(--preview-muted)]">{scriptError}</p>
         </div>
       </div>
     );
@@ -206,7 +283,10 @@ const WidgetPreview: FC = () => {
 
   if (!scriptLoaded || !widgetInitialized) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-900">
+      <div
+        className="flex min-h-screen items-center justify-center bg-[color:var(--preview-bg)]"
+        style={previewRootStyle}
+      >
         <LoadingScreen />
       </div>
     );
@@ -214,38 +294,41 @@ const WidgetPreview: FC = () => {
 
   // Fake e-commerce product page
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
+    <div
+      className="min-h-screen bg-[color:var(--preview-bg)] text-[color:var(--preview-text)]"
+      style={previewRootStyle}
+    >
       {/* Header */}
-      <header className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+      <header className="border-b border-[color:var(--preview-border)] bg-[color:var(--preview-surface)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
+              <h1 className="text-xl font-bold text-[color:var(--preview-text)]">
                 ShopDemo
               </h1>
             </div>
             <nav className="flex space-x-4">
               <a
                 href="#"
-                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-50"
+                className="text-[color:var(--preview-muted)] transition-colors hover:text-[color:var(--preview-text)]"
               >
                 Home
               </a>
               <a
                 href="#"
-                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-50"
+                className="text-[color:var(--preview-muted)] transition-colors hover:text-[color:var(--preview-text)]"
               >
                 Products
               </a>
               <a
                 href="#"
-                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-50"
+                className="text-[color:var(--preview-muted)] transition-colors hover:text-[color:var(--preview-text)]"
               >
                 About
               </a>
               <a
                 href="#"
-                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-50"
+                className="text-[color:var(--preview-muted)] transition-colors hover:text-[color:var(--preview-text)]"
               >
                 Contact
               </a>
@@ -258,10 +341,10 @@ const WidgetPreview: FC = () => {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Product Image */}
-          <div className="aspect-square overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-800">
+          <div className="aspect-square overflow-hidden rounded-lg border border-[color:var(--preview-border)] bg-[color:var(--preview-surface)]">
             <div className="flex h-full items-center justify-center">
               <svg
-                className="size-32 text-neutral-400"
+                className="size-32 text-[color:var(--preview-muted)]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -278,13 +361,13 @@ const WidgetPreview: FC = () => {
 
           {/* Product Info */}
           <div>
-            <h1 className="mb-4 text-4xl font-bold text-neutral-900 dark:text-neutral-50">
+            <h1 className="mb-4 text-4xl font-bold text-[color:var(--preview-text)]">
               Premium Wireless Headphones
             </h1>
-            <p className="mb-4 text-2xl font-semibold text-primary-600 dark:text-primary-400">
+            <p className="mb-4 text-2xl font-semibold text-[color:var(--preview-accent)]">
               $299.99
             </p>
-            <p className="mb-6 text-neutral-600 dark:text-neutral-300">
+            <p className="mb-6 text-[color:var(--preview-muted)]">
               Experience crystal-clear audio with our premium wireless headphones.
               Featuring active noise cancellation, 30-hour battery life, and
               premium comfort for all-day wear.
@@ -303,7 +386,7 @@ const WidgetPreview: FC = () => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="text-neutral-700 dark:text-neutral-300">
+                <span className="text-[color:var(--preview-muted)]">
                   Active Noise Cancellation
                 </span>
               </div>
@@ -319,7 +402,7 @@ const WidgetPreview: FC = () => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="text-neutral-700 dark:text-neutral-300">
+                <span className="text-[color:var(--preview-muted)]">
                   30-Hour Battery Life
                 </span>
               </div>
@@ -335,22 +418,22 @@ const WidgetPreview: FC = () => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="text-neutral-700 dark:text-neutral-300">
+                <span className="text-[color:var(--preview-muted)]">
                   Premium Comfort Design
                 </span>
               </div>
             </div>
 
-            <button className="mb-8 w-full rounded-lg bg-gradient-primary px-6 py-3 text-lg font-semibold text-white shadow-lg transition-all hover:shadow-xl">
+            <button className="mb-8 w-full rounded-lg bg-[color:var(--preview-accent)] px-6 py-3 text-lg font-semibold text-white shadow-lg transition-all hover:opacity-90">
               Add to Cart
             </button>
 
             {/* Product Details */}
-            <div className="border-t border-neutral-200 pt-6 dark:border-neutral-800">
-              <h2 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+            <div className="border-t border-[color:var(--preview-border)] pt-6">
+              <h2 className="mb-4 text-xl font-semibold text-[color:var(--preview-text)]">
                 Product Details
               </h2>
-              <ul className="space-y-2 text-neutral-600 dark:text-neutral-300">
+              <ul className="space-y-2 text-[color:var(--preview-muted)]">
                 <li>• Wireless connectivity with Bluetooth 5.0</li>
                 <li>• Quick charge: 10 minutes for 3 hours of playback</li>
                 <li>• Premium leather ear cushions</li>
@@ -362,42 +445,42 @@ const WidgetPreview: FC = () => {
         </div>
 
         {/* Reviews Section */}
-        <div className="mt-12 border-t border-neutral-200 pt-8 dark:border-neutral-800">
-          <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+        <div className="mt-12 border-t border-[color:var(--preview-border)] pt-8">
+          <h2 className="mb-6 text-2xl font-semibold text-[color:var(--preview-text)]">
             Customer Reviews
           </h2>
           <div className="space-y-6">
-            <div className="rounded-lg border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="rounded-lg border border-[color:var(--preview-border)] bg-[color:var(--preview-surface)] p-6">
               <div className="mb-2 flex items-center">
-                <div className="mr-4 size-10 rounded-full bg-neutral-300 dark:bg-neutral-700"></div>
+                <div className="mr-4 size-10 rounded-full bg-[color:var(--preview-border)]"></div>
                 <div>
-                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">
+                  <p className="font-semibold text-[color:var(--preview-text)]">
                     Sarah M.
                   </p>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  <p className="text-sm text-[color:var(--preview-muted)]">
                     5 stars
                   </p>
                 </div>
               </div>
-              <p className="text-neutral-600 dark:text-neutral-300">
+              <p className="text-[color:var(--preview-muted)]">
                 &quot;These headphones are absolutely amazing! The noise cancellation
                 works perfectly, and the sound quality is outstanding. Worth every
                 penny!&quot;
               </p>
             </div>
-            <div className="rounded-lg border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="rounded-lg border border-[color:var(--preview-border)] bg-[color:var(--preview-surface)] p-6">
               <div className="mb-2 flex items-center">
-                <div className="mr-4 size-10 rounded-full bg-neutral-300 dark:bg-neutral-700"></div>
+                <div className="mr-4 size-10 rounded-full bg-[color:var(--preview-border)]"></div>
                 <div>
-                  <p className="font-semibold text-neutral-900 dark:text-neutral-50">
+                  <p className="font-semibold text-[color:var(--preview-text)]">
                     John D.
                   </p>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  <p className="text-sm text-[color:var(--preview-muted)]">
                     5 stars
                   </p>
                 </div>
               </div>
-              <p className="text-neutral-600 dark:text-neutral-300">
+              <p className="text-[color:var(--preview-muted)]">
                 &quot;Best headphones I&apos;ve ever owned. The battery life is incredible,
                 and they&apos;re so comfortable I can wear them all day.&quot;
               </p>
@@ -407,9 +490,9 @@ const WidgetPreview: FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="mt-12 border-t border-neutral-200 bg-white py-8 dark:border-neutral-800 dark:bg-neutral-950">
+      <footer className="mt-12 border-t border-[color:var(--preview-border)] bg-[color:var(--preview-surface)] py-8">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-neutral-600 dark:text-neutral-400">
+          <div className="text-center text-[color:var(--preview-muted)]">
             <p>© 2024 ShopDemo. All rights reserved.</p>
             <p className="mt-2 text-sm">
               This is a preview page to demonstrate the widget placement.

@@ -25,6 +25,7 @@ interface AgentChatProps {
   >; // Optional client-side tool functions
   agent?: { name?: string; avatar?: string }; // Optional agent data (if provided, useAgent hook is not required)
   isWidget?: boolean; // If true, hide test message and use widget-appropriate styling
+  enableFileUpload?: boolean; // If false, hide upload button and file input
 }
 
 /**
@@ -52,6 +53,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   tools,
   agent: agentProp,
   isWidget = false,
+  enableFileUpload = true,
 }) => {
   // Use agent prop if provided, otherwise fetch from API
   // When agentProp is provided (e.g., in widget context), skip the query to avoid auth errors
@@ -108,6 +110,23 @@ export const AgentChat: FC<AgentChatProps> = ({
       setApiError(null);
     }
   }, [apiError, pendingFiles]);
+
+  useEffect(() => {
+    if (enableFileUpload) {
+      return;
+    }
+    setPendingFiles((prevPendingFiles) => {
+      prevPendingFiles.forEach((fileData) => {
+        if (fileData.preview) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+      });
+      if (prevPendingFiles.length === 0) {
+        return prevPendingFiles;
+      }
+      return [];
+    });
+  }, [enableFileUpload]);
 
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);
@@ -732,7 +751,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       </div>
 
       {/* Pending Files Preview */}
-      {pendingFiles.length > 0 && (
+      {enableFileUpload && pendingFiles.length > 0 && (
         <div className="border-t-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="flex flex-wrap gap-2">
             {pendingFiles.map((fileData, index) => (
@@ -810,23 +829,27 @@ export const AgentChat: FC<AgentChatProps> = ({
         onSubmit={handleSubmit}
         className="flex gap-4 rounded-b-2xl border-t-2 border-neutral-300 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900"
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-          accept="*/*"
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isLoading}
-          className="flex shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white p-4 text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
-          title="Attach file"
-        >
-          <PaperClipIcon className="size-5" />
-        </button>
+        {enableFileUpload && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+              accept="*/*"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className="flex shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white p-4 text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              title="Attach file"
+            >
+              <PaperClipIcon className="size-5" />
+            </button>
+          </>
+        )}
         <textarea
           ref={textareaRef}
           value={input}

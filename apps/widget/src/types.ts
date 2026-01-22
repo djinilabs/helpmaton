@@ -12,6 +12,9 @@ export interface WidgetConfig {
   outerBorderEnabled?: boolean;
   internalBorderThickness?: string;
   internalBorderColor?: string;
+  fontFamily?: string;
+  fontSize?: string;
+  enableFileUpload?: boolean;
 }
 
 export interface AgentWidgetInitOptions extends WidgetConfig {

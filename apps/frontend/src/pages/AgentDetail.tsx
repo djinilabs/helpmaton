@@ -22,6 +22,7 @@ import {
   ArrowTopRightOnSquareIcon,
   ArrowPathIcon,
   ClockIcon,
+  ChevronRightIcon,
   PhotoIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -174,6 +175,15 @@ import {
   type Provider,
 } from "../utils/modelConfig";
 import { trackEvent } from "../utils/tracking";
+import {
+  DEFAULT_WIDGET_PREVIEW_SETTINGS,
+  PREVIEW_FONT_FAMILIES,
+  PREVIEW_FONT_SIZE_RANGE,
+  normalizeWidgetPreviewSettings,
+  resolveWidgetPreviewFontFamily,
+  widgetPreviewSettingsToSearchParams,
+  type WidgetPreviewSettings,
+} from "../utils/widgetPreviewSettings";
 
 // Lazy load modals - only load when opened
 const AgentModal = lazy(() =>
@@ -246,6 +256,65 @@ const DEFAULT_WIDGET_CUSTOMIZATION = {
   outerBorderEnabled: true,
   internalBorderThickness: "2px",
   internalBorderColor: "#e5e7eb",
+  fontFamily:
+    'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontSize: "16px",
+  enableFileUpload: true,
+};
+
+const parseColor = (color?: string) => {
+  if (!color) {
+    return { hex: "#000000", opacity: 1 };
+  }
+  const rgbaMatch = color.match(
+    /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/
+  );
+  if (rgbaMatch) {
+    const r = parseInt(rgbaMatch[1], 10);
+    const g = parseInt(rgbaMatch[2], 10);
+    const b = parseInt(rgbaMatch[3], 10);
+    const a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
+    const hex = `#${[r, g, b]
+      .map((value) => value.toString(16).padStart(2, "0"))
+      .join("")}`;
+    return { hex, opacity: a };
+  }
+  const trimmedColor = color.trim();
+  const hexPattern = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  if (hexPattern.test(trimmedColor)) {
+    const normalizedHex =
+      trimmedColor.length === 4
+        ? `#${trimmedColor
+            .slice(1)
+            .split("")
+            .map((ch) => ch + ch)
+            .join("")}`
+        : trimmedColor;
+    return { hex: normalizedHex, opacity: 1 };
+  }
+  return { hex: "#000000", opacity: 1 };
+};
+
+const hexToRgba = (hex: string, opacity: number) => {
+  if (typeof hex !== "string") {
+    return "";
+  }
+  const trimmed = hex.trim();
+  const match = trimmed.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!match) {
+    return trimmed;
+  }
+  let hexValue = match[1];
+  if (hexValue.length === 3) {
+    hexValue = hexValue
+      .split("")
+      .map((ch) => ch + ch)
+      .join("");
+  }
+  const r = parseInt(hexValue.slice(0, 2), 16);
+  const g = parseInt(hexValue.slice(2, 4), 16);
+  const b = parseInt(hexValue.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
 const DEFAULT_KNOWLEDGE_SNIPPET_COUNT = 5;
@@ -741,7 +810,30 @@ function useAgentDetailState({
     outerBorderEnabled?: boolean;
     internalBorderThickness?: string;
     internalBorderColor?: string;
+    fontFamily?: string;
+    fontSize?: string;
+  enableFileUpload?: boolean;
   }>(`widget-customization-${agentId}`, DEFAULT_WIDGET_CUSTOMIZATION);
+
+  const [widgetPreviewSettings, setWidgetPreviewSettings] =
+    useLocalPreference<WidgetPreviewSettings>(
+      `widget-preview-settings-${agentId}`,
+      DEFAULT_WIDGET_PREVIEW_SETTINGS
+    );
+  const normalizedPreviewSettings = normalizeWidgetPreviewSettings(
+    widgetPreviewSettings
+  );
+  const previewFontFamilyValue = resolveWidgetPreviewFontFamily(
+    normalizedPreviewSettings.fontFamily
+  );
+  const updateWidgetPreviewSettings = (
+    updates: Partial<WidgetPreviewSettings>
+  ) => {
+    setWidgetPreviewSettings({
+      ...widgetPreviewSettings,
+      ...updates,
+    });
+  };
 
   // Model state - provider is always "openrouter", only modelName can be changed
   const provider: Provider = MODEL_PROVIDER;
@@ -1776,6 +1868,10 @@ function useAgentDetailState({
     setWidgetConfig,
     widgetCustomization,
     setWidgetCustomization,
+    widgetPreviewSettings,
+    normalizedPreviewSettings,
+    previewFontFamilyValue,
+    updateWidgetPreviewSettings,
     provider,
     modelName,
     setModelName,
@@ -2655,6 +2751,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     setWidgetConfig,
     widgetCustomization,
     setWidgetCustomization,
+    widgetPreviewSettings,
+    normalizedPreviewSettings,
+    previewFontFamilyValue,
+    updateWidgetPreviewSettings,
     modelName,
     setModelName,
     availableModels,
@@ -4476,42 +4576,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       </div>
 
                       {/* Widget Customization Options */}
-                      <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-                        <h3 className="text-sm font-semibold">
-                          Customization Options
-                        </h3>
-                        <p className="text-xs opacity-75">
-                          These options are included in the embed code and preview.
-                          They are saved locally in your browser and persist across sessions.
-                          Colors support hex (#rrggbb) or rgba(r, g, b, a) format.
-                        </p>
+                      <details className="group rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+                        <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800 [&::-webkit-details-marker]:hidden">
+                          <span>Customization Options</span>
+                          <ChevronRightIcon className="size-4 shrink-0 text-neutral-400 transition-transform group-open:rotate-90 dark:text-neutral-500" />
+                        </summary>
+                        <div className="space-y-4 border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
+                          <p className="text-xs opacity-75">
+                            These options are included in the embed code and preview.
+                            They are saved locally in your browser and persist across sessions.
+                            Colors support hex (#rrggbb) or rgba(r, g, b, a) format.
+                          </p>
 
-                        {/* Helper function to parse color and opacity */}
-                        {(() => {
-                          const parseColor = (color?: string) => {
-                            if (!color) return { hex: "#000000", opacity: 1 };
-                            // Check if it's rgba
-                            const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                            if (rgbaMatch) {
-                              const r = parseInt(rgbaMatch[1]);
-                              const g = parseInt(rgbaMatch[2]);
-                              const b = parseInt(rgbaMatch[3]);
-                              const a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
-                              const hex = `#${[r, g, b].map(x => x.toString(16).padStart(2, "0")).join("")}`;
-                              return { hex, opacity: a };
-                            }
-                            // Assume hex
-                            return { hex: color, opacity: 1 };
-                          };
-
-                          const hexToRgba = (hex: string, opacity: number) => {
-                            const r = parseInt(hex.slice(1, 3), 16);
-                            const g = parseInt(hex.slice(3, 5), 16);
-                            const b = parseInt(hex.slice(5, 7), 16);
-                            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-                          };
-
-                          return (
+                          {(() => (
                             <>
                               {/* Colors */}
                               <div className="grid grid-cols-2 gap-4">
@@ -4830,7 +4907,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                               );
                             })()}
                           </div>
-                        </div>
+                          </div>
 
                         {/* Border Radius */}
                         <div>
@@ -4998,10 +5075,455 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                             </div>
                           </div>
                         </div>
-                            </>
-                          );
-                        })()}
+
+                        {/* Typography */}
+                        <div className="space-y-2">
+                          <label className="block text-xs font-medium">
+                            Widget Typography
+                          </label>
+                          <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                            These font settings apply to the widget chat UI.
+                          </p>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                              <label
+                                htmlFor="widget-font-family"
+                                className="mb-1 block text-xs font-medium"
+                              >
+                                Font Family
+                              </label>
+                              <input
+                                id="widget-font-family"
+                                type="text"
+                                value={
+                                  widgetCustomization.fontFamily ||
+                                  DEFAULT_WIDGET_CUSTOMIZATION.fontFamily
+                                }
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    fontFamily: e.target.value,
+                                  })
+                                }
+                                placeholder="Inter, system-ui, sans-serif"
+                                className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                              />
+                            </div>
+                            <div>
+                              <label
+                                htmlFor="widget-font-size"
+                                className="mb-1 block text-xs font-medium"
+                              >
+                                Base Font Size
+                              </label>
+                              {(() => {
+                                const fontSizeValue =
+                                  widgetCustomization.fontSize || "16px";
+                                const numericValue =
+                                  parseInt(fontSizeValue.replace("px", ""), 10) ||
+                                  16;
+                                return (
+                                  <Slider
+                                    id="widget-font-size"
+                                    value={numericValue}
+                                    min={12}
+                                    max={20}
+                                    step={1}
+                                    onChange={(value) => {
+                                      const newValue = value ?? 16;
+                                      setWidgetCustomization({
+                                        ...widgetCustomization,
+                                        fontSize: `${newValue}px`,
+                                      });
+                                    }}
+                                    formatValue={(v) => `${v}px`}
+                                    className="text-xs"
+                                  />
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                          <div>
+                            <label
+                              htmlFor="widget-upload-toggle"
+                              className="text-xs font-medium"
+                            >
+                              Upload Button
+                            </label>
+                            <p className="text-xs opacity-75">
+                              Allow users to attach files in the widget
+                            </p>
+                          </div>
+                          <input
+                            id="widget-upload-toggle"
+                            type="checkbox"
+                            checked={widgetCustomization.enableFileUpload !== false}
+                            onChange={(e) =>
+                              setWidgetCustomization({
+                                ...widgetCustomization,
+                                enableFileUpload: e.target.checked,
+                              })
+                            }
+                            className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
+                          />
+                        </div>
+
+                          </>
+                        ))()}
                       </div>
+
+                      </details>
+
+                      {/* Preview Page Styling */}
+                      <details className="group rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+                        <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800 [&::-webkit-details-marker]:hidden">
+                          <span>Preview Page Styling</span>
+                          <ChevronRightIcon className="size-4 shrink-0 text-neutral-400 transition-transform group-open:rotate-90 dark:text-neutral-500" />
+                        </summary>
+                        <div className="space-y-4 border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
+                          <div className="flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateWidgetPreviewSettings(
+                                  DEFAULT_WIDGET_PREVIEW_SETTINGS
+                                )
+                              }
+                              className="text-xs font-semibold text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                            >
+                              Reset to defaults
+                            </button>
+                          </div>
+                        <p className="text-xs opacity-75">
+                          These settings only affect the widget preview page and
+                          the optional site styles snippet.
+                        </p>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                          The preview font controls the surrounding demo website,
+                          not the widget UI.
+                        </p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label
+                              htmlFor="preview-theme"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Theme
+                            </label>
+                            <select
+                              id="preview-theme"
+                              value={normalizedPreviewSettings.theme}
+                              onChange={(e) =>
+                                updateWidgetPreviewSettings({
+                                  theme: e.target.value as WidgetPreviewSettings["theme"],
+                                })
+                              }
+                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                            >
+                              <option value="light">Light</option>
+                              <option value="dark">Dark</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="preview-font-family"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Font Family
+                            </label>
+                            <select
+                              id="preview-font-family"
+                              value={normalizedPreviewSettings.fontFamily}
+                              onChange={(e) =>
+                                updateWidgetPreviewSettings({
+                                  fontFamily:
+                                    e.target.value as WidgetPreviewSettings["fontFamily"],
+                                })
+                              }
+                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                            >
+                              {Object.entries(PREVIEW_FONT_FAMILIES).map(
+                                ([value, option]) => (
+                                  <option key={value} value={value}>
+                                    {option.label}
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </div>
+                          <div className="md:col-span-2">
+                            <Slider
+                              label="Base Font Size"
+                              value={normalizedPreviewSettings.fontSize}
+                              min={PREVIEW_FONT_SIZE_RANGE.min}
+                              max={PREVIEW_FONT_SIZE_RANGE.max}
+                              step={1}
+                              onChange={(value) =>
+                                updateWidgetPreviewSettings({
+                                  fontSize:
+                                    value ??
+                                    DEFAULT_WIDGET_PREVIEW_SETTINGS.fontSize,
+                                })
+                              }
+                              formatValue={(value) => `${value}px`}
+                              className="text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label
+                              htmlFor="preview-bg-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Page Background
+                            </label>
+                            {(() => {
+                              const { hex } = parseColor(
+                                normalizedPreviewSettings.backgroundColor
+                              );
+                              return (
+                                <div className="flex gap-2">
+                                  <input
+                                    id="preview-bg-color"
+                                    type="color"
+                                    value={hex}
+                                    onChange={(e) =>
+                                      updateWidgetPreviewSettings({
+                                        backgroundColor: e.target.value,
+                                      })
+                                    }
+                                    className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={normalizedPreviewSettings.backgroundColor}
+                                    onChange={(e) => {
+                                      const value = e.target.value.trim();
+                                      updateWidgetPreviewSettings({
+                                        backgroundColor:
+                                          value ||
+                                          DEFAULT_WIDGET_PREVIEW_SETTINGS.backgroundColor,
+                                      });
+                                    }}
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                  />
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="preview-surface-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Surface Color
+                            </label>
+                            {(() => {
+                              const { hex } = parseColor(
+                                normalizedPreviewSettings.surfaceColor
+                              );
+                              return (
+                                <div className="flex gap-2">
+                                  <input
+                                    id="preview-surface-color"
+                                    type="color"
+                                    value={hex}
+                                    onChange={(e) =>
+                                      updateWidgetPreviewSettings({
+                                        surfaceColor: e.target.value,
+                                      })
+                                    }
+                                    className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={normalizedPreviewSettings.surfaceColor}
+                                    onChange={(e) => {
+                                      const value = e.target.value.trim();
+                                      updateWidgetPreviewSettings({
+                                        surfaceColor:
+                                          value ||
+                                          DEFAULT_WIDGET_PREVIEW_SETTINGS.surfaceColor,
+                                      });
+                                    }}
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                  />
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="preview-text-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Text Color
+                            </label>
+                            {(() => {
+                              const { hex } = parseColor(
+                                normalizedPreviewSettings.textColor
+                              );
+                              return (
+                                <div className="flex gap-2">
+                                  <input
+                                    id="preview-text-color"
+                                    type="color"
+                                    value={hex}
+                                    onChange={(e) =>
+                                      updateWidgetPreviewSettings({
+                                        textColor: e.target.value,
+                                      })
+                                    }
+                                    className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={normalizedPreviewSettings.textColor}
+                                    onChange={(e) => {
+                                      const value = e.target.value.trim();
+                                      updateWidgetPreviewSettings({
+                                        textColor:
+                                          value ||
+                                          DEFAULT_WIDGET_PREVIEW_SETTINGS.textColor,
+                                      });
+                                    }}
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                  />
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="preview-muted-text-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Muted Text
+                            </label>
+                            {(() => {
+                              const { hex } = parseColor(
+                                normalizedPreviewSettings.mutedTextColor
+                              );
+                              return (
+                                <div className="flex gap-2">
+                                  <input
+                                    id="preview-muted-text-color"
+                                    type="color"
+                                    value={hex}
+                                    onChange={(e) =>
+                                      updateWidgetPreviewSettings({
+                                        mutedTextColor: e.target.value,
+                                      })
+                                    }
+                                    className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={normalizedPreviewSettings.mutedTextColor}
+                                    onChange={(e) => {
+                                      const value = e.target.value.trim();
+                                      updateWidgetPreviewSettings({
+                                        mutedTextColor:
+                                          value ||
+                                          DEFAULT_WIDGET_PREVIEW_SETTINGS.mutedTextColor,
+                                      });
+                                    }}
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                  />
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="preview-accent-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Accent Color
+                            </label>
+                            {(() => {
+                              const { hex } = parseColor(
+                                normalizedPreviewSettings.accentColor
+                              );
+                              return (
+                                <div className="flex gap-2">
+                                  <input
+                                    id="preview-accent-color"
+                                    type="color"
+                                    value={hex}
+                                    onChange={(e) =>
+                                      updateWidgetPreviewSettings({
+                                        accentColor: e.target.value,
+                                      })
+                                    }
+                                    className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={normalizedPreviewSettings.accentColor}
+                                    onChange={(e) => {
+                                      const value = e.target.value.trim();
+                                      updateWidgetPreviewSettings({
+                                        accentColor:
+                                          value ||
+                                          DEFAULT_WIDGET_PREVIEW_SETTINGS.accentColor,
+                                      });
+                                    }}
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                  />
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <div>
+                            <label
+                              htmlFor="preview-border-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Border Color
+                            </label>
+                            {(() => {
+                              const { hex } = parseColor(
+                                normalizedPreviewSettings.borderColor
+                              );
+                              return (
+                                <div className="flex gap-2">
+                                  <input
+                                    id="preview-border-color"
+                                    type="color"
+                                    value={hex}
+                                    onChange={(e) =>
+                                      updateWidgetPreviewSettings({
+                                        borderColor: e.target.value,
+                                      })
+                                    }
+                                    className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={normalizedPreviewSettings.borderColor}
+                                    onChange={(e) => {
+                                      const value = e.target.value.trim();
+                                      updateWidgetPreviewSettings({
+                                        borderColor:
+                                          value ||
+                                          DEFAULT_WIDGET_PREVIEW_SETTINGS.borderColor,
+                                      });
+                                    }}
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                  />
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                      </details>
 
                       {/* Widget Keys */}
                       <div>
@@ -5048,6 +5570,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           widgetCustomization.outerBorderEnabled !== undefined ? `    outerBorderEnabled: ${widgetCustomization.outerBorderEnabled},` : null,
                           widgetCustomization.internalBorderThickness ? `    internalBorderThickness: "${widgetCustomization.internalBorderThickness}",` : null,
                           widgetCustomization.internalBorderColor ? `    internalBorderColor: "${widgetCustomization.internalBorderColor}",` : null,
+                          widgetCustomization.fontFamily ? `    fontFamily: "${widgetCustomization.fontFamily}",` : null,
+                          widgetCustomization.fontSize ? `    fontSize: "${widgetCustomization.fontSize}",` : null,
+                          widgetCustomization.enableFileUpload === false ? `    enableFileUpload: false,` : null,
                         ].filter(Boolean).join("\n");
                         
                         const embedCode = `<!-- Create a container for the widget -->
@@ -5073,25 +5598,83 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
 </script>`;
                         
                         return (
-                          <div>
-                            <label className="mb-2 block text-sm font-medium">
+                          <details className="rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+                            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-50 dark:text-neutral-100 dark:hover:bg-neutral-800">
                               Embed Code
-                            </label>
-                            <div className="relative">
-                              <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
-                                <code>{embedCode}</code>
-                              </pre>
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(embedCode);
-                                  // You might want to add a toast here
-                                }}
-                                className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
-                              >
-                                Copy
-                              </button>
+                            </summary>
+                            <div className="border-t border-neutral-200 px-4 py-3 text-sm dark:border-neutral-800">
+                              <p className="mb-3 text-xs opacity-75">
+                                Add the container div where you want the widget to
+                                appear, include the script tag once, then call
+                                <code className="mx-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] dark:bg-neutral-800">
+                                  AgentWidget.init
+                                </code>
+                                with your IDs and widget key. The widget expands to
+                                fill the container size you provide.
+                              </p>
+                              <div className="relative">
+                                <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                  <code>{embedCode}</code>
+                                </pre>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(embedCode);
+                                    // You might want to add a toast here
+                                  }}
+                                  className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
+                                >
+                                  Copy
+                                </button>
+                              </div>
                             </div>
-                          </div>
+                          </details>
+                        );
+                      })()}
+
+                      {(() => {
+                        const previewStylesSnippet = `:root {
+  --preview-bg: ${normalizedPreviewSettings.backgroundColor};
+  --preview-surface: ${normalizedPreviewSettings.surfaceColor};
+  --preview-text: ${normalizedPreviewSettings.textColor};
+  --preview-muted: ${normalizedPreviewSettings.mutedTextColor};
+  --preview-accent: ${normalizedPreviewSettings.accentColor};
+  --preview-border: ${normalizedPreviewSettings.borderColor};
+  --preview-font-family: ${previewFontFamilyValue};
+  --preview-font-size: ${normalizedPreviewSettings.fontSize}px;
+}
+
+body {
+  background: var(--preview-bg);
+  color: var(--preview-text);
+  font-family: var(--preview-font-family);
+  font-size: var(--preview-font-size);
+}`;
+
+                        return (
+                          <details className="rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+                            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-50 dark:text-neutral-100 dark:hover:bg-neutral-800">
+                              Site Styles Snippet (Optional)
+                            </summary>
+                            <div className="border-t border-neutral-200 px-4 py-3 text-sm dark:border-neutral-800">
+                              <div className="relative">
+                                <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                  <code>{previewStylesSnippet}</code>
+                                </pre>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(previewStylesSnippet);
+                                  }}
+                                  className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                              <p className="mt-2 text-xs opacity-75">
+                                Use these CSS variables to match the preview styling in
+                                your own site.
+                              </p>
+                            </div>
+                          </details>
                         );
                       })()}
 
@@ -5125,6 +5708,21 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                               if (widgetCustomization.internalBorderColor) {
                                 params.set("internalBorderColor", widgetCustomization.internalBorderColor);
                               }
+                              if (widgetCustomization.fontFamily) {
+                                params.set("fontFamily", widgetCustomization.fontFamily);
+                              }
+                              if (widgetCustomization.fontSize) {
+                                params.set("fontSize", widgetCustomization.fontSize);
+                              }
+                              if (widgetCustomization.enableFileUpload === false) {
+                                params.set("enableFileUpload", "false");
+                              }
+                              const previewParams = widgetPreviewSettingsToSearchParams(
+                                widgetPreviewSettings
+                              );
+                              previewParams.forEach((value, key) => {
+                                params.set(key, value);
+                              });
                               const queryString = params.toString();
                               const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview${queryString ? `?${queryString}` : ""}`;
                               window.open(previewUrl, "_blank", "noopener,noreferrer");

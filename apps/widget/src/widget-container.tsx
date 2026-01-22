@@ -50,6 +50,7 @@ export const WidgetContainer: FC<WidgetContainerProps> = ({
     api: apiUrl,
     tools: config.tools,
     isWidget: true, // Mark as widget to hide test message and adjust styling
+    enableFileUpload: config.enableFileUpload !== false,
     agent: {
       // Minimal agent object - only fields used by AgentChat component
       // This prevents the useAgent hook from executing and failing due to lack of auth
@@ -71,6 +72,12 @@ export const WidgetContainer: FC<WidgetContainerProps> = ({
   }
   if (config.borderColor) {
     cssVariables["--widget-border-color" as any] = config.borderColor;
+  }
+  if (config.fontFamily) {
+    cssVariables["--widget-font-family" as any] = config.fontFamily;
+  }
+  if (config.fontSize) {
+    cssVariables["--widget-font-size" as any] = config.fontSize;
   }
 
   return (
