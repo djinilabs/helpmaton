@@ -524,13 +524,8 @@ const addImageGenerationTool = async (params: {
       data?: Array<{ url?: string; b64_json?: string }>;
     };
 
-    console.log("[Agent Setup] Image generation choice 0:", data.choices?.[0]);
-    console.log("[Agent Setup] Image generation choice 0 message:", data.choices?.[0]?.message);
-    console.log("[Agent Setup] Image generation choice 0 message content:", data.choices?.[0]?.message?.content);
-
     const message = data.choices?.[0]?.message;
     const content = message?.content;
-    console.log("[Agent Setup] Image generation images:", message?.images);
 
     return (
       extractFromContentParts(content) ||
@@ -538,6 +533,19 @@ const addImageGenerationTool = async (params: {
       extractFromContentString(content as string | undefined) ||
       extractFromFallback(data)
     );
+  };
+
+  const isTrustedImageUrl = (url: string): boolean => {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== "https:") {
+        return false;
+      }
+      const hostname = parsedUrl.hostname.toLowerCase();
+      return hostname === "openrouter.ai" || hostname.endsWith(".openrouter.ai");
+    } catch {
+      return false;
+    }
   };
 
   params.tools.generate_image = tool({
@@ -672,21 +680,36 @@ const addImageGenerationTool = async (params: {
           buffer = Buffer.from(match[2] || "", "base64");
         } else {
           let filenameFromUrl: string | undefined;
+          let parsedUrl: URL | undefined;
           try {
-            const parsedUrl = new URL(imageOutput.url);
+            parsedUrl = new URL(imageOutput.url);
             const basename = parsedUrl.pathname.split("/").pop();
             filenameFromUrl = basename || undefined;
           } catch {
             filenameFromUrl = imageOutput.url.split("/").pop();
           }
-          return {
-            url: imageOutput.url,
-            contentType,
-            filename: filenameFromUrl || "image.png",
-            model: modelName,
-            ...(estimatedCostUsd > 0 && { costUsd: estimatedCostUsd }),
-            ...(openrouterGenerationId && { openrouterGenerationId }),
-          };
+          if (isTrustedImageUrl(imageOutput.url)) {
+            return {
+              url: imageOutput.url,
+              contentType,
+              filename: filenameFromUrl || "image.png",
+              model: modelName,
+              ...(estimatedCostUsd > 0 && { costUsd: estimatedCostUsd }),
+              ...(openrouterGenerationId && { openrouterGenerationId }),
+            };
+          }
+
+          const imageResponse = await fetch(imageOutput.url);
+          if (!imageResponse.ok) {
+            throw new Error(
+              `Failed to download image from ${imageOutput.url}: ${imageResponse.status} ${imageResponse.statusText}`
+            );
+          }
+          const headerContentType = imageResponse.headers.get("content-type");
+          if (headerContentType) {
+            contentType = headerContentType;
+          }
+          buffer = Buffer.from(await imageResponse.arrayBuffer());
         }
       } else {
         buffer = Buffer.from(imageOutput.base64 || "", "base64");

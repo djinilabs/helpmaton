@@ -164,9 +164,7 @@ export function getImageCapableModels(provider: string): string[] {
     return imageCapableModels.sort();
   }
 
-  return Object.keys(providerPricing.models)
-    .filter((modelName) => modelName.toLowerCase().includes("image"))
-    .sort();
+  return [];
 }
 
 /**
