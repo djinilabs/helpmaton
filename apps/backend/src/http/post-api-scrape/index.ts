@@ -17,7 +17,6 @@ import {
 } from "../../utils/captchaUtils";
 import { InsufficientCreditsError } from "../../utils/creditErrors";
 import {
-  refundReservation,
   reserveCredits,
   type CreditReservation,
 } from "../../utils/creditManagement";
@@ -92,7 +91,7 @@ async function waitForRedditHydration(page: Page) {
 /**
  * Create Express app for scrape endpoint
  */
-function createApp(): express.Application {
+export function createApp(): express.Application {
   const app = express();
   app.set("trust proxy", true);
   app.use(express.json());
@@ -261,7 +260,7 @@ function createApp(): express.Application {
         return;
       }
 
-      // Refund logic
+      // Do not refund on tool failure; consume reservation instead
       if (
         reservation &&
         reservation.reservationId !== "byok" &&
@@ -270,14 +269,12 @@ function createApp(): express.Application {
       ) {
         try {
           const db = await database();
-          await refundReservation(db, reservation.reservationId, context, {
-            endpoint: "scrape",
-            error: err,
-            reason: "scrape failure",
-          });
-          console.log("[scrape] Refunded credits.");
-        } catch (refundError) {
-          console.error("[scrape] Refund failed:", refundError);
+          await db["credit-reservations"].delete(
+            `credit-reservations/${reservation.reservationId}`
+          );
+          console.log("[scrape] Removed reservation after error.");
+        } catch (cleanupError) {
+          console.error("[scrape] Reservation cleanup failed:", cleanupError);
         }
       }
 

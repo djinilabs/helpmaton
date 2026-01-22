@@ -12,7 +12,6 @@ const {
   mockExaSearch,
   mockReserveExaCredits,
   mockAdjustExaCreditReservation,
-  mockRefundExaCredits,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
@@ -20,7 +19,6 @@ const {
     mockExaSearch: vi.fn(),
     mockReserveExaCredits: vi.fn(),
     mockAdjustExaCreditReservation: vi.fn(),
-    mockRefundExaCredits: vi.fn(),
   };
 });
 
@@ -44,7 +42,6 @@ vi.mock("../../../utils/exa", () => ({
 vi.mock("../../../utils/exaCredits", () => ({
   reserveExaCredits: mockReserveExaCredits,
   adjustExaCreditReservation: mockAdjustExaCreditReservation,
-  refundExaCredits: mockRefundExaCredits,
   calculateExaCost: vi.fn((dollars) => Math.ceil(dollars * 1_000_000)),
 }));
 
@@ -61,7 +58,11 @@ describe("exaTools", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    mockDb = {} as DatabaseSchema;
+    mockDb = {
+      "credit-reservations": {
+        delete: vi.fn(),
+      },
+    } as unknown as DatabaseSchema;
     mockDatabase.mockResolvedValue(mockDb);
 
     // Setup mock context
@@ -292,7 +293,7 @@ describe("exaTools", () => {
       }
     });
 
-    it("should handle API errors and refund credits", async () => {
+    it("should handle API errors without refunding credits", async () => {
       const tool = createExaSearchTool(workspaceId, mockContext);
       const apiError = new Error("Exa API error");
 
@@ -304,15 +305,8 @@ describe("exaTools", () => {
       });
 
       expect(result).toContain("Error searching with Exa.ai");
-      expect(mockRefundExaCredits).toHaveBeenCalledWith(
-        mockDb,
-        "test-reservation-id",
-        workspaceId,
-        mockContext,
-        "search",
-        3,
-        undefined, // agentId not passed in this test
-        undefined // conversationId not passed in this test
+      expect(mockDb["credit-reservations"].delete).toHaveBeenCalledWith(
+        "credit-reservations/test-reservation-id"
       );
     });
 

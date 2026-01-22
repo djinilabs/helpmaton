@@ -530,6 +530,43 @@ describe("openrouter-cost-verification-queue", () => {
       expect(mockAtomicUpdate).not.toHaveBeenCalled();
     });
 
+    it("should not finalize when reservationId is missing", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            total_cost: 0.001,
+          },
+        }),
+      });
+
+      const record: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          openrouterGenerationId: "gen-12345",
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      await handler({ Records: [record] });
+
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
+      expect(mockGet).not.toHaveBeenCalled();
+      expect(mockAtomicUpdate).not.toHaveBeenCalled();
+    });
+
     it("should throw error when generation not found (404)", async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: false,

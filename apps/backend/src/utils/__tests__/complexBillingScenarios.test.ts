@@ -771,31 +771,7 @@ describe("Complex Billing Scenarios", () => {
         mockContext
       );
 
-      // Refund Exa reservation (failure)
-      const exaExpires = Math.floor(Date.now() / 1000) + 15 * 60;
-      mockReservationGet.mockResolvedValue({
-        pk: `credit-reservations/${exaReservation.reservationId}`,
-        workspaceId,
-        reservedAmount: exaReservation.reservedAmount,
-        estimatedCost: exaReservation.reservedAmount,
-        currency: "usd",
-        expires: exaExpires,
-        expiresHour: Math.floor(exaExpires / 3600) * 3600,
-        version: 1,
-        createdAt: new Date().toISOString(),
-        provider: "exa",
-        modelName: "exa-api",
-        agentId,
-        conversationId,
-      });
-
-      await refundReservation(
-        mockDb,
-        exaReservation.reservationId,
-        mockContext
-      );
-
-      workspaceBalance += exaReservation.reservedAmount; // Refund
+      // Exa failure: no refund (reserved amount remains deducted)
 
       // Adjust Tavily reservation (success)
       mockAdjustTavilyCreditReservation.mockResolvedValue(mockWorkspace);
@@ -1088,7 +1064,7 @@ describe("Complex Billing Scenarios", () => {
       expect(workspaceBalance).toBe(initialBalance - scraperCost);
 
       // Scraper has fixed cost, so no adjustment needed after successful call
-      // If call fails, reservation should be refunded
+      // If call fails, reservation should be removed without refund
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const scraperReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${scraperReservation.reservationId}`,
@@ -1119,7 +1095,7 @@ describe("Complex Billing Scenarios", () => {
       );
     });
 
-    it("should correctly refund scraper reservation on failure", async () => {
+    it("should consume scraper reservation on failure without refund", async () => {
       const workspaceId = "test-workspace";
       const agentId = "test-agent";
       const conversationId = "test-conversation";
@@ -1141,7 +1117,7 @@ describe("Complex Billing Scenarios", () => {
       // Note: workspaceBalance already updated by mockAtomicUpdate in reserveCredits
       // No need to manually subtract here
 
-      // Simulate failure - refund reservation
+      // Simulate failure - remove reservation without refund
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const scraperReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${scraperReservation.reservationId}`,
@@ -1161,23 +1137,124 @@ describe("Complex Billing Scenarios", () => {
 
       mockReservationGet.mockResolvedValue(scraperReservationRecord);
 
-      await refundReservation(
-        mockDb,
-        scraperReservation.reservationId,
-        mockContext
+      await mockDb["credit-reservations"].delete(
+        `credit-reservations/${scraperReservation.reservationId}`
       );
 
-      workspaceBalance += scraperCost; // Refund
-
-      // Verify refund transaction was created
-      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+      // Verify reservation cleanup happened without refund transaction
+      expect(mockDelete).toHaveBeenCalledWith(
+        `credit-reservations/${scraperReservation.reservationId}`
+      );
+      expect(mockContext.addWorkspaceCreditTransaction).not.toHaveBeenCalledWith(
         expect.objectContaining({
-          amountMillionthUsd: scraperCost, // Positive = refund
-          source: "text-generation", // Scraper uses same source
-          supplier: "openrouter", // Default supplier
-          model: "scrape",
+          amountMillionthUsd: scraperCost,
         })
       );
+    });
+  });
+
+  describe("Aggregate balance checks", () => {
+    it("should settle final workspace balance after mixed workloads", async () => {
+      const workspaceId = "test-workspace";
+      const agentId = "test-agent";
+      const conversationId = "test-conversation";
+
+      const trackingContext: AugmentedContext = {
+        ...mockContext,
+        addWorkspaceCreditTransaction: vi.fn((transaction) => {
+          workspaceBalance += transaction.amountMillionthUsd;
+        }),
+      } as unknown as AugmentedContext;
+
+      // LLM reservation
+      const llmEstimatedCost = 50_000;
+      const llmReservation = await reserveCredits(
+        mockDb,
+        workspaceId,
+        llmEstimatedCost,
+        3,
+        false,
+        undefined,
+        "openrouter",
+        "openrouter/auto",
+        agentId,
+        conversationId
+      );
+
+      // Scraper reservation
+      const scraperCost = 5_000;
+      await reserveCredits(
+        mockDb,
+        workspaceId,
+        scraperCost,
+        3,
+        false,
+        undefined,
+        "scrape",
+        "scrape",
+        agentId,
+        conversationId
+      );
+
+      // Exa reservation (mocked tool, manual balance adjustment)
+      const exaReservation = await mockReserveExaCredits(
+        mockDb,
+        workspaceId,
+        0.01,
+        3,
+        trackingContext,
+        agentId,
+        conversationId
+      );
+      workspaceBalance -= exaReservation.reservedAmount;
+
+      // LLM actual cost (refund 5,000)
+      const tokenUsage: TokenUsage = {
+        promptTokens: 1000,
+        completionTokens: 500,
+        totalTokens: 1500,
+      };
+      mockCalculateTokenCost.mockReturnValue(45_000);
+
+      const expires = Math.floor(Date.now() / 1000) + 15 * 60;
+      mockReservationGet.mockResolvedValue({
+        pk: `credit-reservations/${llmReservation.reservationId}`,
+        workspaceId,
+        reservedAmount: llmEstimatedCost,
+        estimatedCost: llmEstimatedCost,
+        currency: "usd",
+        expires,
+        expiresHour: Math.floor(expires / 3600) * 3600,
+        version: 1,
+        createdAt: new Date().toISOString(),
+        provider: "openrouter",
+        modelName: "openrouter/auto",
+        agentId,
+        conversationId,
+      });
+
+      await adjustCreditReservation(
+        mockDb,
+        llmReservation.reservationId,
+        workspaceId,
+        "openrouter",
+        "openrouter/auto",
+        tokenUsage,
+        trackingContext,
+        3,
+        false,
+        "gen-1",
+        ["gen-1"],
+        agentId,
+        conversationId
+      );
+
+      // Exa failure: no refund, reservation remains consumed
+      // Scraper success: no adjustment for fixed cost
+
+      const expectedBalance =
+        1_000_000_000 - llmEstimatedCost - scraperCost - exaReservation.reservedAmount + 5_000;
+      expect(workspaceBalance).toBe(expectedBalance);
     });
   });
 });

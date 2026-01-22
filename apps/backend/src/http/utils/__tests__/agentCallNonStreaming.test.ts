@@ -6,6 +6,8 @@ const {
   mockValidateAndReserveCredits,
   mockAdjustCreditsAfterLLMCall,
   mockCleanupReservationOnError,
+  mockCleanupReservationWithoutTokenUsage,
+  mockEnqueueCostVerificationIfNeeded,
   mockPrepareLLMCall,
   mockExtractTokenUsageAndCosts,
   mockProcessNonStreamingResponse,
@@ -19,6 +21,8 @@ const {
   mockValidateAndReserveCredits: vi.fn(),
   mockAdjustCreditsAfterLLMCall: vi.fn(),
   mockCleanupReservationOnError: vi.fn(),
+  mockCleanupReservationWithoutTokenUsage: vi.fn(),
+  mockEnqueueCostVerificationIfNeeded: vi.fn(),
   mockPrepareLLMCall: vi.fn(),
   mockExtractTokenUsageAndCosts: vi.fn(),
   mockProcessNonStreamingResponse: vi.fn(),
@@ -44,6 +48,8 @@ vi.mock("../generationCreditManagement", () => ({
   validateAndReserveCredits: mockValidateAndReserveCredits,
   adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
   cleanupReservationOnError: mockCleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage: mockCleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded: mockEnqueueCostVerificationIfNeeded,
 }));
 
 vi.mock("../generationLLMSetup", () => ({
@@ -67,6 +73,7 @@ vi.mock("../../../utils/knowledgeInjection", () => ({
   injectKnowledgeIntoMessages: mockInjectKnowledgeIntoMessages,
 }));
 
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import {
   buildNonStreamingSetupOptions,
   callAgentNonStreaming,
@@ -145,8 +152,8 @@ describe("callAgentNonStreaming", () => {
         completionTokens: 1,
         totalTokens: 2,
       },
-      openrouterGenerationId: undefined,
-      openrouterGenerationIds: undefined,
+      openrouterGenerationId: "gen-123",
+      openrouterGenerationIds: ["gen-123"],
       provisionalCostUsd: 0,
     });
     mockProcessNonStreamingResponse.mockResolvedValue({
@@ -170,5 +177,98 @@ describe("callAgentNonStreaming", () => {
     expect(mockValidateAndReserveCredits).toHaveBeenCalled();
     const callArgs = mockValidateAndReserveCredits.mock.calls[0];
     expect(callArgs[11]).toBe("conversation-123");
+  });
+
+  it("reserves credits before calling the LLM", async () => {
+    await callAgentNonStreaming("workspace-1", "agent-1", "hello");
+
+    const reserveOrder = mockValidateAndReserveCredits.mock.invocationCallOrder[0];
+    const generateOrder = mockGenerateText.mock.invocationCallOrder[0];
+    expect(reserveOrder).toBeLessThan(generateOrder);
+  });
+
+  it("enqueues cost verification after successful call", async () => {
+    await callAgentNonStreaming("workspace-1", "agent-1", "hello", {
+      conversationId: "conversation-123",
+    });
+
+    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalledWith(
+      "gen-123",
+      ["gen-123"],
+      "workspace-1",
+      "reservation-id",
+      "conversation-123",
+      "agent-1",
+      "bridge"
+    );
+  });
+
+  it("refunds reservation on LLM failure", async () => {
+    const mockContext = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+    const error = new Error("LLM failed");
+    mockGenerateText.mockRejectedValueOnce(error);
+
+    await expect(
+      callAgentNonStreaming("workspace-1", "agent-1", "hello", {
+        context: mockContext,
+      })
+    ).rejects.toThrow("LLM failed");
+
+    expect(mockCleanupReservationOnError).toHaveBeenCalledWith(
+      expect.anything(),
+      "reservation-id",
+      "workspace-1",
+      "agent-1",
+      "openrouter",
+      "test-model",
+      error,
+      true,
+      false,
+      "bridge",
+      expect.anything()
+    );
+  });
+
+  it("keeps reservation when token usage is missing but generation IDs exist", async () => {
+    mockExtractTokenUsageAndCosts.mockReturnValueOnce({
+      tokenUsage: undefined,
+      openrouterGenerationId: "gen-456",
+      openrouterGenerationIds: ["gen-456"],
+      provisionalCostUsd: 0,
+    });
+
+    await callAgentNonStreaming("workspace-1", "agent-1", "hello");
+
+    expect(mockCleanupReservationWithoutTokenUsage).not.toHaveBeenCalled();
+    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalledWith(
+      "gen-456",
+      ["gen-456"],
+      "workspace-1",
+      "reservation-id",
+      undefined,
+      "agent-1",
+      "bridge"
+    );
+  });
+
+  it("cleans up reservation when token usage and generation IDs are missing", async () => {
+    mockExtractTokenUsageAndCosts.mockReturnValueOnce({
+      tokenUsage: undefined,
+      openrouterGenerationId: undefined,
+      openrouterGenerationIds: undefined,
+      provisionalCostUsd: 0,
+    });
+
+    await callAgentNonStreaming("workspace-1", "agent-1", "hello");
+
+    expect(mockCleanupReservationWithoutTokenUsage).toHaveBeenCalledWith(
+      expect.anything(),
+      "reservation-id",
+      "workspace-1",
+      "agent-1",
+      "bridge"
+    );
   });
 });
