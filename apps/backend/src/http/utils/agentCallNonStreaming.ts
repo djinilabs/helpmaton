@@ -158,6 +158,7 @@ const executeNonStreamingLLMCall = async (params: {
   finalModelName: string;
   endpointType: NonNullable<AgentCallNonStreamingOptions["endpointType"]>;
   context?: AugmentedContext;
+  conversationId?: string;
   abortSignal?: AbortSignal;
 }): Promise<NonStreamingExecutionResult> => {
   let reservationId: string | undefined;
@@ -187,7 +188,8 @@ const executeNonStreamingLLMCall = async (params: {
       effectiveTools,
       params.usesByok,
       params.endpointType,
-      params.context
+      params.context,
+      params.conversationId
     );
 
     const generateOptions = prepareLLMCall(
@@ -241,7 +243,8 @@ const executeNonStreamingLLMCall = async (params: {
         extractionResult.openrouterGenerationId,
         extractionResult.openrouterGenerationIds,
         params.endpointType,
-        params.context
+        params.context,
+        params.conversationId
       );
     } else {
       console.warn("[Bridge] No context available for credit adjustment", {
@@ -398,6 +401,7 @@ export async function callAgentNonStreaming(
     finalModelName,
     endpointType,
     context: options?.context,
+    conversationId: options?.conversationId,
     abortSignal: options?.abortSignal,
   });
 

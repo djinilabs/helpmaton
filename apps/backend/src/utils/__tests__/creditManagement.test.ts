@@ -762,6 +762,27 @@ describe("creditManagement", () => {
       );
     });
 
+    it("should include agent and conversation metadata when present", async () => {
+      mockReservation = {
+        ...mockReservation,
+        agentId: "agent-123",
+        conversationId: "conversation-456",
+      };
+      (
+        mockDb["credit-reservations"].get as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockReservation);
+      mockGet.mockResolvedValue(mockWorkspace);
+
+      await refundReservation(mockDb, reservationId, mockContext);
+
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: "agent-123",
+          conversationId: "conversation-456",
+        })
+      );
+    });
+
     it("should skip refund for BYOK reservations", async () => {
       await refundReservation(mockDb, "byok", mockContext);
 
