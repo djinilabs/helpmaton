@@ -87,8 +87,8 @@ jobs:
       - name: Enable pnpm corepack
         run: corepack enable
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Install pnpm via corepack
+        run: corepack install
 
       - name: Get pnpm store directory
         id: pnpm-store
