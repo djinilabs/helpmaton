@@ -68,6 +68,7 @@ describe("webhook-queue handler", () => {
       agentId: "agent-456",
       bodyText: "hello",
       conversationId: "conversation-789",
+      subscriptionId: undefined,
       context: expect.objectContaining({
         awsRequestId: "msg-1",
         addWorkspaceCreditTransaction: expect.any(Function),

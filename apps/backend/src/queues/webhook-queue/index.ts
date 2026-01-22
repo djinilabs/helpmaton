@@ -24,6 +24,7 @@ async function processWebhookQueueMessage(
     agentId: message.agentId,
     bodyText: message.bodyText,
     conversationId: message.conversationId,
+    subscriptionId: message.subscriptionId,
     context,
     awsRequestId: messageId,
   });

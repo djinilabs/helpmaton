@@ -115,7 +115,8 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       workspaceId,
       agentId,
       bodyText,
-      "ff028639-8bb4-43f0-87fa-0618dada653c"
+      "ff028639-8bb4-43f0-87fa-0618dada653c",
+      undefined
     );
   });
 

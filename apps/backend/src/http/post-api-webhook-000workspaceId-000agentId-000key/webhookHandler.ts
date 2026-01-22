@@ -15,11 +15,20 @@ export async function handleWebhookRequest(
   const { workspaceId, agentId, key, bodyText } =
     validateWebhookRequest(event);
   await validateWebhookKey(workspaceId, agentId, key);
-  await validateSubscriptionAndLimits(workspaceId, "webhook");
+  const subscriptionId = await validateSubscriptionAndLimits(
+    workspaceId,
+    "webhook"
+  );
 
   const conversationId = randomUUID();
 
-  await enqueueWebhookTask(workspaceId, agentId, bodyText, conversationId);
+  await enqueueWebhookTask(
+    workspaceId,
+    agentId,
+    bodyText,
+    conversationId,
+    subscriptionId
+  );
 
   return {
     statusCode: 202,

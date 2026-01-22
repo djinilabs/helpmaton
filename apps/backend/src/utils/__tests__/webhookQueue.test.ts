@@ -25,7 +25,8 @@ describe("webhookQueue", () => {
       "workspace-123",
       "agent-456",
       "hello from webhook",
-      "conversation-789"
+      "conversation-789",
+      "sub-123"
     );
 
     expect(mockPublish).toHaveBeenCalledWith({
@@ -35,6 +36,7 @@ describe("webhookQueue", () => {
         agentId: "agent-456",
         bodyText: "hello from webhook",
         conversationId: "conversation-789",
+        subscriptionId: "sub-123",
       },
     });
   });

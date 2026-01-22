@@ -7,6 +7,7 @@ export const WebhookQueueMessageSchema = z
     agentId: z.string(),
     bodyText: z.string(),
     conversationId: z.string(),
+    subscriptionId: z.string().optional(),
   })
   .strict();
 
@@ -16,13 +17,15 @@ export async function enqueueWebhookTask(
   workspaceId: string,
   agentId: string,
   bodyText: string,
-  conversationId: string
+  conversationId: string,
+  subscriptionId?: string
 ): Promise<void> {
   const message: WebhookQueueMessage = {
     workspaceId,
     agentId,
     bodyText,
     conversationId,
+    ...(subscriptionId ? { subscriptionId } : {}),
   };
 
   // Runtime validation protects against unexpected external callers.

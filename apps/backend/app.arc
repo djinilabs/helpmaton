@@ -376,6 +376,8 @@ bot-webhook-queue
   messageRetentionPeriod 1209600
 webhook-queue
   timeout 660
+  # visibilityTimeout is 6x the Lambda timeout (6 * 660s = 3960s) so
+  # long-running webhook processing can finish before SQS retries.
   visibilityTimeout 3960
   messageRetentionPeriod 1209600
 agent-eval-queue

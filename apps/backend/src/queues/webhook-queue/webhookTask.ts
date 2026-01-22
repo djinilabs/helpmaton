@@ -6,10 +6,7 @@ import {
   handleCreditErrors,
   logErrorDetails,
 } from "../../http/utils/generationErrorHandling";
-import {
-  validateSubscriptionAndLimits,
-  trackSuccessfulRequest,
-} from "../../http/utils/generationRequestTracking";
+import { trackSuccessfulRequest } from "../../http/utils/generationRequestTracking";
 import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
 import { buildConversationMessagesFromObserver } from "../../http/utils/llmObserver";
 import { convertTextToUIMessage } from "../../http/utils/messageConversion";
@@ -533,16 +530,19 @@ export async function processWebhookTask(options: {
   agentId: string;
   bodyText: string;
   conversationId: string;
+  subscriptionId?: string;
   context: AugmentedContext;
   awsRequestId?: string;
 }): Promise<void> {
-  const { workspaceId, agentId, bodyText, conversationId, context, awsRequestId } =
-    options;
-
-  const subscriptionId = await validateSubscriptionAndLimits(
+  const {
     workspaceId,
-    "webhook"
-  );
+    agentId,
+    bodyText,
+    conversationId,
+    subscriptionId,
+    context,
+    awsRequestId,
+  } = options;
 
   const uiMessage = convertTextToUIMessage(bodyText);
 
