@@ -53,7 +53,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRandomUUID.mockReturnValue("ff028639-8bb4-43f0-87fa-0618dada653c");
-    mockValidateSubscriptionAndLimits.mockResolvedValue(undefined);
+    mockValidateSubscriptionAndLimits.mockResolvedValue("sub-123");
   });
 
   it("returns 202 and enqueues webhook task", async () => {
@@ -116,7 +116,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       agentId,
       bodyText,
       "ff028639-8bb4-43f0-87fa-0618dada653c",
-      undefined
+      "sub-123"
     );
   });
 

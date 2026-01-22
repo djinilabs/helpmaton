@@ -572,22 +572,10 @@ export async function processWebhookTask(options: {
       "webhook"
     );
 
-    const { setupAgentAndTools } = await import("../../http/utils/agentSetup");
-    const { agent, usesByok: agentUsesByok } = await setupAgentAndTools(
-      workspaceId,
-      agentId,
-      [],
-      {
-        modelReferer: "http://localhost:3000/api/webhook",
-        callDepth: 0,
-        maxDelegationDepth: 3,
-        context,
-      }
-    );
-    usesByok = agentUsesByok;
+    usesByok = agentResult.usesByok;
     finalModelName =
-      typeof agent.modelName === "string"
-        ? agent.modelName
+      typeof agentResult.modelName === "string"
+        ? agentResult.modelName
         : "openrouter/gemini-2.0-flash-exp";
 
     const responseContent = agentResult.text;
@@ -603,7 +591,7 @@ export async function processWebhookTask(options: {
         generationStartedAt,
       });
     } catch (resultError) {
-      if (isByokAuthenticationError(resultError, usesByok)) {
+      if (isByokAuthenticationError(resultError, usesByok === true)) {
         const errorToLog = normalizeByokError(resultError);
         await persistWebhookConversationError({
           db,
@@ -783,27 +771,14 @@ export async function processWebhookTask(options: {
 
     const errorToLog = normalizeByokError(error);
 
-    try {
-      const { setupAgentAndTools } = await import("../../http/utils/agentSetup");
-      const { agent, usesByok: agentUsesByok } = await setupAgentAndTools(
-        workspaceId,
-        agentId,
-        [],
-        {
-          modelReferer: "http://localhost:3000/api/webhook",
-          callDepth: 0,
-          maxDelegationDepth: 3,
-          context,
-        }
-      );
-      usesByok = agentUsesByok;
-      finalModelName =
-        typeof agent.modelName === "string"
-          ? agent.modelName
-          : "openrouter/gemini-2.0-flash-exp";
-    } catch {
-      usesByok = undefined;
-      finalModelName = undefined;
+    if (error && typeof error === "object") {
+      const errorAny = error as Record<string, unknown>;
+      if (typeof errorAny.usesByok === "boolean") {
+        usesByok = errorAny.usesByok;
+      }
+      if (typeof errorAny.modelName === "string") {
+        finalModelName = errorAny.modelName;
+      }
     }
 
     await persistWebhookConversationError({
@@ -817,7 +792,7 @@ export async function processWebhookTask(options: {
       awsRequestId,
     });
 
-    if (usesByok !== undefined && isByokAuthenticationError(error, usesByok)) {
+    if (isByokAuthenticationError(error, usesByok === true)) {
       return;
     }
 

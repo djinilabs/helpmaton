@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Webhook review follow-up**: Annotated non-streaming errors/results with model metadata to avoid duplicate setup calls in webhook queue, adjusted handler test subscription mock, and restored queue timeouts to original values (keeping webhook queue config). Ran `pnpm --filter backend test --run webhook-queue`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Webhook review follow-ups**: Passed subscriptionId through webhook enqueue path to avoid duplicate validation, documented the visibility timeout rationale, cleaned test import spacing, and updated webhook queue tests; ran `pnpm --filter backend test --run webhook-queue`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Webhook review fixes**: Removed pre-enqueue credit balance check, adjusted webhook handler tests, documented async webhook responses, and increased SQS visibility timeouts for long-running queues; ran `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Webhook credit check**: Added webhook HTTP guard to return a 402 response when workspace credits are empty, and extended webhook handler tests for the new credit check; ran `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`, `pnpm lint --fix`, and `pnpm typecheck`.
