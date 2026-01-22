@@ -19,6 +19,7 @@ type ToolResultPart = {
   result: unknown;
   toolExecutionTimeMs?: number;
   costUsd?: number;
+  openrouterGenerationId?: string;
 };
 
 type DelegationPart = {
@@ -114,6 +115,7 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
         result?: unknown;
         toolExecutionTimeMs?: number;
         costUsd?: number;
+        openrouterGenerationId?: string;
       };
       if (
         toolResult.toolCallId &&
@@ -136,6 +138,9 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           }),
           ...(toolResult.costUsd !== undefined && {
             costUsd: toolResult.costUsd,
+          }),
+          ...(toolResult.openrouterGenerationId && {
+            openrouterGenerationId: toolResult.openrouterGenerationId,
           }),
         });
       }

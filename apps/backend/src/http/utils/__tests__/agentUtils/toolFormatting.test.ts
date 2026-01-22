@@ -161,6 +161,43 @@ describe("formatToolResultMessage", () => {
     });
   });
 
+  it("should extract tool cost metadata from object results", () => {
+    const toolResult = {
+      toolCallId: "call-123",
+      toolName: "generate_image",
+      output: {
+        url: "https://example.com/image.png",
+        contentType: "image/png",
+        filename: "image.png",
+        costUsd: 1234,
+        openrouterGenerationId: "gen-123",
+      },
+    };
+
+    const result = formatToolResultMessage(toolResult);
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    const filePart = result.content.find((item) => item.type === "file");
+
+    expect(toolResultContent).toBeDefined();
+    expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(1234);
+    expect(
+      toolResultContent && "openrouterGenerationId" in toolResultContent
+        ? toolResultContent.openrouterGenerationId
+        : undefined
+    ).toBe("gen-123");
+    expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toEqual({
+      url: "https://example.com/image.png",
+      contentType: "image/png",
+      filename: "image.png",
+    });
+    expect(filePart).toEqual({
+      type: "file",
+      file: "https://example.com/image.png",
+      mediaType: "image/png",
+      filename: "image.png",
+    });
+  });
+
   it("should convert non-string, non-object results to string", () => {
     const toolResult = {
       toolCallId: "call-123",

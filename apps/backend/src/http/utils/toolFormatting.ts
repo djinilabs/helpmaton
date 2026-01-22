@@ -85,11 +85,33 @@ export function formatToolResultMessage(
   // Extract cost and delegation from result string if present
   // IMPORTANT: Extract BEFORE truncation to ensure we don't lose the markers
   let costUsd: number | undefined;
+  let openrouterGenerationId: string | undefined;
   let delegation: DelegationMetadata | undefined;
+  if (outputValue && typeof outputValue === "object" && !Array.isArray(outputValue)) {
+    const outputRecord = outputValue as Record<string, unknown>;
+    if ("costUsd" in outputRecord && typeof outputRecord.costUsd === "number") {
+      costUsd = outputRecord.costUsd;
+    }
+    if (
+      "openrouterGenerationId" in outputRecord &&
+      typeof outputRecord.openrouterGenerationId === "string"
+    ) {
+      openrouterGenerationId = outputRecord.openrouterGenerationId;
+    }
+    if (costUsd !== undefined || openrouterGenerationId !== undefined) {
+      const rest = { ...outputRecord };
+      delete rest.costUsd;
+      delete rest.openrouterGenerationId;
+      outputValue = rest;
+    }
+  }
+
   if (typeof outputValue === "string") {
     const { costUsd: extractedCost, processedResult: costProcessedResult } =
       extractToolCostFromResult(outputValue);
-    costUsd = extractedCost;
+    if (costUsd === undefined) {
+      costUsd = extractedCost;
+    }
 
     const { delegation: extractedDelegation, processedResult: finalProcessedResult } =
       extractDelegationFromResult(costProcessedResult);
@@ -169,6 +191,7 @@ export function formatToolResultMessage(
         toolExecutionTimeMs: toolResult.toolExecutionTimeMs,
       }),
       ...(costUsd !== undefined && { costUsd }),
+      ...(openrouterGenerationId && { openrouterGenerationId }),
     },
   ];
 

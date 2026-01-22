@@ -4,7 +4,10 @@ import { jsonSchema, tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
+import { enqueueCostVerification, refundReservation, reserveCredits } from "../../utils/creditManagement";
+import { estimateImageGenerationCost } from "../../utils/imageGenerationCredits";
 import type { UIMessage } from "../../utils/messageTypes";
+import { extractOpenRouterGenerationIdFromResponse } from "../../utils/openrouterUtils";
 import { uploadConversationFile } from "../../utils/s3";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
@@ -554,6 +557,39 @@ const addImageGenerationTool = async (params: {
       if (!prompt) {
         return "Error: generate_image requires a non-empty 'prompt' string describing the image to generate.";
       }
+      const provider = "openrouter";
+      const usesByok = workspaceKey !== null;
+      const db = await database();
+      const estimatedCostUsd = estimateImageGenerationCost({
+        provider,
+        modelName,
+        prompt,
+      });
+      let reservationId: string | undefined;
+
+      try {
+        const reservation = await reserveCredits(
+          db,
+          params.workspaceId,
+          estimatedCostUsd,
+          3,
+          usesByok,
+          params.options?.context,
+          provider,
+          modelName,
+          params.agentId,
+          params.options?.conversationId
+        );
+        reservationId = reservation.reservationId;
+      } catch (error) {
+        console.error("[Agent Setup] Image generation credit reservation failed:", {
+          workspaceId: params.workspaceId,
+          agentId: params.agentId,
+          modelName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
       const headers: Record<string, string> = {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
@@ -562,32 +598,65 @@ const addImageGenerationTool = async (params: {
         headers["HTTP-Referer"] = params.options.modelReferer;
       }
 
-      const response = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            model: modelName,
-            messages: [
-              {
-                role: "user",
-                content: prompt,
-              },
-            ],
-            modalities: ["image", "text"],
-          }),
-        }
-      );
+      let response: Response | undefined;
+      let result: unknown;
 
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => "");
-        throw new Error(
-          `OpenRouter image generation failed: ${response.status} ${response.statusText} ${errorBody}`
+      try {
+        response = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: modelName,
+              messages: [
+                {
+                  role: "user",
+                  content: prompt,
+                },
+              ],
+              modalities: ["image", "text"],
+            }),
+          }
         );
+
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => "");
+          throw new Error(
+            `OpenRouter image generation failed: ${response.status} ${response.statusText} ${errorBody}`
+          );
+        }
+
+        result = (await response.json()) as unknown;
+      } catch (error) {
+        if (reservationId && reservationId !== "byok" && params.options?.context) {
+          try {
+            await refundReservation(db, reservationId, params.options.context, 3);
+          } catch (refundError) {
+            console.error("[Agent Setup] Failed to refund image reservation:", {
+              reservationId,
+              error:
+                refundError instanceof Error
+                  ? refundError.message
+                  : String(refundError),
+            });
+          }
+        }
+        throw error;
       }
 
-      const result = (await response.json()) as unknown;
+      const openrouterGenerationId = response
+        ? extractOpenRouterGenerationIdFromResponse(response, result)
+        : undefined;
+      if (openrouterGenerationId) {
+        await enqueueCostVerification(
+          openrouterGenerationId,
+          params.workspaceId,
+          reservationId && reservationId !== "byok" ? reservationId : undefined,
+          params.options?.conversationId,
+          params.agentId
+        );
+      }
       const imageOutput = extractImageOutput(result);
       if (!imageOutput?.url && !imageOutput?.base64) {
         console.log("[Agent Setup] Image generation result:", result);
@@ -618,6 +687,8 @@ const addImageGenerationTool = async (params: {
             contentType,
             filename: filenameFromUrl || "image.png",
             model: modelName,
+            ...(estimatedCostUsd > 0 && { costUsd: estimatedCostUsd }),
+            ...(openrouterGenerationId && { openrouterGenerationId }),
           };
         }
       } else {
@@ -638,6 +709,8 @@ const addImageGenerationTool = async (params: {
         contentType,
         filename: upload.filename,
         model: modelName,
+        ...(estimatedCostUsd > 0 && { costUsd: estimatedCostUsd }),
+        ...(openrouterGenerationId && { openrouterGenerationId }),
       };
     },
   });

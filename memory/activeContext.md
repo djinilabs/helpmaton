@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Image tool cost tracking**: Added image generation cost estimation + reservation, captured OpenRouter generation IDs for async verification, propagated tool-result cost metadata, updated cost verification to finalize tool costs, and added unit tests; ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run openrouter-cost-verification-queue`.
 - **AgentChat step separator removal**: Stopped rendering the step-start separator in chat messages while keeping agent avatars; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Deduped assistant file parts**: Prevented duplicate file parts when both tool results and assistant-file events are present, added unit test, and disabled complexity lint for observer assembly; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Stream file schema alignment**: Emitted file stream events with only `url` + `mediaType` to satisfy AI SDK validation; ran `pnpm typecheck` and `pnpm lint --fix`.
