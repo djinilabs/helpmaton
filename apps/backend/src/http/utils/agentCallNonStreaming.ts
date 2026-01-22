@@ -15,6 +15,7 @@ import {
   adjustCreditsAfterLLMCall,
   cleanupReservationOnError,
   validateAndReserveCredits,
+  enqueueCostVerificationIfNeeded,
 } from "./generationCreditManagement";
 import { prepareLLMCall } from "./generationLLMSetup";
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
@@ -160,6 +161,7 @@ const executeNonStreamingLLMCall = async (params: {
   finalModelName: string;
   endpointType: NonNullable<AgentCallNonStreamingOptions["endpointType"]>;
   context?: AugmentedContext;
+  conversationId?: string;
   abortSignal?: AbortSignal;
 }): Promise<NonStreamingExecutionResult> => {
   let reservationId: string | undefined;
@@ -189,7 +191,8 @@ const executeNonStreamingLLMCall = async (params: {
       effectiveTools,
       params.usesByok,
       params.endpointType,
-      params.context
+      params.context,
+      params.conversationId
     );
 
     const generateOptions = prepareLLMCall(
@@ -243,7 +246,8 @@ const executeNonStreamingLLMCall = async (params: {
         extractionResult.openrouterGenerationId,
         extractionResult.openrouterGenerationIds,
         params.endpointType,
-        params.context
+        params.context,
+        params.conversationId
       );
     } else {
       console.warn("[Bridge] No context available for credit adjustment", {
@@ -253,11 +257,16 @@ const executeNonStreamingLLMCall = async (params: {
       });
     }
 
+    const hasGenerationIds =
+      Boolean(extractionResult?.openrouterGenerationIds?.length) ||
+      Boolean(extractionResult?.openrouterGenerationId);
+
     if (
       reservationId &&
       reservationId !== "byok" &&
       (!tokenUsage ||
-        (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0))
+        (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+      !hasGenerationIds
     ) {
       const { cleanupReservationWithoutTokenUsage } = await import(
         "./generationCreditManagement"
@@ -269,11 +278,36 @@ const executeNonStreamingLLMCall = async (params: {
         params.agentId,
         params.endpointType
       );
+    } else if (
+      reservationId &&
+      reservationId !== "byok" &&
+      (!tokenUsage ||
+        (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+      hasGenerationIds
+    ) {
+      console.warn(
+        "[Non-Streaming Handler] No token usage available, keeping reservation for verification",
+        {
+          workspaceId: params.workspaceId,
+          agentId: params.agentId,
+          reservationId,
+        }
+      );
     }
 
     if (!result || !extractionResult) {
       throw new Error("LLM call succeeded but result is undefined");
     }
+
+    await enqueueCostVerificationIfNeeded(
+      extractionResult.openrouterGenerationId,
+      extractionResult.openrouterGenerationIds,
+      params.workspaceId,
+      reservationId,
+      params.conversationId,
+      params.agentId,
+      params.endpointType
+    );
 
     return {
       result,
@@ -401,6 +435,7 @@ export async function callAgentNonStreaming(
       finalModelName,
       endpointType,
       context: options?.context,
+      conversationId: options?.conversationId,
       abortSignal: options?.abortSignal,
     });
 

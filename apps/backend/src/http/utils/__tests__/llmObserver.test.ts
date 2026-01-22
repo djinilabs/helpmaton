@@ -468,4 +468,36 @@ describe("llmObserver helpers", () => {
       true
     );
   });
+
+  it("returns tool error results instead of throwing", async () => {
+    const observer = createLlmObserver();
+    const tools = {
+      search_documents: {
+        description: "Search docs",
+        execute: async () => {
+          throw new Error("Tool failed");
+        },
+      },
+    };
+
+    const wrapped = wrapToolsWithObserver(tools, observer);
+    const result = await wrapped.search_documents.execute?.();
+
+    expect(result).toEqual({
+      error: {
+        message: "Tool failed",
+        name: "Error",
+      },
+      isError: true,
+    });
+
+    const events = observer.getEvents();
+    const endedEvent = events.find(
+      (event) => event.type === "tool-execution-ended"
+    );
+    expect(endedEvent).toBeDefined();
+    if (endedEvent && endedEvent.type === "tool-execution-ended") {
+      expect(endedEvent.error).toBe("Tool failed");
+    }
+  });
 });

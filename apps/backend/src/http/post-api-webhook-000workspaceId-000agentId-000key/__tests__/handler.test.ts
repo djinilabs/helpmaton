@@ -41,6 +41,7 @@ vi.mock("crypto", async () => {
     randomUUID: () => mockRandomUUID(),
   };
 });
+
 const getHandler = async () => {
   const { handler } = await import("../index");
   return handler;
@@ -230,5 +231,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     };
 
     expect(result.statusCode).toBe(500);
+    const body = JSON.parse(result.body);
+    expect(body.message).toBeDefined();
   });
 });

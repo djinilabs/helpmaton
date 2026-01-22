@@ -1,7 +1,6 @@
 import type { ModelMessage } from "ai";
 
 import type { TokenUsage } from "../../utils/conversationLogger";
-import { extractTokenUsage } from "../../utils/conversationLogger";
 import {
   adjustCreditReservation,
   enqueueCostVerification,
@@ -235,8 +234,8 @@ export async function cleanupReservationWithoutTokenUsage(
 }
 
 /**
- * Handles reservation cleanup on errors
- * Refunds if error occurred before LLM call, adjusts if error occurred after with token usage
+ * Handles reservation cleanup on errors.
+ * Always refunds the reservation when the LLM call fails, regardless of call stage.
  */
 export async function cleanupReservationOnError(
   db: Awaited<ReturnType<typeof import("../../tables").database>>,
@@ -251,94 +250,34 @@ export async function cleanupReservationOnError(
   endpoint: GenerationEndpoint,
   context: AugmentedContext
 ): Promise<void> {
-  if (!llmCallAttempted) {
-    // Error before LLM call - refund reservation
-    try {
-      console.log(
-        `[${endpoint} Handler] Error before LLM call, refunding reservation:`,
-        {
-          workspaceId,
-          reservationId,
-          error: error instanceof Error ? error.message : String(error),
-        }
-      );
-      await refundReservation(db, reservationId, context);
-    } catch (refundError) {
-      // Log but don't fail - refund is best effort
-      console.error(`[${endpoint} Handler] Error refunding reservation:`, {
-        reservationId,
-        error:
-          refundError instanceof Error
-            ? refundError.message
-            : String(refundError),
-      });
-    }
-  } else {
-    // Error after LLM call - try to get token usage from error if available
-    let errorTokenUsage: TokenUsage | undefined;
-    try {
-      if (
-        error &&
-        typeof error === "object" &&
-        "result" in error &&
-        error.result
-      ) {
-        errorTokenUsage = extractTokenUsage(error.result);
-      }
-    } catch {
-      // Ignore extraction errors
-    }
+  if (usesByok || reservationId === "byok") {
+    return;
+  }
 
-    if (
-      isCreditDeductionEnabled() &&
-      errorTokenUsage &&
-      (errorTokenUsage.promptTokens > 0 ||
-        errorTokenUsage.completionTokens > 0)
-    ) {
-      // We have token usage - adjust reservation
-      try {
-        await adjustCreditReservation(
-          db,
-          reservationId,
-          workspaceId,
-          provider,
-          modelName,
-          errorTokenUsage,
-          context,
-          3,
-          usesByok,
-          undefined, // openrouterGenerationId
-          undefined, // openrouterGenerationIds
-          agentId,
-          undefined // conversationId - not available in error path
-        );
-      } catch (adjustError) {
-        console.error(
-          `[${endpoint} Handler] Error adjusting reservation after error:`,
-          adjustError
-        );
-      }
-    } else {
-      // No token usage available - assume reserved credits were consumed
-      console.warn(
-        `[${endpoint} Handler] Model error without token usage, assuming reserved credits consumed:`,
-        {
-          workspaceId,
-          reservationId,
-          error: error instanceof Error ? error.message : String(error),
-        }
-      );
-      // Delete reservation without refund
-      try {
-        const reservationPk = `credit-reservations/${reservationId}`;
-        await db["credit-reservations"].delete(reservationPk);
-      } catch (deleteError) {
-        console.warn(
-          `[${endpoint} Handler] Error deleting reservation:`,
-          deleteError
-        );
-      }
-    }
+  // LLM failures should refund the reservation regardless of call stage
+  try {
+    console.log(`[${endpoint} Handler] LLM call failed, refunding reservation:`, {
+      workspaceId,
+      reservationId,
+      provider,
+      modelName,
+      llmCallAttempted,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await refundReservation(db, reservationId, context, {
+      endpoint,
+      error,
+      provider,
+      modelName,
+      reason: "llm call failure",
+    });
+  } catch (refundError) {
+    // Log but don't fail - refund is best effort
+    console.error(`[${endpoint} Handler] Error refunding reservation:`, {
+      reservationId,
+      error:
+        refundError instanceof Error ? refundError.message : String(refundError),
+    });
   }
 }
 

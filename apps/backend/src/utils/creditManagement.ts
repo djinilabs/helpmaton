@@ -620,15 +620,26 @@ export async function adjustCreditReservation(
  * @param db - Database instance
  * @param reservationId - Reservation ID
  * @param context - Augmented Lambda context for transaction creation
- * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
+ * @param optionsOrMaxRetries - Options or legacy maxRetries number (default: 3)
  */
 export async function refundReservation(
   db: DatabaseSchema,
   reservationId: string,
   context: AugmentedContext,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _maxRetries: number = 3
+  optionsOrMaxRetries:
+    | number
+    | {
+        endpoint?: string;
+        error?: unknown;
+        provider?: string;
+        modelName?: string;
+        reason?: string;
+        actualCost?: number;
+      } = 3,
 ): Promise<void> {
+  const refundOptions =
+    typeof optionsOrMaxRetries === "number" ? undefined : optionsOrMaxRetries;
+
   // Skip if BYOK reservation
   if (reservationId === "byok") {
     console.log("[refundReservation] BYOK reservation, skipping refund", {
@@ -674,6 +685,48 @@ export async function refundReservation(
     currency: reservation.currency,
   });
 
+  const errorMessage = refundOptions?.error
+    ? refundOptions.error instanceof Error
+      ? refundOptions.error.message
+      : String(refundOptions.error)
+    : "none";
+  const errorCode =
+    refundOptions?.error &&
+    typeof refundOptions.error === "object" &&
+    refundOptions.error !== null &&
+    "code" in refundOptions.error
+      ? String((refundOptions.error as { code?: unknown }).code ?? "")
+      : undefined;
+
+  const provider =
+    refundOptions?.provider || reservation.provider || "unknown";
+  const modelName =
+    refundOptions?.modelName || reservation.modelName || "unknown";
+  const endpoint = refundOptions?.endpoint || "unknown";
+  const reason = refundOptions?.reason || "error before LLM call";
+
+  const formatAmount = (amount: number | undefined) =>
+    amount !== undefined
+      ? `${formatCurrencyMillionths(amount)} (${amount})`
+      : "unknown";
+
+  const descriptionParts = [
+    `reason=${reason}`,
+    `workspaceId=${workspaceId}`,
+    `agentId=${reservation.agentId || "unknown"}`,
+    `conversationId=${reservation.conversationId || "unknown"}`,
+    `reservationId=${reservationId}`,
+    `provider=${provider}`,
+    `model=${modelName}`,
+    `endpoint=${endpoint}`,
+    `error=${errorMessage}${errorCode ? ` (code:${errorCode})` : ""}`,
+    `reservedAmount=${formatAmount(reservation.reservedAmount)}`,
+    `estimatedCost=${formatAmount(reservation.estimatedCost)}`,
+    `tokenUsageCost=${formatAmount(reservation.tokenUsageBasedCost)}`,
+    `openrouterCost=${formatAmount(reservation.openrouterCost)}`,
+    `actualCost=${formatAmount(refundOptions?.actualCost)}`,
+  ];
+
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
@@ -683,7 +736,7 @@ export async function refundReservation(
     supplier:
       reservation.provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter
     model: reservation.modelName,
-    description: `Refund reserved credits due to error before LLM call`,
+    description: `Refund reserved credits: ${descriptionParts.join(", ")}`,
     amountMillionthUsd: transactionAmount,
   });
 

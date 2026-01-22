@@ -22,7 +22,6 @@ import {
 import {
   reserveTavilyCredits,
   adjustTavilyCreditReservation,
-  refundTavilyCredits,
   calculateTavilyCost,
 } from "../../utils/tavilyCredits";
 import { generateScrapeAuthToken } from "../../utils/tokenUtils";
@@ -190,7 +189,8 @@ export function createTavilySearchTool(
         if (
           reservationId &&
           reservationId !== "byok" &&
-          reservationId !== "zero-cost"
+          reservationId !== "zero-cost" &&
+          reservationId !== "deduction-disabled"
         ) {
           if (!context) {
             throw new Error(
@@ -252,45 +252,34 @@ export function createTavilySearchTool(
 
         return resultText;
       } catch (error) {
-        // Refund credits if API call failed and we reserved them
+        // Do not refund on tool failures; consume reservation instead
         if (
           reservationId &&
           reservationId !== "byok" &&
-          reservationId !== "zero-cost"
+          reservationId !== "zero-cost" &&
+          reservationId !== "deduction-disabled"
         ) {
           try {
-            if (!context) {
-              throw new Error(
-                "Context not available for Tavily credit transactions (search_web refund)"
-              );
-            }
-            await refundTavilyCredits(
-              db,
-              reservationId,
-              workspaceId,
-              context,
-              "search_web",
-              3,
-              agentId,
-              conversationId
+            await db["credit-reservations"].delete(
+              `credit-reservations/${reservationId}`
             );
-            console.log("[search_web] Refunded credits due to error:", {
+            console.log("[search_web] Removed reservation after error:", {
               workspaceId,
               reservationId,
             });
-          } catch (refundError) {
-            console.error("[search_web] Error refunding credits:", {
+          } catch (cleanupError) {
+            console.error("[search_web] Error removing reservation:", {
               workspaceId,
               reservationId,
               error:
-                refundError instanceof Error
-                  ? refundError.message
-                  : String(refundError),
+                cleanupError instanceof Error
+                  ? cleanupError.message
+                  : String(cleanupError),
             });
-            Sentry.captureException(ensureError(refundError), {
+            Sentry.captureException(ensureError(cleanupError), {
               tags: {
                 context: "tavily-tools",
-                operation: "refund-credits",
+                operation: "cleanup-reservation",
                 tool: "search_web",
               },
             });
@@ -466,7 +455,8 @@ export function createTavilyFetchTool(
         if (
           reservationId &&
           reservationId !== "byok" &&
-          reservationId !== "zero-cost"
+          reservationId !== "zero-cost" &&
+          reservationId !== "deduction-disabled"
         ) {
           if (!context) {
             throw new Error(
@@ -522,45 +512,33 @@ export function createTavilyFetchTool(
 
         return resultText;
       } catch (error) {
-        // Refund credits if API call failed and we reserved them
+        // Do not refund on tool failures; consume reservation instead
         if (
           reservationId &&
           reservationId !== "byok" &&
           reservationId !== "zero-cost"
         ) {
           try {
-            if (!context) {
-              throw new Error(
-                "Context not available for Tavily credit transactions (fetch_url refund)"
-              );
-            }
-            await refundTavilyCredits(
-              db,
-              reservationId,
-              workspaceId,
-              context,
-              "fetch_url",
-              3,
-              agentId,
-              conversationId
+            await db["credit-reservations"].delete(
+              `credit-reservations/${reservationId}`
             );
-            console.log("[fetch_url] Refunded credits due to error:", {
+            console.log("[fetch_url] Removed reservation after error:", {
               workspaceId,
               reservationId,
             });
-          } catch (refundError) {
-            console.error("[fetch_url] Error refunding credits:", {
+          } catch (cleanupError) {
+            console.error("[fetch_url] Error removing reservation:", {
               workspaceId,
               reservationId,
               error:
-                refundError instanceof Error
-                  ? refundError.message
-                  : String(refundError),
+                cleanupError instanceof Error
+                  ? cleanupError.message
+                  : String(cleanupError),
             });
-            Sentry.captureException(ensureError(refundError), {
+            Sentry.captureException(ensureError(cleanupError), {
               tags: {
                 context: "tavily-tools",
-                operation: "refund-credits",
+                operation: "cleanup-reservation",
                 tool: "fetch_url",
               },
             });

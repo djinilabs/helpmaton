@@ -11,7 +11,6 @@ import { exaSearch, extractExaCost, type ExaSearchCategory } from "../../utils/e
 import {
   reserveExaCredits,
   adjustExaCreditReservation,
-  refundExaCredits,
 } from "../../utils/exaCredits";
 import { incrementSearchRequestBucket } from "../../utils/requestTracking";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
@@ -161,7 +160,8 @@ export function createExaSearchTool(
         if (
           reservationId &&
           reservationId !== "byok" &&
-          reservationId !== "zero-cost"
+          reservationId !== "zero-cost" &&
+          reservationId !== "deduction-disabled"
         ) {
           if (!context) {
             throw new Error(
@@ -229,40 +229,29 @@ export function createExaSearchTool(
 
         return resultText;
       } catch (error) {
-        // Refund credits if API call failed and we reserved them
+        // Do not refund on tool failures; consume reservation instead
         if (
           reservationId &&
           reservationId !== "byok" &&
-          reservationId !== "zero-cost"
+          reservationId !== "zero-cost" &&
+          reservationId !== "deduction-disabled"
         ) {
           try {
-            if (!context) {
-              throw new Error(
-                "Context not available for Exa credit transactions (search refund)"
-              );
-            }
-            await refundExaCredits(
-              db,
-              reservationId,
-              workspaceId,
-              context,
-              "search",
-              3,
-              agentId,
-              conversationId
+            await db["credit-reservations"].delete(
+              `credit-reservations/${reservationId}`
             );
-            console.log("[search] Refunded credits due to error:", {
+            console.log("[search] Removed reservation after error:", {
               workspaceId,
               reservationId,
             });
-          } catch (refundError) {
-            console.error("[search] Error refunding credits:", {
+          } catch (cleanupError) {
+            console.error("[search] Error removing reservation:", {
               workspaceId,
               reservationId,
               error:
-                refundError instanceof Error
-                  ? refundError.message
-                  : String(refundError),
+                cleanupError instanceof Error
+                  ? cleanupError.message
+                  : String(cleanupError),
             });
           }
         }

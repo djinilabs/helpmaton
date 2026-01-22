@@ -18,7 +18,6 @@ const {
   mockExtractCreditsUsed,
   mockReserveTavilyCredits,
   mockAdjustTavilyCreditReservation,
-  mockRefundTavilyCredits,
   mockCalculateTavilyCost,
   mockJinaSearch,
 } = vi.hoisted(() => {
@@ -33,7 +32,6 @@ const {
     mockExtractCreditsUsed: vi.fn(),
     mockReserveTavilyCredits: vi.fn(),
     mockAdjustTavilyCreditReservation: vi.fn(),
-    mockRefundTavilyCredits: vi.fn(),
     mockCalculateTavilyCost: vi.fn(),
     mockJinaSearch: vi.fn(),
   };
@@ -68,7 +66,6 @@ vi.mock("../../../utils/tavily", () => ({
 vi.mock("../../../utils/tavilyCredits", () => ({
   reserveTavilyCredits: mockReserveTavilyCredits,
   adjustTavilyCreditReservation: mockAdjustTavilyCreditReservation,
-  refundTavilyCredits: mockRefundTavilyCredits,
   calculateTavilyCost: mockCalculateTavilyCost,
 }));
 
@@ -91,7 +88,11 @@ describe("tavilyTools", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    mockDb = {} as DatabaseSchema;
+    mockDb = {
+      "credit-reservations": {
+        delete: vi.fn(),
+      },
+    } as unknown as DatabaseSchema;
     mockDatabase.mockResolvedValue(mockDb);
 
     // Setup mock context
@@ -253,7 +254,7 @@ describe("tavilyTools", () => {
       expect(result).toContain("Daily Tavily API call limit exceeded");
     });
 
-    it("should refund credits on API error", async () => {
+    it("should keep reserved credits on API error", async () => {
       const tool = createTavilySearchTool(workspaceId, mockContext);
       const apiError = new Error("Tavily API error");
 
@@ -273,8 +274,6 @@ describe("tavilyTools", () => {
         },
       });
       mockTavilySearch.mockRejectedValue(apiError);
-      mockRefundTavilyCredits.mockResolvedValue(undefined);
-
       const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
@@ -282,15 +281,8 @@ describe("tavilyTools", () => {
 
       expect(result).toContain("Error searching the web");
       expect(result).toContain("Tavily API error");
-      expect(mockRefundTavilyCredits).toHaveBeenCalledWith(
-        mockDb,
-        "test-reservation-id",
-        workspaceId,
-        mockContext,
-        "search_web",
-        3, // maxRetries
-        undefined, // agentId
-        undefined // conversationId
+      expect(mockDb["credit-reservations"].delete).toHaveBeenCalledWith(
+        "credit-reservations/test-reservation-id"
       );
     });
 
@@ -538,7 +530,7 @@ describe("tavilyTools", () => {
       expect(result).toContain("Daily Tavily API call limit exceeded");
     });
 
-    it("should refund credits on API error", async () => {
+    it("should keep reserved credits on API error", async () => {
       const tool = createTavilyFetchTool(workspaceId, mockContext);
       const apiError = new Error("Tavily API error");
 
@@ -558,23 +550,14 @@ describe("tavilyTools", () => {
         },
       });
       mockTavilyExtract.mockRejectedValue(apiError);
-      mockRefundTavilyCredits.mockResolvedValue(undefined);
-
       const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
       expect(result).toContain("Error fetching web content");
       expect(result).toContain("Tavily API error");
-      expect(mockRefundTavilyCredits).toHaveBeenCalledWith(
-        mockDb,
-        "test-reservation-id",
-        workspaceId,
-        mockContext,
-        "fetch_url",
-        3, // maxRetries
-        undefined, // agentId
-        undefined // conversationId
+      expect(mockDb["credit-reservations"].delete).toHaveBeenCalledWith(
+        "credit-reservations/test-reservation-id"
       );
     });
 

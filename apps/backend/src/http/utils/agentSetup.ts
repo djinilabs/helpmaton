@@ -636,7 +636,13 @@ const addImageGenerationTool = async (params: {
       } catch (error) {
         if (reservationId && reservationId !== "byok" && params.options?.context) {
           try {
-            await refundReservation(db, reservationId, params.options.context, 3);
+            await refundReservation(db, reservationId, params.options.context, {
+              endpoint: "generate_image",
+              error,
+              provider: "openrouter",
+              modelName,
+              reason: "image generation error",
+            });
           } catch (refundError) {
             console.error("[Agent Setup] Failed to refund image reservation:", {
               reservationId,

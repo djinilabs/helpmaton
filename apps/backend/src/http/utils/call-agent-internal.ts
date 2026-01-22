@@ -602,7 +602,13 @@ const handleReservationAfterError = async (params: {
         }
       );
       if (context) {
-        await refundReservation(db, reservationId, context);
+        await refundReservation(db, reservationId, context, {
+          endpoint: "agent-delegation",
+          error,
+          provider: agentProvider,
+          modelName,
+          reason: "error before LLM call",
+        });
       } else {
         console.warn(
           "[callAgentInternal] Context not available, skipping refund transaction"

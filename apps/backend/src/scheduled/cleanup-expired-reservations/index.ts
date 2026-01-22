@@ -169,7 +169,10 @@ export async function cleanupExpiredReservations(
         if (!context) {
           throw new Error("Context not available for workspace credit transactions");
         }
-        await refundReservation(db, reservationId, context);
+        await refundReservation(db, reservationId, context, {
+          endpoint: "cleanup-expired-reservations",
+          reason: "reservation expired",
+        });
 
         refundedCount++;
         console.log(

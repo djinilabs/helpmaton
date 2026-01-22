@@ -751,14 +751,76 @@ describe("creditManagement", () => {
       // With transaction system, verify transaction was added to buffer
       // Transaction amount: 10_000_000 (positive for credit/refund)
       // New balance: 100_000_000 + 10_000_000 = 110_000_000
-      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          workspaceId: "test-workspace",
-          amountMillionthUsd: 10_000_000, // Positive for credit/refund
-        })
+      const addTransaction =
+        mockContext.addWorkspaceCreditTransaction as ReturnType<typeof vi.fn>;
+      const refundTransaction = addTransaction.mock.calls[0]?.[0];
+      expect(refundTransaction).toMatchObject({
+        workspaceId: "test-workspace",
+        amountMillionthUsd: 10_000_000,
+      });
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("workspaceId=test-workspace")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("agentId=unknown")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("conversationId=unknown")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("reservationId=test-reservation-id")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("provider=unknown")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("model=unknown")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("endpoint=unknown")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("error=none")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("reservedAmount=")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("estimatedCost=")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("actualCost=")
       );
       expect(mockDelete).toHaveBeenCalledWith(
         `credit-reservations/${reservationId}`
+      );
+    });
+
+    it("should include agent and conversation metadata when present", async () => {
+      mockReservation = {
+        ...mockReservation,
+        agentId: "agent-123",
+        conversationId: "conversation-456",
+      };
+      (
+        mockDb["credit-reservations"].get as ReturnType<typeof vi.fn>
+      ).mockResolvedValue(mockReservation);
+      mockGet.mockResolvedValue(mockWorkspace);
+
+      await refundReservation(mockDb, reservationId, mockContext);
+
+      const addTransaction =
+        mockContext.addWorkspaceCreditTransaction as ReturnType<typeof vi.fn>;
+      const refundTransaction = addTransaction.mock.calls[0]?.[0];
+      expect(refundTransaction).toMatchObject({
+        agentId: "agent-123",
+        conversationId: "conversation-456",
+      });
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("agentId=agent-123")
+      );
+      expect(refundTransaction.description).toEqual(
+        expect.stringContaining("conversationId=conversation-456")
       );
     });
 
