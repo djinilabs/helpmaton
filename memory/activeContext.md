@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **ECR cleanup retention reduction**: Lowered default production image retention to 5 and minimum age to 12h in the cleanup workflow and script; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Model capability gating + UI warning**: Added capability-based filtering for model settings, generateText options, and tool usage; introduced shared modelCapabilities helper with tests; disabled tool setup when unsupported; and added Agent Detail warning when tool calling isn't available. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Model capability filters + pricing UI**: Filtered selectable models by capabilities (text_generation/rerank), added capability labels in model selectors and pricing dialog, added rerank pricing button, and introduced modelConfig helpers + unit tests; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **OpenRouter model capabilities**: Added capability extraction + merge in `scripts/update-pricing.mjs`, exported helper with node:test coverage, extended pricing/available model types and OpenAPI schema, and included capabilities in `/api/models` when present; ran `pnpm lint --fix` and `pnpm typecheck`.

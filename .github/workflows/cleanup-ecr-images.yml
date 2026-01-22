@@ -19,12 +19,12 @@ on:
       production_retention:
         description: "Number of production images to keep"
         required: false
-        default: "15"
+        default: "5"
         type: string
       min_age_hours:
         description: "Minimum image age in hours before deletion"
         required: false
-        default: "24"
+        default: "12"
         type: string
 
 jobs:
@@ -73,8 +73,8 @@ jobs:
           else
             # For scheduled runs, default to dry-run for safety
             DRY_RUN="true"
-            RETENTION="15"
-            MIN_AGE="24"
+            RETENTION="5"
+            MIN_AGE="12"
           fi
 
           echo "dry_run=${DRY_RUN}" >> $GITHUB_OUTPUT
