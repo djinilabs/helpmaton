@@ -12095,6 +12095,34 @@
             "structured_output": false,
             "image": false
           }
+        },
+        "writer/palmyra-x5": {
+          "usd": {
+            "input": 0.6,
+            "output": 6,
+            "cachedInput": 0.06
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "stop",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          }
         }
       }
     }
@@ -12111,5 +12139,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-21T15:58:30.854Z"
+  "lastUpdated": "2026-01-22T00:16:16.954Z"
 }
