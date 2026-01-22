@@ -25,6 +25,7 @@ export async function enqueueWebhookTask(
     conversationId,
   };
 
+  // Runtime validation protects against unexpected external callers.
   WebhookQueueMessageSchema.parse(message);
 
   await queues.publish({

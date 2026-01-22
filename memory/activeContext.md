@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Webhook review fixes**: Removed pre-enqueue credit balance check, adjusted webhook handler tests, documented async webhook responses, and increased SQS visibility timeouts for long-running queues; ran `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Webhook credit check**: Added webhook HTTP guard to return a 402 response when workspace credits are empty, and extended webhook handler tests for the new credit check; ran `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Webhook enqueue validation**: Added subscription/limit validation in webhook HTTP handler before enqueueing and updated webhook handler tests/mocks; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Webhook queue timeout + test cleanup**: Set `webhook-queue` timeout to 660s in `app.arc` and updated webhook handler tests to lazy-load the handler to satisfy import order lint; ran `pnpm lint --fix` and `pnpm typecheck`.

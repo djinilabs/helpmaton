@@ -4,7 +4,7 @@ This document describes the webhook system in Helpmaton, including endpoint stru
 
 ## Overview
 
-Webhooks allow external applications to send messages to Helpmaton agents and receive AI-powered responses. Each agent has one or more API keys that authenticate webhook requests.
+Webhooks allow external applications to send messages to Helpmaton agents. Each agent has one or more API keys that authenticate webhook requests. Requests are processed asynchronously, so the HTTP response acknowledges receipt and includes a conversation ID for tracking.
 
 ## Endpoint Structure
 
@@ -112,66 +112,28 @@ Standard HTTP headers are accepted:
 
 ### Success Response
 
-**Status Code**: `200 OK`
-
-**Content-Type**: `application/json`
+**Status Code**: `202 Accepted`
 
 **Response Body**:
 
 ```json
 {
-  "response": "Hello! I'm here to help. How can I assist you today?",
-  "toolCalls": [],
-  "toolResults": [],
-  "conversationId": "conv_123",
-  "tokenUsage": {
-    "promptTokens": 150,
-    "completionTokens": 50,
-    "totalTokens": 200
-  },
-  "cost": {
-    "usd": 0.0001
-  }
+  "conversationId": "conv_123"
 }
 ```
 
 **Fields**:
 
-- `response` (String): Agent's text response
-- `toolCalls` (Array): Tool calls made during the conversation (if any)
-- `toolResults` (Array): Tool execution results (if any)
 - `conversationId` (String): Unique conversation ID for tracking
-- `tokenUsage` (Object): Token usage statistics
-  - `promptTokens`: Input tokens
-  - `completionTokens`: Output tokens
-  - `totalTokens`: Total tokens
-- `cost` (Object): Cost in USD
+
+**Notes**:
+
+- Webhook processing is asynchronous. The HTTP response does not include the assistant response.
+- There is currently no webhook status polling endpoint. Use the conversation ID for internal tracking/support, or check the workspace conversations in the UI.
 
 ### Tool Calls
 
-If the agent makes tool calls, they are included in the response:
-
-```json
-{
-  "response": "I found some relevant information...",
-  "toolCalls": [
-    {
-      "toolCallId": "call_123",
-      "toolName": "search_documents",
-      "args": {
-        "query": "user question"
-      }
-    }
-  ],
-  "toolResults": [
-    {
-      "toolCallId": "call_123",
-      "toolName": "search_documents",
-      "result": "Document content..."
-    }
-  ]
-}
-```
+Tool calls and results are recorded in the conversation log after processing completes.
 
 ### Error Responses
 
@@ -191,18 +153,6 @@ If the agent makes tool calls, they are included in the response:
 }
 ```
 
-**402 Payment Required**:
-
-```json
-{
-  "error": "Insufficient credits",
-  "workspaceId": "ws_123",
-  "required": 0.01,
-  "available": 0.005,
-  "currency": "usd"
-}
-```
-
 **403 Forbidden**:
 
 ```json
@@ -218,6 +168,10 @@ If the agent makes tool calls, they are included in the response:
   "error": "Rate limit exceeded"
 }
 ```
+
+**Credit/Spending Errors**:
+
+If the workspace lacks sufficient credits or exceeds spending limits, the webhook task fails during async processing. These errors are recorded in the conversation log and surfaced in the UI, but are not returned in the initial HTTP response.
 
 **500 Internal Server Error**:
 

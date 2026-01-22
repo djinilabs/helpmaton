@@ -361,30 +361,30 @@ run-agent-schedules rate(1 minute)
 agent-temporal-grain-queue
   timeout 660
   fifo true
-  visibilityTimeout 60
+  visibilityTimeout 3960
   messageRetentionPeriod 1209600
 openrouter-cost-verification-queue
   timeout 660
-  visibilityTimeout 60
+  visibilityTimeout 3960
   messageRetentionPeriod 604800
 agent-delegation-queue
   timeout 660
-  visibilityTimeout 720
+  visibilityTimeout 3960
 bot-webhook-queue
   timeout 660
-  visibilityTimeout 720
+  visibilityTimeout 3960
   messageRetentionPeriod 1209600
 webhook-queue
   timeout 660
-  visibilityTimeout 720
+  visibilityTimeout 3960
   messageRetentionPeriod 1209600
 agent-eval-queue
   timeout 660
-  visibilityTimeout 300
+  visibilityTimeout 3960
   messageRetentionPeriod 604800
 agent-schedule-queue
   timeout 660
-  visibilityTimeout 720
+  visibilityTimeout 3960
   messageRetentionPeriod 1209600
 
 @api-throttling
