@@ -31,6 +31,7 @@ export type ToolResultContent = {
   result: unknown;
   toolExecutionTimeMs?: number; // Duration in milliseconds
   costUsd?: number; // Cost in millionths (e.g., 8000 = $0.008)
+  openrouterGenerationId?: string;
 };
 
 export type ReasoningContent = {

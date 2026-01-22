@@ -1,6 +1,6 @@
 import type { ModelMessage } from "ai";
 
-import { calculateTokenCost } from "./pricing";
+import { calculateTokenCost, supportsReasoningTokens } from "./pricing";
 
 /**
  * Estimate input tokens from messages
@@ -89,8 +89,17 @@ export function estimateTokenCost(
   // Estimate input and output tokens
   const inputTokens = estimateInputTokens(messages, systemPrompt, toolDefinitions);
   const outputTokens = estimateOutputTokens(inputTokens);
+  const reasoningTokens = supportsReasoningTokens(provider, modelName)
+    ? outputTokens
+    : 0;
 
   // Calculate cost in USD
-  return calculateTokenCost(provider, modelName, inputTokens, outputTokens);
+  return calculateTokenCost(
+    provider,
+    modelName,
+    inputTokens,
+    outputTokens,
+    reasoningTokens
+  );
 }
 

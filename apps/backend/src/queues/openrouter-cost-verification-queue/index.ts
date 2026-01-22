@@ -595,23 +595,57 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             // IMPORTANT: finalCostUsd must be the ACTUAL cost from OpenRouter API (with 5.5% markup),
             // NOT the transaction amount (difference/refund) from finalizeCreditReservation.
             // The transaction amount is only used for credit balance adjustments, not for message costs.
+            let toolCostUpdated = false;
             const updatedMessages = messages.map((msg) => {
+              let updatedMessage = msg as UIMessage;
               if (
                 msg.role === "assistant" &&
                 "openrouterGenerationId" in msg &&
                 msg.openrouterGenerationId === openrouterGenerationId
               ) {
                 messageUpdated = true;
-                return {
-                  ...msg,
+                updatedMessage = {
+                  ...updatedMessage,
                   // Use the actual cost fetched from OpenRouter API, not any transaction/refund amount
                   finalCostUsd: openrouterCost,
-                };
+                } as UIMessage;
               }
-              return msg;
+
+              if (Array.isArray(updatedMessage.content)) {
+                let contentUpdated = false;
+                const updatedContent = (updatedMessage.content as Array<unknown>).map(
+                  (item) => {
+                  if (
+                    item &&
+                    typeof item === "object" &&
+                    "type" in item &&
+                    item.type === "tool-result" &&
+                    "openrouterGenerationId" in item &&
+                    item.openrouterGenerationId === openrouterGenerationId
+                  ) {
+                    contentUpdated = true;
+                    toolCostUpdated = true;
+                    return {
+                      ...item,
+                      costUsd: openrouterCost,
+                    };
+                  }
+                  return item;
+                  }
+                );
+
+                if (contentUpdated) {
+                  updatedMessage = {
+                    ...updatedMessage,
+                    content: updatedContent,
+                  } as UIMessage;
+                }
+              }
+
+              return updatedMessage;
             });
 
-            if (!messageUpdated) {
+            if (!messageUpdated && !toolCostUpdated) {
               console.warn(
                 "[Cost Verification] Message with generation ID not found in conversation:",
                 {
@@ -668,6 +702,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
               previousCostUsd: current.costUsd,
               rerankingCost,
               messageCount: updatedMessages.length,
+              toolCostsUpdated: toolCostUpdated,
               messagesWithFinalCost: updatedMessages.filter(
                 (msg) =>
                   msg.role === "assistant" &&

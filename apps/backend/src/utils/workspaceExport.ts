@@ -300,6 +300,8 @@ export async function exportWorkspace(
         enableTavilyFetch: agent.enableTavilyFetch,
         fetchWebProvider: agent.fetchWebProvider,
         enableExaSearch: agent.enableExaSearch,
+        enableImageGeneration: agent.enableImageGeneration,
+        imageGenerationModel: agent.imageGenerationModel,
         spendingLimits: agent.spendingLimits,
         temperature: agent.temperature,
         topP: agent.topP,

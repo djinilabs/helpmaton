@@ -20,6 +20,7 @@ import {
   resolveSearchWebProvider,
   validateClientTools,
   validateDelegatableAgentIds,
+  validateImageGenerationConfig,
   validateKnowledgeConfig,
   validateModelName,
   validateModelTuning,
@@ -29,10 +30,11 @@ import {
 } from "../agentUpdate";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockDatabase, mockGetModelPricing } = vi.hoisted(() => {
+const { mockDatabase, mockGetModelPricing, mockIsImageCapableModel } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
     mockGetModelPricing: vi.fn(),
+    mockIsImageCapableModel: vi.fn(),
   };
 });
 
@@ -43,6 +45,7 @@ vi.mock("../../../../tables", () => ({
 
 vi.mock("../../../../utils/pricing", () => ({
   getModelPricing: mockGetModelPricing,
+  isImageCapableModel: mockIsImageCapableModel,
 }));
 
 describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
@@ -116,6 +119,11 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
         const resolvedModelName = await validateModelName({
           modelName: body.modelName,
           getModelPricing: mockGetModelPricing,
+        });
+        validateImageGenerationConfig({
+          enableImageGeneration: body.enableImageGeneration,
+          imageGenerationModel: body.imageGenerationModel,
+          isImageCapableModel: mockIsImageCapableModel,
         });
         validateAvatar({ avatar: body.avatar, isValidAvatar });
 
@@ -969,6 +977,93 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
       (error as { output?: { payload: { message: string } } }).output?.payload
         .message
     ).toContain("is not available");
+  });
+
+  it("should require imageGenerationModel when enableImageGeneration is true", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "Test Prompt",
+      provider: "google",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.get = mockAgentGet;
+    mockIsImageCapableModel.mockReturnValue(true);
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      body: {
+        enableImageGeneration: true,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    const error = next.mock.calls[0][0];
+    expect(error).toBeInstanceOf(Error);
+    expect(
+      (error as { output?: { payload: { message: string } } }).output?.payload
+        .message
+    ).toContain("imageGenerationModel is required");
+  });
+
+  it("should reject non-image-capable imageGenerationModel", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "Test Prompt",
+      provider: "google",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.get = mockAgentGet;
+    mockIsImageCapableModel.mockReturnValue(false);
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      body: {
+        enableImageGeneration: true,
+        imageGenerationModel: "openrouter/invalid-image-model",
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    const error = next.mock.calls[0][0];
+    expect(error).toBeInstanceOf(Error);
+    expect(
+      (error as { output?: { payload: { message: string } } }).output?.payload
+        .message
+    ).toContain("not image-capable");
   });
 
   it("should allow clearing notificationChannelId by setting to null", async () => {

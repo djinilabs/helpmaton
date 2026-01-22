@@ -31,8 +31,6 @@ const EXCLUDED_MODELS = [
 const EXCLUDED_PATTERNS = [
   "-tts",           // TTS models (e.g., gemini-2.5-flash-preview-tts)
   "tts-",           // TTS models with prefix
-  "-image",         // Image generation models (e.g., gemini-2.5-flash-image, gemini-2.0-flash-exp-image-generation)
-  "image-",         // Image generation models with prefix
 ];
 
 /**
@@ -1013,7 +1011,7 @@ function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
     // Check for tiered pricing (OpenRouter may provide this in the future)
     // For now, we use flat pricing structure
     pricing[modelId] = {
-      ...pricingStructure,
+      usd: pricingStructure,
       ...(capabilities ? { capabilities } : {}),
     };
     
@@ -1154,7 +1152,7 @@ async function fetchOpenRouterPricing() {
         existingCapabilities,
       });
       pricing[modelName] = {
-        ...pricingCopy,
+        usd: pricingCopy,
         ...(capabilities ? { capabilities } : {}),
       };
       const action = existingOpenRouterModels.includes(modelName) ? "Updated" : "Added";
@@ -1271,20 +1269,30 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
       
       // Check if this is a re-ranking model
       const isReranking = isRerankingModel(modelName);
-      
-      const { capabilities, ...pricingValues } = pricing;
+      const pricingEntry =
+        pricing && typeof pricing === "object" ? pricing : {};
+      const usdPricing =
+        pricingEntry.usd && typeof pricingEntry.usd === "object"
+          ? pricingEntry.usd
+          : pricing;
+      const capabilities =
+        pricingEntry.capabilities && typeof pricingEntry.capabilities === "object"
+          ? pricingEntry.capabilities
+          : undefined;
 
       // Skip models with invalid or negative pricing
-      if (hasInvalidOrNegativePricing(pricingValues, isReranking)) {
+      if (hasInvalidOrNegativePricing(usdPricing, isReranking)) {
         console.log(`[Update Pricing] Skipping OpenRouter model ${modelName} in merge due to invalid or negative pricing`);
         continue;
       }
       
       // Ensure pricing structure is valid
       const validPricing = {
-        ...pricingValues,
+        ...usdPricing,
         // Ensure we have either flat pricing or tiered pricing
-        ...(pricingValues.tiers === undefined && pricingValues.input === undefined && pricingValues.output === undefined
+        ...(usdPricing.tiers === undefined &&
+        usdPricing.input === undefined &&
+        usdPricing.output === undefined
           ? { input: 0, output: 0 } // Default fallback
           : {}),
       };
@@ -1305,6 +1313,7 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
         // Add new model with USD pricing only
         updatedPricing.providers.openrouter.models[modelName] = {
           usd: validPricing,
+          ...(capabilities ? { capabilities } : {}),
         };
         if (capabilities) {
           updatedPricing.providers.openrouter.models[modelName].capabilities =

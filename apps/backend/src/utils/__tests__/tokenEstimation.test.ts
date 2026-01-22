@@ -2,14 +2,16 @@ import type { ModelMessage } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock pricing module
-const { mockCalculateTokenCost } = vi.hoisted(() => {
+const { mockCalculateTokenCost, mockSupportsReasoningTokens } = vi.hoisted(() => {
   return {
     mockCalculateTokenCost: vi.fn(),
+    mockSupportsReasoningTokens: vi.fn(),
   };
 });
 
 vi.mock("../pricing", () => ({
   calculateTokenCost: mockCalculateTokenCost,
+  supportsReasoningTokens: mockSupportsReasoningTokens,
 }));
 
 // Import after mocks are set up
@@ -22,6 +24,7 @@ import {
 describe("tokenEstimation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupportsReasoningTokens.mockReturnValue(false);
   });
 
   describe("estimateInputTokens", () => {
@@ -184,7 +187,8 @@ describe("tokenEstimation", () => {
         "google",
         "gemini-pro",
         expect.any(Number), // inputTokens
-        expect.any(Number) // outputTokens
+        expect.any(Number), // outputTokens
+        0 // reasoningTokens
       );
       expect(cost).toBe(0.01);
     });
@@ -209,10 +213,12 @@ describe("tokenEstimation", () => {
       const callArgs = mockCalculateTokenCost.mock.calls[0];
       const inputTokens = callArgs[2];
       const outputTokens = callArgs[3];
+      const reasoningTokens = callArgs[4];
 
       // Should have estimated tokens including system prompt
       expect(inputTokens).toBeGreaterThan(0);
       expect(outputTokens).toBeGreaterThanOrEqual(100);
+      expect(reasoningTokens).toBe(0);
     });
 
     it("should include tool definitions in estimation", () => {
@@ -229,9 +235,11 @@ describe("tokenEstimation", () => {
 
       const callArgs = mockCalculateTokenCost.mock.calls[0];
       const inputTokens = callArgs[2];
+      const reasoningTokens = callArgs[4];
 
       // Should have estimated tokens including tools
       expect(inputTokens).toBeGreaterThan(0);
+      expect(reasoningTokens).toBe(0);
     });
 
     it("should handle empty messages", () => {
@@ -245,8 +253,25 @@ describe("tokenEstimation", () => {
         "google",
         "gemini-pro",
         0, // inputTokens
-        100 // outputTokens (minimum)
+        100, // outputTokens (minimum)
+        0 // reasoningTokens
       );
+      expect(cost).toBeDefined();
+    });
+
+    it("should estimate reasoning tokens for reasoning-capable models", () => {
+      mockSupportsReasoningTokens.mockReturnValue(true);
+      const messages: ModelMessage[] = [
+        { role: "user", content: "Reasoning test" },
+      ];
+
+      estimateTokenCost("openrouter", "openai/o1-mini", messages);
+
+      const callArgs = mockCalculateTokenCost.mock.calls[0];
+      const outputTokens = callArgs[3];
+      const reasoningTokens = callArgs[4];
+
+      expect(reasoningTokens).toBe(outputTokens);
     });
   });
 });

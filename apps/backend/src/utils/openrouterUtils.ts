@@ -101,6 +101,80 @@ const findGenerationIdInHeaders = (
 };
 
 /**
+ * Extract OpenRouter generation ID from a direct HTTP response.
+ * Supports response headers and common body fields.
+ */
+export function extractOpenRouterGenerationIdFromResponse(
+  response: { headers?: { get?: (key: string) => string | null } | Record<string, unknown> },
+  body?: unknown
+): string | undefined {
+  try {
+    const headerSource = response?.headers;
+    let headerId: string | null | undefined;
+
+    if (headerSource && typeof headerSource === "object") {
+      if ("get" in headerSource && typeof headerSource.get === "function") {
+        headerId =
+          headerSource.get("x-openrouter-generation-id") ||
+          headerSource.get("openrouter-generation-id");
+      } else {
+        const headerRecord = headerSource as Record<string, unknown>;
+        if (typeof headerRecord["x-openrouter-generation-id"] === "string") {
+          headerId = headerRecord["x-openrouter-generation-id"] as string;
+        } else if (typeof headerRecord["openrouter-generation-id"] === "string") {
+          headerId = headerRecord["openrouter-generation-id"] as string;
+        }
+      }
+    }
+
+    if (headerId && isGenerationId(headerId)) {
+      console.log(
+        "[extractOpenRouterGenerationIdFromResponse] Found generation ID in headers:",
+        headerId
+      );
+      return headerId;
+    }
+
+    if (body && typeof body === "object") {
+      const bodyAny = body as {
+        id?: unknown;
+        generation_id?: unknown;
+        data?: { id?: unknown; generation_id?: unknown };
+        metadata?: { id?: unknown; generation_id?: unknown };
+      };
+
+      const candidates = [
+        bodyAny.id,
+        bodyAny.generation_id,
+        bodyAny.data?.id,
+        bodyAny.data?.generation_id,
+        bodyAny.metadata?.id,
+        bodyAny.metadata?.generation_id,
+      ];
+
+      for (const candidate of candidates) {
+        if (isGenerationId(candidate)) {
+          console.log(
+            "[extractOpenRouterGenerationIdFromResponse] Found generation ID in body:",
+            candidate
+          );
+          return candidate;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(
+      "[extractOpenRouterGenerationIdFromResponse] Error extracting generation ID:",
+      {
+        error: error instanceof Error ? error.message : String(error),
+      }
+    );
+  }
+
+  return undefined;
+}
+
+/**
  * Extract OpenRouter generation ID from AI SDK response
  * OpenRouter includes generation ID in response metadata
  */

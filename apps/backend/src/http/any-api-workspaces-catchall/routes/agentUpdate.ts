@@ -2,6 +2,7 @@ import { badRequest, forbidden, resourceGone } from "@hapi/boom";
 import { z } from "zod";
 
 import type { DatabaseSchema } from "../../../tables/schema";
+import { isImageCapableModel } from "../../../utils/pricing";
 import { updateAgentSchema } from "../../utils/schemas/workspaceSchemas";
 
 type UpdateAgentBody = z.infer<typeof updateAgentSchema>;
@@ -372,6 +373,35 @@ export async function validateModelName(params: {
   return trimmed;
 }
 
+export function validateImageGenerationConfig(params: {
+  enableImageGeneration: UpdateAgentBody["enableImageGeneration"];
+  imageGenerationModel: UpdateAgentBody["imageGenerationModel"];
+  isImageCapableModel?: (provider: string, model: string) => boolean;
+}): void {
+  const isImageCapable =
+    params.isImageCapableModel ?? isImageCapableModel;
+  const resolvedModel =
+    typeof params.imageGenerationModel === "string"
+      ? params.imageGenerationModel.trim()
+      : params.imageGenerationModel === null
+      ? null
+      : undefined;
+
+  if (params.enableImageGeneration === true && !resolvedModel) {
+    throw badRequest(
+      "imageGenerationModel is required when enableImageGeneration is true"
+    );
+  }
+
+  if (resolvedModel) {
+    if (!isImageCapable("openrouter", resolvedModel)) {
+      throw badRequest(
+        `Image generation model "${resolvedModel}" is not image-capable. Please select a model that supports image output.`
+      );
+    }
+  }
+}
+
 export function validateAvatar(params: {
   avatar: UpdateAgentBody["avatar"];
   isValidAvatar: (avatar: string) => boolean;
@@ -506,6 +536,14 @@ export function buildAgentUpdateParams(params: {
       body.enableExaSearch !== undefined
         ? body.enableExaSearch
         : agent.enableExaSearch,
+    enableImageGeneration:
+      body.enableImageGeneration !== undefined
+        ? body.enableImageGeneration
+        : agent.enableImageGeneration,
+    imageGenerationModel: resolveOptionalField(
+      body.imageGenerationModel,
+      agent.imageGenerationModel
+    ),
     clientTools: body.clientTools !== undefined ? body.clientTools : agent.clientTools,
     summarizationPrompts:
       body.summarizationPrompts !== undefined
@@ -562,6 +600,8 @@ export function buildAgentResponse(params: {
     searchWebProvider: updated.searchWebProvider ?? null,
     fetchWebProvider: updated.fetchWebProvider ?? null,
     enableExaSearch: updated.enableExaSearch ?? false,
+    enableImageGeneration: updated.enableImageGeneration ?? false,
+    imageGenerationModel: updated.imageGenerationModel ?? null,
     clientTools: updated.clientTools ?? [],
     spendingLimits: updated.spendingLimits ?? [],
     temperature: updated.temperature ?? null,

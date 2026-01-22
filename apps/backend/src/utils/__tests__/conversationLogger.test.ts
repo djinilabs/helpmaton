@@ -103,6 +103,49 @@ describe("conversationLogger", () => {
         totalTokens: 3,
       });
     });
+
+    it("preserves file parts when tool calls/results are expanded", () => {
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "tool-1",
+              toolName: "generate_image",
+              args: {},
+            },
+            {
+              type: "tool-result",
+              toolCallId: "tool-1",
+              toolName: "generate_image",
+              result: { url: "https://example.com/image.png" },
+            },
+            {
+              type: "file",
+              file: "https://example.com/image.png",
+              mediaType: "image/png",
+            },
+            {
+              type: "text",
+              text: "done",
+            },
+          ],
+        },
+      ];
+
+      const expanded = expandMessagesWithToolCalls(messages);
+      const assistantMessages = expanded.filter((msg) => msg.role === "assistant");
+      const hasFilePart = assistantMessages.some(
+        (msg) =>
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (item) => typeof item === "object" && item !== null && "type" in item && item.type === "file"
+          )
+      );
+
+      expect(hasFilePart).toBe(true);
+    });
   });
   describe("extractTokenUsage", () => {
     it("should extract token usage from standard AI SDK format", () => {

@@ -40,6 +40,13 @@
             "cachedInput": 0.0075
           }
         },
+        "gemini-2.5-flash-image": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3,
+            "cachedInput": 0.0075
+          }
+        },
         "gemini-2.5-flash-preview-09-2025": {
           "usd": {
             "input": 0.075,
@@ -58,6 +65,326 @@
     },
     "openrouter": {
       "models": {
+        "writer/palmyra-x5": {
+          "usd": {
+            "input": 0.6,
+            "output": 6,
+            "cachedInput": 0.06
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "stop",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          }
+        },
+        "liquid/lfm-2.5-1.2b-thinking:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "seed",
+              "stop",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          }
+        },
+        "liquid/lfm-2.5-1.2b-instruct:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "repetition_penalty",
+              "seed",
+              "stop",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          }
+        },
+        "openai/gpt-audio": {
+          "usd": {
+            "input": 2.5,
+            "output": 10,
+            "cachedInput": 0.25
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "audio"
+            ],
+            "output_modalities": [
+              "text",
+              "audio"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "openai/gpt-audio-mini": {
+          "usd": {
+            "input": 0.6,
+            "output": 2.4,
+            "cachedInput": 0.06
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "audio"
+            ],
+            "output_modalities": [
+              "text",
+              "audio"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "z-ai/glm-4.7-flash": {
+          "usd": {
+            "input": 0.07,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.007000000000000001
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "openai/gpt-5.2-codex": {
+          "usd": {
+            "input": 1.75,
+            "output": 14,
+            "cachedInput": 0.17500000000000002
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "top_logprobs"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "allenai/molmo-2-8b:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logit_bias",
+              "max_tokens",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "allenai/olmo-3.1-32b-instruct": {
+          "usd": {
+            "input": 0.19999999999999998,
+            "output": 0.6,
+            "cachedInput": 0.02
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
         "bytedance-seed/seed-1.6-flash": {
           "usd": {
             "input": 0.075,
@@ -79,6 +406,7 @@
               "max_tokens",
               "reasoning",
               "response_format",
+              "stop",
               "structured_outputs",
               "temperature",
               "tool_choice",
@@ -114,6 +442,7 @@
               "max_tokens",
               "reasoning",
               "response_format",
+              "stop",
               "structured_outputs",
               "temperature",
               "tool_choice",
@@ -276,11 +605,41 @@
             "image": false
           }
         },
-        "allenai/olmo-3.1-32b-think:free": {
+        "allenai/olmo-3.1-32b-think": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.15,
+            "output": 0.5,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
           }
         },
         "xiaomi/mimo-v2-flash:free": {
@@ -307,6 +666,44 @@
               "temperature",
               "tool_choice",
               "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "xiaomi/mimo-v2-flash": {
+          "usd": {
+            "input": 0.09,
+            "output": 0.29,
+            "cachedInput": 0.009
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
               "top_p"
             ],
             "rerank": false,
@@ -626,11 +1023,35 @@
             "image": false
           }
         },
-        "nex-agi/deepseek-v3.1-nex-n1:free": {
+        "nex-agi/deepseek-v3.1-nex-n1": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.27,
+            "output": 1,
+            "cachedInput": 0.027000000000000003
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
           }
         },
         "essentialai/rnj-1-instruct": {
@@ -1181,11 +1602,41 @@
             "image": false
           }
         },
-        "allenai/olmo-3-32b-think:free": {
+        "allenai/olmo-3-32b-think": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.15,
+            "output": 0.5,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
           }
         },
         "allenai/olmo-3-7b-instruct": {
@@ -1258,6 +1709,40 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
+          }
+        },
+        "google/gemini-3-pro-image-preview": {
+          "usd": {
+            "input": 2,
+            "output": 12,
+            "cachedInput": 0.2
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "image",
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": true,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": true
           }
         },
         "x-ai/grok-4.1-fast": {
@@ -1499,11 +1984,40 @@
             "image": false
           }
         },
-        "kwaipilot/kat-coder-pro:free": {
+        "kwaipilot/kat-coder-pro": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.207,
+            "output": 0.828,
+            "cachedInput": 0.0207
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
           }
         },
         "moonshotai/kimi-k2-thinking": {
@@ -1963,6 +2477,48 @@
             "image": false
           }
         },
+        "openai/gpt-5-image-mini": {
+          "usd": {
+            "input": 2.5,
+            "output": 2,
+            "cachedInput": 0.25
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "image",
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": true,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": true
+          }
+        },
         "anthropic/claude-haiku-4.5": {
           "usd": {
             "input": 1,
@@ -2068,6 +2624,48 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
+          }
+        },
+        "openai/gpt-5-image": {
+          "usd": {
+            "input": 10,
+            "output": 10,
+            "cachedInput": 1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text",
+              "file"
+            ],
+            "output_modalities": [
+              "image",
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": true,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": true
           }
         },
         "openai/o3-deep-research": {
@@ -2222,6 +2820,37 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
+          }
+        },
+        "google/gemini-2.5-flash-image": {
+          "usd": {
+            "input": 0.3,
+            "output": 2.5,
+            "cachedInput": 0.03
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "image",
+              "text"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": true,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": true
           }
         },
         "qwen/qwen3-vl-30b-a3b-thinking": {
@@ -2918,13 +3547,6 @@
             "image": false
           }
         },
-        "alibaba/tongyi-deepresearch-30b-a3b:free": {
-          "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
-          }
-        },
         "alibaba/tongyi-deepresearch-30b-a3b": {
           "usd": {
             "input": 0.09,
@@ -3054,6 +3676,40 @@
               "repetition_penalty",
               "response_format",
               "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "qwen/qwen3-next-80b-a3b-instruct:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "presence_penalty",
+              "response_format",
               "stop",
               "structured_outputs",
               "temperature",
@@ -4839,13 +5495,6 @@
             "image": false
           }
         },
-        "thudm/glm-4.1v-9b-thinking": {
-          "usd": {
-            "input": 0.035,
-            "output": 0.13799999999999998,
-            "cachedInput": 0.0035000000000000005
-          }
-        },
         "mistralai/devstral-medium": {
           "usd": {
             "input": 0.39999999999999997,
@@ -5595,13 +6244,6 @@
             "image": false
           }
         },
-        "deepseek/deepseek-r1-0528-qwen3-8b": {
-          "usd": {
-            "input": 0.06,
-            "output": 0.09,
-            "cachedInput": 0.006
-          }
-        },
         "deepseek/deepseek-r1-0528:free": {
           "usd": {
             "input": 0,
@@ -5742,13 +6384,6 @@
             "image": false
           }
         },
-        "mistralai/devstral-small-2505": {
-          "usd": {
-            "input": 0.06,
-            "output": 0.12,
-            "cachedInput": 0.006
-          }
-        },
         "google/gemma-3n-e4b-it:free": {
           "usd": {
             "input": 0,
@@ -5811,13 +6446,6 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
-        },
-        "openai/codex-mini": {
-          "usd": {
-            "input": 1.5,
-            "output": 6,
-            "cachedInput": 0.15000000000000002
           }
         },
         "nousresearch/deephermes-3-mistral-24b-preview": {
@@ -6066,13 +6694,6 @@
             "image": false
           }
         },
-        "microsoft/phi-4-reasoning-plus": {
-          "usd": {
-            "input": 0.07,
-            "output": 0.35,
-            "cachedInput": 0.007000000000000001
-          }
-        },
         "inception/mercury-coder": {
           "usd": {
             "input": 0.25,
@@ -6141,13 +6762,6 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
-        },
-        "deepseek/deepseek-prover-v2": {
-          "usd": {
-            "input": 0.5,
-            "output": 2.1799999999999997,
-            "cachedInput": 0.05
           }
         },
         "meta-llama/llama-guard-4-12b": {
@@ -6751,13 +7365,6 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
-        },
-        "arliai/qwq-32b-arliai-rpr-v1": {
-          "usd": {
-            "input": 0.03,
-            "output": 0.11,
-            "cachedInput": 0.003
           }
         },
         "x-ai/grok-3-mini-beta": {
@@ -7467,13 +8074,6 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
-        },
-        "microsoft/phi-4-multimodal-instruct": {
-          "usd": {
-            "input": 0.049999999999999996,
-            "output": 0.09999999999999999,
-            "cachedInput": 0.005
           }
         },
         "perplexity/sonar-reasoning-pro": {
@@ -8222,21 +8822,6 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
-        },
-        "deepseek/deepseek-r1-distill-qwen-14b": {
-          "usd": {
-            "input": 0.15,
-            "output": 0.15,
-            "cachedInput": 0.015
-          }
-        },
-        "perplexity/sonar-reasoning": {
-          "usd": {
-            "input": 1,
-            "output": 5,
-            "cachedInput": 0.1,
-            "request": 0.005
           }
         },
         "perplexity/sonar": {
@@ -9020,13 +9605,6 @@
             "image": false
           }
         },
-        "anthropic/claude-3.5-haiku-20241022": {
-          "usd": {
-            "input": 0.7999999999999999,
-            "output": 4,
-            "cachedInput": 0.08
-          }
-        },
         "anthropic/claude-3.5-haiku": {
           "usd": {
             "input": 0.7999999999999999,
@@ -9456,13 +10034,6 @@
             "image": false
           }
         },
-        "meta-llama/llama-3.2-90b-vision-instruct": {
-          "usd": {
-            "input": 0.35,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.034999999999999996
-          }
-        },
         "meta-llama/llama-3.2-11b-vision-instruct": {
           "usd": {
             "input": 0.049,
@@ -9776,13 +10347,6 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
-        },
-        "microsoft/phi-3.5-mini-128k-instruct": {
-          "usd": {
-            "input": 0.09999999999999999,
-            "output": 0.09999999999999999,
-            "cachedInput": 0.01
           }
         },
         "nousresearch/hermes-3-llama-3.1-70b": {
@@ -10418,13 +10982,6 @@
             "image": false
           }
         },
-        "mistralai/mistral-7b-instruct:free": {
-          "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
-          }
-        },
         "mistralai/mistral-7b-instruct": {
           "usd": {
             "input": 0.19999999999999998,
@@ -10489,20 +11046,6 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
-        },
-        "microsoft/phi-3-mini-128k-instruct": {
-          "usd": {
-            "input": 0.09999999999999999,
-            "output": 0.09999999999999999,
-            "cachedInput": 0.01
-          }
-        },
-        "microsoft/phi-3-medium-128k-instruct": {
-          "usd": {
-            "input": 1,
-            "output": 1,
-            "cachedInput": 0.1
           }
         },
         "meta-llama/llama-guard-2-8b": {
@@ -10866,13 +11409,6 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
-        },
-        "anthropic/claude-3-opus": {
-          "usd": {
-            "input": 15,
-            "output": 75,
-            "cachedInput": 1.5
           }
         },
         "mistralai/mistral-large": {
@@ -11531,227 +12067,6 @@
             "image": false
           }
         },
-        "allenai/olmo-3.1-32b-think": {
-          "usd": {
-            "input": 0.15,
-            "output": 0.5,
-            "cachedInput": 0.015
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "include_reasoning",
-              "logit_bias",
-              "max_tokens",
-              "presence_penalty",
-              "reasoning",
-              "repetition_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "allenai/olmo-3-32b-think": {
-          "usd": {
-            "input": 0.15,
-            "output": 0.5,
-            "cachedInput": 0.015
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "include_reasoning",
-              "logit_bias",
-              "max_tokens",
-              "presence_penalty",
-              "reasoning",
-              "repetition_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "kwaipilot/kat-coder-pro": {
-          "usd": {
-            "input": 0.207,
-            "output": 0.828,
-            "cachedInput": 0.0207
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "max_tokens",
-              "presence_penalty",
-              "repetition_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "tool_choice",
-              "tools",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": true,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "allenai/olmo-3.1-32b-instruct": {
-          "usd": {
-            "input": 0.19999999999999998,
-            "output": 0.6,
-            "cachedInput": 0.02
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "max_tokens",
-              "min_p",
-              "presence_penalty",
-              "repetition_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "tool_choice",
-              "tools",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": true,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "allenai/molmo-2-8b": {
-          "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
-          }
-        },
-        "nex-agi/deepseek-v3.1-nex-n1": {
-          "usd": {
-            "input": 0.27,
-            "output": 1,
-            "cachedInput": 0.027000000000000003
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "response_format",
-              "structured_outputs",
-              "temperature",
-              "tool_choice",
-              "tools",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": true,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "allenai/molmo-2-8b:free": {
-          "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text",
-              "image",
-              "video"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "logit_bias",
-              "max_tokens",
-              "presence_penalty",
-              "repetition_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "temperature",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": true,
-            "image": false
-          }
-        },
         "cohere/rerank-v3": {
           "usd": {
             "input": 0,
@@ -11806,338 +12121,9 @@
             "rerank": true,
             "text_generation": false
           }
-        },
-        "openai/gpt-5.2-codex": {
-          "usd": {
-            "input": 1.75,
-            "output": 14,
-            "cachedInput": 0.17500000000000002
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text",
-              "image"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "include_reasoning",
-              "logit_bias",
-              "logprobs",
-              "max_tokens",
-              "presence_penalty",
-              "reasoning",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "tool_choice",
-              "tools",
-              "top_logprobs"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": true,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "xiaomi/mimo-v2-flash": {
-          "usd": {
-            "input": 0.09,
-            "output": 0.29,
-            "cachedInput": 0.009
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "include_reasoning",
-              "max_tokens",
-              "presence_penalty",
-              "reasoning",
-              "repetition_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "tool_choice",
-              "tools",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": true,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "qwen/qwen3-next-80b-a3b-instruct:free": {
-          "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "max_tokens",
-              "presence_penalty",
-              "response_format",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "tool_choice",
-              "tools",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": true,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "openai/gpt-audio": {
-          "usd": {
-            "input": 2.5,
-            "output": 10,
-            "cachedInput": 0.25
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text",
-              "audio"
-            ],
-            "output_modalities": [
-              "text",
-              "audio"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "logit_bias",
-              "logprobs",
-              "max_tokens",
-              "presence_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "top_logprobs",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "openai/gpt-audio-mini": {
-          "usd": {
-            "input": 0.6,
-            "output": 2.4,
-            "cachedInput": 0.06
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text",
-              "audio"
-            ],
-            "output_modalities": [
-              "text",
-              "audio"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "logit_bias",
-              "logprobs",
-              "max_tokens",
-              "presence_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "structured_outputs",
-              "temperature",
-              "top_logprobs",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "z-ai/glm-4.7-flash": {
-          "usd": {
-            "input": 0.07,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.007000000000000001
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "include_reasoning",
-              "max_tokens",
-              "presence_penalty",
-              "reasoning",
-              "repetition_penalty",
-              "response_format",
-              "seed",
-              "stop",
-              "temperature",
-              "tool_choice",
-              "tools",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": true,
-            "structured_output": true,
-            "image": false
-          }
-        },
-        "liquid/lfm-2.5-1.2b-thinking:free": {
-          "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "include_reasoning",
-              "max_tokens",
-              "min_p",
-              "presence_penalty",
-              "reasoning",
-              "repetition_penalty",
-              "seed",
-              "stop",
-              "temperature",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": false,
-            "image": false
-          }
-        },
-        "liquid/lfm-2.5-1.2b-instruct:free": {
-          "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "frequency_penalty",
-              "max_tokens",
-              "min_p",
-              "presence_penalty",
-              "repetition_penalty",
-              "seed",
-              "stop",
-              "temperature",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": false,
-            "image": false
-          }
-        },
-        "writer/palmyra-x5": {
-          "usd": {
-            "input": 0.6,
-            "output": 6,
-            "cachedInput": 0.06
-          },
-          "capabilities": {
-            "input_modalities": [
-              "text"
-            ],
-            "output_modalities": [
-              "text"
-            ],
-            "supported_parameters": [
-              "max_tokens",
-              "stop",
-              "temperature",
-              "top_k",
-              "top_p"
-            ],
-            "rerank": false,
-            "text_generation": true,
-            "image_generation": false,
-            "tool_calling": false,
-            "structured_output": false,
-            "image": false
-          }
         }
       }
     }
   },
-  "tavily": {
-    "search": {
-      "usd": {
-        "request": 0.008
-      }
-    },
-    "extract": {
-      "usd": {
-        "request": 0.008
-      }
-    }
-  },
-  "lastUpdated": "2026-01-22T00:16:16.954Z"
+  "lastUpdated": "2026-01-22T08:08:41.769Z"
 }

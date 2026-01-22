@@ -19,6 +19,7 @@ import {
   resolveSearchWebProvider,
   validateClientTools,
   validateDelegatableAgentIds,
+  validateImageGenerationConfig,
   validateKnowledgeConfig,
   validateModelName,
   validateModelTuning,
@@ -166,6 +167,10 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         });
         const resolvedModelName = await validateModelName({
           modelName: body.modelName,
+        });
+        validateImageGenerationConfig({
+          enableImageGeneration: body.enableImageGeneration,
+          imageGenerationModel: body.imageGenerationModel,
         });
         validateAvatar({ avatar: body.avatar, isValidAvatar });
 
