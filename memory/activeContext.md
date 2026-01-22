@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Webhook queue timeout + test cleanup**: Set `webhook-queue` timeout to 660s in `app.arc` and updated webhook handler tests to lazy-load the handler to satisfy import order lint; ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Webhook async processing**: Added webhook SQS queue + worker, moved webhook processing into queue task while keeping `conversationType: "webhook"`, and updated `/api/webhook` to enqueue with 202 + `conversationId`. Added queue/enqueue tests and ran `pnpm --filter backend test --run webhook-queue`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **PR 204 review round 2**: Removed remaining image debug logs, added trusted image URL allowlist with fallback download+S3 upload, and tightened image-capable model detection to require explicit capabilities; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **PR 204 review fixes**: Cleaned model config imageModels validation indentation, simplified stream file-part insertion, removed noisy image generation logs, switched tool-calling UI check to strict capability, and reran `pnpm lint --fix` + `pnpm typecheck`.
 - **Merge conflict cleanup**: Resolved conflict markers across `/api/models` handler/tests, OpenAPI schemas, Agent Detail UI, API types, and `scripts/update-pricing.mjs`; re-ran `pnpm lint --fix` and `pnpm typecheck`.
