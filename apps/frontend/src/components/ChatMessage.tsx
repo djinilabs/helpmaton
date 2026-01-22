@@ -410,6 +410,10 @@ export const ChatMessage = memo<ChatMessageProps>(
         );
       }
 
+      if (partType === "step-start") {
+        return null;
+      }
+
       // Unknown part type
       return (
         <UnknownPart
