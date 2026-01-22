@@ -23,7 +23,8 @@ const injectStyles = async (shadowRoot: ShadowRoot): Promise<void> => {
       height: 100%;
       min-height: 100%;
       max-width: 100%;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: var(--widget-font-family, system-ui, -apple-system, sans-serif);
+      font-size: var(--widget-font-size, 16px);
       background: white;
       display: flex;
       flex-direction: column;
@@ -231,6 +232,14 @@ export class AgentChatWidget extends HTMLElement {
       if (this.config.backgroundColor) {
         container.style.backgroundColor = this.config.backgroundColor;
       }
+
+      if (this.config.fontFamily) {
+        container.style.fontFamily = this.config.fontFamily;
+      }
+
+      if (this.config.fontSize) {
+        container.style.fontSize = this.config.fontSize;
+      }
     }
 
     // Inject custom CSS for color customization
@@ -262,6 +271,12 @@ export class AgentChatWidget extends HTMLElement {
     }
     if (this.config.borderColor) {
       hostRules.push(`--widget-border-color: ${this.config.borderColor}`);
+    }
+    if (this.config.fontFamily) {
+      hostRules.push(`--widget-font-family: ${this.config.fontFamily}`);
+    }
+    if (this.config.fontSize) {
+      hostRules.push(`--widget-font-size: ${this.config.fontSize}`);
     }
 
     if (hostRules.length > 0) {

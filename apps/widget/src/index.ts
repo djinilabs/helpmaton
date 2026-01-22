@@ -50,6 +50,9 @@ export function init(options: AgentWidgetInitOptions): void {
     outerBorderEnabled: options.outerBorderEnabled,
     internalBorderThickness: options.internalBorderThickness,
     internalBorderColor: options.internalBorderColor,
+    fontFamily: options.fontFamily,
+    fontSize: options.fontSize,
+    enableFileUpload: options.enableFileUpload,
   };
 
   const createAndInitWidget = () => {
