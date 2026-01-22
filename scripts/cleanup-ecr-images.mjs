@@ -6,7 +6,7 @@
  * - Images currently deployed in any environment
  * - Production images within retention count
  * - Images from open PRs
- * - Recently pushed images (< 24 hours)
+ * - Recently pushed images (< 12 hours)
  * 
  * Usage:
  *   node scripts/cleanup-ecr-images.mjs [options]
@@ -15,7 +15,7 @@
  *   --dry-run              Run without deleting images (default: true)
  *   --execute              Actually delete images (disables dry-run)
  *   --retention <number>   Number of production images to keep (default: 5)
- *   --min-age <hours>      Minimum image age in hours (default: 24)
+ *   --min-age <hours>      Minimum image age in hours (default: 12)
  *   --region <region>      AWS region (default: eu-west-2)
  */
 
@@ -53,7 +53,7 @@ const CONFIG = {
   PRODUCTION_STACK_NAME: process.env.PRODUCTION_STACK_NAME || 'HelpmatonProduction',
   PR_STACK_PREFIX: process.env.PR_STACK_PREFIX || 'HelpmatonStagingPR',
   PRODUCTION_IMAGE_RETENTION_COUNT: parseInt(process.env.PRODUCTION_IMAGE_RETENTION_COUNT || '5', 10),
-  MIN_IMAGE_AGE_HOURS: parseInt(process.env.MIN_IMAGE_AGE_HOURS || '24', 10),
+  MIN_IMAGE_AGE_HOURS: parseInt(process.env.MIN_IMAGE_AGE_HOURS || '12', 10),
   AWS_REGION: process.env.AWS_REGION || 'eu-west-2',
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY || 'djinilabs/helpmaton',
@@ -91,7 +91,7 @@ Options:
   --dry-run              Run without deleting images (default: true)
   --execute              Actually delete images (disables dry-run)
   --retention <number>   Number of production images to keep (default: 5)
-  --min-age <hours>      Minimum image age in hours (default: 24)
+  --min-age <hours>      Minimum image age in hours (default: 12)
   --region <region>      AWS region (default: eu-west-2)
   --help, -h             Show this help message
 
