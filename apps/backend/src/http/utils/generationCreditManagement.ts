@@ -262,7 +262,13 @@ export async function cleanupReservationOnError(
           error: error instanceof Error ? error.message : String(error),
         }
       );
-      await refundReservation(db, reservationId, context);
+      await refundReservation(db, reservationId, context, {
+        endpoint,
+        error,
+        provider,
+        modelName,
+        reason: "error before LLM call",
+      });
     } catch (refundError) {
       // Log but don't fail - refund is best effort
       console.error(`[${endpoint} Handler] Error refunding reservation:`, {

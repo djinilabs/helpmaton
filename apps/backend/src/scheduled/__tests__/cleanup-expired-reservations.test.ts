@@ -100,7 +100,11 @@ describe("cleanupExpiredReservations", () => {
     expect(mockRefundReservation).toHaveBeenCalledWith(
       mockDb,
       "reservation-123",
-      mockContext
+      mockContext,
+      {
+        endpoint: "cleanup-expired-reservations",
+        reason: "reservation expired",
+      }
     );
   });
 
@@ -152,7 +156,11 @@ describe("cleanupExpiredReservations", () => {
     expect(mockRefundReservation).toHaveBeenCalledWith(
       mockDb,
       "reservation-123",
-      mockContext
+      mockContext,
+      {
+        endpoint: "cleanup-expired-reservations",
+        reason: "reservation expired",
+      }
     );
   });
 
@@ -259,8 +267,24 @@ describe("cleanupExpiredReservations", () => {
 
     // Should attempt both refunds
     expect(mockRefundReservation).toHaveBeenCalledTimes(2);
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-1", mockContext);
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-2", mockContext);
+    expect(mockRefundReservation).toHaveBeenCalledWith(
+      mockDb,
+      "reservation-1",
+      mockContext,
+      {
+        endpoint: "cleanup-expired-reservations",
+        reason: "reservation expired",
+      }
+    );
+    expect(mockRefundReservation).toHaveBeenCalledWith(
+      mockDb,
+      "reservation-2",
+      mockContext,
+      {
+        endpoint: "cleanup-expired-reservations",
+        reason: "reservation expired",
+      }
+    );
   });
 
   it("should handle query errors gracefully (continues with next hour bucket)", async () => {
@@ -339,7 +363,11 @@ describe("cleanupExpiredReservations", () => {
     expect(mockRefundReservation).toHaveBeenCalledWith(
       mockDb,
       "complex-reservation-id-123",
-      mockContext
+      mockContext,
+      {
+        endpoint: "cleanup-expired-reservations",
+        reason: "reservation expired",
+      }
     );
   });
 
@@ -412,7 +440,23 @@ describe("cleanupExpiredReservations", () => {
     await cleanupExpiredReservations(mockContext);
 
     expect(mockRefundReservation).toHaveBeenCalledTimes(2);
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-1", mockContext);
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-2", mockContext);
+    expect(mockRefundReservation).toHaveBeenCalledWith(
+      mockDb,
+      "reservation-1",
+      mockContext,
+      {
+        endpoint: "cleanup-expired-reservations",
+        reason: "reservation expired",
+      }
+    );
+    expect(mockRefundReservation).toHaveBeenCalledWith(
+      mockDb,
+      "reservation-2",
+      mockContext,
+      {
+        endpoint: "cleanup-expired-reservations",
+        reason: "reservation expired",
+      }
+    );
   });
 });

@@ -270,7 +270,11 @@ function createApp(): express.Application {
       ) {
         try {
           const db = await database();
-          await refundReservation(db, reservation.reservationId, context);
+          await refundReservation(db, reservation.reservationId, context, {
+            endpoint: "scrape",
+            error: err,
+            reason: "scrape failure",
+          });
           console.log("[scrape] Refunded credits.");
         } catch (refundError) {
           console.error("[scrape] Refund failed:", refundError);

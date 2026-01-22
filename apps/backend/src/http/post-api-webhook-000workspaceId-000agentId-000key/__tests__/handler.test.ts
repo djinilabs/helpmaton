@@ -1077,6 +1077,184 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     });
   });
 
+  it("should log tool error results without failing the webhook", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const key = "key-789";
+    const bodyText = "Fetch data";
+
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId,
+      agentId,
+      key,
+      bodyText,
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-123",
+      plan: "pro" as const,
+    };
+    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: {
+        pk: `agents/${workspaceId}/${agentId}`,
+        name: "Test Agent",
+        systemPrompt: "You are helpful",
+        provider: "google" as const,
+      },
+      model: {},
+      tools: {
+        fetch_data: {
+          description: "Fetch data",
+          inputSchema: {},
+        },
+      },
+      usesByok: false,
+    });
+
+    mockConvertTextToUIMessage.mockReturnValue({
+      role: "user",
+      content: bodyText,
+    });
+
+    mockConvertUIMessagesToModelMessages.mockReturnValue([
+      {
+        role: "user",
+        content: bodyText,
+      },
+    ]);
+
+    mockCallAgentNonStreaming.mockResolvedValue({
+      text: "I could not fetch the data.",
+      tokenUsage: {
+        promptTokens: 12,
+        completionTokens: 6,
+        totalTokens: 18,
+      },
+      rawResult: {
+        text: "I could not fetch the data.",
+        toolCalls: [
+          {
+            toolCallId: "call-err-1",
+            toolName: "fetch_data",
+            args: { url: "https://example.com" },
+          },
+        ],
+        toolResults: [
+          {
+            toolCallId: "call-err-1",
+            toolName: "fetch_data",
+            result: {
+              error: {
+                message: "Tool failed",
+                name: "Error",
+              },
+              isError: true,
+            },
+          },
+        ],
+      } as unknown as Awaited<ReturnType<typeof generateText>>,
+    });
+
+    mockFormatToolCallMessage.mockReturnValue({
+      role: "assistant" as const,
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-err-1",
+          toolName: "fetch_data",
+          args: { url: "https://example.com" },
+        },
+      ],
+    });
+
+    mockFormatToolResultMessage.mockReturnValue({
+      role: "assistant" as const,
+      content: [
+        {
+          type: "tool-result" as const,
+          toolCallId: "call-err-1",
+          toolName: "fetch_data",
+          result: {
+            error: {
+              message: "Tool failed",
+              name: "Error",
+            },
+            isError: true,
+          },
+        },
+      ],
+    });
+
+    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue("conversation-id-err");
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const baseEvent = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: bodyText,
+    });
+    const event = {
+      ...baseEvent,
+      requestContext: {
+        ...baseEvent.requestContext,
+        http: {
+          ...baseEvent.requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId,
+        agentId,
+        key,
+      },
+    };
+
+    const result = (await handler(event, mockContext, mockCallback)) as {
+      statusCode: number;
+      headers: Record<string, string>;
+      body: string;
+    };
+
+    expect(result.statusCode).toBe(200);
+    expect(mockStartConversation).toHaveBeenCalled();
+
+    const conversationData = mockStartConversation.mock.calls[0][1];
+    const messages = conversationData.messages as Array<{
+      role: string;
+      content: unknown;
+    }>;
+    const assistantMessage = messages.find((msg) => msg.role === "assistant");
+    expect(assistantMessage).toBeDefined();
+    expect(Array.isArray(assistantMessage?.content)).toBe(true);
+
+    const assistantContent = assistantMessage?.content as Array<
+      Record<string, unknown>
+    >;
+    const toolResult = assistantContent.find(
+      (item) => item.type === "tool-result"
+    );
+    expect(toolResult).toMatchObject({
+      type: "tool-result",
+      toolCallId: "call-err-1",
+      toolName: "fetch_data",
+      result: {
+        error: {
+          message: "Tool failed",
+          name: "Error",
+        },
+        isError: true,
+      },
+    });
+  });
+
   it("should include assistant text when observer has only tool events", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-456";

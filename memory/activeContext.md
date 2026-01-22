@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Cleanup-expired-reservations tests**: Updated refundReservation call expectations for new refund options and reran `pnpm test --run cleanup-expired-reservations`.
+- **Tool failure handling + refund detail**: Tool execution now returns error results instead of failing generations, webhook logging includes tool error results, and refund transaction descriptions include workspace/agent/conversation/reservation/provider/model/endpoint/error/amounts. Added unit tests and ran `pnpm lint --fix`, `pnpm typecheck`, `pnpm --filter backend test --run llmObserver`, and `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`.
 - **AgentCallNonStreaming test mock fix**: Corrected test mocks to target the real tables/knowledge injection modules so SSM isn’t hit during tests; ran `pnpm test --run agentCallNonStreaming`.
 - **Credit reservation metadata propagation**: Threaded `conversationId` through non-streaming credit reservation/adjustment, and added unit coverage to assert conversationId forwarding and refund transactions capturing agent/conversation metadata. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **PR 205 review fixes**: Simplified font size clamping, guarded file upload clearing effect, and validated hex parsing/rgba conversions for widget customization colors. Ran `pnpm lint --fix` and `pnpm typecheck`.

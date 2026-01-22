@@ -610,7 +610,22 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
   tools: TTools,
   observer?: LlmObserver
 ): TTools {
-  if (!observer) return tools;
+  const buildToolErrorResult = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    const name = error instanceof Error ? error.name : "Error";
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : undefined;
+    return {
+      error: {
+        message,
+        name,
+        ...(code ? { code } : {}),
+      },
+      isError: true,
+    };
+  };
 
   const wrapped: Record<string, unknown> = {};
   for (const [toolName, toolDef] of Object.entries(tools)) {
@@ -635,25 +650,27 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
           contextAny?.toolCallId ||
           contextAny?.toolCall?.toolCallId ||
           contextAny?.id;
-        observer.recordToolExecutionStarted({
+        observer?.recordToolExecutionStarted({
           toolCallId,
           toolName,
         });
         try {
           const result = await execute(args, context);
-          observer.recordToolExecutionEnded({
+          observer?.recordToolExecutionEnded({
             toolCallId,
             toolName,
             result,
           });
           return result;
         } catch (error) {
-          observer.recordToolExecutionEnded({
+          const errorResult = buildToolErrorResult(error);
+          observer?.recordToolExecutionEnded({
             toolCallId,
             toolName,
             error: error instanceof Error ? error.message : String(error),
+            result: errorResult,
           });
-          throw error;
+          return errorResult;
         }
       },
     };
