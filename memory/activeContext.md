@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Merge conflict cleanup**: Resolved conflict markers across `/api/models` handler/tests, OpenAPI schemas, Agent Detail UI, API types, and `scripts/update-pricing.mjs`; re-ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Reasoning token reservation estimate**: Added reasoning-capable model detection from pricing capabilities, estimated reasoning tokens (matching output estimate) for reservations, and updated token estimation tests; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Image cost estimation tweak**: Switched image reservation estimation to use prompt-based input tokens with fixed 1000 output tokens when no request pricing is available, and added dedicated unit tests; ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run imageGenerationCredits`.
 - **Image tool cost tracking**: Added image generation cost estimation + reservation, captured OpenRouter generation IDs for async verification, propagated tool-result cost metadata, updated cost verification to finalize tool costs, and added unit tests; ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run openrouter-cost-verification-queue`.
