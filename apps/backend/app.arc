@@ -361,32 +361,30 @@ run-agent-schedules rate(1 minute)
 agent-temporal-grain-queue
   timeout 660
   fifo true
-  visibilityTimeout 3960
+  visibilityTimeout 1320
   messageRetentionPeriod 1209600
 openrouter-cost-verification-queue
   timeout 660
-  visibilityTimeout 3960
-  messageRetentionPeriod 604800
+  visibilityTimeout 1320
+  messageRetentionPeriod 1209600
 agent-delegation-queue
   timeout 660
-  visibilityTimeout 3960
+  visibilityTimeout 1320
 bot-webhook-queue
   timeout 660
-  visibilityTimeout 3960
+  visibilityTimeout 1320
   messageRetentionPeriod 1209600
 webhook-queue
   timeout 660
-  # visibilityTimeout is 6x the Lambda timeout (6 * 660s = 3960s) so
-  # long-running webhook processing can finish before SQS retries.
-  visibilityTimeout 3960
+  visibilityTimeout 1320
   messageRetentionPeriod 1209600
 agent-eval-queue
   timeout 660
-  visibilityTimeout 3960
-  messageRetentionPeriod 604800
+  visibilityTimeout 1320
+  messageRetentionPeriod 1209600
 agent-schedule-queue
   timeout 660
-  visibilityTimeout 3960
+  visibilityTimeout 1320
   messageRetentionPeriod 1209600
 
 @api-throttling
