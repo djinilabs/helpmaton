@@ -1672,7 +1672,7 @@ function useAgentDetailState({
     selectedModelName
   );
   const modelCapabilityLabels = getCapabilityLabels(selectedModelCapabilities);
-  const isToolCallingSupported = selectedModelCapabilities?.tool_calling !== false;
+  const isToolCallingSupported = selectedModelCapabilities?.tool_calling === true;
   const rerankingCapabilityLabels = getCapabilityLabels(
     getModelCapabilities(modelCapabilities, knowledgeRerankingModel)
   );

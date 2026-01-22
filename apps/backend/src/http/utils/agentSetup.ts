@@ -524,9 +524,6 @@ const addImageGenerationTool = async (params: {
       data?: Array<{ url?: string; b64_json?: string }>;
     };
 
-    console.log("[Agent Setup] Image generation payload:", payload);
-    console.log("[Agent Setup] Image generation data:", data);
-    console.log("[Agent Setup] Image generation choices:", data.choices);
     console.log("[Agent Setup] Image generation choice 0:", data.choices?.[0]);
     console.log("[Agent Setup] Image generation choice 0 message:", data.choices?.[0]?.message);
     console.log("[Agent Setup] Image generation choice 0 message content:", data.choices?.[0]?.message?.content);
@@ -659,7 +656,7 @@ const addImageGenerationTool = async (params: {
       }
       const imageOutput = extractImageOutput(result);
       if (!imageOutput?.url && !imageOutput?.base64) {
-        console.log("[Agent Setup] Image generation result:", result);
+        console.error("[Agent Setup] Image generation result:", result);
         throw new Error("image generation returned no image output");
       }
 

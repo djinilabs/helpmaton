@@ -402,11 +402,7 @@ async function transformSseLine(params: {
       mediaType,
     };
     const messageLine = `data: ${JSON.stringify(fileEvent)}`;
-    if (fileUploadContext) {
-      fileParts.push(injectedFilePart);
-    } else {
-      fileParts.push(injectedFilePart);
-    }
+    fileParts.push(injectedFilePart);
     extraLines.push(messageLine);
   }
 

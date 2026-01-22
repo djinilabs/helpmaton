@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 204 review fixes**: Cleaned model config imageModels validation indentation, simplified stream file-part insertion, removed noisy image generation logs, switched tool-calling UI check to strict capability, and reran `pnpm lint --fix` + `pnpm typecheck`.
 - **Merge conflict cleanup**: Resolved conflict markers across `/api/models` handler/tests, OpenAPI schemas, Agent Detail UI, API types, and `scripts/update-pricing.mjs`; re-ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Reasoning token reservation estimate**: Added reasoning-capable model detection from pricing capabilities, estimated reasoning tokens (matching output estimate) for reservations, and updated token estimation tests; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Image cost estimation tweak**: Switched image reservation estimation to use prompt-based input tokens with fixed 1000 output tokens when no request pricing is available, and added dedicated unit tests; ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run imageGenerationCredits`.
