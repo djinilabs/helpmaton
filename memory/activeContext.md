@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Reasoning token reservation estimate**: Added reasoning-capable model detection from pricing capabilities, estimated reasoning tokens (matching output estimate) for reservations, and updated token estimation tests; ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Image cost estimation tweak**: Switched image reservation estimation to use prompt-based input tokens with fixed 1000 output tokens when no request pricing is available, and added dedicated unit tests; ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run imageGenerationCredits`.
 - **Image tool cost tracking**: Added image generation cost estimation + reservation, captured OpenRouter generation IDs for async verification, propagated tool-result cost metadata, updated cost verification to finalize tool costs, and added unit tests; ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run openrouter-cost-verification-queue`.
 - **AgentChat step separator removal**: Stopped rendering the step-start separator in chat messages while keeping agent avatars; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Deduped assistant file parts**: Prevented duplicate file parts when both tool results and assistant-file events are present, added unit test, and disabled complexity lint for observer assembly; ran `pnpm typecheck` and `pnpm lint --fix`.

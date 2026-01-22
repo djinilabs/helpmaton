@@ -61,6 +61,8 @@ export interface PricingConfig {
   lastUpdated: string;
 }
 
+const REASONING_PARAMETERS = new Set(["reasoning", "include_reasoning"]);
+
 // Import pricing config directly (bundled with Lambda)
 const config = pricingConfigData as PricingConfig;
 
@@ -124,6 +126,20 @@ export function getModelPricing(
   }
 
   return undefined;
+}
+
+export function supportsReasoningTokens(
+  provider: string,
+  modelName: string
+): boolean {
+  const pricing = getModelPricing(provider, modelName);
+  const supportedParameters = pricing?.capabilities?.supported_parameters;
+  if (!supportedParameters) {
+    return false;
+  }
+  return supportedParameters.some((parameter) =>
+    REASONING_PARAMETERS.has(parameter)
+  );
 }
 
 export function isImageCapableModel(
