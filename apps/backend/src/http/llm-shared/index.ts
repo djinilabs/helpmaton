@@ -19,11 +19,13 @@ import { handler as summarizeMemoryMonthlyHandler } from "../../scheduled/summar
 import { handler as summarizeMemoryQuarterlyHandler } from "../../scheduled/summarize-memory-quarterly";
 import { handler as summarizeMemoryWeeklyHandler } from "../../scheduled/summarize-memory-weekly";
 import { handler as summarizeMemoryYearlyHandler } from "../../scheduled/summarize-memory-yearly";
-import { handler as streamsHandler } from "../any-api-streams-catchall";
+import { internalHandler as streamsInternalHandler } from "../any-api-streams-catchall/internalHandler";
 import { handler as workspacesHandler } from "../any-api-workspaces";
 import { handler as workspacesCatchallHandler } from "../any-api-workspaces-catchall";
 import { handler as webhookHandler } from "../post-api-webhook-000workspaceId-000agentId-000key";
+import { normalizeEventToHttpV2 } from "../utils/streamEventNormalization";
 import {
+  createMockResponseStream,
   createResponseStream,
   type HttpResponseStream,
   writeChunkToStream,
@@ -244,6 +246,24 @@ function isResponseStream(value: unknown): value is HttpResponseStream {
   );
 }
 
+async function handleStreamsRequest(
+  event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
+  responseStream?: HttpResponseStream,
+) {
+  const httpEvent = normalizeEventToHttpV2(event);
+  if (responseStream) {
+    await streamsInternalHandler(httpEvent, responseStream);
+    return undefined;
+  }
+  const mockStream = createMockResponseStream();
+  await streamsInternalHandler(httpEvent, mockStream.stream);
+  return {
+    statusCode: mockStream.getStatusCode(),
+    headers: mockStream.getHeaders(),
+    body: mockStream.getBody(),
+  };
+}
+
 async function respondWithStream(
   responseStream: HttpResponseStream,
   response: {
@@ -255,6 +275,12 @@ async function respondWithStream(
 ) {
   const statusCode = response.statusCode ?? 200;
   const headers = response.headers ?? {};
+  console.log("[llm-shared] Writing response to stream", {
+    statusCode,
+    hasBody: typeof response.body === "string",
+    isBase64Encoded: response.isBase64Encoded === true,
+    headerKeys: Object.keys(headers),
+  });
   const stream = createResponseStream(responseStream, headers, statusCode);
   if (typeof response.body === "string") {
     const payload = response.isBase64Encoded
@@ -292,8 +318,17 @@ export const handler = async (...args: unknown[]) => {
 
   if (isHttpEvent(event)) {
     const path = getHttpPath(event);
+    console.log("[llm-shared] HTTP event", {
+      path,
+      argsLength: args.length,
+      hasResponseStream: isResponseStream(args[1]),
+      requestContextType: typeof (event as APIGatewayProxyEventV2)
+        ?.requestContext,
+    });
     if (path.startsWith("/api/streams")) {
-      return await (streamsHandler as unknown as AnyHandler)(...args);
+      console.log("[llm-shared] Routing to streams handler");
+      const responseStream = isResponseStream(args[1]) ? args[1] : undefined;
+      return await handleStreamsRequest(event, responseStream);
     }
     const httpHandler = resolveHttpHandler(event);
     if (!httpHandler) {
@@ -302,6 +337,14 @@ export const handler = async (...args: unknown[]) => {
     const responseStream = isResponseStream(args[1]) ? args[1] : undefined;
     const response = await httpHandler(event, context, callback);
     if (responseStream && response && typeof response === "object") {
+      console.log("[llm-shared] Non-stream HTTP response streamed", {
+        path,
+        statusCode:
+          "statusCode" in response &&
+          typeof (response as { statusCode?: number }).statusCode === "number"
+            ? (response as { statusCode?: number }).statusCode
+            : undefined,
+      });
       await respondWithStream(
         responseStream,
         response as {

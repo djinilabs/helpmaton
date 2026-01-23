@@ -3176,3 +3176,6 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
 - Added Lambda URL responseStream handling for non-streaming routes
 - Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
+- Restored /api/streams buffering when no response stream
+- Added llm-shared HTTP streaming diagnostics
+- Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`

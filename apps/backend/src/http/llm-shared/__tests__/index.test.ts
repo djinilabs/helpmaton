@@ -7,7 +7,7 @@ import {
 } from "../../utils/__tests__/test-helpers";
 
 const {
-  mockStreamsHandler,
+  mockStreamsInternalHandler,
   mockWebhookHandler,
   mockWorkspacesHandler,
   mockWorkspacesCatchallHandler,
@@ -24,7 +24,7 @@ const {
   mockSummarizeYearlyHandler,
   mockCleanupMemoryRetentionHandler,
 } = vi.hoisted(() => ({
-  mockStreamsHandler: vi.fn(),
+  mockStreamsInternalHandler: vi.fn(),
   mockWebhookHandler: vi.fn(),
   mockWorkspacesHandler: vi.fn(),
   mockWorkspacesCatchallHandler: vi.fn(),
@@ -42,8 +42,8 @@ const {
   mockCleanupMemoryRetentionHandler: vi.fn(),
 }));
 
-vi.mock("../../any-api-streams-catchall", () => ({
-  handler: mockStreamsHandler,
+vi.mock("../../any-api-streams-catchall/internalHandler", () => ({
+  internalHandler: mockStreamsInternalHandler,
 }));
 
 vi.mock("../../post-api-webhook-000workspaceId-000agentId-000key", () => ({
@@ -113,11 +113,12 @@ describe("llm-shared handler", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockStreamsHandler.mockResolvedValue({
-      statusCode: 200,
-      headers: {},
-      body: "ok",
-    });
+    mockStreamsInternalHandler.mockImplementation(
+      async (_event, responseStream) => {
+        responseStream.write("ok");
+        responseStream.end();
+      },
+    );
     mockWebhookHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
     mockWorkspacesHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
     mockWorkspacesCatchallHandler.mockResolvedValue({
@@ -284,7 +285,7 @@ describe("llm-shared handler", () => {
 
     const result = await handler(event, mockContext);
 
-    expect(mockStreamsHandler).toHaveBeenCalledWith(event, mockContext);
+    expect(mockStreamsInternalHandler).toHaveBeenCalled();
     expect(result).toEqual({
       statusCode: 200,
       headers: {},
