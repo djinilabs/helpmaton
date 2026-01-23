@@ -8,6 +8,7 @@
 
 - **LLM lambda timeouts**: Updated LLM HTTP handler config timeouts to 900s for streams/workspaces/webhook and re-ran `pnpm typecheck` + `pnpm lint --fix`.
 - **LLM lambda unification**: Added `llm-shared` group to lancedb entries in `app.arc`, created `http/llm-shared` dispatcher for HTTP/SQS/scheduled events, and updated the container-images plugin to merge grouped Lambdas and point the primary to the shared handler. Added unit tests for grouped container images and the shared handler. Ran `pnpm typecheck`, `pnpm lint --fix`, and targeted backend tests (`container-images`, `llm-shared`).
+- **Backend Sentry sourcemaps**: Switched Sentry upload step to `sentry-cli sourcemaps upload` (new CLI syntax) after `releases files` failed in deploy-prod. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Backend Sentry sourcemaps**: Enabled backend sourcemap generation for production, wired `SENTRY_DIST` into Sentry init, and added production workflow upload via `sentry-cli` while keeping PR deploys from uploading maps. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 209 review fixes**: Simplified Express router access in scrape billing test, updated LLM error cleanup docstring, annotated billing policy change note, tightened refundReservation signature/docs, and aligned tool failure cleanup to skip `deduction-disabled` reservations for Exa/Tavily. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Webhook test cleanup**: Restored `/api/webhook` handler tests to only validate enqueue + error responses, and moved webhook processing assertions (tool calls, steps extraction, token usage/costs, observer fallback) into `webhookTask` tests. Ran `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`, `pnpm --filter backend test --run webhookTask`, `pnpm lint --fix`, and `pnpm typecheck`.
@@ -2561,6 +2562,8 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Fixed `@posthog/ai` loading errors by implementing lazy imports (dynamic imports) to avoid loading Anthropic SDK wrappers when not needed
 
 ## Recent Changes
+
+- **PR deploy E2E workflow trigger**: Switched E2E tests to be invoked directly from `deploy-pr.yml` via `workflow_call`, removed `workflow_run` trigger, and cleaned job gating to avoid skipped runs. Ran `pnpm typecheck` and `pnpm lint --fix`.
 
 ### Slack & Discord Bot Integration (Latest)
 
