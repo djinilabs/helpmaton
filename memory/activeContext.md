@@ -2561,6 +2561,8 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 ## Recent Changes
 
+- **PR deploy E2E workflow trigger**: Switched E2E tests to be invoked directly from `deploy-pr.yml` via `workflow_call`, removed `workflow_run` trigger, and cleaned job gating to avoid skipped runs. Ran `pnpm typecheck` and `pnpm lint --fix`.
+
 ### Slack & Discord Bot Integration (Latest)
 
 **Status**: ✅ Completed
