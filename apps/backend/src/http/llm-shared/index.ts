@@ -6,7 +6,6 @@ import type {
   ScheduledEvent,
   SQSEvent,
 } from "aws-lambda";
-import { streamifyResponse } from "lambda-stream";
 
 import { handler as agentDelegationQueueHandler } from "../../queues/agent-delegation-queue";
 import { handler as agentEvalQueueHandler } from "../../queues/agent-eval-queue";
@@ -20,21 +19,12 @@ import { handler as summarizeMemoryMonthlyHandler } from "../../scheduled/summar
 import { handler as summarizeMemoryQuarterlyHandler } from "../../scheduled/summarize-memory-quarterly";
 import { handler as summarizeMemoryWeeklyHandler } from "../../scheduled/summarize-memory-weekly";
 import { handler as summarizeMemoryYearlyHandler } from "../../scheduled/summarize-memory-yearly";
-import { internalHandler as streamsInternalHandler } from "../any-api-streams-catchall/internalHandler";
+import { handler as streamsHandler } from "../any-api-streams-catchall";
 import { handler as workspacesHandler } from "../any-api-workspaces";
 import { handler as workspacesCatchallHandler } from "../any-api-workspaces-catchall";
 import { handler as webhookHandler } from "../post-api-webhook-000workspaceId-000agentId-000key";
-import { normalizeEventToHttpV2 } from "../utils/streamEventNormalization";
-import {
-  createMockResponseStream,
-  type HttpResponseStream,
-} from "../utils/streamResponseStream";
 
-type AnyHandler = (
-  event: unknown,
-  context?: Context,
-  callback?: Callback
-) => unknown;
+type AnyHandler = (...args: unknown[]) => unknown;
 
 const queueHandlerEntries: Array<[string, AnyHandler]> = [
   ["agent-temporal-grain-queue", agentTemporalGrainQueueHandler as AnyHandler],
@@ -60,12 +50,12 @@ const scheduleHandlers = new Map(scheduleHandlerEntries);
 function validateHandlerCoverage(
   label: string,
   entries: Array<[string, AnyHandler]>,
-  handlerMap: Map<string, AnyHandler>
+  handlerMap: Map<string, AnyHandler>,
 ) {
   for (const [name] of entries) {
     if (!handlerMap.has(name)) {
       throw new Error(
-        `[llm-shared] Missing ${label} handler mapping for ${name}`
+        `[llm-shared] Missing ${label} handler mapping for ${name}`,
       );
     }
   }
@@ -107,7 +97,7 @@ function isScheduledEvent(event: unknown): event is ScheduledEvent {
 }
 
 function isHttpEvent(
-  event: unknown
+  event: unknown,
 ): event is APIGatewayProxyEvent | APIGatewayProxyEventV2 {
   if (!event || typeof event !== "object") {
     return false;
@@ -121,12 +111,12 @@ function isHttpEvent(
     | undefined;
   return Boolean(
     ("httpMethod" in httpEvent ? httpEvent.httpMethod : undefined) ||
-      (requestContext &&
-        "http" in requestContext &&
-        requestContext.http?.method) ||
-      (requestContext &&
-        "httpMethod" in requestContext &&
-        requestContext.httpMethod)
+    (requestContext &&
+      "http" in requestContext &&
+      requestContext.http?.method) ||
+    (requestContext &&
+      "httpMethod" in requestContext &&
+      requestContext.httpMethod),
   );
 }
 
@@ -178,7 +168,10 @@ function resolveScheduleHandler(event: ScheduledEvent): AnyHandler | undefined {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join("")
       .toLowerCase();
-    if (resourceText.includes(scheduleId) || resourceText.includes(schedulePascal)) {
+    if (
+      resourceText.includes(scheduleId) ||
+      resourceText.includes(schedulePascal)
+    ) {
       return handler;
     }
   }
@@ -187,7 +180,7 @@ function resolveScheduleHandler(event: ScheduledEvent): AnyHandler | undefined {
 }
 
 function getHttpPath(
-  event: APIGatewayProxyEvent | APIGatewayProxyEventV2
+  event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
 ): string {
   const httpEvent = event as
     | Partial<APIGatewayProxyEvent>
@@ -210,7 +203,7 @@ function getHttpPath(
 }
 
 function resolveHttpHandler(
-  event: APIGatewayProxyEvent | APIGatewayProxyEventV2
+  event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
 ): AnyHandler | undefined {
   const path = getHttpPath(event);
 
@@ -237,54 +230,18 @@ function buildHttpNotFound() {
   };
 }
 
-function isResponseStream(value: unknown): value is HttpResponseStream {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as HttpResponseStream).write === "function" &&
-    typeof (value as HttpResponseStream).end === "function"
-  );
-}
-
-async function handleStreamsRequest(
-  event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
-  responseStream?: HttpResponseStream
-) {
-  const httpEvent = normalizeEventToHttpV2(event);
-  if (responseStream) {
-    await streamsInternalHandler(httpEvent, responseStream);
-    return undefined;
-  }
-  const mockStream = createMockResponseStream();
-  await streamsInternalHandler(httpEvent, mockStream.stream);
-  return {
-    statusCode: mockStream.getStatusCode(),
-    headers: mockStream.getHeaders(),
-    body: mockStream.getBody(),
-  };
-}
-
-const streamHandler = streamifyResponse(
-  async (
-    event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
-    responseStream: HttpResponseStream
-  ): Promise<void> => {
-    const httpEvent = normalizeEventToHttpV2(event);
-    await streamsInternalHandler(httpEvent, responseStream);
-  }
-);
-
 export const handler = async (...args: unknown[]) => {
   const event = args[0];
   const context = resolveContext(args);
-  const callback = typeof args[2] === "function" ? (args[2] as Callback) : undefined;
+  const callback =
+    typeof args[2] === "function" ? (args[2] as Callback) : undefined;
 
   if (isSqsEvent(event)) {
     const queueHandler = resolveQueueHandler(event);
     if (!queueHandler) {
       const queueName = getQueueName(event);
       throw new Error(
-        `[llm-shared] Unknown SQS queue for event: ${queueName ?? "unknown"}`
+        `[llm-shared] Unknown SQS queue for event: ${queueName ?? "unknown"}`,
       );
     }
     return await queueHandler(event, context, callback);
@@ -301,11 +258,7 @@ export const handler = async (...args: unknown[]) => {
   if (isHttpEvent(event)) {
     const path = getHttpPath(event);
     if (path.startsWith("/api/streams")) {
-      const responseStream = isResponseStream(args[1]) ? args[1] : undefined;
-      if (responseStream) {
-        return await streamHandler(event, responseStream);
-      }
-      return await handleStreamsRequest(event);
+      return await (streamsHandler as unknown as AnyHandler)(...args);
     }
     const httpHandler = resolveHttpHandler(event);
     if (!httpHandler) {

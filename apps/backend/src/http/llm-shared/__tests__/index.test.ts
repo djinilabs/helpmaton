@@ -7,7 +7,7 @@ import {
 } from "../../utils/__tests__/test-helpers";
 
 const {
-  mockStreamsInternalHandler,
+  mockStreamsHandler,
   mockWebhookHandler,
   mockWorkspacesHandler,
   mockWorkspacesCatchallHandler,
@@ -24,7 +24,7 @@ const {
   mockSummarizeYearlyHandler,
   mockCleanupMemoryRetentionHandler,
 } = vi.hoisted(() => ({
-  mockStreamsInternalHandler: vi.fn(),
+  mockStreamsHandler: vi.fn(),
   mockWebhookHandler: vi.fn(),
   mockWorkspacesHandler: vi.fn(),
   mockWorkspacesCatchallHandler: vi.fn(),
@@ -42,8 +42,8 @@ const {
   mockCleanupMemoryRetentionHandler: vi.fn(),
 }));
 
-vi.mock("../../any-api-streams-catchall/internalHandler", () => ({
-  internalHandler: mockStreamsInternalHandler,
+vi.mock("../../any-api-streams-catchall", () => ({
+  handler: mockStreamsHandler,
 }));
 
 vi.mock("../../post-api-webhook-000workspaceId-000agentId-000key", () => ({
@@ -113,9 +113,10 @@ describe("llm-shared handler", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockStreamsInternalHandler.mockImplementation(async (_event, responseStream) => {
-      responseStream.write("ok");
-      responseStream.end();
+    mockStreamsHandler.mockResolvedValue({
+      statusCode: 200,
+      headers: {},
+      body: "ok",
     });
     mockWebhookHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
     mockWorkspacesHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
@@ -175,7 +176,7 @@ describe("llm-shared handler", () => {
     expect(mockWebhookQueueHandler).toHaveBeenCalledWith(
       event,
       mockContext,
-      undefined
+      undefined,
     );
   });
 
@@ -184,14 +185,13 @@ describe("llm-shared handler", () => {
       Records: [
         {
           eventSource: "aws:sqs",
-          eventSourceARN:
-            "arn:aws:sqs:eu-west-2:123456789012:unknown-queue",
+          eventSourceARN: "arn:aws:sqs:eu-west-2:123456789012:unknown-queue",
         },
       ],
     };
 
     await expect(handler(event, mockContext)).rejects.toThrow(
-      "[llm-shared] Unknown SQS queue for event"
+      "[llm-shared] Unknown SQS queue for event",
     );
   });
 
@@ -202,22 +202,25 @@ describe("llm-shared handler", () => {
     ["summarize-memory-quarterly", mockSummarizeQuarterlyHandler],
     ["summarize-memory-yearly", mockSummarizeYearlyHandler],
     ["cleanup-memory-retention", mockCleanupMemoryRetentionHandler],
-  ])("routes scheduled events for %s", async (scheduleName, scheduleHandler) => {
-    const event = {
-      source: "aws.events",
-      resources: [
-        `arn:aws:events:eu-west-2:123456789012:rule/${scheduleName}`,
-      ],
-    };
+  ])(
+    "routes scheduled events for %s",
+    async (scheduleName, scheduleHandler) => {
+      const event = {
+        source: "aws.events",
+        resources: [
+          `arn:aws:events:eu-west-2:123456789012:rule/${scheduleName}`,
+        ],
+      };
 
-    await handler(event, mockContext);
+      await handler(event, mockContext);
 
-    expect(scheduleHandler).toHaveBeenCalledWith(
-      event,
-      mockContext,
-      undefined
-    );
-  });
+      expect(scheduleHandler).toHaveBeenCalledWith(
+        event,
+        mockContext,
+        undefined,
+      );
+    },
+  );
 
   it("throws for unknown scheduled events", async () => {
     const event = {
@@ -228,7 +231,7 @@ describe("llm-shared handler", () => {
     };
 
     await expect(handler(event, mockContext)).rejects.toThrow(
-      "[llm-shared] Unknown scheduled event"
+      "[llm-shared] Unknown scheduled event",
     );
   });
 
@@ -242,7 +245,7 @@ describe("llm-shared handler", () => {
     expect(mockWebhookHandler).toHaveBeenCalledWith(
       event,
       mockContext,
-      undefined
+      undefined,
     );
   });
 
@@ -256,7 +259,7 @@ describe("llm-shared handler", () => {
     expect(mockWorkspacesHandler).toHaveBeenCalledWith(
       event,
       mockContext,
-      undefined
+      undefined,
     );
   });
 
@@ -270,7 +273,7 @@ describe("llm-shared handler", () => {
     expect(mockWorkspacesCatchallHandler).toHaveBeenCalledWith(
       event,
       mockContext,
-      undefined
+      undefined,
     );
   });
 
@@ -281,7 +284,7 @@ describe("llm-shared handler", () => {
 
     const result = await handler(event, mockContext);
 
-    expect(mockStreamsInternalHandler).toHaveBeenCalled();
+    expect(mockStreamsHandler).toHaveBeenCalledWith(event, mockContext);
     expect(result).toEqual({
       statusCode: 200,
       headers: {},

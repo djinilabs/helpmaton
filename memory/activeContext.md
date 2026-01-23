@@ -3172,3 +3172,5 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Environment variables are injected at build time, not runtime, for container image functions
 - Added 402 credit error responses in workspace async handler with tests
 - Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run middleware`
+- Simplified llm-shared stream routing to delegate to streams handler
+- Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
