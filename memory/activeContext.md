@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 210 staging failure fix**: Added `LAMBDA_HANDLER_PATH` fallback in container image conversion so wrapper loads the correct handler when ImageConfig.Command is ignored in Lambda config. Updated container-images tests and reran `pnpm typecheck`, `pnpm lint --fix`, and container-images tests.
 - **PR 210 review fixes**: Hardened `llm-shared` to validate queue/schedule mappings, routed streams via internal handler with buffered response for API Gateway, expanded llm-shared tests, and enforced HTTP-only group primaries in the container-images plugin with documented merge limitations. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for `container-images` and `llm-shared`.
 - **Container image build fix**: Updated build/push scripts to parse image names correctly when `@container-images` includes group names, then reran `pnpm typecheck` and `pnpm lint --fix`.
 - **LLM lambda timeouts**: Updated LLM HTTP handler config timeouts to 900s for streams/workspaces/webhook and re-ran `pnpm typecheck` + `pnpm lint --fix`.

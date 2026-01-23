@@ -675,8 +675,18 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
       );
     }
     
-    // Note: We no longer need LAMBDA_HANDLER_PATH since we're pointing directly to the handler
-    // The wrapper approach failed, so we're using direct handler path instead
+    // Also set LAMBDA_HANDLER_PATH as a fallback if ImageConfig.Command is ignored
+    if (handlerPath) {
+      if (!properties.Environment) {
+        properties.Environment = { Variables: {} };
+      }
+      if (!properties.Environment.Variables) {
+        properties.Environment.Variables = {};
+      }
+      if (!properties.Environment.Variables.LAMBDA_HANDLER_PATH) {
+        properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
+      }
+    }
   } else {
     // Standard Lambda functions use Code with ImageUri
     // IMPORTANT: Remove any existing Code properties (S3Bucket, S3Key, ZipFile, etc.)
@@ -707,7 +717,18 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
       properties.ImageConfig.Command = ["index.handler"];
     }
     
-    // Note: We no longer need LAMBDA_HANDLER_PATH since we're pointing directly to the handler
+    // Also set LAMBDA_HANDLER_PATH as a fallback if ImageConfig.Command is ignored
+    if (handlerPath) {
+      if (!properties.Environment) {
+        properties.Environment = { Variables: {} };
+      }
+      if (!properties.Environment.Variables) {
+        properties.Environment.Variables = {};
+      }
+      if (!properties.Environment.Variables.LAMBDA_HANDLER_PATH) {
+        properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
+      }
+    }
   }
 
   // Remove Runtime (not used for container images)

@@ -491,6 +491,9 @@ describe("container-images plugin", () => {
       // EntryPoint must be set when ImageConfig is present (Lambda requires all properties to be non-empty)
       expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual(["/lambda-entrypoint.sh"]);
       expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe("/var/task");
+      expect(functionResource.Properties.Environment.Variables.LAMBDA_HANDLER_PATH).toBe(
+        "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+      );
     });
 
     it("should convert AWS::Lambda::Function to use container image", () => {
@@ -522,6 +525,9 @@ describe("container-images plugin", () => {
       });
       expect(functionResource.Properties.Runtime).toBeUndefined();
       expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.Environment.Variables.LAMBDA_HANDLER_PATH).toBe(
+        "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+      );
     });
 
     it("should skip non-Lambda resources", () => {
@@ -568,6 +574,9 @@ describe("container-images plugin", () => {
       // EntryPoint must be set when ImageConfig is present (Lambda requires all properties to be non-empty)
       expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual(["/lambda-entrypoint.sh"]);
       expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe("/var/task");
+      expect(functionResource.Properties.Environment.Variables.LAMBDA_HANDLER_PATH).toBe(
+        "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+      );
     });
   });
 
