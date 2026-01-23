@@ -84,6 +84,11 @@ jobs:
             echo "✅ Commit verified - testing commit ${CURRENT_COMMIT} from workflow_dispatch"
           fi
 
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
       - name: Enable pnpm corepack
         run: corepack enable
 
@@ -105,11 +110,6 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-
-      - name: Use Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
