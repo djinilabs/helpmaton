@@ -60,6 +60,13 @@
             "output": 0.3,
             "cachedInput": 0.0075
           }
+        },
+        "gemini-2.0-flash-exp-image-generation": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3,
+            "cachedInput": 0.0075
+          }
         }
       }
     },
@@ -3550,7 +3557,7 @@
         "alibaba/tongyi-deepresearch-30b-a3b": {
           "usd": {
             "input": 0.09,
-            "output": 0.39999999999999997,
+            "output": 0.44999999999999996,
             "cachedInput": 0.009
           },
           "capabilities": {
@@ -9166,9 +9173,9 @@
         },
         "google/gemini-2.0-flash-exp:free": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.09999999999999999,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -12125,5 +12132,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-22T08:08:41.769Z"
+  "lastUpdated": "2026-01-23T00:16:23.980Z"
 }
