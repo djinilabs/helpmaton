@@ -71,7 +71,7 @@ function routeToFunctionId(route) {
  *   Queue: queue queue-name image-name (e.g., "queue agent-temporal-grain-queue lancedb")
  *   Scheduled: scheduled scheduled-name image-name (e.g., "scheduled aggregate-token-usage lancedb")
  * @param {Object} arc - Parsed arc file
- * @returns {Map<string, string>} Map of function ID to image name
+ * @returns {Map<string, {imageName: string, group?: string}>} Map of function ID to image metadata
  */
 function parseContainerImagesPragma(arc) {
   const imageMap = new Map();
@@ -93,6 +93,7 @@ function parseContainerImagesPragma(arc) {
         const typeOrMethod = item[0];
         const secondPart = item[1];
         const imageName = item[2];
+        const groupName = item[3];
         
         // Validate all required fields are present and are strings
         if (!typeOrMethod || !secondPart || !imageName) {
@@ -103,7 +104,11 @@ function parseContainerImagesPragma(arc) {
           continue;
         }
         
-        if (typeof typeOrMethod !== "string" || typeof secondPart !== "string" || typeof imageName !== "string") {
+        if (
+          typeof typeOrMethod !== "string" ||
+          typeof secondPart !== "string" ||
+          typeof imageName !== "string"
+        ) {
           console.warn(
             `[container-images] Skipping invalid pragma item: type/method, name/path, or imageName must be strings`,
             item
@@ -128,7 +133,14 @@ function parseContainerImagesPragma(arc) {
         }
         
         if (functionId) {
-          imageMap.set(functionId, imageName.trim());
+          const group =
+            typeof groupName === "string" && groupName.trim()
+              ? groupName.trim()
+              : undefined;
+          imageMap.set(functionId, {
+            imageName: imageName.trim(),
+            ...(group ? { group } : {}),
+          });
         }
       } else if (typeof item === "string") {
         // Fallback: parse string format
@@ -138,26 +150,37 @@ function parseContainerImagesPragma(arc) {
         const parts = item.trim().split(/\s+/);
         if (parts.length >= 3) {
           const typeOrMethod = parts[0].toLowerCase();
-          const imageName = parts[parts.length - 1];
+          const hasGroup = parts.length >= 4;
+          const imageName = parts[parts.length - (hasGroup ? 2 : 1)];
+          const groupName = hasGroup ? parts[parts.length - 1] : undefined;
           let functionId = null;
           
           if (typeOrMethod === "queue") {
             // Queue: "queue agent-temporal-grain-queue lancedb"
-            const queueName = parts.slice(1, -1).join(" "); // Everything except first and last
+            const queueName = parts.slice(1, hasGroup ? -2 : -1).join(" "); // Everything except type + image (+ group)
             functionId = queueToFunctionId(queueName.trim());
           } else if (typeOrMethod === "scheduled") {
             // Scheduled: "scheduled aggregate-token-usage lancedb"
-            const scheduledName = parts.slice(1, -1).join(" "); // Everything except first and last
+            const scheduledName = parts
+              .slice(1, hasGroup ? -2 : -1)
+              .join(" "); // Everything except type + image (+ group)
             functionId = scheduledToFunctionId(scheduledName.trim());
           } else {
             // HTTP: "any /api/streams/:workspaceId/:agentId/:secret lancedb"
-            const routePath = parts.slice(1, -1).join(" "); // Everything except first and last
+            const routePath = parts.slice(1, hasGroup ? -2 : -1).join(" "); // Everything except type + image (+ group)
             const route = `${parts[0]} ${routePath}`.trim();
             functionId = routeToFunctionId(route);
           }
           
           if (functionId) {
-            imageMap.set(functionId, imageName.trim());
+            const group =
+              typeof groupName === "string" && groupName.trim()
+                ? groupName.trim()
+                : undefined;
+            imageMap.set(functionId, {
+              imageName: imageName.trim(),
+              ...(group ? { group } : {}),
+            });
           }
         }
       }
@@ -165,6 +188,178 @@ function parseContainerImagesPragma(arc) {
   }
 
   return imageMap;
+}
+
+/**
+ * Update all references from oldId to newId in a CloudFormation template
+ * @param {Object} cloudformation - CloudFormation template
+ * @param {string} oldId - Old resource ID
+ * @param {string} newId - New resource ID
+ */
+function updateResourceReferences(cloudformation, oldId, newId) {
+  const resources = cloudformation.Resources || {};
+  const outputs = cloudformation.Outputs || {};
+
+  function updateRefs(obj) {
+    if (obj === null || obj === undefined) {
+      return;
+    }
+
+    if (Array.isArray(obj)) {
+      obj.forEach((item) => updateRefs(item));
+      return;
+    }
+
+    if (typeof obj !== "object") {
+      return;
+    }
+
+    if (obj.Ref === oldId) {
+      obj.Ref = newId;
+    }
+
+    if (
+      obj["Fn::GetAtt"] &&
+      Array.isArray(obj["Fn::GetAtt"]) &&
+      obj["Fn::GetAtt"][0] === oldId
+    ) {
+      obj["Fn::GetAtt"][0] = newId;
+    }
+
+    Object.values(obj).forEach((value) => updateRefs(value));
+  }
+
+  Object.values(resources).forEach((resource) => {
+    if (!resource || typeof resource !== "object") {
+      return;
+    }
+    if (resource.Properties) {
+      updateRefs(resource.Properties);
+    }
+    if (resource.DependsOn) {
+      if (Array.isArray(resource.DependsOn)) {
+        resource.DependsOn = resource.DependsOn.map((dep) =>
+          dep === oldId ? newId : dep
+        );
+      } else if (resource.DependsOn === oldId) {
+        resource.DependsOn = newId;
+      }
+    }
+  });
+
+  Object.values(outputs).forEach((output) => {
+    if (!output || typeof output !== "object") {
+      return;
+    }
+    if (output.Value) {
+      updateRefs(output.Value);
+    }
+  });
+}
+
+function normalizeArray(value) {
+  if (!value) {
+    return [];
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+function mergeUniqueArray(target, source) {
+  const existing = new Set(target.map((entry) => JSON.stringify(entry)));
+  for (const entry of source) {
+    const key = JSON.stringify(entry);
+    if (!existing.has(key)) {
+      target.push(entry);
+      existing.add(key);
+    }
+  }
+}
+
+function mergeFunctionProperties(primaryResource, secondaryResource, secondaryId) {
+  if (!primaryResource || !secondaryResource) {
+    return;
+  }
+
+  if (!primaryResource.Properties) {
+    primaryResource.Properties = {};
+  }
+  const primaryProps = primaryResource.Properties;
+  const secondaryProps = secondaryResource.Properties || {};
+
+  if (secondaryProps.Events) {
+    if (!primaryProps.Events) {
+      primaryProps.Events = {};
+    }
+    for (const [eventKey, eventValue] of Object.entries(
+      secondaryProps.Events
+    )) {
+      let mergedKey = eventKey;
+      let suffix = 0;
+      while (primaryProps.Events[mergedKey]) {
+        suffix += 1;
+        mergedKey = `${eventKey}${secondaryId}${suffix}`;
+      }
+      primaryProps.Events[mergedKey] = eventValue;
+    }
+  }
+
+  if (secondaryProps.Environment?.Variables) {
+    if (!primaryProps.Environment) {
+      primaryProps.Environment = { Variables: {} };
+    }
+    if (!primaryProps.Environment.Variables) {
+      primaryProps.Environment.Variables = {};
+    }
+    for (const [key, value] of Object.entries(
+      secondaryProps.Environment.Variables
+    )) {
+      if (primaryProps.Environment.Variables[key] === undefined) {
+        primaryProps.Environment.Variables[key] = value;
+      } else if (primaryProps.Environment.Variables[key] !== value) {
+        console.warn(
+          `[container-images] Environment variable conflict for ${key} while merging ${secondaryId}; keeping primary value`
+        );
+      }
+    }
+  }
+
+  if (secondaryProps.Policies) {
+    if (!primaryProps.Policies) {
+      primaryProps.Policies = [];
+    }
+    const primaryPolicies = normalizeArray(primaryProps.Policies);
+    const secondaryPolicies = normalizeArray(secondaryProps.Policies);
+    primaryProps.Policies = primaryPolicies;
+    mergeUniqueArray(primaryPolicies, secondaryPolicies);
+  }
+
+  if (secondaryProps.Layers) {
+    if (!primaryProps.Layers) {
+      primaryProps.Layers = [];
+    }
+    const primaryLayers = normalizeArray(primaryProps.Layers);
+    const secondaryLayers = normalizeArray(secondaryProps.Layers);
+    primaryProps.Layers = primaryLayers;
+    mergeUniqueArray(primaryLayers, secondaryLayers);
+  }
+
+  if (typeof secondaryProps.Timeout === "number") {
+    if (
+      typeof primaryProps.Timeout !== "number" ||
+      secondaryProps.Timeout > primaryProps.Timeout
+    ) {
+      primaryProps.Timeout = secondaryProps.Timeout;
+    }
+  }
+
+  if (typeof secondaryProps.MemorySize === "number") {
+    if (
+      typeof primaryProps.MemorySize !== "number" ||
+      secondaryProps.MemorySize > primaryProps.MemorySize
+    ) {
+      primaryProps.MemorySize = secondaryProps.MemorySize;
+    }
+  }
 }
 
 /**
@@ -585,8 +780,31 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 
   console.log(
     `[container-images] Found ${imageMap.size} function(s) to convert to container images:`,
-    Array.from(imageMap.entries()).map(([id, img]) => `${id} -> ${img}`).join(", ")
+    Array.from(imageMap.entries())
+      .map(([id, config]) => {
+        const groupLabel = config.group ? ` (group: ${config.group})` : "";
+        return `${id} -> ${config.imageName}${groupLabel}`;
+      })
+      .join(", ")
   );
+
+  const groupedFunctions = new Map();
+  for (const [functionId, config] of imageMap.entries()) {
+    if (!config.group) {
+      continue;
+    }
+    if (!groupedFunctions.has(config.group)) {
+      groupedFunctions.set(config.group, []);
+    }
+    groupedFunctions.get(config.group).push(functionId);
+  }
+
+  const primaryFunctionByGroup = new Map();
+  for (const [groupName, functionIds] of groupedFunctions.entries()) {
+    if (functionIds.length > 0) {
+      primaryFunctionByGroup.set(groupName, functionIds[0]);
+    }
+  }
 
   // Get ECR repository name from environment or use default
   const repositoryName =
@@ -717,23 +935,27 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
         const parts = item.trim().split(/\s+/);
         if (parts.length >= 3) {
           const typeOrMethod = parts[0].toLowerCase();
+          const hasGroup = parts.length >= 4;
           let funcId = null;
           let metadata = null;
           
           if (typeOrMethod === "queue") {
-            const queueName = parts.slice(1, -1).join(" ").trim();
+            const queueName = parts.slice(1, hasGroup ? -2 : -1).join(" ").trim();
             funcId = queueToFunctionId(queueName);
             if (funcId) {
               metadata = { type: "queue", name: queueName };
             }
           } else if (typeOrMethod === "scheduled") {
-            const scheduledName = parts.slice(1, -1).join(" ").trim();
+            const scheduledName = parts
+              .slice(1, hasGroup ? -2 : -1)
+              .join(" ")
+              .trim();
             funcId = scheduledToFunctionId(scheduledName);
             if (funcId) {
               metadata = { type: "scheduled", name: scheduledName };
             }
           } else {
-            const routePath = parts.slice(1, -1).join(" ");
+            const routePath = parts.slice(1, hasGroup ? -2 : -1).join(" ");
             const route = `${parts[0]} ${routePath}`.trim();
             funcId = routeToFunctionId(route);
             if (funcId) {
@@ -752,15 +974,14 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
   // Collect all missing functions to report them all at once
   const missingFunctions = [];
 
-  for (const [functionId, imageName] of imageMap.entries()) {
-    // Validate functionId and imageName
+  for (const [functionId, config] of imageMap.entries()) {
     if (!functionId || typeof functionId !== "string") {
       console.warn("[container-images] Invalid functionId:", functionId);
       continue;
     }
 
-    if (!imageName || typeof imageName !== "string") {
-      console.warn("[container-images] Invalid imageName:", imageName);
+    if (!config?.imageName || typeof config.imageName !== "string") {
+      console.warn("[container-images] Invalid imageName:", config);
       continue;
     }
 
@@ -768,6 +989,59 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 
     if (!functionResource) {
       missingFunctions.push(functionId);
+    }
+  }
+
+  if (missingFunctions.length > 0) {
+    const availableFunctionIds = Object.keys(resources)
+      .filter((id) => {
+        const type = resources[id]?.Type;
+        return type === "AWS::Lambda::Function" || type === "AWS::Serverless::Function";
+      })
+      .sort();
+
+    const errorMessage = `[container-images] Lambda function(s) not found in CloudFormation resources: ${missingFunctions.join(", ")}. Available function IDs: [${availableFunctionIds.join(", ")}]`;
+    
+    throw new Error(errorMessage);
+  }
+
+  const removedFunctionIds = new Set();
+
+  for (const [groupName, functionIds] of groupedFunctions.entries()) {
+    const primaryFunctionId = primaryFunctionByGroup.get(groupName);
+    if (!primaryFunctionId || functionIds.length <= 1) {
+      continue;
+    }
+
+    const primaryResource = resources[primaryFunctionId];
+    if (!primaryResource) {
+      continue;
+    }
+
+    for (const functionId of functionIds) {
+      if (functionId === primaryFunctionId) {
+        continue;
+      }
+      const secondaryResource = resources[functionId];
+      if (!secondaryResource) {
+        continue;
+      }
+      mergeFunctionProperties(primaryResource, secondaryResource, functionId);
+      updateResourceReferences(cloudformation, functionId, primaryFunctionId);
+      delete resources[functionId];
+      removedFunctionIds.add(functionId);
+    }
+  }
+
+  const effectiveImageMap = new Map(imageMap);
+  for (const functionId of removedFunctionIds) {
+    effectiveImageMap.delete(functionId);
+  }
+
+  for (const [functionId, config] of effectiveImageMap.entries()) {
+    const functionResource = resources[functionId];
+
+    if (!functionResource) {
       continue;
     }
     
@@ -789,10 +1063,23 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
       }
     }
 
+    const groupPrimaryId = config.group
+      ? primaryFunctionByGroup.get(config.group)
+      : null;
+    if (config.group && groupPrimaryId === functionId) {
+      handlerPath = `http/${config.group}/index.handler`;
+    }
+
     // Get ECR image URI
     let imageUri;
     try {
-      imageUri = getEcrImageUri(imageName.trim(), region, null, repositoryName, imageTag);
+      imageUri = getEcrImageUri(
+        config.imageName.trim(),
+        region,
+        null,
+        repositoryName,
+        imageTag
+      );
     } catch (error) {
       console.error(`[container-images] Failed to generate image URI for ${functionId}:`, error);
       continue;
@@ -811,20 +1098,6 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
       console.error(`[container-images] Failed to convert function ${functionId}:`, error);
       continue;
     }
-  }
-
-  // Throw error if any functions were not found
-  if (missingFunctions.length > 0) {
-    const availableFunctionIds = Object.keys(resources)
-      .filter((id) => {
-        const type = resources[id]?.Type;
-        return type === "AWS::Lambda::Function" || type === "AWS::Serverless::Function";
-      })
-      .sort();
-
-    const errorMessage = `[container-images] Lambda function(s) not found in CloudFormation resources: ${missingFunctions.join(", ")}. Available function IDs: [${availableFunctionIds.join(", ")}]`;
-    
-    throw new Error(errorMessage);
   }
 
   // Add ECR repository URI to outputs for reference

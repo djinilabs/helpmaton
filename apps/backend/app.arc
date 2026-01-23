@@ -403,27 +403,27 @@ any /api/streams/*
 post /api/scrape
 
 @container-images
-# Format: method route image-name
+# Format: method route image-name [group-name]
 # Example: any /api/streams/* my-custom-image
-any /api/streams/* lancedb
-post /api/webhook/:workspaceId/:agentId/:key lancedb
+any /api/streams/* lancedb llm-shared
+post /api/webhook/:workspaceId/:agentId/:key lancedb llm-shared
 post /api/scrape puppeteer
-any /api/workspaces lancedb
-any /api/workspaces/* lancedb
+any /api/workspaces lancedb llm-shared
+any /api/workspaces/* lancedb llm-shared
 
-scheduled summarize-memory-daily lancedb
-scheduled summarize-memory-weekly lancedb
-scheduled summarize-memory-monthly lancedb
-scheduled summarize-memory-quarterly lancedb
-scheduled summarize-memory-yearly lancedb
-scheduled cleanup-memory-retention lancedb
+scheduled summarize-memory-daily lancedb llm-shared
+scheduled summarize-memory-weekly lancedb llm-shared
+scheduled summarize-memory-monthly lancedb llm-shared
+scheduled summarize-memory-quarterly lancedb llm-shared
+scheduled summarize-memory-yearly lancedb llm-shared
+scheduled cleanup-memory-retention lancedb llm-shared
 
-queue agent-temporal-grain-queue lancedb
-queue agent-delegation-queue lancedb
-queue bot-webhook-queue lancedb
-queue agent-schedule-queue lancedb
-queue agent-eval-queue lancedb
-queue webhook-queue lancedb
+queue agent-temporal-grain-queue lancedb llm-shared
+queue agent-delegation-queue lancedb llm-shared
+queue bot-webhook-queue lancedb llm-shared
+queue agent-schedule-queue lancedb llm-shared
+queue agent-eval-queue lancedb llm-shared
+queue webhook-queue lancedb llm-shared
 
 @plugins
 architect/plugin-typescript

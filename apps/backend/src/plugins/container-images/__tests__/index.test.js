@@ -198,8 +198,8 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe(
-        "lancedb"
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb" }
       );
     });
 
@@ -212,10 +212,12 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(2);
-      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe(
-        "lancedb"
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb" }
       );
-      expect(result.get("GetApiUsageHTTPLambda")).toBe("custom-image");
+      expect(result.get("GetApiUsageHTTPLambda")).toEqual({
+        imageName: "custom-image",
+      });
     });
 
     it("should handle string format pragma", () => {
@@ -226,8 +228,8 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe(
-        "lancedb"
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb" }
       );
     });
 
@@ -251,8 +253,8 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe(
-        "lancedb"
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb" }
       );
     });
 
@@ -268,8 +270,8 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe(
-        "lancedb"
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb" }
       );
     });
 
@@ -292,8 +294,32 @@ describe("container-images plugin", () => {
         ],
       };
       const result = parseContainerImagesPragma(arc);
-      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe(
-        "lancedb"
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb" }
+      );
+    });
+
+    it("should parse group name in array format", () => {
+      const arc = {
+        "container-images": [
+          ["any", "/api/streams/:workspaceId/:agentId/:secret", "lancedb", "llm-shared"],
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb", group: "llm-shared" }
+      );
+    });
+
+    it("should parse group name in string format", () => {
+      const arc = {
+        "container-images": [
+          "any /api/streams/:workspaceId/:agentId/:secret lancedb llm-shared",
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual(
+        { imageName: "lancedb", group: "llm-shared" }
       );
     });
 
@@ -305,7 +331,9 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toEqual({
+        imageName: "lancedb",
+      });
     });
 
     it("should parse scheduled entries in array format", () => {
@@ -316,7 +344,9 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toEqual({
+        imageName: "lancedb",
+      });
     });
 
     it("should parse queue entries in string format", () => {
@@ -327,7 +357,9 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toEqual({
+        imageName: "lancedb",
+      });
     });
 
     it("should parse scheduled entries in string format", () => {
@@ -338,7 +370,9 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(1);
-      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toEqual({
+        imageName: "lancedb",
+      });
     });
 
     it("should parse mixed HTTP, queue, and scheduled entries", () => {
@@ -351,9 +385,15 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(3);
-      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe("lancedb");
-      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
-      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toEqual({
+        imageName: "lancedb",
+      });
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toEqual({
+        imageName: "lancedb",
+      });
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toEqual({
+        imageName: "lancedb",
+      });
     });
 
     it("should handle case-insensitive type detection", () => {
@@ -365,8 +405,12 @@ describe("container-images plugin", () => {
       };
       const result = parseContainerImagesPragma(arc);
       expect(result.size).toBe(2);
-      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
-      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toEqual({
+        imageName: "lancedb",
+      });
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toEqual({
+        imageName: "lancedb",
+      });
     });
   });
 
@@ -882,6 +926,109 @@ describe("container-images plugin", () => {
       expect(scheduledFunction.Properties.ImageConfig.Command).toEqual([
         "scheduled/aggregate-token-usage/index.handler",
       ]);
+
+      delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
+      delete process.env.LAMBDA_IMAGE_TAG;
+      delete process.env.AWS_REGION;
+    });
+
+    it("should merge grouped functions into a single Lambda", async () => {
+      const cloudformation = {
+        Resources: {
+          AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+              Events: {
+                StreamEvent: {
+                  Type: "Api",
+                  Properties: {
+                    Path: "/api/streams/{proxy+}",
+                    Method: "ANY",
+                  },
+                },
+              },
+            },
+          },
+          PostApiWebhookWorkspaceIdAgentIdKeyHTTPLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+              Timeout: 900,
+              Events: {
+                WebhookEvent: {
+                  Type: "Api",
+                  Properties: {
+                    Path: "/api/webhook/{workspaceId}/{agentId}/{key}",
+                    Method: "POST",
+                  },
+                },
+              },
+            },
+          },
+          PostApiWebhookPermission: {
+            Type: "AWS::Lambda::Permission",
+            Properties: {
+              FunctionName: {
+                "Fn::GetAtt": [
+                  "PostApiWebhookWorkspaceIdAgentIdKeyHTTPLambda",
+                  "Arn",
+                ],
+              },
+              Action: "lambda:InvokeFunction",
+              Principal: "apigateway.amazonaws.com",
+            },
+          },
+        },
+        Outputs: {},
+      };
+
+      const arc = {
+        "container-images": [
+          [
+            "any",
+            "/api/streams/:workspaceId/:agentId/:secret",
+            "lancedb",
+            "llm-shared",
+          ],
+          [
+            "post",
+            "/api/webhook/:workspaceId/:agentId/:key",
+            "lancedb",
+            "llm-shared",
+          ],
+        ],
+      };
+
+      process.env.LAMBDA_IMAGES_ECR_REPOSITORY = "test-repo";
+      process.env.LAMBDA_IMAGE_TAG = "test-tag";
+      process.env.AWS_REGION = "eu-west-2";
+
+      const result = await configureContainerImages({
+        cloudformation,
+        arc,
+      });
+
+      const primary =
+        result.Resources.AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda;
+      expect(primary).toBeDefined();
+      expect(primary.Properties.Timeout).toBe(900);
+      expect(primary.Properties.Events.StreamEvent).toBeDefined();
+      expect(primary.Properties.Events.WebhookEvent).toBeDefined();
+      expect(primary.Properties.ImageConfig.Command).toEqual([
+        "http/llm-shared/index.handler",
+      ]);
+
+      expect(
+        result.Resources.PostApiWebhookWorkspaceIdAgentIdKeyHTTPLambda
+      ).toBeUndefined();
+
+      const permission = result.Resources.PostApiWebhookPermission;
+      expect(permission.Properties.FunctionName["Fn::GetAtt"][0]).toBe(
+        "AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda"
+      );
 
       delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
       delete process.env.LAMBDA_IMAGE_TAG;
