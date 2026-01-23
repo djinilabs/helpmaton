@@ -307,4 +307,33 @@ describe("llm-shared handler", () => {
       body: JSON.stringify({ message: "Route not found" }),
     });
   });
+
+  it("writes HTTP responses to response streams", async () => {
+    const event = createAPIGatewayEvent({
+      path: "/api/workspaces/123",
+    });
+    const responseStream = {
+      write: vi.fn((_chunk, callback?: (error?: Error | null) => void) => {
+        if (callback) {
+          callback();
+        }
+        return true;
+      }),
+      end: vi.fn(),
+    };
+
+    const result = await handler(event, responseStream, mockContext);
+
+    expect(mockWorkspacesCatchallHandler).toHaveBeenCalledWith(
+      event,
+      mockContext,
+      undefined,
+    );
+    expect(responseStream.write).toHaveBeenCalledWith(
+      "ok",
+      expect.any(Function),
+    );
+    expect(responseStream.end).toHaveBeenCalled();
+    expect(result).toBeUndefined();
+  });
 });

@@ -23,6 +23,11 @@ import { handler as streamsHandler } from "../any-api-streams-catchall";
 import { handler as workspacesHandler } from "../any-api-workspaces";
 import { handler as workspacesCatchallHandler } from "../any-api-workspaces-catchall";
 import { handler as webhookHandler } from "../post-api-webhook-000workspaceId-000agentId-000key";
+import {
+  createResponseStream,
+  type HttpResponseStream,
+  writeChunkToStream,
+} from "../utils/streamResponseStream";
 
 type AnyHandler = (...args: unknown[]) => unknown;
 
@@ -230,6 +235,36 @@ function buildHttpNotFound() {
   };
 }
 
+function isResponseStream(value: unknown): value is HttpResponseStream {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as HttpResponseStream).write === "function" &&
+    typeof (value as HttpResponseStream).end === "function"
+  );
+}
+
+async function respondWithStream(
+  responseStream: HttpResponseStream,
+  response: {
+    statusCode?: number;
+    headers?: Record<string, string>;
+    body?: string;
+    isBase64Encoded?: boolean;
+  }
+) {
+  const statusCode = response.statusCode ?? 200;
+  const headers = response.headers ?? {};
+  const stream = createResponseStream(responseStream, headers, statusCode);
+  if (typeof response.body === "string") {
+    const payload = response.isBase64Encoded
+      ? Buffer.from(response.body, "base64")
+      : response.body;
+    await writeChunkToStream(stream, payload);
+  }
+  stream.end();
+}
+
 export const handler = async (...args: unknown[]) => {
   const event = args[0];
   const context = resolveContext(args);
@@ -264,7 +299,21 @@ export const handler = async (...args: unknown[]) => {
     if (!httpHandler) {
       return buildHttpNotFound();
     }
-    return await httpHandler(event, context, callback);
+    const responseStream = isResponseStream(args[1]) ? args[1] : undefined;
+    const response = await httpHandler(event, context, callback);
+    if (responseStream && response && typeof response === "object") {
+      await respondWithStream(
+        responseStream,
+        response as {
+          statusCode?: number;
+          headers?: Record<string, string>;
+          body?: string;
+          isBase64Encoded?: boolean;
+        }
+      );
+      return undefined;
+    }
+    return response;
   }
 
   throw new Error("[llm-shared] Unsupported event type");
