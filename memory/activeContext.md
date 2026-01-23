@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Container image build fix**: Updated build/push scripts to parse image names correctly when `@container-images` includes group names, then reran `pnpm typecheck` and `pnpm lint --fix`.
 - **LLM lambda timeouts**: Updated LLM HTTP handler config timeouts to 900s for streams/workspaces/webhook and re-ran `pnpm typecheck` + `pnpm lint --fix`.
 - **LLM lambda unification**: Added `llm-shared` group to lancedb entries in `app.arc`, created `http/llm-shared` dispatcher for HTTP/SQS/scheduled events, and updated the container-images plugin to merge grouped Lambdas and point the primary to the shared handler. Added unit tests for grouped container images and the shared handler. Ran `pnpm typecheck`, `pnpm lint --fix`, and targeted backend tests (`container-images`, `llm-shared`).
 - **Backend Sentry sourcemaps**: Switched Sentry upload step to `sentry-cli sourcemaps upload` (new CLI syntax) after `releases files` failed in deploy-prod. Ran `pnpm typecheck` and `pnpm lint --fix`.

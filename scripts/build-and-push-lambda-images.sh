@@ -106,7 +106,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         
         # Extract image name (last word on the line)
         # Format: method route image-name
-        IMAGE_NAME=$(echo "$line" | awk '{print $NF}')
+        IMAGE_NAME=$(echo "$line" | awk '{if (NF>=4) print $(NF-1); else print $NF}')
         if [ -n "$IMAGE_NAME" ] && [[ ! "$IMAGE_NAME" =~ ^@ ]]; then
             # Check if image name is already in the list
             if [[ ! " ${IMAGE_NAMES[@]} " =~ " ${IMAGE_NAME} " ]]; then
@@ -193,7 +193,8 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
     # Then check their config.arc files for architecture specification
     while IFS= read -r line || [ -n "$line" ]; do
         # Check if this line uses the current image
-        if echo "$line" | grep -q "${IMAGE_NAME}$"; then
+        LINE_IMAGE_NAME=$(echo "$line" | awk '{if (NF>=4) print $(NF-1); else print $NF}')
+        if [ "$LINE_IMAGE_NAME" = "$IMAGE_NAME" ]; then
             # Extract method and route/function identifier from the line
             # Format: method route image-name or scheduled name image-name or queue name image-name
             METHOD=$(echo "$line" | awk '{print $1}')

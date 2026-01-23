@@ -128,7 +128,7 @@ while IFS= read -r line || [ -n "$line" ]; do
         fi
         
         # Extract image name (last word on the line)
-        LINE_IMAGE_NAME=$(echo "$line" | awk '{print $NF}')
+        LINE_IMAGE_NAME=$(echo "$line" | awk '{if (NF>=4) print $(NF-1); else print $NF}')
         
         # Check if this line uses the current image
         if [ "$LINE_IMAGE_NAME" = "$IMAGE_NAME" ]; then
@@ -195,7 +195,7 @@ if [ $TOTAL_HANDLERS -eq 0 ]; then
                 if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
                     continue
                 fi
-                LINE_IMAGE_NAME=$(echo "$line" | awk '{print $NF}')
+                LINE_IMAGE_NAME=$(echo "$line" | awk '{if (NF>=4) print $(NF-1); else print $NF}')
                 # Exclude the base image itself
                 if [ "$LINE_IMAGE_NAME" = "base" ]; then
                     continue
