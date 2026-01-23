@@ -27,12 +27,6 @@ on:
 
 jobs:
   test-e2e:
-    # For PRs: run if called directly from deploy workflow or if manually triggered
-    # For main: run on push
-    if: |
-      (github.event_name == 'workflow_call') ||
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
