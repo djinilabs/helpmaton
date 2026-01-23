@@ -59,7 +59,7 @@
     "cleanup-ecr:dry-run": "node scripts/cleanup-ecr-images.mjs --dry-run",
     "cleanup-ecr:execute": "node scripts/cleanup-ecr-images.mjs --execute"
   },
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@10.28.1",
   "pnpm": {
     "patchedDependencies": {
       "@architect/functions": "patches/@architect__functions.patch",
