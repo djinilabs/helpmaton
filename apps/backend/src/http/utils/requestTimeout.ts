@@ -1,10 +1,10 @@
 /**
  * Request timeout utility for agent calls
- * Creates an AbortController with a 10-minute timeout to ensure requests
- * complete before Lambda timeout (11 minutes)
+ * Creates an AbortController with a 14-minute timeout to ensure requests
+ * complete before Lambda timeout (15 minutes)
  */
 
-const REQUEST_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const REQUEST_TIMEOUT_MS = 14 * 60 * 1000; // 14 minutes
 
 export interface RequestTimeoutController {
   controller: AbortController;
@@ -13,7 +13,7 @@ export interface RequestTimeoutController {
 }
 
 /**
- * Creates an AbortController with a 10-minute timeout
+ * Creates an AbortController with a 14-minute timeout
  * @returns Object containing the controller, signal, and timeout ID
  */
 export function createRequestTimeout(): RequestTimeoutController {
@@ -87,7 +87,7 @@ export function isTimeoutError(error: unknown): boolean {
  */
 export function createTimeoutError(): Error & { statusCode: number } {
   const error = new Error(
-    "Request timeout: The agent call exceeded the 10-minute timeout limit"
+    "Request timeout: The agent call exceeded the 14-minute timeout limit"
   ) as Error & { statusCode: number };
   error.statusCode = 504; // Gateway Timeout
   error.name = "RequestTimeoutError";

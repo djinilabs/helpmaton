@@ -368,23 +368,23 @@ openrouter-cost-verification-queue
   visibilityTimeout 1320
   messageRetentionPeriod 1209600
 agent-delegation-queue
-  timeout 660
-  visibilityTimeout 1320
+  timeout 900
+  visibilityTimeout 1800
 bot-webhook-queue
-  timeout 660
-  visibilityTimeout 1320
+  timeout 900
+  visibilityTimeout 1800
   messageRetentionPeriod 1209600
 webhook-queue
-  timeout 660
-  visibilityTimeout 1320
+  timeout 900
+  visibilityTimeout 1800
   messageRetentionPeriod 1209600
 agent-eval-queue
-  timeout 660
-  visibilityTimeout 1320
+  timeout 900
+  visibilityTimeout 1800
   messageRetentionPeriod 1209600
 agent-schedule-queue
-  timeout 660
-  visibilityTimeout 1320
+  timeout 900
+  visibilityTimeout 1800
   messageRetentionPeriod 1209600
 
 @api-throttling
@@ -439,7 +439,7 @@ enable-scheduled-rules
 @aws
 runtime typescript
 region eu-west-2
-timeout 660
+timeout 900
 
 @typescript
 build dist

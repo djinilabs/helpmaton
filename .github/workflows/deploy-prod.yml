@@ -188,6 +188,7 @@ jobs:
           HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
@@ -251,6 +252,26 @@ jobs:
           export AWS_CERTIFICATE_ARN="${AWS_CERTIFICATE_ARN}"
           pnpm build:backend
 
+      - name: Upload backend sourcemaps to Sentry
+        if: steps.check-pr.outputs.is_pr != 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_DIST: "backend"
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN}" ] || [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ]; then
+            echo "⚠️  Missing Sentry credentials, skipping backend sourcemap upload."
+            exit 0
+          fi
+
+          pnpm exec sentry-cli releases files "${SENTRY_RELEASE}" upload-sourcemaps "apps/backend/dist" \
+            --dist "${SENTRY_DIST}" \
+            --url-prefix "app:///" \
+            --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/dist" \
+            --rewrite
+
       - name: Set up Docker Buildx
         if: steps.check-pr.outputs.is_pr != 'true'
         uses: docker/setup-buildx-action@v3
@@ -295,6 +316,7 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_DIST: "backend"
           VITE_SENTRY_RELEASE: ${{ github.sha }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
@@ -393,6 +415,7 @@ jobs:
           [ -n "${HELPMATON_S3_ENDPOINT}" ] && ENV_VARS+=(HELPMATON_S3_ENDPOINT "${HELPMATON_S3_ENDPOINT}")
           [ -n "${SENTRY_DSN}" ] && ENV_VARS+=(SENTRY_DSN "${SENTRY_DSN}")
           [ -n "${SENTRY_RELEASE}" ] && ENV_VARS+=(SENTRY_RELEASE "${SENTRY_RELEASE}")
+          [ -n "${SENTRY_DIST}" ] && ENV_VARS+=(SENTRY_DIST "${SENTRY_DIST}")
           [ -n "${DISCORD_PUBLIC_KEY}" ] && ENV_VARS+=(DISCORD_PUBLIC_KEY "${DISCORD_PUBLIC_KEY}")
           [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
           [ -n "${GMAIL_CLIENT_ID}" ] && ENV_VARS+=(GMAIL_CLIENT_ID "${GMAIL_CLIENT_ID}")

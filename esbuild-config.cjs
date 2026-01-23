@@ -132,12 +132,14 @@ try {
   defineObject = {};
 }
 
+const enableSourceMaps = process.env.SENTRY_ENABLE_BACKEND_SOURCEMAPS === 'true';
+
 const config = {
   loader: {
     '.graphqls': 'text',
   },
-  sourcemap: false,
-  sourcesContent: false,
+  sourcemap: enableSourceMaps,
+  sourcesContent: enableSourceMaps,
   define: defineObject,
   external: [
     // AWS SDK v3 - available in Lambda runtime
