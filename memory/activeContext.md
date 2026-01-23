@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Backend Sentry sourcemaps**: Enabled backend sourcemap generation for production, wired `SENTRY_DIST` into Sentry init, and added production workflow upload via `sentry-cli` while keeping PR deploys from uploading maps. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 209 review fixes**: Simplified Express router access in scrape billing test, updated LLM error cleanup docstring, annotated billing policy change note, tightened refundReservation signature/docs, and aligned tool failure cleanup to skip `deduction-disabled` reservations for Exa/Tavily. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Webhook test cleanup**: Restored `/api/webhook` handler tests to only validate enqueue + error responses, and moved webhook processing assertions (tool calls, steps extraction, token usage/costs, observer fallback) into `webhookTask` tests. Ran `pnpm --filter backend test --run post-api-webhook-000workspaceId-000agentId-000key`, `pnpm --filter backend test --run webhookTask`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Merge conflict resolution**: Resolved `callAgentNonStreaming` conflict to keep error metadata annotations and conversationId threading in the execution path, and removed conflict markers from webhook handler tests.

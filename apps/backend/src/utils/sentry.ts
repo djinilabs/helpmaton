@@ -40,11 +40,13 @@ export function initSentry(): void {
     process.env.SENTRY_RELEASE || process.env.GITHUB_SHA || undefined;
 
   const tracesSampleRate = getTracesSampleRate(environment);
+  const dist = process.env.SENTRY_DIST || undefined;
 
   Sentry.init({
     dsn,
     environment,
     release, // Add release configuration
+    dist,
     // Enable source maps for better error reporting
     integrations: [
       Sentry.awsLambdaIntegration(),
