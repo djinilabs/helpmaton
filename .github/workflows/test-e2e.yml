@@ -117,25 +117,28 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm test:e2e:install
 
-      - name: Get PR number from workflow call
-        if: github.event_name == 'workflow_call'
+      - name: Get PR number
         id: pr-number
         run: |
-          PR_NUMBER="${{ inputs.pr_number }}"
-          echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
-          echo "PR number from workflow_call: ${PR_NUMBER}"
-
-      - name: Get PR number from workflow dispatch
-        if: github.event_name == 'workflow_dispatch'
-        id: pr-number
-        run: |
-          PR_NUMBER="${{ github.event.inputs.pr_number }}"
+          if [ "${{ github.event_name }}" == "workflow_call" ]; then
+            PR_NUMBER="${{ inputs.pr_number }}"
+            echo "PR number from workflow_call: ${PR_NUMBER}"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            PR_NUMBER="${{ github.event.inputs.pr_number }}"
+            if [ -n "${PR_NUMBER}" ]; then
+              echo "PR number from workflow_dispatch: ${PR_NUMBER}"
+            else
+              echo "No PR number provided in workflow_dispatch"
+            fi
+          else
+            PR_NUMBER=""
+            echo "No PR number available for event type: ${{ github.event_name }}"
+          fi
+          
           if [ -n "${PR_NUMBER}" ]; then
             echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
-            echo "PR number from workflow_dispatch: ${PR_NUMBER}"
           else
             echo "pr_number=" >> $GITHUB_OUTPUT
-            echo "No PR number provided in workflow_dispatch"
           fi
 
       - name: Determine test environment
