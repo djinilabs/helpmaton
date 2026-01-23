@@ -38,12 +38,15 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
     }
   }, [error, toast]);
 
+  const buildTestUrl = (rawUrl: string) => {
+    const normalized = rawUrl.replace(/\/+$/, "");
+    const baseUrl = normalized.replace(/\/api\/(streams|workspaces)\/.*$/, "");
+    return `${baseUrl}/api/streams/${workspaceId}/${agentId}/test`;
+  };
+
   // Construct the full Function URL if available
   const functionUrl = testAgentUrlData?.url
-    ? `${testAgentUrlData.url.replace(
-        /\/+$/,
-        ""
-      )}/api/streams/${workspaceId}/${agentId}/test`
+    ? buildTestUrl(testAgentUrlData.url)
     : undefined;
 
   // Show loading while fetching the Function URL
