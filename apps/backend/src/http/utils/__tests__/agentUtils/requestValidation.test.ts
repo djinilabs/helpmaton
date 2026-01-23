@@ -219,10 +219,10 @@ describe("validateRequest", () => {
       requestContext: {
         http: {
           method: "POST",
-          path: "/api/workspaces/workspace-123/agents/agent-456/test",
+          path: "/api/streams/workspace-123/agent-456/test",
         },
       },
-      rawPath: "/api/workspaces/workspace-123/agents/agent-456/test",
+      rawPath: "/api/streams/workspace-123/agent-456/test",
       pathParameters: undefined,
       body: JSON.stringify({ messages: [{ role: "user", content: "Hello" }] }),
       isBase64Encoded: false,
@@ -241,7 +241,7 @@ describe("validateRequest", () => {
       requestContext: {
         http: {
           method: "POST",
-          path: "/api/workspaces/workspace-789/agents/agent-012/test",
+          path: "/api/streams/workspace-789/agent-012/test",
         },
       },
       rawPath: undefined,
@@ -263,10 +263,10 @@ describe("validateRequest", () => {
       requestContext: {
         http: {
           method: "POST",
-          path: "/api/workspaces/wrong-workspace/agents/wrong-agent/test",
+          path: "/api/streams/wrong-workspace/wrong-agent/test",
         },
       },
-      rawPath: "/api/workspaces/wrong-workspace/agents/wrong-agent/test",
+      rawPath: "/api/streams/wrong-workspace/wrong-agent/test",
       pathParameters: {
         workspaceId: "correct-workspace",
         agentId: "correct-agent",

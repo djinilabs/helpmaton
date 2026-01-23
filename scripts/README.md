@@ -90,7 +90,7 @@ Builds and pushes Lambda container images to ECR for deployment.
 - Sets workspace credits directly in DynamoDB to ensure enough budget for tests.
 
 **What it tests**
-- **Test endpoint** (`/api/workspaces/:workspaceId/agents/:agentId/test`)
+- **Test endpoint** (`/api/streams/:workspaceId/:agentId/test`)
   - Sends a prompt that requires `get_datetime`.
   - Validates the conversation record contains the reply marker, weekday, and tool usage.
 - **Streaming endpoint** (`/api/streams/:workspaceId/:agentId/:secret`)

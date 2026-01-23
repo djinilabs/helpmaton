@@ -44,7 +44,7 @@ Each agent has one or more webhooks that can be used to send messages:
 
 You can test your agents using:
 
-- The test endpoint: `/api/workspaces/{workspaceId}/agents/{agentId}/test`
+- The test endpoint: `/api/streams/{workspaceId}/{agentId}/test`
 - Webhook endpoints: `/api/webhook/{workspaceId}/{agentId}/{key}`
 
 ## Stream Servers

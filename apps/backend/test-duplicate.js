@@ -8,7 +8,7 @@ const { createResourceHierarchy } = require('./src/plugins/http-to-rest/resource
 // Simulate routes that might cause duplicate {workspaceId} resources
 // This tests the scenario where multiple routes need {workspaceId} under the same parent
 const routes = [
-  { Properties: { RouteKey: 'POST /api/workspaces/:workspaceId/agents/:agentId/test' } },
+  { Properties: { RouteKey: 'POST /api/streams/:workspaceId/:agentId/test' } },
   { Properties: { RouteKey: 'GET /api/workspaces/:workspaceId' } }, // Another route with {workspaceId}
   { Properties: { RouteKey: 'ANY /api/workspaces/*' } },
 ];

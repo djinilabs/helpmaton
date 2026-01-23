@@ -26,10 +26,10 @@ function extractPathParametersFromRawPath(rawPath: string): {
   // Remove query parameters if present
   const pathWithoutQuery = rawPath.split("?")[0];
 
-  // Pattern: /api/workspaces/:workspaceId/agents/:agentId/test
+  // Pattern: /api/streams/:workspaceId/:agentId/test
   // Also handle optional trailing slash
   const match = pathWithoutQuery.match(
-    /^\/api\/workspaces\/([^/]+)\/agents\/([^/]+)\/test\/?$/
+    /^\/api\/streams\/([^/]+)\/([^/]+)\/test\/?$/
   );
   if (match) {
     return {

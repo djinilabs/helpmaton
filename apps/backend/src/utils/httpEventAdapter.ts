@@ -337,7 +337,18 @@ export interface LambdaUrlEvent {
 function extractPathParametersFromPath(
   rawPath: string
 ): Record<string, string> | undefined {
-  // Pattern 1: /api/streams/:workspaceId/:agentId/:secret
+  // Pattern 1: /api/streams/:workspaceId/:agentId/test
+  const testAgentMatch = rawPath.match(
+    /^\/api\/streams\/([^/]+)\/([^/]+)\/test$/
+  );
+  if (testAgentMatch) {
+    return {
+      workspaceId: testAgentMatch[1],
+      agentId: testAgentMatch[2],
+    };
+  }
+
+  // Pattern 2: /api/streams/:workspaceId/:agentId/:secret
   // Note: secret can contain slashes, so we match everything after agentId
   const streamsMatch = rawPath.match(
     /^\/api\/streams\/([^/]+)\/([^/]+)\/(.+)$/
@@ -347,17 +358,6 @@ function extractPathParametersFromPath(
       workspaceId: streamsMatch[1],
       agentId: streamsMatch[2],
       secret: streamsMatch[3],
-    };
-  }
-
-  // Pattern 2: /api/workspaces/:workspaceId/agents/:agentId/test
-  const testAgentMatch = rawPath.match(
-    /^\/api\/workspaces\/([^/]+)\/agents\/([^/]+)\/test$/
-  );
-  if (testAgentMatch) {
-    return {
-      workspaceId: testAgentMatch[1],
-      agentId: testAgentMatch[2],
     };
   }
 

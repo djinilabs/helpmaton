@@ -1,3 +1,3 @@
 @aws
-timeout 660
+timeout 900
 

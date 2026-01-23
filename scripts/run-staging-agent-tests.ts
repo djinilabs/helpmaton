@@ -1190,10 +1190,10 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       );
     }
 
-    logStep("Testing /api/workspaces/:workspaceId/agents/:agentId/test");
+    logStep("Testing /api/streams/:workspaceId/:agentId/test");
     const testConversationId = crypto.randomUUID();
     await fetchText(
-      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${helloAgentId}/test`,
+      `${streamBaseUrl}/api/streams/${workspaceId}/${helloAgentId}/test`,
       {
         method: "POST",
         headers: {
@@ -1333,7 +1333,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
     logStep("Testing async delegation via SQS");
     const delegatorConversationId = crypto.randomUUID();
     await fetchText(
-      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}/test`,
+      `${streamBaseUrl}/api/streams/${workspaceId}/${delegatorAgentId}/test`,
       {
         method: "POST",
         headers: {

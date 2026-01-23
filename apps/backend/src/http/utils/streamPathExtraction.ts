@@ -62,15 +62,6 @@ export function extractStreamPathParameters(
     if (streamTestMatch) {
       workspaceId = streamTestMatch[1];
       agentId = streamTestMatch[2];
-    } else {
-      // Pattern: /api/workspaces/{workspaceId}/agents/{agentId}/test
-      const workspaceTestMatch = normalizedPath.match(
-        /^\/api\/workspaces\/([^/]+)\/agents\/([^/]+)\/test$/
-      );
-      if (workspaceTestMatch) {
-        workspaceId = workspaceTestMatch[1];
-        agentId = workspaceTestMatch[2];
-      }
     }
   } else {
     // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}

@@ -456,7 +456,7 @@ Sends a message to an agent and receives a streaming response.
 ### Test Agent
 
 ```
-POST /api/workspaces/:workspaceId/agents/:agentId/test
+POST /api/streams/:workspaceId/:agentId/test
 ```
 
 Tests an agent with a message and receives a streaming response.

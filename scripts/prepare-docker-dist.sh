@@ -127,8 +127,9 @@ while IFS= read -r line || [ -n "$line" ]; do
             continue
         fi
         
-        # Extract image name (last word on the line)
-        LINE_IMAGE_NAME=$(echo "$line" | awk '{print $NF}')
+        # Extract image name (second-to-last if group is present)
+        LINE_IMAGE_NAME=$(echo "$line" | awk '{if (NF>=4) print $(NF-1); else print $NF}')
+        GROUP_NAME=$(echo "$line" | awk '{if (NF>=4) print $NF; else print ""}')
         
         # Check if this line uses the current image
         if [ "$LINE_IMAGE_NAME" = "$IMAGE_NAME" ]; then
@@ -151,16 +152,25 @@ while IFS= read -r line || [ -n "$line" ]; do
                 
                 HANDLER_PATH="http/${ROUTE_DIR}"
                 HTTP_HANDLERS+=("${HANDLER_PATH}")
+                if [ -n "$GROUP_NAME" ]; then
+                    HTTP_HANDLERS+=("http/${GROUP_NAME}")
+                fi
                 
             elif [[ "$METHOD" == "scheduled" ]]; then
                 # Scheduled function
                 HANDLER_PATH="scheduled/${ROUTE_OR_NAME}"
                 SCHEDULED_HANDLERS+=("${HANDLER_PATH}")
+                if [ -n "$GROUP_NAME" ]; then
+                    HTTP_HANDLERS+=("http/${GROUP_NAME}")
+                fi
                 
             elif [[ "$METHOD" == "queue" ]]; then
                 # Queue function
                 HANDLER_PATH="queues/${ROUTE_OR_NAME}"
                 QUEUE_HANDLERS+=("${HANDLER_PATH}")
+                if [ -n "$GROUP_NAME" ]; then
+                    HTTP_HANDLERS+=("http/${GROUP_NAME}")
+                fi
             fi
         fi
     fi
@@ -195,7 +205,7 @@ if [ $TOTAL_HANDLERS -eq 0 ]; then
                 if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
                     continue
                 fi
-                LINE_IMAGE_NAME=$(echo "$line" | awk '{print $NF}')
+                LINE_IMAGE_NAME=$(echo "$line" | awk '{if (NF>=4) print $(NF-1); else print $NF}')
                 # Exclude the base image itself
                 if [ "$LINE_IMAGE_NAME" = "base" ]; then
                     continue

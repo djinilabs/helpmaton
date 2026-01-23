@@ -22,10 +22,6 @@ export function detectEndpointType(path: string): EndpointType {
   if (path.match(/^\/api\/streams\/[^/]+\/[^/]+\/test$/)) {
     return "test";
   }
-  // Pattern: /api/workspaces/{workspaceId}/agents/{agentId}/test
-  if (path.match(/^\/api\/workspaces\/[^/]+\/agents\/[^/]+\/test$/)) {
-    return "test";
-  }
   // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}
   return "stream";
 }
