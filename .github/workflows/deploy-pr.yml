@@ -420,3 +420,16 @@ jobs:
     with:
       pr_number: ${{ needs.deploy.outputs.pr_number || github.event.pull_request.number || github.event.inputs.pr_number }}
     secrets: inherit
+
+  e2e-tests:
+    name: E2E Tests
+    needs: deploy
+    uses: ./.github/workflows/test-e2e.yml
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      checks: write
+    with:
+      pr_number: ${{ needs.deploy.outputs.pr_number || github.event.pull_request.number || github.event.inputs.pr_number }}
+    secrets: inherit
