@@ -3170,3 +3170,5 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - PR deployments create CloudFormation stacks for testing
 - Container images are built for `arm64` architecture (Graviton2) for better price/performance
 - Environment variables are injected at build time, not runtime, for container image functions
+- Added 402 credit error responses in workspace async handler with tests
+- Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run middleware`
