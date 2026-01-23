@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **MCP OAuth E2E suite**: Added Playwright-based MCP OAuth integration tests with manual OAuth pause support, service config prompts (Shopify/Zendesk), tool call validation via agent chat, and documentation under `tests/e2e/mcp-oauth/`.
 - **E2E CI pnpm alignment**: Updated `test-e2e.yml` to match working workflow pattern (`test.yml`, `deploy-pr.yml`): using `pnpm/action-setup@v4` with explicit `version: 10.28.1` (matching `package.json` `packageManager`), removed `cache: pnpm` from setup-node to match `test.yml` exactly. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Backend Sentry sourcemaps**: Switched Sentry upload step to `sentry-cli sourcemaps upload` (new CLI syntax) after `releases files` failed in deploy-prod. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Backend Sentry sourcemaps**: Enabled backend sourcemap generation for production, wired `SENTRY_DIST` into Sentry init, and added production workflow upload via `sentry-cli` while keeping PR deploys from uploading maps. Ran `pnpm typecheck` and `pnpm lint --fix`.
