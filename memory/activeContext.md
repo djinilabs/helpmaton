@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Split streaming lambdas**: Added `llm-shared-stream` + `llm-shared-http` entrypoints, moved test endpoint to `/api/streams/{workspaceId}/{agentId}/test`, updated stream path detection/extraction, removed old workspaces test route, and updated docs/scripts/tests/openapi references. Ran `pnpm typecheck`, `pnpm lint --fix`, and focused backend tests (`llm-shared`, `llm-shared-stream`, `streamEndpointDetection`, `streamPathExtraction`, `requestValidation`, `httpEventAdapter`, `resources`).
 - **PR 210 webhook queue fix**: Normalized SQS queue names (strip `.fifo`, match physical names) so grouped queue events map to handlers; added test for physical FIFO queue names and reran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`.
 - **PR 210 streamify fix**: Routed stream requests through `streamifyResponse` when a response stream is available, keeping buffered handling for API Gateway calls. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 210 streaming fix**: Avoided wrapping mock streams with `awslambda.HttpResponseStream.from` to prevent `setContentType` errors when streaming is invoked without a real response stream. Ran `pnpm typecheck` and `pnpm lint --fix`.

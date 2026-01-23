@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// eslint-disable-next-line import/order
+import { handler } from "../../llm-shared-http";
 import {
   createAPIGatewayEvent,
   createMockContext,
 } from "../../utils/__tests__/test-helpers";
 
 const {
-  mockStreamsInternalHandler,
   mockWebhookHandler,
   mockWorkspacesHandler,
   mockWorkspacesCatchallHandler,
@@ -24,7 +23,6 @@ const {
   mockSummarizeYearlyHandler,
   mockCleanupMemoryRetentionHandler,
 } = vi.hoisted(() => ({
-  mockStreamsInternalHandler: vi.fn(),
   mockWebhookHandler: vi.fn(),
   mockWorkspacesHandler: vi.fn(),
   mockWorkspacesCatchallHandler: vi.fn(),
@@ -40,10 +38,6 @@ const {
   mockSummarizeQuarterlyHandler: vi.fn(),
   mockSummarizeYearlyHandler: vi.fn(),
   mockCleanupMemoryRetentionHandler: vi.fn(),
-}));
-
-vi.mock("../../any-api-streams-catchall/internalHandler", () => ({
-  internalHandler: mockStreamsInternalHandler,
 }));
 
 vi.mock("../../post-api-webhook-000workspaceId-000agentId-000key", () => ({
@@ -106,19 +100,11 @@ vi.mock("../../../scheduled/cleanup-memory-retention", () => ({
   handler: mockCleanupMemoryRetentionHandler,
 }));
 
-import { handler } from "../index";
-
 describe("llm-shared handler", () => {
   const mockContext = createMockContext();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockStreamsInternalHandler.mockImplementation(
-      async (_event, responseStream) => {
-        responseStream.write("ok");
-        responseStream.end();
-      },
-    );
     mockWebhookHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
     mockWorkspacesHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
     mockWorkspacesCatchallHandler.mockResolvedValue({
@@ -192,7 +178,7 @@ describe("llm-shared handler", () => {
     };
 
     await expect(handler(event, mockContext)).rejects.toThrow(
-      "[llm-shared] Unknown SQS queue for event",
+      "[llm-shared-http] Unknown SQS queue for event",
     );
   });
 
@@ -232,7 +218,7 @@ describe("llm-shared handler", () => {
     };
 
     await expect(handler(event, mockContext)).rejects.toThrow(
-      "[llm-shared] Unknown scheduled event",
+      "[llm-shared-http] Unknown scheduled event",
     );
   });
 
@@ -278,21 +264,6 @@ describe("llm-shared handler", () => {
     );
   });
 
-  it("buffers stream responses for API Gateway", async () => {
-    const event = createAPIGatewayEvent({
-      path: "/api/streams/test",
-    });
-
-    const result = await handler(event, mockContext);
-
-    expect(mockStreamsInternalHandler).toHaveBeenCalled();
-    expect(result).toEqual({
-      statusCode: 200,
-      headers: {},
-      body: "ok",
-    });
-  });
-
   it("returns 404 for unknown HTTP routes", async () => {
     const event = createAPIGatewayEvent({
       path: "/api/unknown",
@@ -307,34 +278,5 @@ describe("llm-shared handler", () => {
       },
       body: JSON.stringify({ message: "Route not found" }),
     });
-  });
-
-  it("writes HTTP responses to response streams", async () => {
-    const event = createAPIGatewayEvent({
-      path: "/api/workspaces/123",
-    });
-    const responseStream = {
-      write: vi.fn((_chunk, callback?: (error?: Error | null) => void) => {
-        if (callback) {
-          callback();
-        }
-        return true;
-      }),
-      end: vi.fn(),
-    };
-
-    const result = await handler(event, responseStream, mockContext);
-
-    expect(mockWorkspacesCatchallHandler).toHaveBeenCalledWith(
-      event,
-      mockContext,
-      undefined,
-    );
-    expect(responseStream.write).toHaveBeenCalledWith(
-      "ok",
-      expect.any(Function),
-    );
-    expect(responseStream.end).toHaveBeenCalled();
-    expect(result).toBeUndefined();
   });
 });

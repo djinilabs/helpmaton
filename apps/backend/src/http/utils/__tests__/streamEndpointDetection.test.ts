@@ -22,14 +22,6 @@ describe("streamEndpointDetection", () => {
       );
     });
 
-    it("should detect 'test' endpoint for workspace test path", () => {
-      expect(
-        detectEndpointType(
-          "/api/workspaces/workspace123/agents/agent456/test"
-        )
-      ).toBe("test");
-    });
-
     it("should detect 'stream' endpoint", () => {
       expect(
         detectEndpointType("/api/streams/workspace123/agent456/secret789")

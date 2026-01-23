@@ -78,7 +78,6 @@ import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
 import { registerPostMcpServer } from "./routes/post-mcp-server";
 import { registerPostMcpServerOauthDisconnect } from "./routes/post-mcp-server-oauth-disconnect";
 import { registerPostStreamServers } from "./routes/post-stream-servers";
-import { registerPostTestAgent } from "./routes/post-test-agent";
 import { registerPostTestChannel } from "./routes/post-test-channel";
 import { registerPostTestEmailConnection } from "./routes/post-test-email-connection";
 import { registerPostTrialCreditRequest } from "./routes/post-trial-credit-request";
@@ -211,7 +210,6 @@ export const createApp: () => express.Application = () => {
   registerGetWorkspaceChannel(app);
   registerPutWorkspaceChannel(app);
   registerDeleteWorkspaceChannel(app);
-  registerPostTestAgent(app);
   registerPostTestChannel(app);
   registerGetWorkspaceIntegrations(app);
   registerPostWorkspaceIntegrations(app);

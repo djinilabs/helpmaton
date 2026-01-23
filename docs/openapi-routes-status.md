@@ -131,7 +131,7 @@
 
 - **POST /api/workspaces/{workspaceId}/trial-credit-request** - Request trial credit
 - **GET /api/workspaces/{workspaceId}/trial-status** - Get trial status
-- **POST /api/workspaces/{workspaceId}/agents/{agentId}/test** - Test agent
+- **POST /api/streams/{workspaceId}/{agentId}/test** - Test agent
 
 ### Other Routes
 

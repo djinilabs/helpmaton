@@ -140,7 +140,7 @@ export const AgentChat: FC<AgentChatProps> = ({
     }
 
     // Fallback to API Gateway URL
-    const gatewayUrl = `/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+    const gatewayUrl = `/api/streams/${workspaceId}/${agentId}/test`;
     console.log("[AgentChat] Using API Gateway URL:", gatewayUrl);
     return gatewayUrl;
   }, [api, workspaceId, agentId]);

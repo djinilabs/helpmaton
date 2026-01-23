@@ -38,7 +38,7 @@ describe('Resource Hierarchy', () => {
       const routes = [
         {
           Properties: {
-            RouteKey: 'POST /api/workspaces/:workspaceId/agents/:agentId/test',
+            RouteKey: 'POST /api/streams/:workspaceId/:agentId/test',
           },
         },
       ];
@@ -47,14 +47,13 @@ describe('Resource Hierarchy', () => {
 
       // Check all path segments exist
       expect(pathToResourceId['/api']).toBeDefined();
-      expect(pathToResourceId['/api/workspaces']).toBeDefined();
-      expect(pathToResourceId['/api/workspaces/{workspaceId}']).toBeDefined();
-      expect(pathToResourceId['/api/workspaces/{workspaceId}/agents']).toBeDefined();
-      expect(pathToResourceId['/api/workspaces/{workspaceId}/agents/{agentId}']).toBeDefined();
-      expect(pathToResourceId['/api/workspaces/{workspaceId}/agents/{agentId}/test']).toBeDefined();
+      expect(pathToResourceId['/api/streams']).toBeDefined();
+      expect(pathToResourceId['/api/streams/{workspaceId}']).toBeDefined();
+      expect(pathToResourceId['/api/streams/{workspaceId}/{agentId}']).toBeDefined();
+      expect(pathToResourceId['/api/streams/{workspaceId}/{agentId}/test']).toBeDefined();
 
       // Check path parameters are preserved
-      const workspaceResource = resources[pathToResourceId['/api/workspaces/{workspaceId}']];
+      const workspaceResource = resources[pathToResourceId['/api/streams/{workspaceId}']];
       expect(workspaceResource.Properties.PathPart).toBe('{workspaceId}');
     });
 

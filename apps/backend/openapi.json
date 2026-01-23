@@ -5161,7 +5161,7 @@
         }
       }
     },
-    "/api/workspaces/{workspaceId}/agents/{agentId}/test": {
+    "/api/streams/{workspaceId}/{agentId}/test": {
       "post": {
         "summary": "Test agent with streaming response",
         "description": "Tests an agent by sending messages and receiving a streaming AI response. Handles credit validation, spending limits, and conversation logging.",

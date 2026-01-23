@@ -43,7 +43,7 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
     ? `${testAgentUrlData.url.replace(
         /\/+$/,
         ""
-      )}/api/workspaces/${workspaceId}/agents/${agentId}/test`
+      )}/api/streams/${workspaceId}/${agentId}/test`
     : undefined;
 
   // Show loading while fetching the Function URL
