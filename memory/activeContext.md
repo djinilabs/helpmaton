@@ -6,9 +6,11 @@
 
 **Latest Work**:
 
+- **PR 210 review fixes**: Hardened `llm-shared` to validate queue/schedule mappings, routed streams via internal handler with buffered response for API Gateway, expanded llm-shared tests, and enforced HTTP-only group primaries in the container-images plugin with documented merge limitations. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for `container-images` and `llm-shared`.
 - **Container image build fix**: Updated build/push scripts to parse image names correctly when `@container-images` includes group names, then reran `pnpm typecheck` and `pnpm lint --fix`.
 - **LLM lambda timeouts**: Updated LLM HTTP handler config timeouts to 900s for streams/workspaces/webhook and re-ran `pnpm typecheck` + `pnpm lint --fix`.
 - **LLM lambda unification**: Added `llm-shared` group to lancedb entries in `app.arc`, created `http/llm-shared` dispatcher for HTTP/SQS/scheduled events, and updated the container-images plugin to merge grouped Lambdas and point the primary to the shared handler. Added unit tests for grouped container images and the shared handler. Ran `pnpm typecheck`, `pnpm lint --fix`, and targeted backend tests (`container-images`, `llm-shared`).
+- **E2E CI pnpm alignment**: Updated `test-e2e.yml` to match working workflow pattern (`test.yml`, `deploy-pr.yml`): using `pnpm/action-setup@v4` with explicit `version: 10.28.1` (matching `package.json` `packageManager`), removed `cache: pnpm` from setup-node to match `test.yml` exactly. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Backend Sentry sourcemaps**: Switched Sentry upload step to `sentry-cli sourcemaps upload` (new CLI syntax) after `releases files` failed in deploy-prod. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Backend Sentry sourcemaps**: Enabled backend sourcemap generation for production, wired `SENTRY_DIST` into Sentry init, and added production workflow upload via `sentry-cli` while keeping PR deploys from uploading maps. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 209 review fixes**: Simplified Express router access in scrape billing test, updated LLM error cleanup docstring, annotated billing policy change note, tightened refundReservation signature/docs, and aligned tool failure cleanup to skip `deduction-disabled` reservations for Exa/Tavily. Ran `pnpm lint --fix` and `pnpm typecheck`.

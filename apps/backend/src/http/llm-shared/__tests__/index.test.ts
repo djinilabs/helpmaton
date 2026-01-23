@@ -7,7 +7,7 @@ import {
 } from "../../utils/__tests__/test-helpers";
 
 const {
-  mockStreamsHandler,
+  mockStreamsInternalHandler,
   mockWebhookHandler,
   mockWorkspacesHandler,
   mockWorkspacesCatchallHandler,
@@ -24,7 +24,7 @@ const {
   mockSummarizeYearlyHandler,
   mockCleanupMemoryRetentionHandler,
 } = vi.hoisted(() => ({
-  mockStreamsHandler: vi.fn(),
+  mockStreamsInternalHandler: vi.fn(),
   mockWebhookHandler: vi.fn(),
   mockWorkspacesHandler: vi.fn(),
   mockWorkspacesCatchallHandler: vi.fn(),
@@ -42,8 +42,8 @@ const {
   mockCleanupMemoryRetentionHandler: vi.fn(),
 }));
 
-vi.mock("../../any-api-streams-catchall", () => ({
-  handler: mockStreamsHandler,
+vi.mock("../../any-api-streams-catchall/internalHandler", () => ({
+  internalHandler: mockStreamsInternalHandler,
 }));
 
 vi.mock("../../post-api-webhook-000workspaceId-000agentId-000key", () => ({
@@ -113,7 +113,10 @@ describe("llm-shared handler", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockStreamsHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
+    mockStreamsInternalHandler.mockImplementation(async (_event, responseStream) => {
+      responseStream.write("ok");
+      responseStream.end();
+    });
     mockWebhookHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
     mockWorkspacesHandler.mockResolvedValue({ statusCode: 200, body: "ok" });
     mockWorkspacesCatchallHandler.mockResolvedValue({
@@ -134,44 +137,96 @@ describe("llm-shared handler", () => {
     mockCleanupMemoryRetentionHandler.mockResolvedValue(undefined);
   });
 
-  it("routes SQS events to the correct queue handler", async () => {
+  it.each([
+    ["agent-temporal-grain-queue", mockAgentTemporalGrainQueueHandler],
+    ["agent-delegation-queue", mockAgentDelegationQueueHandler],
+    ["bot-webhook-queue", mockBotWebhookQueueHandler],
+    ["agent-schedule-queue", mockAgentScheduleQueueHandler],
+    ["agent-eval-queue", mockAgentEvalQueueHandler],
+    ["webhook-queue", mockWebhookQueueHandler],
+  ])("routes SQS events for %s", async (queueName, queueHandler) => {
     const event = {
       Records: [
         {
           eventSource: "aws:sqs",
-          eventSourceARN:
-            "arn:aws:sqs:eu-west-2:123456789012:agent-temporal-grain-queue",
+          eventSourceARN: `arn:aws:sqs:eu-west-2:123456789012:${queueName}`,
         },
       ],
     };
 
     await handler(event, mockContext);
 
-    expect(mockAgentTemporalGrainQueueHandler).toHaveBeenCalledWith(
-      event,
-      mockContext,
-      undefined
+    expect(queueHandler).toHaveBeenCalledWith(event, mockContext, undefined);
+  });
+
+  it("throws for unknown SQS queues", async () => {
+    const event = {
+      Records: [
+        {
+          eventSource: "aws:sqs",
+          eventSourceARN:
+            "arn:aws:sqs:eu-west-2:123456789012:unknown-queue",
+        },
+      ],
+    };
+
+    await expect(handler(event, mockContext)).rejects.toThrow(
+      "[llm-shared] Unknown SQS queue for event"
     );
   });
 
-  it("routes scheduled events to the correct handler", async () => {
+  it.each([
+    ["summarize-memory-daily", mockSummarizeDailyHandler],
+    ["summarize-memory-weekly", mockSummarizeWeeklyHandler],
+    ["summarize-memory-monthly", mockSummarizeMonthlyHandler],
+    ["summarize-memory-quarterly", mockSummarizeQuarterlyHandler],
+    ["summarize-memory-yearly", mockSummarizeYearlyHandler],
+    ["cleanup-memory-retention", mockCleanupMemoryRetentionHandler],
+  ])("routes scheduled events for %s", async (scheduleName, scheduleHandler) => {
     const event = {
       source: "aws.events",
       resources: [
-        "arn:aws:events:eu-west-2:123456789012:rule/SummarizeMemoryDailyScheduledRule",
+        `arn:aws:events:eu-west-2:123456789012:rule/${scheduleName}`,
       ],
     };
 
     await handler(event, mockContext);
 
-    expect(mockSummarizeDailyHandler).toHaveBeenCalledWith(
+    expect(scheduleHandler).toHaveBeenCalledWith(
       event,
       mockContext,
       undefined
     );
   });
 
-  it("routes HTTP events to the correct handler", async () => {
+  it("throws for unknown scheduled events", async () => {
+    const event = {
+      source: "aws.events",
+      resources: [
+        "arn:aws:events:eu-west-2:123456789012:rule/unknown-schedule",
+      ],
+    };
+
+    await expect(handler(event, mockContext)).rejects.toThrow(
+      "[llm-shared] Unknown scheduled event"
+    );
+  });
+
+  it("routes HTTP webhook events to the correct handler", async () => {
+    const event = createAPIGatewayEvent({
+      path: "/api/webhook/workspace/agent/key",
+    });
+
+    await handler(event, mockContext);
+
+    expect(mockWebhookHandler).toHaveBeenCalledWith(
+      event,
+      mockContext,
+      undefined
+    );
+  });
+
+  it("routes HTTP workspaces root to the correct handler", async () => {
     const event = createAPIGatewayEvent({
       path: "/api/workspaces",
     });
@@ -183,6 +238,35 @@ describe("llm-shared handler", () => {
       mockContext,
       undefined
     );
+  });
+
+  it("routes HTTP workspaces catchall to the correct handler", async () => {
+    const event = createAPIGatewayEvent({
+      path: "/api/workspaces/123",
+    });
+
+    await handler(event, mockContext);
+
+    expect(mockWorkspacesCatchallHandler).toHaveBeenCalledWith(
+      event,
+      mockContext,
+      undefined
+    );
+  });
+
+  it("buffers stream responses for API Gateway", async () => {
+    const event = createAPIGatewayEvent({
+      path: "/api/streams/test",
+    });
+
+    const result = await handler(event, mockContext);
+
+    expect(mockStreamsInternalHandler).toHaveBeenCalled();
+    expect(result).toEqual({
+      statusCode: 200,
+      headers: {},
+      body: "ok",
+    });
   });
 
   it("returns 404 for unknown HTTP routes", async () => {

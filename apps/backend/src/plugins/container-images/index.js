@@ -275,11 +275,14 @@ function mergeUniqueArray(target, source) {
   }
 }
 
+/**
+ * Merge supported Lambda properties when grouping functions.
+ * Note: This intentionally only merges Events, Environment Variables,
+ * Policies, Layers, Timeout, and MemorySize. Other Lambda settings
+ * (VPC, DLQ, EphemeralStorage, FileSystemConfigs, ReservedConcurrency, etc.)
+ * are not merged and should remain consistent across grouped functions.
+ */
 function mergeFunctionProperties(primaryResource, secondaryResource, secondaryId) {
-  if (!primaryResource || !secondaryResource) {
-    return;
-  }
-
   if (!primaryResource.Properties) {
     primaryResource.Properties = {};
   }
@@ -799,13 +802,6 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     groupedFunctions.get(config.group).push(functionId);
   }
 
-  const primaryFunctionByGroup = new Map();
-  for (const [groupName, functionIds] of groupedFunctions.entries()) {
-    if (functionIds.length > 0) {
-      primaryFunctionByGroup.set(groupName, functionIds[0]);
-    }
-  }
-
   // Get ECR repository name from environment or use default
   const repositoryName =
     (process.env.LAMBDA_IMAGES_ECR_REPOSITORY || "helpmaton-lambda-images").trim();
@@ -971,6 +967,19 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     }
   }
 
+  const primaryFunctionByGroup = new Map();
+  for (const [groupName, functionIds] of groupedFunctions.entries()) {
+    const httpPrimary = functionIds.find(
+      (functionId) => functionMetadataMap.get(functionId)?.type === "http"
+    );
+    if (!httpPrimary) {
+      throw new Error(
+        `[container-images] Group ${groupName} must include an HTTP function to serve as the primary handler`
+      );
+    }
+    primaryFunctionByGroup.set(groupName, httpPrimary);
+  }
+
   // Collect all missing functions to report them all at once
   const missingFunctions = [];
 
@@ -1067,6 +1076,12 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
       ? primaryFunctionByGroup.get(config.group)
       : null;
     if (config.group && groupPrimaryId === functionId) {
+      if (!metadata || metadata.type !== "http") {
+        console.error(
+          `[container-images] Group primary function ${functionId} for group ${config.group} must be an HTTP function; found type: ${metadata?.type || "unknown"}`
+        );
+        continue;
+      }
       handlerPath = `http/${config.group}/index.handler`;
     }
 
