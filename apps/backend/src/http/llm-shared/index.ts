@@ -6,6 +6,7 @@ import type {
   ScheduledEvent,
   SQSEvent,
 } from "aws-lambda";
+import { streamifyResponse } from "lambda-stream";
 
 import { handler as agentDelegationQueueHandler } from "../../queues/agent-delegation-queue";
 import { handler as agentEvalQueueHandler } from "../../queues/agent-eval-queue";
@@ -245,6 +246,16 @@ async function handleStreamsRequest(
   };
 }
 
+const streamHandler = streamifyResponse(
+  async (
+    event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
+    responseStream: HttpResponseStream
+  ): Promise<void> => {
+    const httpEvent = normalizeEventToHttpV2(event);
+    await streamsInternalHandler(httpEvent, responseStream);
+  }
+);
+
 export const handler = async (...args: unknown[]) => {
   const event = args[0];
   const context = resolveContext(args);
@@ -270,7 +281,10 @@ export const handler = async (...args: unknown[]) => {
     const path = getHttpPath(event);
     if (path.startsWith("/api/streams")) {
       const responseStream = isResponseStream(args[1]) ? args[1] : undefined;
-      return await handleStreamsRequest(event, responseStream);
+      if (responseStream) {
+        return await streamHandler(event, responseStream);
+      }
+      return await handleStreamsRequest(event);
     }
     const httpHandler = resolveHttpHandler(event);
     if (!httpHandler) {

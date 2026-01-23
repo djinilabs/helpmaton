@@ -28,7 +28,19 @@ export function createResponseStream(
   headers: Record<string, string>,
   statusCode: number = 200
 ): HttpResponseStream {
-  if (typeof awslambda !== "undefined" && awslambda.HttpResponseStream) {
+  const streamWithMetadata = stream as HttpResponseStream & {
+    _statusCode?: number;
+    _headers?: Record<string, string>;
+  };
+  const isMockStream =
+    typeof streamWithMetadata._statusCode === "number" ||
+    typeof streamWithMetadata._headers !== "undefined";
+
+  if (
+    typeof awslambda !== "undefined" &&
+    awslambda.HttpResponseStream &&
+    !isMockStream
+  ) {
     return getDefined(
       awslambda,
       "awslambda is not defined"
@@ -39,10 +51,6 @@ export function createResponseStream(
   }
   // When awslambda is undefined (e.g., in tests), store status code and headers on the stream
   // This allows tests to extract status codes and headers
-  const streamWithMetadata = stream as HttpResponseStream & {
-    _statusCode?: number;
-    _headers?: Record<string, string>;
-  };
   streamWithMetadata._statusCode = statusCode;
   streamWithMetadata._headers = headers;
   return streamWithMetadata;

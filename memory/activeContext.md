@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **PR 210 streamify fix**: Routed stream requests through `streamifyResponse` when a response stream is available, keeping buffered handling for API Gateway calls. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 210 streaming fix**: Avoided wrapping mock streams with `awslambda.HttpResponseStream.from` to prevent `setContentType` errors when streaming is invoked without a real response stream. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 210 staging test fix**: Updated `prepare-docker-dist.sh` to include `http/<group>` handlers for grouped container images so `llm-shared` is packaged. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 210 staging failure fix**: Added `LAMBDA_HANDLER_PATH` fallback in container image conversion so wrapper loads the correct handler when ImageConfig.Command is ignored in Lambda config. Updated container-images tests and reran `pnpm typecheck`, `pnpm lint --fix`, and container-images tests.
 - **PR 210 review fixes**: Hardened `llm-shared` to validate queue/schedule mappings, routed streams via internal handler with buffered response for API Gateway, expanded llm-shared tests, and enforced HTTP-only group primaries in the container-images plugin with documented merge limitations. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for `container-images` and `llm-shared`.
