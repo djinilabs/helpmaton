@@ -159,6 +159,26 @@ describe("llm-shared handler", () => {
     expect(queueHandler).toHaveBeenCalledWith(event, mockContext, undefined);
   });
 
+  it("routes SQS events for physical FIFO queue names", async () => {
+    const event = {
+      Records: [
+        {
+          eventSource: "aws:sqs",
+          eventSourceARN:
+            "arn:aws:sqs:eu-west-2:123456789012:HelpmatonStagingPR210-WebhookQueueQueue-ABC123.fifo",
+        },
+      ],
+    };
+
+    await handler(event, mockContext);
+
+    expect(mockWebhookQueueHandler).toHaveBeenCalledWith(
+      event,
+      mockContext,
+      undefined
+    );
+  });
+
   it("throws for unknown SQS queues", async () => {
     const event = {
       Records: [

@@ -138,7 +138,15 @@ function getQueueName(event: SQSEvent): string | undefined {
   const arnParts = arn.split(":");
   const resourcePart = arnParts[arnParts.length - 1] ?? "";
   const resourceSegments = resourcePart.split("/");
-  return resourceSegments[resourceSegments.length - 1] || undefined;
+  const rawName = resourceSegments[resourceSegments.length - 1] || undefined;
+  if (!rawName) {
+    return undefined;
+  }
+  return rawName.endsWith(".fifo") ? rawName.slice(0, -5) : rawName;
+}
+
+function normalizeQueueKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function resolveQueueHandler(event: SQSEvent): AnyHandler | undefined {
@@ -146,7 +154,17 @@ function resolveQueueHandler(event: SQSEvent): AnyHandler | undefined {
   if (!queueName) {
     return undefined;
   }
-  return queueHandlers.get(queueName);
+  const direct = queueHandlers.get(queueName);
+  if (direct) {
+    return direct;
+  }
+  const normalizedQueueName = normalizeQueueKey(queueName);
+  for (const [key, handler] of queueHandlers.entries()) {
+    if (normalizedQueueName.includes(normalizeQueueKey(key))) {
+      return handler;
+    }
+  }
+  return undefined;
 }
 
 function resolveScheduleHandler(event: ScheduledEvent): AnyHandler | undefined {
@@ -264,7 +282,10 @@ export const handler = async (...args: unknown[]) => {
   if (isSqsEvent(event)) {
     const queueHandler = resolveQueueHandler(event);
     if (!queueHandler) {
-      throw new Error("[llm-shared] Unknown SQS queue for event");
+      const queueName = getQueueName(event);
+      throw new Error(
+        `[llm-shared] Unknown SQS queue for event: ${queueName ?? "unknown"}`
+      );
     }
     return await queueHandler(event, context, callback);
   }
