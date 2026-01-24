@@ -29,13 +29,27 @@ This suite tests all OAuth-based MCP integrations end-to-end:
 From the repo root:
 
 ```
-pnpm test:e2e tests/e2e/mcp-oauth/mcp-oauth-integration.spec.ts
+pnpm test:e2e:mcp-oauth
 ```
 
 For manual OAuth steps, run with headed mode:
 
 ```
-HEADLESS=false pnpm test:e2e tests/e2e/mcp-oauth/mcp-oauth-integration.spec.ts
+pnpm test:e2e:mcp-oauth
+```
+
+## Guardrail
+
+This suite only runs when `RUN_MCP_OAUTH_E2E=true` is set. The `test:e2e:mcp-oauth`
+script sets this automatically, so it will not run as part of `pnpm test:e2e`.
+
+## Headed Mode
+
+The `test:e2e:mcp-oauth` script forces `HEADLESS=false`, so the browser always
+opens for manual OAuth completion. If you need headless mode, run:
+
+```
+HEADLESS=true pnpm test:e2e:mcp-oauth
 ```
 
 ## Manual OAuth Steps
@@ -57,7 +71,18 @@ Some services require extra config before OAuth:
 - **Shopify**: `shopDomain`
 - **Zendesk**: `subdomain`
 
-The test will prompt you in the terminal for these values.
+The test will prompt you in the terminal for these values, or you can set
+environment variables to avoid prompts:
+
+```
+MCP_OAUTH_SHOPIFY_SHOP_DOMAIN=your-shop.myshopify.com
+MCP_OAUTH_ZENDESK_SUBDOMAIN=your-zendesk-subdomain
+SHOPIFY_OAUTH_CLIENT_ID=your-shopify-client-id
+SHOPIFY_OAUTH_CLIENT_SECRET=your-shopify-client-secret
+```
+
+For best results, put these in `tests/e2e/.env` so they are loaded before
+the test starts.
 
 ## Error Reporting
 

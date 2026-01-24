@@ -64,25 +64,24 @@ export class McpServerPage extends BasePage {
    * Expand MCP Servers accordion section
    */
   async expandMcpServersSection(): Promise<void> {
-    const accordion = this.page.locator(
-      'button:has(h2:has-text("MCP Servers"))'
-    );
+    const accordion = this.page
+      .locator('button[aria-controls="accordion-content-mcp-servers"]')
+      .or(this.page.locator('button:has-text("Connected tools")'));
 
     const isExpanded =
       (await accordion.getAttribute("aria-expanded")) === "true";
 
     if (!isExpanded) {
       await this.clickElement(accordion);
+      await accordion.waitFor({ state: "visible", timeout: 10000 });
+      const handle = await accordion.elementHandle();
+      if (!handle) {
+        throw new Error("MCP servers accordion button not found");
+      }
       await this.page.waitForFunction(
-        () => {
-          const buttons = Array.from(document.querySelectorAll("button"));
-          const button = buttons.find((btn) => {
-            const h2 = btn.querySelector("h2");
-            return h2?.textContent?.includes("MCP Servers");
-          });
-          return button?.getAttribute("aria-expanded") === "true";
-        },
-        { timeout: 5000 }
+        (el) => el.getAttribute("aria-expanded") === "true",
+        handle,
+        { timeout: 10000 }
       );
     }
   }
@@ -355,17 +354,20 @@ export class McpServerPage extends BasePage {
   /**
    * Prompt the user for a config value
    */
-  async promptForConfigValue(fieldName: string): Promise<string> {
-    return new Promise((resolve) => {
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      });
-      rl.question(`Enter value for ${fieldName}: `, (answer) => {
-        rl.close();
-        resolve(answer.trim());
-      });
-    });
+  async promptForConfigValue(
+    serviceType: McpServiceType,
+    fieldName: string
+  ): Promise<string> {
+    const envKey = `MCP_OAUTH_${toEnvKey(serviceType)}_${toEnvKey(fieldName)}`;
+    const envValue = process.env[envKey];
+    if (envValue && envValue.trim()) {
+      console.log(`[MCP OAuth] Using ${envKey} from environment.`);
+      return envValue.trim();
+    }
+
+    throw new Error(
+      `Missing ${envKey}. Set it in tests/e2e/.env or export it before running the tests.`
+    );
   }
 
   /**
@@ -545,4 +547,10 @@ export class McpServerPage extends BasePage {
       process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333";
     return `${baseUrl}/api/mcp-oauth/${serviceType}/callback`;
   }
+}
+
+function toEnvKey(fieldName: string): string {
+  return fieldName
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toUpperCase();
 }

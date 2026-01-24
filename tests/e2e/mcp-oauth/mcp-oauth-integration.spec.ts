@@ -21,7 +21,12 @@ type OAuthFailure = {
   screenshotPath?: string;
 };
 
-testWithUserManagement.describe.serial(
+const shouldRunMcpOAuth = process.env.RUN_MCP_OAUTH_E2E === "true";
+const mcpDescribe = shouldRunMcpOAuth
+  ? testWithUserManagement.describe.serial
+  : testWithUserManagement.describe.skip;
+
+mcpDescribe(
   "MCP OAuth Integrations - Full Integration",
   () => {
     const state: TestState = testState;
@@ -79,6 +84,7 @@ testWithUserManagement.describe.serial(
     testWithUserManagement(
       "4. Test OAuth integrations (all services)",
       async ({ page }) => {
+        testWithUserManagement.setTimeout(1800000);
         if (!state.workspace || !state.agent) {
           throw new Error("Workspace or agent not found in state.");
         }
@@ -98,7 +104,10 @@ testWithUserManagement.describe.serial(
           if (config.requiresAdditionalConfig && config.configFields) {
             serverConfig = {};
             for (const fieldName of config.configFields) {
-              const value = await mcpPage.promptForConfigValue(fieldName);
+              const value = await mcpPage.promptForConfigValue(
+                serviceType,
+                fieldName
+              );
               serverConfig[fieldName] = value;
             }
           }

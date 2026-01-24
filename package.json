@@ -47,6 +47,7 @@
     "test:e2e:ui": "NODE_ENV=test playwright test --ui",
     "test:e2e:headed": "NODE_ENV=test playwright test --headed",
     "test:e2e:debug": "NODE_ENV=test playwright test --debug",
+    "test:e2e:mcp-oauth": "RUN_MCP_OAUTH_E2E=true HEADLESS=false NODE_ENV=test E2E_NO_UI=true playwright test --headed tests/e2e/mcp-oauth/mcp-oauth-integration.spec.ts",
     "test:e2e:install": "NODE_ENV=test playwright install --with-deps chromium",
     "update-pricing": "node scripts/update-pricing.mjs",
     "test-aggregation": "cd apps/backend && pnpm exec tsx ../../scripts/test-aggregation.ts",

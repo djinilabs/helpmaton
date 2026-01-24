@@ -79,7 +79,8 @@ async function killProcessesOnPort(port: number): Promise<void> {
 async function globalSetup(config: FullConfig) {
   // Validate environment variables before starting tests
   console.log("Validating environment configuration...");
-  validateEnvironment();
+  await validateEnvironment({ promptIfMissing: true });
+  await ensureMcpOauthEnv();
 
   const { baseURL } = config.projects[0].use;
   console.log("Setting up test environment...");
@@ -459,6 +460,54 @@ async function globalSetup(config: FullConfig) {
 
   console.log("✅ Test environment setup completed");
   console.log("✅ Servers are ready - tests can now run");
+}
+
+async function ensureMcpOauthEnv(): Promise<void> {
+  if (process.env.RUN_MCP_OAUTH_E2E !== "true") {
+    return;
+  }
+
+  const requiredConfig = [
+    "MCP_OAUTH_SHOPIFY_SHOP_DOMAIN",
+    "MCP_OAUTH_ZENDESK_SUBDOMAIN",
+    "SHOPIFY_OAUTH_CLIENT_ID",
+    "SHOPIFY_OAUTH_CLIENT_SECRET",
+  ];
+  const missing = requiredConfig.filter((key) => !process.env[key]);
+
+  if (missing.length === 0) {
+    return;
+  }
+
+  if (process.stdin.isTTY && !process.env.CI) {
+    const readline = await import("readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    for (const key of missing) {
+      const value = await new Promise<string>((resolve) => {
+        rl.question(`Enter value for ${key}: `, (answer) => {
+          resolve(answer.trim());
+        });
+      });
+
+      if (value) {
+        process.env[key] = value;
+      }
+    }
+
+    rl.close();
+  }
+
+  const stillMissing = requiredConfig.filter((key) => !process.env[key]);
+  if (stillMissing.length > 0) {
+    throw new Error(
+      `Missing required MCP OAuth environment variables: ${stillMissing.join(", ")}\n` +
+        "Set them in tests/e2e/.env or export them before running the tests."
+    );
+  }
 }
 
 export default globalSetup;

@@ -6,6 +6,15 @@
 
 **Latest Work**:
 
+- **MCP OAuth Shopify env guard**: Added Shopify OAuth client ID/secret checks to MCP OAuth E2E env gating and documented in `.env.example`/README.
+- **MCP OAuth env gating**: Moved MCP OAuth config prompts to global setup and require `MCP_OAUTH_SHOP_DOMAIN`/`MCP_OAUTH_SUBDOMAIN` before tests; test now fails fast if missing.
+- **Login confirmation alignment**: Centered the "Check your inbox" title when the email confirmation screen is shown. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **E2E env prompt**: `validateEnvironment` now prompts for missing vars in interactive runs (non-CI) and global setup awaits it before starting tests.
+- **MCP OAuth prompts**: Added env var fallback for MCP OAuth config prompts (`MCP_OAUTH_SHOP_DOMAIN`, `MCP_OAUTH_SUBDOMAIN`) and extended MCP OAuth test timeout for manual flows.
+- **Login confirmation screen**: Added branded sign-in email confirmation state with theme-aware styling and spam-folder reminder. Kept confirmation in-app via `redirect: false`. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **MCP OAuth headed flag**: Added `--headed` to the MCP OAuth Playwright script so the browser always opens.
+- **MCP OAuth headed run**: Forced `HEADLESS=false` in `pnpm test:e2e:mcp-oauth` and documented headless override for manual OAuth flows.
+- **MCP OAuth test guard**: Added `RUN_MCP_OAUTH_E2E` gate and `pnpm test:e2e:mcp-oauth` script so the MCP OAuth E2E suite only runs when explicitly invoked.
 - **MCP OAuth E2E suite**: Added Playwright-based MCP OAuth integration tests with manual OAuth pause support, service config prompts (Shopify/Zendesk), tool call validation via agent chat, and documentation under `tests/e2e/mcp-oauth/`.
 - **Split streaming lambdas**: Added `llm-shared-stream` + `llm-shared-http` entrypoints, moved test endpoint to `/api/streams/{workspaceId}/{agentId}/test`, updated stream path detection/extraction, removed old workspaces test route, and updated docs/scripts/tests/openapi references. Ran `pnpm typecheck`, `pnpm lint --fix`, and focused backend tests (`llm-shared`, `llm-shared-stream`, `streamEndpointDetection`, `streamPathExtraction`, `requestValidation`, `httpEventAdapter`, `resources`).
 - **Test endpoint CORS**: Adjusted test CORS headers to prefer request origin (avoids FRONTEND_URL mismatch), updated stream CORS tests, and ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test --run streamCorsHeaders`.
