@@ -17,13 +17,14 @@ export function computeCorsHeaders(
   };
 
   if (endpointType === "test") {
-    // Test endpoint: Always use FRONTEND_URL
+    // Test endpoint: prefer request origin to avoid PR/local CORS mismatches
     const frontendUrl = process.env.FRONTEND_URL;
-    headers["Access-Control-Allow-Origin"] = frontendUrl || "*";
+    const allowOrigin = origin || frontendUrl || "*";
+    headers["Access-Control-Allow-Origin"] = allowOrigin;
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
     headers["Access-Control-Allow-Headers"] =
       "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
-    if (frontendUrl) {
+    if (allowOrigin !== "*") {
       headers["Access-Control-Allow-Credentials"] = "true";
     }
     return headers;

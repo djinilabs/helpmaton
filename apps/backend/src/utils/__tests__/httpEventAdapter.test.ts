@@ -1315,14 +1315,14 @@ describe("adaptHttpHandler", () => {
     it("should extract path parameters from test agent route pattern", () => {
       const lambdaEvent: LambdaUrlEvent = {
         version: "2.0",
-        routeKey: "POST /api/workspaces/workspace-123/agents/agent-456/test",
-        rawPath: "/api/workspaces/workspace-123/agents/agent-456/test",
+        routeKey: "POST /api/streams/workspace-123/agent-456/test",
+        rawPath: "/api/streams/workspace-123/agent-456/test",
         rawQueryString: "",
         headers: {},
         requestContext: {
           http: {
             method: "POST",
-            path: "/api/workspaces/workspace-123/agents/agent-456/test",
+            path: "/api/streams/workspace-123/agent-456/test",
             protocol: "HTTP/1.1",
             sourceIp: "127.0.0.1",
             userAgent: "test",
@@ -1649,13 +1649,13 @@ describe("adaptHttpHandler", () => {
       const lambdaEvent: LambdaUrlEvent = {
         version: "2.0",
         routeKey: "", // Missing routeKey
-        rawPath: "/api/workspaces/workspace-123/agents/agent-456/test",
+        rawPath: "/api/streams/workspace-123/agent-456/test",
         rawQueryString: "",
         headers: {},
         requestContext: {
           http: {
             method: "POST",
-            path: "/api/workspaces/workspace-123/agents/agent-456/test",
+            path: "/api/streams/workspace-123/agent-456/test",
             protocol: "HTTP/1.1",
             sourceIp: "127.0.0.1",
             userAgent: "test",
@@ -1676,7 +1676,7 @@ describe("adaptHttpHandler", () => {
       const result = transformLambdaUrlToHttpV2Event(lambdaEvent);
 
       expect(result.routeKey).toBe(
-        "POST /api/workspaces/workspace-123/agents/agent-456/test"
+        "POST /api/streams/workspace-123/agent-456/test"
       );
     });
   });
@@ -1690,8 +1690,8 @@ describe("adaptHttpHandler", () => {
 
       const lambdaEvent: LambdaUrlEvent = {
         version: "2.0",
-        routeKey: "POST /api/workspaces/workspace-123/agents/agent-456/test",
-        rawPath: "/api/workspaces/workspace-123/agents/agent-456/test",
+        routeKey: "POST /api/streams/workspace-123/agent-456/test",
+        rawPath: "/api/streams/workspace-123/agent-456/test",
         rawQueryString: "foo=bar",
         headers: {
           "Content-Type": "application/json",
@@ -1701,7 +1701,7 @@ describe("adaptHttpHandler", () => {
         requestContext: {
           http: {
             method: "POST",
-            path: "/api/workspaces/workspace-123/agents/agent-456/test",
+            path: "/api/streams/workspace-123/agent-456/test",
             protocol: "HTTP/1.1",
             sourceIp: "192.168.1.1",
             userAgent: "test-agent/1.0",
@@ -1728,10 +1728,10 @@ describe("adaptHttpHandler", () => {
 
       expect(calledEvent.version).toBe("2.0");
       expect(calledEvent.routeKey).toBe(
-        "POST /api/workspaces/workspace-123/agents/agent-456/test"
+        "POST /api/streams/workspace-123/agent-456/test"
       );
       expect(calledEvent.rawPath).toBe(
-        "/api/workspaces/workspace-123/agents/agent-456/test"
+        "/api/streams/workspace-123/agent-456/test"
       );
       expect(calledEvent.rawQueryString).toBe("foo=bar");
       expect(calledEvent.body).toBe(JSON.stringify({ message: "test" }));

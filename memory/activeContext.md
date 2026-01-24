@@ -7,6 +7,18 @@
 **Latest Work**:
 
 - **MCP OAuth E2E suite**: Added Playwright-based MCP OAuth integration tests with manual OAuth pause support, service config prompts (Shopify/Zendesk), tool call validation via agent chat, and documentation under `tests/e2e/mcp-oauth/`.
+- **Split streaming lambdas**: Added `llm-shared-stream` + `llm-shared-http` entrypoints, moved test endpoint to `/api/streams/{workspaceId}/{agentId}/test`, updated stream path detection/extraction, removed old workspaces test route, and updated docs/scripts/tests/openapi references. Ran `pnpm typecheck`, `pnpm lint --fix`, and focused backend tests (`llm-shared`, `llm-shared-stream`, `streamEndpointDetection`, `streamPathExtraction`, `requestValidation`, `httpEventAdapter`, `resources`).
+- **Test endpoint CORS**: Adjusted test CORS headers to prefer request origin (avoids FRONTEND_URL mismatch), updated stream CORS tests, and ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test --run streamCorsHeaders`.
+- **Client test URL fallback**: Normalized `AgentChatWithFunctionUrl` to strip any `/api/workspaces`/`/api/streams` path from the stream URL before appending `/api/streams/{workspaceId}/{agentId}/test`. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 210 webhook queue fix**: Normalized SQS queue names (strip `.fifo`, match physical names) so grouped queue events map to handlers; added test for physical FIFO queue names and reran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`.
+- **PR 210 streamify fix**: Routed stream requests through `streamifyResponse` when a response stream is available, keeping buffered handling for API Gateway calls. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 210 streaming fix**: Avoided wrapping mock streams with `awslambda.HttpResponseStream.from` to prevent `setContentType` errors when streaming is invoked without a real response stream. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 210 staging test fix**: Updated `prepare-docker-dist.sh` to include `http/<group>` handlers for grouped container images so `llm-shared` is packaged. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 210 staging failure fix**: Added `LAMBDA_HANDLER_PATH` fallback in container image conversion so wrapper loads the correct handler when ImageConfig.Command is ignored in Lambda config. Updated container-images tests and reran `pnpm typecheck`, `pnpm lint --fix`, and container-images tests.
+- **PR 210 review fixes**: Hardened `llm-shared` to validate queue/schedule mappings, routed streams via internal handler with buffered response for API Gateway, expanded llm-shared tests, and enforced HTTP-only group primaries in the container-images plugin with documented merge limitations. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for `container-images` and `llm-shared`.
+- **Container image build fix**: Updated build/push scripts to parse image names correctly when `@container-images` includes group names, then reran `pnpm typecheck` and `pnpm lint --fix`.
+- **LLM lambda timeouts**: Updated LLM HTTP handler config timeouts to 900s for streams/workspaces/webhook and re-ran `pnpm typecheck` + `pnpm lint --fix`.
+- **LLM lambda unification**: Added `llm-shared` group to lancedb entries in `app.arc`, created `http/llm-shared` dispatcher for HTTP/SQS/scheduled events, and updated the container-images plugin to merge grouped Lambdas and point the primary to the shared handler. Added unit tests for grouped container images and the shared handler. Ran `pnpm typecheck`, `pnpm lint --fix`, and targeted backend tests (`container-images`, `llm-shared`).
 - **E2E CI pnpm alignment**: Updated `test-e2e.yml` to match working workflow pattern (`test.yml`, `deploy-pr.yml`): using `pnpm/action-setup@v4` with explicit `version: 10.28.1` (matching `package.json` `packageManager`), removed `cache: pnpm` from setup-node to match `test.yml` exactly. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Backend Sentry sourcemaps**: Switched Sentry upload step to `sentry-cli sourcemaps upload` (new CLI syntax) after `releases files` failed in deploy-prod. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Backend Sentry sourcemaps**: Enabled backend sourcemap generation for production, wired `SENTRY_DIST` into Sentry init, and added production workflow upload via `sentry-cli` while keeping PR deploys from uploading maps. Ran `pnpm typecheck` and `pnpm lint --fix`.
@@ -3162,3 +3174,12 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - PR deployments create CloudFormation stacks for testing
 - Container images are built for `arm64` architecture (Graviton2) for better price/performance
 - Environment variables are injected at build time, not runtime, for container image functions
+- Added 402 credit error responses in workspace async handler with tests
+- Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run middleware`
+- Simplified llm-shared stream routing to delegate to streams handler
+- Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
+- Added Lambda URL responseStream handling for non-streaming routes
+- Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
+- Restored /api/streams buffering when no response stream
+- Added llm-shared HTTP streaming diagnostics
+- Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`

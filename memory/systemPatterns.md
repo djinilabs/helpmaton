@@ -114,3 +114,4 @@
    - Multi-stage builds to minimize image size (builder stage for dependencies, runtime stage for final image)
    - Build tools removed from final image
    - Package manager caches cleaned after installation
+   - `@container-images` entries can include a group token (e.g., `llm-shared`) to merge routes/queues/schedules into a single Lambda using `http/<group>/index.handler`

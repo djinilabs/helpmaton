@@ -97,7 +97,7 @@ export const streamRequestSchema = z.object({
 
 /**
  * Schema for test agent request body
- * Used in POST /api/workspaces/:workspaceId/agents/:agentId/test
+ * Used in POST /api/streams/:workspaceId/:agentId/test
  * Uses passthrough() to allow extra fields from ai-sdk (e.g., id, trigger)
  */
 export const testAgentRequestSchema = z.object({

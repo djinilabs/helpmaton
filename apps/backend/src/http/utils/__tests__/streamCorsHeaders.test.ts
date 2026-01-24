@@ -22,6 +22,19 @@ describe("streamCorsHeaders", () => {
       expect(headers["Access-Control-Allow-Credentials"]).toBe("true");
     });
 
+    it("should prefer request origin for 'test' endpoint", () => {
+      process.env.FRONTEND_URL = "https://app.example.com";
+      const headers = computeCorsHeaders(
+        "test",
+        "https://preview.example.com",
+        null
+      );
+      expect(headers["Access-Control-Allow-Origin"]).toBe(
+        "https://preview.example.com"
+      );
+      expect(headers["Access-Control-Allow-Credentials"]).toBe("true");
+    });
+
     it("should compute headers for 'stream' endpoint with no allowed origins", () => {
       const headers = computeCorsHeaders("stream", "https://example.com", null);
       expect(headers["Access-Control-Allow-Origin"]).toBe("*");

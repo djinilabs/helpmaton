@@ -2,6 +2,10 @@ import { badRequest, boomify, forbidden, unauthorized } from "@hapi/boom";
 import express from "express";
 
 import { isUserAuthorized } from "../../tables/permissions";
+import {
+  InsufficientCreditsError,
+  SpendingLimitExceededError,
+} from "../../utils/creditErrors";
 import { ensureError } from "../../utils/sentry";
 import { verifyAccessToken } from "../../utils/tokenUtils";
 import { requireSessionFromRequest, userRef } from "../utils/session";
@@ -39,6 +43,27 @@ export const handleError = (
   next(boomError);
 };
 
+const respondWithCreditError = (
+  error: unknown,
+  res: express.Response,
+  context?: string
+): boolean => {
+  if (
+    error instanceof InsufficientCreditsError ||
+    error instanceof SpendingLimitExceededError
+  ) {
+    const response = error.toHTTPResponse();
+    const logContext = context ? `[${context}]` : "";
+    console.warn(`${logContext} Client credit error:`, {
+      error: error.message,
+      statusCode: response.statusCode,
+    });
+    res.status(response.statusCode).set(response.headers).send(response.body);
+    return true;
+  }
+  return false;
+};
+
 /**
  * Helper to wrap async route handlers and pass errors to error handler
  */
@@ -55,6 +80,9 @@ export const asyncHandler = (
     next: express.NextFunction
   ) => {
     Promise.resolve(fn(req, res, next)).catch((error) => {
+      if (respondWithCreditError(error, res, "asyncHandler")) {
+        return;
+      }
       handleError(error, next, "asyncHandler");
     });
   };

@@ -26,18 +26,6 @@ describe("streamPathExtraction", () => {
       });
     });
 
-    it("should extract parameters for workspace test endpoint", () => {
-      const event = createAPIGatewayEventV2({
-        rawPath: "/api/workspaces/workspace123/agents/agent456/test",
-      });
-      const result = extractStreamPathParameters(event);
-      expect(result).toEqual({
-        workspaceId: "workspace123",
-        agentId: "agent456",
-        endpointType: "test",
-      });
-    });
-
     it("should extract parameters for 'stream' endpoint", () => {
       const event = createAPIGatewayEventV2({
         rawPath: "/api/streams/workspace123/agent456/secret789",

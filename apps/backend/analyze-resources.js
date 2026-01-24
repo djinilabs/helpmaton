@@ -8,7 +8,7 @@ const { createResourceHierarchy, printResourceTree } = require('./src/plugins/ht
 
 // Routes from app.arc - extracted from @http section
 const routes = [
-  { Properties: { RouteKey: 'POST /api/workspaces/:workspaceId/agents/:agentId/test' } },
+  { Properties: { RouteKey: 'POST /api/streams/:workspaceId/:agentId/test' } },
   { Properties: { RouteKey: 'POST /api/webhook/:workspaceId/:agentId/:key' } },
   { Properties: { RouteKey: 'GET /api/usage' } },
   { Properties: { RouteKey: 'GET /api/models' } },
