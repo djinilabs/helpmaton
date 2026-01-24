@@ -6,6 +6,13 @@
 
 **Latest Work**:
 
+- **MCP OAuth skip list**: Added `MCP_OAUTH_SKIP_SERVICES` env var to skip specific services during MCP OAuth E2E runs.
+- **Zendesk OAuth UI instructions**: Added step-by-step Zendesk client ID/secret setup guidance in the MCP server modal.
+- **MCP OAuth credits**: MCP OAuth E2E now adds credits after workspace creation via `pnpm add-credits` (default 50, override with `E2E_ADD_CREDITS_AMOUNT`).
+- **MCP OAuth server cleanup**: Test now disables/deletes MCP servers after each service to avoid free-plan limit, and added Zendesk client ID/secret env requirements.
+- **Playwright anti-detection flag**: Added `--disable-blink-features=AutomationControlled` to Playwright launch args.
+- **MCP OAuth Chrome channel**: MCP OAuth E2E suite now runs with `channel: "chrome"` to avoid Google OAuth blocking Playwright Chromium.
+- **MCP OAuth auth token**: Updated MCP OAuth E2E API calls to use `helpmaton_access_token` from localStorage for Bearer auth.
 - **MCP OAuth Shopify env guard**: Added Shopify OAuth client ID/secret checks to MCP OAuth E2E env gating and documented in `.env.example`/README.
 - **MCP OAuth env gating**: Moved MCP OAuth config prompts to global setup and require `MCP_OAUTH_SHOP_DOMAIN`/`MCP_OAUTH_SUBDOMAIN` before tests; test now fails fast if missing.
 - **Login confirmation alignment**: Centered the "Check your inbox" title when the email confirmation screen is shown. Ran `pnpm typecheck` and `pnpm lint --fix`.

@@ -470,6 +470,8 @@ async function ensureMcpOauthEnv(): Promise<void> {
   const requiredConfig = [
     "MCP_OAUTH_SHOPIFY_SHOP_DOMAIN",
     "MCP_OAUTH_ZENDESK_SUBDOMAIN",
+    "MCP_OAUTH_ZENDESK_CLIENT_ID",
+    "MCP_OAUTH_ZENDESK_CLIENT_SECRET",
     "SHOPIFY_OAUTH_CLIENT_ID",
     "SHOPIFY_OAUTH_CLIENT_SECRET",
   ];
@@ -485,6 +487,7 @@ async function ensureMcpOauthEnv(): Promise<void> {
       input: process.stdin,
       output: process.stdout,
     });
+    process.stdout.write("\x07");
 
     for (const key of missing) {
       const value = await new Promise<string>((resolve) => {

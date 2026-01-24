@@ -69,6 +69,7 @@ export async function validateEnvironment(options?: {
       input: process.stdin,
       output: process.stdout,
     });
+    process.stdout.write("\x07");
 
     for (const varName of missingVars) {
       const value = await new Promise<string>((resolve) => {

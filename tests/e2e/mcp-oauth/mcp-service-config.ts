@@ -137,7 +137,7 @@ export const MCP_SERVICE_CONFIGS: Record<McpServiceType, McpServiceConfig> = {
     displayName: "Zendesk",
     oauthProvider: "Zendesk",
     requiresAdditionalConfig: true,
-    configFields: ["subdomain"],
+    configFields: ["subdomain", "clientId", "clientSecret"],
     toolMatchKeywords: ["zendesk", "ticket", "help center"],
   },
 };

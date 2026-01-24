@@ -32,6 +32,9 @@ From the repo root:
 pnpm test:e2e:mcp-oauth
 ```
 
+This suite uses the installed Google Chrome (`channel: "chrome"`) to avoid
+Google OAuth blocking the automated Chromium build.
+
 For manual OAuth steps, run with headed mode:
 
 ```
@@ -77,8 +80,11 @@ environment variables to avoid prompts:
 ```
 MCP_OAUTH_SHOPIFY_SHOP_DOMAIN=your-shop.myshopify.com
 MCP_OAUTH_ZENDESK_SUBDOMAIN=your-zendesk-subdomain
+MCP_OAUTH_ZENDESK_CLIENT_ID=your-zendesk-client-id
+MCP_OAUTH_ZENDESK_CLIENT_SECRET=your-zendesk-client-secret
 SHOPIFY_OAUTH_CLIENT_ID=your-shopify-client-id
 SHOPIFY_OAUTH_CLIENT_SECRET=your-shopify-client-secret
+MCP_OAUTH_SKIP_SERVICES=google-drive,gmail
 ```
 
 For best results, put these in `tests/e2e/.env` so they are loaded before

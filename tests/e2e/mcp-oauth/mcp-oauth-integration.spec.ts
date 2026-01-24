@@ -1,3 +1,5 @@
+import { spawnSync } from "child_process";
+
 import { expect } from "@playwright/test";
 
 import { testWithUserManagement } from "../fixtures/test-fixtures";
@@ -25,6 +27,10 @@ const shouldRunMcpOAuth = process.env.RUN_MCP_OAUTH_E2E === "true";
 const mcpDescribe = shouldRunMcpOAuth
   ? testWithUserManagement.describe.serial
   : testWithUserManagement.describe.skip;
+
+if (shouldRunMcpOAuth) {
+  testWithUserManagement.use({ channel: "chrome" });
+}
 
 mcpDescribe(
   "MCP OAuth Integrations - Full Integration",
@@ -54,6 +60,9 @@ mcpDescribe(
 
       state.workspace = workspace;
       expect(workspace.id).toBeTruthy();
+
+      const creditsAmount = process.env.E2E_ADD_CREDITS_AMOUNT || "50";
+      addCreditsToWorkspace(workspace.id, creditsAmount);
     });
 
     testWithUserManagement("3. Create test agent", async ({ page }) => {
@@ -92,10 +101,21 @@ mcpDescribe(
         const failures: OAuthFailure[] = [];
         const mcpPage = new McpServerPage(page);
         const agentDetailPage = new AgentDetailPage(page);
+        let enabledMcpServerIds: string[] = [];
+        const skipServices = new Set(
+          (process.env.MCP_OAUTH_SKIP_SERVICES || "")
+            .split(",")
+            .map((service) => service.trim())
+            .filter(Boolean)
+        );
 
         await mcpPage.gotoWorkspace(state.workspace.id);
 
         for (const serviceType of ALL_MCP_SERVICES) {
+          if (skipServices.has(serviceType)) {
+            console.log(`\n=== Skipping ${serviceType} ===`);
+            continue;
+          }
           const config = getServiceConfig(serviceType);
           const serverName = `MCP ${config.displayName} ${Date.now()}`;
           console.log(`\n=== Testing ${config.displayName} ===`);
@@ -113,6 +133,8 @@ mcpDescribe(
           }
 
           let serverId: string;
+          let serverCreated = false;
+          let serverEnabled = false;
           try {
             const server = await mcpPage.createMcpServerViaApi(
               state.workspace.id,
@@ -120,10 +142,11 @@ mcpDescribe(
                 name: serverName,
                 authType: "oauth",
                 serviceType,
-                config: serverConfig,
+                config: serverConfig || {},
               }
             );
             serverId = server.id;
+            serverCreated = true;
             console.log(`Created MCP server ${serverName} (${serverId})`);
           } catch (error) {
             failures.push({
@@ -135,95 +158,127 @@ mcpDescribe(
             continue;
           }
 
-          await mcpPage.expandMcpServersSection();
-          await mcpPage.initiateOAuthFlow(serverName);
-          await mcpPage.waitForManualOAuthCompletion(
-            state.workspace.id,
-            serverId,
-            serviceType
-          );
-
-          const callbackResult = await mcpPage.waitForOAuthCallback(
-            state.workspace.id,
-            serverId,
-            serviceType
-          );
-
-          if (!callbackResult.success) {
-            const screenshotPath = await mcpPage.takeErrorScreenshot(
-              serviceType,
-              "oauth"
+          try {
+            await mcpPage.refreshMcpServersSection(state.workspace.id);
+            await mcpPage.initiateOAuthFlow(serverName);
+            await mcpPage.waitForManualOAuthCompletion(
+              state.workspace.id,
+              serverId,
+              serviceType
             );
-            failures.push({
-              serviceType,
-              error: callbackResult.error?.error || "OAuth flow failed",
-              details: callbackResult.error?.details,
-              action: callbackResult.error?.action,
-              screenshotPath,
-            });
-            continue;
-          }
 
-          const connected = await mcpPage.verifyOAuthConnection(serverName);
-          if (!connected) {
-            failures.push({
-              serviceType,
-              error: "OAuth connection not marked as connected",
-              action: "Check MCP server status and OAuth token storage",
-            });
-            continue;
-          }
+            const callbackResult = await mcpPage.waitForOAuthCallback(
+              state.workspace.id,
+              serverId,
+              serviceType
+            );
 
-          await mcpPage.enableMcpServerOnAgent(
-            state.workspace.id,
-            state.agent.id,
-            serverId
-          );
+            if (!callbackResult.success) {
+              const screenshotPath = await mcpPage.takeErrorScreenshot(
+                serviceType,
+                "oauth"
+              );
+              failures.push({
+                serviceType,
+                error: callbackResult.error?.error || "OAuth flow failed",
+                details: callbackResult.error?.details,
+                action: callbackResult.error?.action,
+                screenshotPath,
+              });
+              continue;
+            }
 
-          const tools = await mcpPage.getAgentTools(
-            state.workspace.id,
-            state.agent.id
-          );
+            const connected = await mcpPage.verifyOAuthConnection(serverName);
+            if (!connected) {
+              failures.push({
+                serviceType,
+                error: "OAuth connection not marked as connected",
+                action: "Check MCP server status and OAuth token storage",
+              });
+              continue;
+            }
 
-          const tool = selectToolForService(tools, config);
-          if (!tool) {
-            failures.push({
-              serviceType,
-              error: "No tool matched for service",
-              details: `No tool found with keywords: ${config.toolMatchKeywords?.join(", ")}`,
-              action: "Verify tool metadata wiring for MCP service",
-            });
-            continue;
-          }
+            await mcpPage.enableMcpServerOnAgent(
+              state.workspace.id,
+              state.agent.id,
+              serverId,
+              enabledMcpServerIds
+            );
+            enabledMcpServerIds = [...enabledMcpServerIds, serverId];
+            serverEnabled = true;
 
-          const requiredParams =
-            tool.parameters?.filter((param) => param.required) || [];
+            const tools = await mcpPage.getAgentTools(
+              state.workspace.id,
+              state.agent.id
+            );
 
-          let toolArgs: Record<string, unknown> = {};
-          if (requiredParams.length > 0) {
+            const tool = selectToolForService(tools, config);
+            if (!tool) {
+              failures.push({
+                serviceType,
+                error: "No tool matched for service",
+                details: `No tool found with keywords: ${config.toolMatchKeywords?.join(", ")}`,
+                action: "Verify tool metadata wiring for MCP service",
+              });
+              continue;
+            }
+
+            const requiredParams =
+              tool.parameters?.filter((param) => param.required) || [];
+
+            let toolArgs: Record<string, unknown> = {};
+            if (requiredParams.length > 0) {
+              console.log(
+                `Tool ${tool.name} requires params: ${requiredParams
+                  .map((param) => param.name)
+                  .join(", ")}`
+              );
+              toolArgs = await mcpPage.promptForToolArgs(tool.name);
+            }
+
+            await agentDetailPage.goto(state.workspace.id, state.agent.id);
+            await agentDetailPage.waitForAgentDetailPage();
+
+            const prompt = [
+              `Use the tool "${tool.name}" with the following args:`,
+              JSON.stringify(toolArgs),
+              "Return only the tool output.",
+            ].join("\n");
+
+            const response = await agentDetailPage.sendMessageAndWaitForResponse(
+              prompt
+            );
+
+            expect(response).toBeTruthy();
             console.log(
-              `Tool ${tool.name} requires params: ${requiredParams
-                .map((param) => param.name)
-                .join(", ")}`
+              `Tool response for ${tool.name}: ${response.slice(0, 100)}...`
             );
-            toolArgs = await mcpPage.promptForToolArgs(tool.name);
+          } finally {
+            if (serverCreated) {
+              try {
+                if (serverEnabled) {
+                  await mcpPage.disableMcpServerOnAgent(
+                    state.workspace.id,
+                    state.agent.id,
+                    serverId,
+                    enabledMcpServerIds
+                  );
+                  enabledMcpServerIds = enabledMcpServerIds.filter(
+                    (id) => id !== serverId
+                  );
+                }
+                await mcpPage.deleteMcpServer(state.workspace.id, serverId);
+              } catch (cleanupError) {
+                console.warn(
+                  `Failed to cleanup MCP server ${serverId}: ${
+                    cleanupError instanceof Error
+                      ? cleanupError.message
+                      : String(cleanupError)
+                  }`
+                );
+              }
+            }
           }
-
-          await agentDetailPage.goto(state.workspace.id, state.agent.id);
-          await agentDetailPage.waitForAgentDetailPage();
-
-          const prompt = [
-            `Use the tool "${tool.name}" with the following args:`,
-            JSON.stringify(toolArgs),
-            "Return only the tool output.",
-          ].join("\n");
-
-          const response = await agentDetailPage.sendMessageAndWaitForResponse(
-            prompt
-          );
-
-          expect(response).toBeTruthy();
-          console.log(`Tool response for ${tool.name}: ${response.slice(0, 100)}...`);
         }
 
         if (failures.length > 0) {
@@ -277,4 +332,18 @@ function selectToolForService(
       .toLowerCase();
     return keywords.some((keyword) => haystack.includes(keyword));
   });
+}
+
+function addCreditsToWorkspace(workspaceId: string, amount: string): void {
+  const result = spawnSync("pnpm", ["add-credits", workspaceId, amount], {
+    stdio: "inherit",
+    cwd: process.cwd(),
+    env: process.env,
+  });
+
+  if (result.status !== 0) {
+    throw new Error(
+      `Failed to add credits to workspace ${workspaceId} (exit code ${result.status})`
+    );
+  }
 }

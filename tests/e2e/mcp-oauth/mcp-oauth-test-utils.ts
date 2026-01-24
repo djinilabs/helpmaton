@@ -60,6 +60,12 @@ export class McpServerPage extends BasePage {
     await this.expandMcpServersSection();
   }
 
+  async refreshMcpServersSection(workspaceId: string): Promise<void> {
+    await this.page.goto(`/workspaces/${workspaceId}`);
+    await this.waitForPageLoad();
+    await this.expandMcpServersSection();
+  }
+
   /**
    * Expand MCP Servers accordion section
    */
@@ -93,15 +99,15 @@ export class McpServerPage extends BasePage {
     workspaceId: string,
     input: CreateMcpServerInput
   ): Promise<McpServer> {
-    const sessionCookie = await this.getSessionCookie();
     const baseUrl = this.getBaseUrl();
+    const token = await this.getAccessToken();
 
     const response = await this.page.request.post(
       `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers`,
       {
         headers: {
           "Content-Type": "application/json",
-          Cookie: `${sessionCookie.name}=${sessionCookie.value}`,
+          Authorization: `Bearer ${token}`,
         },
         data: input,
       }
@@ -121,7 +127,7 @@ export class McpServerPage extends BasePage {
    * Initiate OAuth flow by clicking Connect button
    */
   async initiateOAuthFlow(serverName: string): Promise<void> {
-    const serverCard = this.getServerCard(serverName);
+    const serverCard = await this.waitForServerCard(serverName);
     const connectButton = serverCard
       .locator('button:has-text("Connect")')
       .or(serverCard.locator('button:has-text("Reconnect")'))
@@ -231,6 +237,7 @@ export class McpServerPage extends BasePage {
         "[MCP OAuth] HEADLESS=true detected. Manual OAuth completion may not be possible."
       );
     } else {
+      process.stdout.write("\x07");
       await this.page.pause();
     }
 
@@ -258,14 +265,14 @@ export class McpServerPage extends BasePage {
    * Get MCP server list via API
    */
   async getMcpServersViaApi(workspaceId: string): Promise<McpServer[]> {
-    const sessionCookie = await this.getSessionCookie();
     const baseUrl = this.getBaseUrl();
+    const token = await this.getAccessToken();
 
     const response = await this.page.request.get(
       `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers`,
       {
         headers: {
-          Cookie: `${sessionCookie.name}=${sessionCookie.value}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -287,8 +294,8 @@ export class McpServerPage extends BasePage {
     serverId: string,
     currentEnabledIds: string[] = []
   ): Promise<void> {
-    const sessionCookie = await this.getSessionCookie();
     const baseUrl = this.getBaseUrl();
+    const token = await this.getAccessToken();
 
     const enabledMcpServerIds = [...new Set([...currentEnabledIds, serverId])];
 
@@ -297,7 +304,7 @@ export class McpServerPage extends BasePage {
       {
         headers: {
           "Content-Type": "application/json",
-          Cookie: `${sessionCookie.name}=${sessionCookie.value}`,
+          Authorization: `Bearer ${token}`,
         },
         data: {
           enabledMcpServerIds,
@@ -313,6 +320,62 @@ export class McpServerPage extends BasePage {
     }
   }
 
+  async disableMcpServerOnAgent(
+    workspaceId: string,
+    agentId: string,
+    serverId: string,
+    currentEnabledIds: string[] = []
+  ): Promise<void> {
+    const baseUrl = this.getBaseUrl();
+    const token = await this.getAccessToken();
+
+    const enabledMcpServerIds = currentEnabledIds.filter((id) => id !== serverId);
+
+    const response = await this.page.request.put(
+      `${baseUrl}/api/workspaces/${workspaceId}/agents/${agentId}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        data: {
+          enabledMcpServerIds,
+        },
+      }
+    );
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to disable MCP server on agent: ${response.status()} ${errorText}`
+      );
+    }
+  }
+
+  async deleteMcpServer(
+    workspaceId: string,
+    serverId: string
+  ): Promise<void> {
+    const baseUrl = this.getBaseUrl();
+    const token = await this.getAccessToken();
+
+    const response = await this.page.request.delete(
+      `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers/${serverId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to delete MCP server: ${response.status()} ${errorText}`
+      );
+    }
+  }
+
   /**
    * Fetch agent tools via API
    */
@@ -320,14 +383,14 @@ export class McpServerPage extends BasePage {
     workspaceId: string,
     agentId: string
   ): Promise<ToolDescriptor[]> {
-    const sessionCookie = await this.getSessionCookie();
     const baseUrl = this.getBaseUrl();
+    const token = await this.getAccessToken();
 
     const response = await this.page.request.get(
       `${baseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/tools`,
       {
         headers: {
-          Cookie: `${sessionCookie.name}=${sessionCookie.value}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -421,6 +484,12 @@ export class McpServerPage extends BasePage {
     );
   }
 
+  private async waitForServerCard(serverName: string): Promise<Locator> {
+    const card = this.getServerCard(serverName);
+    await card.waitFor({ state: "visible", timeout: 20000 });
+    return card;
+  }
+
   private async getSessionCookie() {
     const cookies = await this.page.context().cookies();
     const sessionCookie = cookies.find((c) => c.name.includes("session"));
@@ -430,6 +499,20 @@ export class McpServerPage extends BasePage {
     }
 
     return sessionCookie;
+  }
+
+  private async getAccessToken(): Promise<string> {
+    const token = await this.page.evaluate(() => {
+      return (
+        localStorage.getItem("helpmaton_access_token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("auth_token")
+      );
+    });
+    if (!token) {
+      throw new Error("No auth token found in localStorage.");
+    }
+    return token;
   }
 
   private getBaseUrl(): string {
