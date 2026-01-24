@@ -467,7 +467,7 @@
         "minimax/minimax-m2.1": {
           "usd": {
             "input": 0.27,
-            "output": 1.12,
+            "output": 1.1,
             "cachedInput": 0.027000000000000003
           },
           "capabilities": {
@@ -3557,7 +3557,7 @@
         "alibaba/tongyi-deepresearch-30b-a3b": {
           "usd": {
             "input": 0.09,
-            "output": 0.44999999999999996,
+            "output": 0.39999999999999997,
             "cachedInput": 0.009
           },
           "capabilities": {
@@ -12132,5 +12132,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-23T00:16:23.980Z"
+  "lastUpdated": "2026-01-24T00:14:51.319Z"
 }
