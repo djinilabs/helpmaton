@@ -78,6 +78,18 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
       (data as unknown as { pages: EvalResultsResponse[] }).pages
     ).flatMap((page) => page.results);
 
+    const hasCompletedScores = (
+      result: EvalResult
+    ): result is EvalResult & {
+      scoreGoalCompletion: number;
+      scoreToolEfficiency: number;
+      scoreFaithfulness: number;
+    } =>
+      result.status === "completed" &&
+      result.scoreGoalCompletion !== null &&
+      result.scoreToolEfficiency !== null &&
+      result.scoreFaithfulness !== null;
+
     // Sort results
     const sorted = [...allResults];
     if (sortBy === "date") {
@@ -90,14 +102,15 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
       sorted.sort((a, b) => a.judgeName.localeCompare(b.judgeName));
     }
 
-    // Calculate aggregates from all loaded pages
-    const totalEvaluations = allResults.length;
+    // Calculate aggregates from completed results only
+    const completedResults = allResults.filter(hasCompletedScores);
+    const totalEvaluations = completedResults.length;
     let sumGoalCompletion = 0;
     let sumToolEfficiency = 0;
     let sumFaithfulness = 0;
     let criticalFailures = 0;
 
-    for (const result of allResults) {
+    for (const result of completedResults) {
       sumGoalCompletion += result.scoreGoalCompletion;
       sumToolEfficiency += result.scoreToolEfficiency;
       sumFaithfulness += result.scoreFaithfulness;
@@ -301,46 +314,75 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               </tr>
             </thead>
             <tbody>
-              {results.map((result) => (
-                <tr
-                  key={`${result.conversationId}-${result.judgeId}-${result.evaluatedAt}`}
-                  className="border-b border-neutral-200 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
-                >
+              {results.map((result) => {
+                const isFailed = result.status === "failed";
+                const goalScore = result.scoreGoalCompletion;
+                const toolScore = result.scoreToolEfficiency;
+                const faithScore = result.scoreFaithfulness;
+                const showGoalScore = !isFailed && goalScore !== null;
+                const showToolScore = !isFailed && toolScore !== null;
+                const showFaithScore = !isFailed && faithScore !== null;
+                return (
+                  <tr
+                    key={`${result.conversationId}-${result.judgeId}-${result.evaluatedAt}`}
+                    className="border-b border-neutral-200 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
+                  >
                   <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                     {formatDate(result.evaluatedAt)}
                   </td>
                   <td className="px-4 py-3 text-sm text-neutral-900 dark:text-neutral-50">
-                    {result.judgeName}
+                    <div className="flex items-center gap-2">
+                      <span>{result.judgeName}</span>
+                      {isFailed && (
+                        <span className="rounded-full border border-red-200 bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                          Failed
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
-                        result.scoreGoalCompletion
-                      )}`}
-                    >
-                      {result.scoreGoalCompletion}%
-                    </span>
+                    {showGoalScore ? (
+                      <span
+                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
+                          goalScore
+                        )}`}
+                      >
+                        {goalScore}%
+                      </span>
+                    ) : (
+                      <span className="text-xs text-neutral-500">N/A</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
-                        result.scoreToolEfficiency
-                      )}`}
-                    >
-                      {result.scoreToolEfficiency}%
-                    </span>
+                    {showToolScore ? (
+                      <span
+                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
+                          toolScore
+                        )}`}
+                      >
+                        {toolScore}%
+                      </span>
+                    ) : (
+                      <span className="text-xs text-neutral-500">N/A</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
-                        result.scoreFaithfulness
-                      )}`}
-                    >
-                      {result.scoreFaithfulness}%
-                    </span>
+                    {showFaithScore ? (
+                      <span
+                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
+                          faithScore
+                        )}`}
+                      >
+                        {faithScore}%
+                      </span>
+                    ) : (
+                      <span className="text-xs text-neutral-500">N/A</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    {result.criticalFailureDetected ? (
+                    {isFailed ? (
+                      <span className="text-xs text-neutral-500">N/A</span>
+                    ) : result.criticalFailureDetected ? (
                       <span className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-100 px-2 py-1 text-xs font-semibold text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
                         <ExclamationTriangleIcon className="size-3" />
                         Yes
@@ -357,8 +399,9 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                       View Details
                     </button>
                   </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -435,7 +478,10 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                       Goal Completion
                     </div>
                     <div className="mt-1 text-xl font-bold text-neutral-900 dark:text-neutral-50">
-                      {selectedResult.scoreGoalCompletion}%
+                      {selectedResult.status === "failed" ||
+                      selectedResult.scoreGoalCompletion === null
+                        ? "N/A"
+                        : `${selectedResult.scoreGoalCompletion}%`}
                     </div>
                   </div>
                   <div>
@@ -443,7 +489,10 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                       Tool Efficiency
                     </div>
                     <div className="mt-1 text-xl font-bold text-neutral-900 dark:text-neutral-50">
-                      {selectedResult.scoreToolEfficiency}%
+                      {selectedResult.status === "failed" ||
+                      selectedResult.scoreToolEfficiency === null
+                        ? "N/A"
+                        : `${selectedResult.scoreToolEfficiency}%`}
                     </div>
                   </div>
                   <div>
@@ -451,11 +500,15 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                       Faithfulness
                     </div>
                     <div className="mt-1 text-xl font-bold text-neutral-900 dark:text-neutral-50">
-                      {selectedResult.scoreFaithfulness}%
+                      {selectedResult.status === "failed" ||
+                      selectedResult.scoreFaithfulness === null
+                        ? "N/A"
+                        : `${selectedResult.scoreFaithfulness}%`}
                     </div>
                   </div>
                 </div>
-                {selectedResult.criticalFailureDetected && (
+                {selectedResult.status === "completed" &&
+                  selectedResult.criticalFailureDetected && (
                   <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
                     <div className="flex items-start gap-2">
                       <ExclamationTriangleIcon className="mt-0.5 size-5 shrink-0 text-red-600 dark:text-red-400" />
@@ -467,6 +520,21 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                     </div>
                   </div>
                 )}
+                {selectedResult.status === "failed" && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
+                    <div className="text-sm font-semibold text-red-800 dark:text-red-200">
+                      Evaluation Failed
+                    </div>
+                    <div className="mt-1 text-xs text-red-700 dark:text-red-300">
+                      {selectedResult.errorMessage || "Unknown evaluation error"}
+                    </div>
+                    {selectedResult.errorDetails && (
+                      <div className="mt-2 text-xs text-red-700 dark:text-red-300">
+                        {selectedResult.errorDetails}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                     Summary
@@ -474,7 +542,9 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                   <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {selectedResult.summary}
+                        {selectedResult.status === "failed"
+                          ? "N/A"
+                          : selectedResult.summary}
                       </ReactMarkdown>
                     </div>
                   </div>
@@ -486,7 +556,9 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                   <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {selectedResult.reasoningTrace}
+                        {selectedResult.status === "failed"
+                          ? "N/A"
+                          : selectedResult.reasoningTrace}
                       </ReactMarkdown>
                     </div>
                   </div>
