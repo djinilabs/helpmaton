@@ -559,6 +559,7 @@ Please provide your evaluation as a JSON object following the specified format.`
   const reservationKey = reservationId?.reservationId;
   const hasGenerationIds = totalOpenrouterGenerationIds.length > 0;
   if (
+    !evalError &&
     reservationKey &&
     reservationKey !== "byok" &&
     (!totalTokenUsage ||
@@ -574,6 +575,7 @@ Please provide your evaluation as a JSON object following the specified format.`
       "test"
     );
   } else if (
+    !evalError &&
     reservationKey &&
     reservationKey !== "byok" &&
     (!totalTokenUsage ||
