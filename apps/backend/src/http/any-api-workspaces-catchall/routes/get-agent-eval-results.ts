@@ -188,18 +188,29 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
         // Calculate aggregates from all matching results (across all pages)
         // For now, we calculate from the current page only
         // TODO: Consider a separate endpoint or mechanism for accurate aggregates across all pages
-        const totalEvaluations = filteredItems.length;
+        let totalEvaluations = 0;
         let sumGoalCompletion = 0;
         let sumToolEfficiency = 0;
         let sumFaithfulness = 0;
         let criticalFailures = 0;
 
         for (const result of filteredItems as Array<{
-          scoreGoalCompletion: number;
-          scoreToolEfficiency: number;
-          scoreFaithfulness: number;
+          scoreGoalCompletion?: number | null;
+          scoreToolEfficiency?: number | null;
+          scoreFaithfulness?: number | null;
           criticalFailureDetected: boolean;
+          status?: "completed" | "failed";
         }>) {
+          const status = result.status ?? "completed";
+          if (
+            status !== "completed" ||
+            typeof result.scoreGoalCompletion !== "number" ||
+            typeof result.scoreToolEfficiency !== "number" ||
+            typeof result.scoreFaithfulness !== "number"
+          ) {
+            continue;
+          }
+          totalEvaluations += 1;
           sumGoalCompletion += result.scoreGoalCompletion;
           sumToolEfficiency += result.scoreToolEfficiency;
           sumFaithfulness += result.scoreFaithfulness;
@@ -220,13 +231,16 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
             conversationId: string;
             judgeId: string;
             summary: string;
-            scoreGoalCompletion: number;
-            scoreToolEfficiency: number;
-            scoreFaithfulness: number;
-            criticalFailureDetected: boolean;
+            scoreGoalCompletion?: number | null;
+            scoreToolEfficiency?: number | null;
+            scoreFaithfulness?: number | null;
+            criticalFailureDetected?: boolean;
             reasoningTrace: string;
             costUsd?: number;
             evaluatedAt: string;
+            status?: "completed" | "failed";
+            errorMessage?: string;
+            errorDetails?: string;
           }) => {
             const judgePk = `agent-eval-judges/${workspaceId}/${agentId}/${result.judgeId}`;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -236,12 +250,24 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
               conversationId: result.conversationId,
               judgeId: result.judgeId,
               judgeName: judge?.name || "Unknown Judge",
+              status: result.status ?? "completed",
               summary: result.summary,
-              scoreGoalCompletion: result.scoreGoalCompletion,
-              scoreToolEfficiency: result.scoreToolEfficiency,
-              scoreFaithfulness: result.scoreFaithfulness,
-              criticalFailureDetected: result.criticalFailureDetected,
+              scoreGoalCompletion:
+                typeof result.scoreGoalCompletion === "number"
+                  ? result.scoreGoalCompletion
+                  : null,
+              scoreToolEfficiency:
+                typeof result.scoreToolEfficiency === "number"
+                  ? result.scoreToolEfficiency
+                  : null,
+              scoreFaithfulness:
+                typeof result.scoreFaithfulness === "number"
+                  ? result.scoreFaithfulness
+                  : null,
+              criticalFailureDetected: !!result.criticalFailureDetected,
               reasoningTrace: result.reasoningTrace,
+              errorMessage: result.errorMessage,
+              errorDetails: result.errorDetails,
               costUsd: result.costUsd ? result.costUsd / 1_000_000 : null,
               evaluatedAt: result.evaluatedAt,
             };

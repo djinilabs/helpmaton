@@ -7,6 +7,7 @@ const baseResult: EvalResult = {
   conversationId: "conv-123",
   judgeId: "judge-1",
   judgeName: "Judge",
+  status: "completed",
   summary: "summary",
   scoreGoalCompletion: 80,
   scoreToolEfficiency: 70,

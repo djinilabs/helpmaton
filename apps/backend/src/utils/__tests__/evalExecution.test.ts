@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
+  buildEvalFailureRecord,
+  buildEvalParseRetryPrompt,
   formatConversationForEval,
   parseEvalResponse,
 } from "../evalExecution";
@@ -363,6 +365,51 @@ describe("evalExecution", () => {
       expect(result.steps[0].step_id).toBe("step_0");
       expect(result.steps[1].step_id).toBe("step_1");
       expect(result.steps[2].step_id).toBe("step_2");
+    });
+  });
+
+  describe("buildEvalParseRetryPrompt", () => {
+    it("should include the parse error and strict JSON instruction", () => {
+      const prompt = buildEvalParseRetryPrompt("Unexpected token");
+
+      expect(prompt).toContain("Error: Unexpected token");
+      expect(prompt).toContain("JSON object");
+      expect(prompt).toContain("Do not include any extra text");
+    });
+  });
+
+  describe("buildEvalFailureRecord", () => {
+    it("should build a failed evaluation record with error details", () => {
+      const record = buildEvalFailureRecord({
+        pk: "agent-eval-results/ws/agent/conv/judge",
+        sk: "result",
+        workspaceId: "ws",
+        agentId: "agent",
+        conversationId: "conv",
+        judgeId: "judge",
+        evaluatedAt: "2025-01-01T00:00:00.000Z",
+        costUsd: 123,
+        usesByok: false,
+        tokenUsage: {
+          promptTokens: 10,
+          completionTokens: 5,
+          totalTokens: 15,
+        },
+        errorMessage: "Failed to parse evaluation response",
+        errorDetails: "Invalid JSON",
+      });
+
+      expect(record).toMatchObject({
+        status: "failed",
+        summary: "Evaluation failed",
+        errorMessage: "Failed to parse evaluation response",
+        errorDetails: "Invalid JSON",
+        scoreGoalCompletion: null,
+        scoreToolEfficiency: null,
+        scoreFaithfulness: null,
+      });
+      expect(record.createdAt).toBe("2025-01-01T00:00:00.000Z");
+      expect(record.evaluatedAt).toBe("2025-01-01T00:00:00.000Z");
     });
   });
 });

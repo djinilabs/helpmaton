@@ -107,18 +107,34 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
       return [];
     }
 
+    type CompletedEvalResult = EvalResult & {
+      scoreGoalCompletion: number;
+      scoreToolEfficiency: number;
+      scoreFaithfulness: number;
+    };
+
+    const hasCompletedScores = (
+      result: EvalResult
+    ): result is CompletedEvalResult =>
+      result.status === "completed" &&
+      result.scoreGoalCompletion !== null &&
+      result.scoreToolEfficiency !== null &&
+      result.scoreFaithfulness !== null;
+
     // Flatten all results from all pages
     // useInfiniteQuery returns data with pages property
     const allResults = (
       (data as unknown as { pages: EvalResultsResponse[] }).pages
-    ).flatMap((page) => page.results);
+    )
+      .flatMap((page) => page.results)
+      .filter(hasCompletedScores);
 
     if (allResults.length === 0) {
       return [];
     }
 
     // Group results by date
-    const dateMap = new Map<string, EvalResult[]>();
+    const dateMap = new Map<string, CompletedEvalResult[]>();
     for (const result of allResults) {
       const date = new Date(result.evaluatedAt).toISOString().split("T")[0];
       if (!dateMap.has(date)) {

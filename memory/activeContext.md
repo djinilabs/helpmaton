@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Eval retry + failure records**: Kept the 3-attempt retry loop for judge parse errors, stored failed eval records with status/error details and nullable scores, updated eval result APIs/UI to show failed entries and exclude them from aggregates/charts, and updated tests. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Split streaming lambdas**: Added `llm-shared-stream` + `llm-shared-http` entrypoints, moved test endpoint to `/api/streams/{workspaceId}/{agentId}/test`, updated stream path detection/extraction, removed old workspaces test route, and updated docs/scripts/tests/openapi references. Ran `pnpm typecheck`, `pnpm lint --fix`, and focused backend tests (`llm-shared`, `llm-shared-stream`, `streamEndpointDetection`, `streamPathExtraction`, `requestValidation`, `httpEventAdapter`, `resources`).
 - **Test endpoint CORS**: Adjusted test CORS headers to prefer request origin (avoids FRONTEND_URL mismatch), updated stream CORS tests, and ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test --run streamCorsHeaders`.
 - **Client test URL fallback**: Normalized `AgentChatWithFunctionUrl` to strip any `/api/workspaces`/`/api/streams` path from the stream URL before appending `/api/streams/{workspaceId}/{agentId}/test`. Ran `pnpm typecheck` and `pnpm lint --fix`.
