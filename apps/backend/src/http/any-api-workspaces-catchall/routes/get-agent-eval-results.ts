@@ -268,7 +268,10 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
               reasoningTrace: result.reasoningTrace,
               errorMessage: result.errorMessage,
               errorDetails: result.errorDetails,
-              costUsd: result.costUsd ? result.costUsd / 1_000_000 : null,
+              costUsd:
+                typeof result.costUsd === "number"
+                  ? result.costUsd / 1_000_000
+                  : null,
               evaluatedAt: result.evaluatedAt,
             };
           })

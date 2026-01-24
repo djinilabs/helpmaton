@@ -4,6 +4,7 @@ import type { ModelMessage } from "ai";
 import {
   adjustCreditsAfterLLMCall,
   cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
 } from "../http/utils/generationCreditManagement";
 import { extractTokenUsageAndCosts } from "../http/utils/generationTokenExtraction";
 import { createModel } from "../http/utils/modelFactory";
@@ -552,6 +553,41 @@ Please provide your evaluation as a JSON object following the specified format.`
       "test", // endpoint type
       context,
       conversationId
+    );
+  }
+
+  const reservationKey = reservationId?.reservationId;
+  const hasGenerationIds = totalOpenrouterGenerationIds.length > 0;
+  if (
+    reservationKey &&
+    reservationKey !== "byok" &&
+    (!totalTokenUsage ||
+      (totalTokenUsage.promptTokens === 0 &&
+        totalTokenUsage.completionTokens === 0)) &&
+    !hasGenerationIds
+  ) {
+    await cleanupReservationWithoutTokenUsage(
+      db,
+      reservationKey,
+      workspaceId,
+      agentId,
+      "test"
+    );
+  } else if (
+    reservationKey &&
+    reservationKey !== "byok" &&
+    (!totalTokenUsage ||
+      (totalTokenUsage.promptTokens === 0 &&
+        totalTokenUsage.completionTokens === 0)) &&
+    hasGenerationIds
+  ) {
+    console.warn(
+      "[Eval Execution] No token usage available, keeping reservation for verification",
+      {
+        workspaceId,
+        agentId,
+        reservationId: reservationKey,
+      }
     );
   }
 
