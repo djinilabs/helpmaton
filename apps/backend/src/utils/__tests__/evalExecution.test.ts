@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { validateCreditsAndLimitsAndReserve } from "../creditValidation";
+import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import {
   adjustCreditsAfterLLMCall,
   cleanupReservationOnError,
@@ -13,7 +13,8 @@ import {
   cleanupRequestTimeout,
   createRequestTimeout,
 } from "../../http/utils/requestTimeout";
-import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
+import type { CreditReservation } from "../creditManagement";
+import { validateCreditsAndLimitsAndReserve } from "../creditValidation";
 import {
   buildEvalFailureRecord,
   buildEvalParseRetryPrompt,
@@ -58,12 +59,20 @@ vi.mock("../../http/utils/agentUtils", () => ({
 describe("evalExecution", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(createRequestTimeout).mockReturnValue({ signal: undefined });
+    const controller = new AbortController();
+    vi.mocked(createRequestTimeout).mockReturnValue({
+      controller,
+      signal: controller.signal,
+      timeoutId: setTimeout(() => {}, 0),
+    });
     vi.mocked(cleanupRequestTimeout).mockReturnValue(undefined);
-    vi.mocked(createModel).mockResolvedValue({});
+    vi.mocked(createModel).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof createModel>>
+    );
     vi.mocked(validateCreditsAndLimitsAndReserve).mockResolvedValue({
       reservationId: "res-1",
       reservedAmount: 0,
+      workspace: {} as CreditReservation["workspace"],
     });
     vi.mocked(extractTokenUsageAndCosts).mockReturnValue({
       tokenUsage: {
@@ -529,7 +538,7 @@ describe("evalExecution", () => {
       generateTextMock.mockImplementation(async ({ messages }) => {
         capturedMessages.push(JSON.parse(JSON.stringify(messages)));
         if (capturedMessages.length < 3) {
-          return { text: "not json" };
+          return { text: "not json" } as Awaited<ReturnType<typeof generateText>>;
         }
         return {
           text: JSON.stringify({
@@ -540,7 +549,7 @@ describe("evalExecution", () => {
             critical_failure_detected: false,
             reasoning_trace: "Looks good",
           }),
-        };
+        } as Awaited<ReturnType<typeof generateText>>;
       });
 
       await executeEvaluation(
@@ -577,7 +586,9 @@ describe("evalExecution", () => {
 
     it("stores a failed record after exhausting retries", async () => {
       const generateTextMock = vi.mocked(generateText);
-      generateTextMock.mockResolvedValue({ text: "not json" });
+      generateTextMock.mockResolvedValue(
+        { text: "not json" } as Awaited<ReturnType<typeof generateText>>
+      );
       const db = buildDb();
 
       await executeEvaluation(
