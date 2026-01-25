@@ -55,6 +55,16 @@ opens for manual OAuth completion. If you need headless mode, run:
 HEADLESS=true pnpm test:e2e:mcp-oauth
 ```
 
+## Preserving OAuth Credentials
+
+By default, the OAuth E2E test cleans up MCP servers after each provider. To
+preserve the created MCP servers (so you can reuse credentials for tool tests),
+set:
+
+```
+MCP_OAUTH_PRESERVE=true pnpm test:e2e:mcp-oauth
+```
+
 ## Manual OAuth Steps
 
 The test will pause with Playwright Inspector when manual steps are required:
@@ -91,6 +101,30 @@ MCP_OAUTH_SKIP_GMAIL=true
 
 For best results, put these in `tests/e2e/.env` so they are loaded before
 the test starts.
+
+## MCP Tool Integration Test
+
+There is a separate Vitest integration test that invokes every MCP tool for
+each provider using real services. It queries the local DynamoDB sandbox
+directly and fails if it cannot find credentials for a provider.
+
+From the repo root:
+
+```
+RUN_MCP_TOOLS_INTEGRATION=true pnpm test:mcp-tools:integration
+```
+
+To limit providers:
+
+```
+RUN_MCP_TOOLS_INTEGRATION=true pnpm test:mcp-tools:integration --services=github,slack
+```
+
+You can also pass a comma-separated list directly:
+
+```
+RUN_MCP_TOOLS_INTEGRATION=true pnpm test:mcp-tools:integration github,slack
+```
 
 ## Error Reporting
 

@@ -24,6 +24,7 @@ type OAuthFailure = {
 };
 
 const shouldRunMcpOAuth = process.env.RUN_MCP_OAUTH_E2E === "true";
+const preserveMcpOAuthData = isTruthyEnv(process.env.MCP_OAUTH_PRESERVE);
 const mcpDescribe = shouldRunMcpOAuth
   ? testWithUserManagement.describe.serial
   : testWithUserManagement.describe.skip;
@@ -249,7 +250,11 @@ mcpDescribe("MCP OAuth Integrations - Full Integration", () => {
             `Tool response for ${tool.name}: ${response.slice(0, 100)}...`,
           );
         } finally {
-          if (serverCreated) {
+          if (preserveMcpOAuthData) {
+            console.log(
+              `[MCP OAuth] Preserving MCP server ${serverId} for ${serviceType}`
+            );
+          } else if (serverCreated) {
             try {
               if (serverEnabled) {
                 await mcpPage.disableMcpServerOnAgent(
