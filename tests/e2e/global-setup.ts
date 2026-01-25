@@ -228,6 +228,8 @@ async function globalSetup(config: FullConfig) {
       "DISABLE_TRIAL_PERIOD_CHECK",
       "STRIPE_OAUTH_CLIENT_ID",
       "STRIPE_OAUTH_CLIENT_SECRET",
+      "TODOIST_OAUTH_CLIENT_ID",
+      "TODOIST_OAUTH_CLIENT_SECRET",
       // Note: E2E_OVERRIDE_MAX_USERS is handled explicitly above with a default value
     ];
 

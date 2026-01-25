@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Todoist OAuth scope fix**: Updated Todoist OAuth scopes to `data:read_write` and switched auth/token endpoints to `api.todoist.com` to resolve `invalid_scope` errors; updated unit test expectations.
 - **Stripe OAuth scope**: Switched Stripe OAuth scope to `read_write` to satisfy Stripe Connect requirements; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **MCP tools integration test**: Added a Vitest integration test that queries the local sandbox DB to find latest OAuth MCP servers per provider and invokes every tool with chained args; added `MCP_OAUTH_PRESERVE` to keep OAuth E2E credentials, plus a root script + docs for running the tool integration test with optional provider filters.
 - **MCP tool integration args**: Added support for comma-separated provider lists passed directly on the CLI (alongside `--services=...`) when running `pnpm test:mcp-tools:integration`.

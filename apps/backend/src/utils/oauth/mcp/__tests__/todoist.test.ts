@@ -30,9 +30,9 @@ describe("Todoist OAuth Utilities", () => {
     it("should generate authorization URL with correct parameters", () => {
       const authUrl = generateTodoistAuthUrl("workspace-1", "server-1");
 
-      expect(authUrl).toContain("https://todoist.com/oauth/authorize");
+      expect(authUrl).toContain("https://api.todoist.com/oauth/authorize");
       expect(authUrl).toContain("client_id=todoist-client-id");
-      expect(authUrl).toContain("scope=tasks%3Aread");
+      expect(authUrl).toContain("scope=data%3Aread_write");
       expect(authUrl).toContain("state=");
     });
 
