@@ -1,7 +1,11 @@
 import { generateText } from "ai";
 import type { ModelMessage } from "ai";
 
-import { adjustCreditsAfterLLMCall } from "../http/utils/generationCreditManagement";
+import {
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+} from "../http/utils/generationCreditManagement";
 import { extractTokenUsageAndCosts } from "../http/utils/generationTokenExtraction";
 import { createModel } from "../http/utils/modelFactory";
 import {
@@ -9,6 +13,7 @@ import {
   cleanupRequestTimeout,
 } from "../http/utils/requestTimeout";
 
+import type { TokenUsage } from "./conversationLogger";
 import { validateCreditsAndLimitsAndReserve } from "./creditValidation";
 import type { UIMessage } from "./messageTypes";
 import type { AugmentedContext } from "./workspaceCreditContext";
@@ -242,6 +247,92 @@ export function parseEvalResponse(text: string): {
   };
 }
 
+const MAX_EVAL_PARSE_ATTEMPTS = 3;
+
+export function buildEvalParseRetryPrompt(errorMessage: string): string {
+  return [
+    "The previous response could not be parsed as valid JSON.",
+    `Error: ${errorMessage}`,
+    "Please reply ONLY with a JSON object that matches the required schema:",
+    "summary (string), score_goal_completion (0-100), score_tool_efficiency (0-100), score_faithfulness (0-100), critical_failure_detected (boolean), reasoning_trace (string).",
+    "Do not include any extra text, markdown, or code fences.",
+  ].join("\n");
+}
+
+export function buildEvalFailureRecord(input: {
+  pk: string;
+  sk: string;
+  workspaceId: string;
+  agentId: string;
+  conversationId: string;
+  judgeId: string;
+  evaluatedAt: string;
+  costUsd: number | undefined;
+  usesByok: boolean;
+  tokenUsage: TokenUsage | undefined;
+  errorMessage: string;
+  errorDetails: string;
+}): Record<string, unknown> {
+  return {
+    pk: input.pk,
+    sk: input.sk,
+    workspaceId: input.workspaceId,
+    agentId: input.agentId,
+    conversationId: input.conversationId,
+    judgeId: input.judgeId,
+    status: "failed",
+    summary: "Evaluation failed",
+    scoreGoalCompletion: null,
+    scoreToolEfficiency: null,
+    scoreFaithfulness: null,
+    criticalFailureDetected: false,
+    reasoningTrace: "",
+    errorMessage: input.errorMessage,
+    errorDetails: input.errorDetails,
+    costUsd: input.costUsd,
+    usesByok: input.usesByok,
+    tokenUsage: input.tokenUsage,
+    evaluatedAt: input.evaluatedAt,
+    version: 1,
+    createdAt: input.evaluatedAt,
+  };
+}
+
+const mergeOptionalNumber = (
+  base: number | undefined,
+  next: number | undefined
+): number | undefined => {
+  if (base === undefined && next === undefined) {
+    return undefined;
+  }
+  return (base ?? 0) + (next ?? 0);
+};
+
+const mergeTokenUsage = (
+  base: TokenUsage | undefined,
+  next: TokenUsage | undefined
+): TokenUsage | undefined => {
+  if (!next) {
+    return base;
+  }
+  if (!base) {
+    return { ...next };
+  }
+  return {
+    promptTokens: base.promptTokens + next.promptTokens,
+    completionTokens: base.completionTokens + next.completionTokens,
+    totalTokens: base.totalTokens + next.totalTokens,
+    reasoningTokens: mergeOptionalNumber(
+      base.reasoningTokens,
+      next.reasoningTokens
+    ),
+    cachedPromptTokens: mergeOptionalNumber(
+      base.cachedPromptTokens,
+      next.cachedPromptTokens
+    ),
+  };
+};
+
 /**
  * Execute an evaluation using a judge on a conversation
  */
@@ -363,34 +454,90 @@ Please provide your evaluation as a JSON object following the specified format.`
     conversationId
   );
 
-  // Make LLM call
-  console.log("[Eval Execution] generateText arguments:", {
-    model: judge.modelName,
-    messagesCount: messages.length,
-  });
-  const requestTimeout = createRequestTimeout();
-  let result: Awaited<ReturnType<typeof generateText>>;
-  try {
-    result = await generateText({
-      model: model as unknown as Parameters<typeof generateText>[0]["model"],
-      messages,
-      abortSignal: requestTimeout.signal,
+  let evalResult:
+    | ReturnType<typeof parseEvalResponse>
+    | null = null;
+  let parseError: Error | null = null;
+  let evalError: Error | null = null;
+  let totalTokenUsage: TokenUsage | undefined;
+  let totalOpenrouterGenerationIds: string[] = [];
+  let totalCostUsd: number | undefined;
+  let llmCallAttempted = false;
+
+  for (let attempt = 1; attempt <= MAX_EVAL_PARSE_ATTEMPTS; attempt += 1) {
+    console.log("[Eval Execution] generateText arguments:", {
+      model: judge.modelName,
+      messagesCount: messages.length,
+      attempt,
     });
-  } finally {
-    cleanupRequestTimeout(requestTimeout);
+    const requestTimeout = createRequestTimeout();
+    let result: Awaited<ReturnType<typeof generateText>>;
+    try {
+      llmCallAttempted = true;
+      result = await generateText({
+        model: model as unknown as Parameters<typeof generateText>[0]["model"],
+        messages,
+        abortSignal: requestTimeout.signal,
+      });
+    } catch (error) {
+      evalError = error instanceof Error ? error : new Error(String(error));
+      break;
+    } finally {
+      cleanupRequestTimeout(requestTimeout);
+    }
+
+    const extractionResult = extractTokenUsageAndCosts(
+      result as unknown as { totalUsage?: unknown; usage?: unknown },
+      undefined,
+      judge.modelName,
+      "test" // endpoint type
+    );
+
+    totalTokenUsage = mergeTokenUsage(
+      totalTokenUsage,
+      extractionResult.tokenUsage
+    );
+    if (extractionResult.openrouterGenerationIds.length > 0) {
+      totalOpenrouterGenerationIds = Array.from(
+        new Set([
+          ...totalOpenrouterGenerationIds,
+          ...extractionResult.openrouterGenerationIds,
+        ])
+      );
+    }
+    if (extractionResult.provisionalCostUsd !== undefined) {
+      totalCostUsd =
+        (totalCostUsd ?? 0) + extractionResult.provisionalCostUsd;
+    }
+
+    try {
+      evalResult = parseEvalResponse(result.text);
+      parseError = null;
+      break;
+    } catch (error) {
+      parseError = error instanceof Error ? error : new Error(String(error));
+      console.error("[Eval Execution] Failed to parse evaluation response:", {
+        error: parseError.message,
+        text: result.text.substring(0, 500), // Log first 500 chars
+        judgeId,
+        conversationId,
+        attempt,
+      });
+      if (attempt < MAX_EVAL_PARSE_ATTEMPTS) {
+        messages.push({
+          role: "assistant",
+          content: result.text,
+        });
+        messages.push({
+          role: "user",
+          content: buildEvalParseRetryPrompt(parseError.message),
+        });
+      }
+    }
   }
 
-  // Extract token usage and costs
-  const extractionResult = extractTokenUsageAndCosts(
-    result as unknown as { totalUsage?: unknown; usage?: unknown },
-    undefined,
-    judge.modelName,
-    "test" // endpoint type
-  );
-
-  // Adjust credits after LLM call
+  // Adjust credits after LLM calls
   if (reservationId) {
-     
     const dbWithAtomic = db as Parameters<typeof adjustCreditsAfterLLMCall>[0];
     await adjustCreditsAfterLLMCall(
       dbWithAtomic,
@@ -399,63 +546,122 @@ Please provide your evaluation as a JSON object following the specified format.`
       reservationId.reservationId,
       "openrouter",
       judge.modelName,
-      extractionResult.tokenUsage,
+      totalTokenUsage,
       usesByok,
-      extractionResult.openrouterGenerationId,
-      extractionResult.openrouterGenerationIds,
+      totalOpenrouterGenerationIds[0],
+      totalOpenrouterGenerationIds,
       "test", // endpoint type
+      context,
+      conversationId
+    );
+  }
+
+  const reservationKey = reservationId?.reservationId;
+  const hasGenerationIds = totalOpenrouterGenerationIds.length > 0;
+  if (
+    !evalError &&
+    reservationKey &&
+    reservationKey !== "byok" &&
+    (!totalTokenUsage ||
+      (totalTokenUsage.promptTokens === 0 &&
+        totalTokenUsage.completionTokens === 0)) &&
+    !hasGenerationIds
+  ) {
+    await cleanupReservationWithoutTokenUsage(
+      db,
+      reservationKey,
+      workspaceId,
+      agentId,
+      "test"
+    );
+  } else if (
+    !evalError &&
+    reservationKey &&
+    reservationKey !== "byok" &&
+    (!totalTokenUsage ||
+      (totalTokenUsage.promptTokens === 0 &&
+        totalTokenUsage.completionTokens === 0)) &&
+    hasGenerationIds
+  ) {
+    console.warn(
+      "[Eval Execution] No token usage available, keeping reservation for verification",
+      {
+        workspaceId,
+        agentId,
+        reservationId: reservationKey,
+      }
+    );
+  }
+
+  if (!evalResult && evalError && reservationId) {
+    const dbWithAtomic = db as Parameters<typeof cleanupReservationOnError>[0];
+    await cleanupReservationOnError(
+      dbWithAtomic,
+      reservationId.reservationId,
+      workspaceId,
+      agentId,
+      "openrouter",
+      judge.modelName,
+      evalError,
+      llmCallAttempted,
+      usesByok,
+      "test",
       context
     );
   }
-
-  // Parse the evaluation response
-  let evalResult;
-  try {
-    evalResult = parseEvalResponse(result.text);
-  } catch (error) {
-    console.error("[Eval Execution] Failed to parse evaluation response:", {
-      error: error instanceof Error ? error.message : String(error),
-      text: result.text.substring(0, 500), // Log first 500 chars
-      judgeId,
-      conversationId,
-    });
-    throw new Error(
-      `Failed to parse evaluation response: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-
-  // Calculate cost in millionths
-  // Note: provisionalCostUsd from extractTokenUsageAndCosts is already in millionths
-  // (it's converted from USD to millionths in generationTokenExtraction.ts line 58,
-  // or comes from calculateConversationCosts which returns millionths)
-  const costUsd = extractionResult.provisionalCostUsd;
 
   // Store the evaluation result
   const resultPk = `agent-eval-results/${workspaceId}/${agentId}/${conversationId}/${judgeId}`;
   const resultSk = "result";
   const now = new Date().toISOString();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Database schema is dynamically generated
-  const evalResultRecord: any = {
-    pk: resultPk,
-    sk: resultSk,
-    workspaceId,
-    agentId,
-    conversationId,
-    judgeId,
-    summary: evalResult.summary,
-    scoreGoalCompletion: evalResult.score_goal_completion,
-    scoreToolEfficiency: evalResult.score_tool_efficiency,
-    scoreFaithfulness: evalResult.score_faithfulness,
-    criticalFailureDetected: evalResult.critical_failure_detected,
-    reasoningTrace: evalResult.reasoning_trace,
-    costUsd,
-    usesByok,
-    tokenUsage: extractionResult.tokenUsage,
-    evaluatedAt: now,
-    version: 1,
-    createdAt: now,
-  };
+  let evalResultRecord: Record<string, unknown>;
+  if (evalResult) {
+    evalResultRecord = {
+      pk: resultPk,
+      sk: resultSk,
+      workspaceId,
+      agentId,
+      conversationId,
+      judgeId,
+      status: "completed",
+      summary: evalResult.summary,
+      scoreGoalCompletion: evalResult.score_goal_completion,
+      scoreToolEfficiency: evalResult.score_tool_efficiency,
+      scoreFaithfulness: evalResult.score_faithfulness,
+      criticalFailureDetected: evalResult.critical_failure_detected,
+      reasoningTrace: evalResult.reasoning_trace,
+      costUsd: totalCostUsd,
+      usesByok,
+      tokenUsage: totalTokenUsage,
+      evaluatedAt: now,
+      version: 1,
+      createdAt: now,
+    };
+  } else {
+    const failureMessage = parseError
+      ? "Failed to parse evaluation response"
+      : "Evaluation failed";
+    const failureDetails = parseError
+      ? parseError.message
+      : evalError
+      ? evalError.message
+      : "Unknown evaluation failure";
+    evalResultRecord = buildEvalFailureRecord({
+      pk: resultPk,
+      sk: resultSk,
+      workspaceId,
+      agentId,
+      conversationId,
+      judgeId,
+      evaluatedAt: now,
+      costUsd: totalCostUsd,
+      usesByok,
+      tokenUsage: totalTokenUsage,
+      errorMessage: failureMessage,
+      errorDetails: failureDetails,
+    });
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any)["agent-eval-result"].create(evalResultRecord);
@@ -463,12 +669,15 @@ Please provide your evaluation as a JSON object following the specified format.`
   console.log("[Eval Execution] Evaluation completed:", {
     judgeId,
     conversationId,
-    scores: {
-      goalCompletion: evalResult.score_goal_completion,
-      toolEfficiency: evalResult.score_tool_efficiency,
-      faithfulness: evalResult.score_faithfulness,
-    },
-    criticalFailure: evalResult.critical_failure_detected,
-    costUsd,
+    status: evalResult ? "completed" : "failed",
+    scores: evalResult
+      ? {
+          goalCompletion: evalResult.score_goal_completion,
+          toolEfficiency: evalResult.score_tool_efficiency,
+          faithfulness: evalResult.score_faithfulness,
+        }
+      : undefined,
+    criticalFailure: evalResult?.critical_failure_detected,
+    costUsd: totalCostUsd,
   });
 }

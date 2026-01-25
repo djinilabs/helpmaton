@@ -48,6 +48,9 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                     type: string
  *                   judgeName:
  *                     type: string
+ *                   status:
+ *                     type: string
+ *                     enum: ["completed", "failed"]
  *                   summary:
  *                     type: string
  *                   scoreGoalCompletion:
@@ -66,6 +69,12 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                     type: boolean
  *                   reasoningTrace:
  *                     type: string
+ *                   errorMessage:
+ *                     type: string
+ *                     nullable: true
+ *                   errorDetails:
+ *                     type: string
+ *                     nullable: true
  *                   costUsd:
  *                     type: number
  *                     nullable: true
@@ -111,13 +120,16 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
         const items: Array<{
           judgeId: string;
           summary: string;
-          scoreGoalCompletion: number;
-          scoreToolEfficiency: number;
-          scoreFaithfulness: number;
-          criticalFailureDetected: boolean;
+          scoreGoalCompletion?: number | null;
+          scoreToolEfficiency?: number | null;
+          scoreFaithfulness?: number | null;
+          criticalFailureDetected?: boolean;
           reasoningTrace: string;
           costUsd?: number;
           evaluatedAt: string;
+          status?: "completed" | "failed";
+          errorMessage?: string;
+          errorDetails?: string;
         }> = [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for await (const result of (db as any)["agent-eval-result"].queryAsync({
@@ -135,13 +147,16 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
           items.map(async (result: {
             judgeId: string;
             summary: string;
-            scoreGoalCompletion: number;
-            scoreToolEfficiency: number;
-            scoreFaithfulness: number;
-            criticalFailureDetected: boolean;
+            scoreGoalCompletion?: number | null;
+            scoreToolEfficiency?: number | null;
+            scoreFaithfulness?: number | null;
+            criticalFailureDetected?: boolean;
             reasoningTrace: string;
             costUsd?: number;
             evaluatedAt: string;
+            status?: "completed" | "failed";
+            errorMessage?: string;
+            errorDetails?: string;
           }) => {
             const judgePk = `agent-eval-judges/${workspaceId}/${agentId}/${result.judgeId}`;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -150,13 +165,28 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
             return {
               judgeId: result.judgeId,
               judgeName: judge?.name || "Unknown Judge",
+              status: result.status ?? "completed",
               summary: result.summary,
-              scoreGoalCompletion: result.scoreGoalCompletion,
-              scoreToolEfficiency: result.scoreToolEfficiency,
-              scoreFaithfulness: result.scoreFaithfulness,
-              criticalFailureDetected: result.criticalFailureDetected,
+              scoreGoalCompletion:
+                typeof result.scoreGoalCompletion === "number"
+                  ? result.scoreGoalCompletion
+                  : null,
+              scoreToolEfficiency:
+                typeof result.scoreToolEfficiency === "number"
+                  ? result.scoreToolEfficiency
+                  : null,
+              scoreFaithfulness:
+                typeof result.scoreFaithfulness === "number"
+                  ? result.scoreFaithfulness
+                  : null,
+              criticalFailureDetected: !!result.criticalFailureDetected,
               reasoningTrace: result.reasoningTrace,
-              costUsd: result.costUsd ? result.costUsd / 1_000_000 : null,
+              errorMessage: result.errorMessage,
+              errorDetails: result.errorDetails,
+              costUsd:
+                typeof result.costUsd === "number"
+                  ? result.costUsd / 1_000_000
+                  : null,
               evaluatedAt: result.evaluatedAt,
             };
           })

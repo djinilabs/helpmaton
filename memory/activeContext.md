@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **MCP OAuth redirect base**: Forced `OAUTH_REDIRECT_BASE_URL` to `http://localhost:3333` in E2E global setup and documented it in `.env.example`.
 - **MCP OAuth skip list**: Added `MCP_OAUTH_SKIP_SERVICES` env var to skip specific services during MCP OAuth E2E runs.
 - **Zendesk OAuth UI instructions**: Added step-by-step Zendesk client ID/secret setup guidance in the MCP server modal.
 - **MCP OAuth credits**: MCP OAuth E2E now adds credits after workspace creation via `pnpm add-credits` (default 50, override with `E2E_ADD_CREDITS_AMOUNT`).
@@ -23,6 +24,8 @@
 - **MCP OAuth headed run**: Forced `HEADLESS=false` in `pnpm test:e2e:mcp-oauth` and documented headless override for manual OAuth flows.
 - **MCP OAuth test guard**: Added `RUN_MCP_OAUTH_E2E` gate and `pnpm test:e2e:mcp-oauth` script so the MCP OAuth E2E suite only runs when explicitly invoked.
 - **MCP OAuth E2E suite**: Added Playwright-based MCP OAuth integration tests with manual OAuth pause support, service config prompts (Shopify/Zendesk), tool call validation via agent chat, and documentation under `tests/e2e/mcp-oauth/`.
+- **Eval retry + failure records**: Kept the 3-attempt retry loop for judge parse errors, stored failed eval records with status/error details and nullable scores, updated eval result APIs/UI to show failed entries and exclude them from aggregates/charts, and updated tests. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **PR 215 review fixes**: Added assistant responses to eval retry messages, cleaned up eval reservations when token usage is missing, fixed eval cost display for zero values, and added executeEvaluation tests for retry/failure paths. Ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm test`.
 - **Split streaming lambdas**: Added `llm-shared-stream` + `llm-shared-http` entrypoints, moved test endpoint to `/api/streams/{workspaceId}/{agentId}/test`, updated stream path detection/extraction, removed old workspaces test route, and updated docs/scripts/tests/openapi references. Ran `pnpm typecheck`, `pnpm lint --fix`, and focused backend tests (`llm-shared`, `llm-shared-stream`, `streamEndpointDetection`, `streamPathExtraction`, `requestValidation`, `httpEventAdapter`, `resources`).
 - **Test endpoint CORS**: Adjusted test CORS headers to prefer request origin (avoids FRONTEND_URL mismatch), updated stream CORS tests, and ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test --run streamCorsHeaders`.
 - **Client test URL fallback**: Normalized `AgentChatWithFunctionUrl` to strip any `/api/workspaces`/`/api/streams` path from the stream URL before appending `/api/streams/{workspaceId}/{agentId}/test`. Ran `pnpm typecheck` and `pnpm lint --fix`.

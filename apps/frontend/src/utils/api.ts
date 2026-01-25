@@ -2682,12 +2682,15 @@ export interface EvalResult {
   conversationId: string;
   judgeId: string;
   judgeName: string;
+  status: "completed" | "failed";
   summary: string;
-  scoreGoalCompletion: number;
-  scoreToolEfficiency: number;
-  scoreFaithfulness: number;
+  scoreGoalCompletion: number | null;
+  scoreToolEfficiency: number | null;
+  scoreFaithfulness: number | null;
   criticalFailureDetected: boolean;
   reasoningTrace: string;
+  errorMessage?: string;
+  errorDetails?: string;
   costUsd: number | null;
   evaluatedAt: string;
 }

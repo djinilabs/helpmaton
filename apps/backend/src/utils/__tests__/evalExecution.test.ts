@@ -1,14 +1,93 @@
+import { generateText } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import {
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+} from "../../http/utils/generationCreditManagement";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
+import { createModel } from "../../http/utils/modelFactory";
+import {
+  cleanupRequestTimeout,
+  createRequestTimeout,
+} from "../../http/utils/requestTimeout";
+import type { CreditReservation } from "../creditManagement";
+import { validateCreditsAndLimitsAndReserve } from "../creditValidation";
+import {
+  buildEvalFailureRecord,
+  buildEvalParseRetryPrompt,
+  executeEvaluation,
   formatConversationForEval,
   parseEvalResponse,
 } from "../evalExecution";
 import type { UIMessage } from "../messageTypes";
+import type { AugmentedContext } from "../workspaceCreditContext";
+
+vi.mock("ai", () => ({
+  generateText: vi.fn(),
+}));
+
+vi.mock("../../http/utils/modelFactory", () => ({
+  createModel: vi.fn(),
+}));
+
+vi.mock("../creditValidation", () => ({
+  validateCreditsAndLimitsAndReserve: vi.fn(),
+}));
+
+vi.mock("../../http/utils/generationTokenExtraction", () => ({
+  extractTokenUsageAndCosts: vi.fn(),
+}));
+
+vi.mock("../../http/utils/generationCreditManagement", () => ({
+  adjustCreditsAfterLLMCall: vi.fn(),
+  cleanupReservationOnError: vi.fn(),
+  cleanupReservationWithoutTokenUsage: vi.fn(),
+}));
+
+vi.mock("../../http/utils/requestTimeout", () => ({
+  createRequestTimeout: vi.fn(),
+  cleanupRequestTimeout: vi.fn(),
+}));
+
+vi.mock("../../http/utils/agentUtils", () => ({
+  getWorkspaceApiKey: vi.fn(),
+}));
 
 describe("evalExecution", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const controller = new AbortController();
+    vi.mocked(createRequestTimeout).mockReturnValue({
+      controller,
+      signal: controller.signal,
+      timeoutId: setTimeout(() => {}, 0),
+    });
+    vi.mocked(cleanupRequestTimeout).mockReturnValue(undefined);
+    vi.mocked(createModel).mockResolvedValue(
+      {} as Awaited<ReturnType<typeof createModel>>
+    );
+    vi.mocked(validateCreditsAndLimitsAndReserve).mockResolvedValue({
+      reservationId: "res-1",
+      reservedAmount: 0,
+      workspace: {} as CreditReservation["workspace"],
+    });
+    vi.mocked(extractTokenUsageAndCosts).mockReturnValue({
+      tokenUsage: {
+        promptTokens: 10,
+        completionTokens: 5,
+        totalTokens: 15,
+      },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 123,
+    });
+    vi.mocked(adjustCreditsAfterLLMCall).mockResolvedValue(undefined);
+    vi.mocked(cleanupReservationOnError).mockResolvedValue(undefined);
+    vi.mocked(cleanupReservationWithoutTokenUsage).mockResolvedValue(undefined);
+    vi.mocked(getWorkspaceApiKey).mockResolvedValue(null);
   });
 
   describe("parseEvalResponse", () => {
@@ -363,6 +442,176 @@ describe("evalExecution", () => {
       expect(result.steps[0].step_id).toBe("step_0");
       expect(result.steps[1].step_id).toBe("step_1");
       expect(result.steps[2].step_id).toBe("step_2");
+    });
+  });
+
+  describe("buildEvalParseRetryPrompt", () => {
+    it("should include the parse error and strict JSON instruction", () => {
+      const prompt = buildEvalParseRetryPrompt("Unexpected token");
+
+      expect(prompt).toContain("Error: Unexpected token");
+      expect(prompt).toContain("JSON object");
+      expect(prompt).toContain("Do not include any extra text");
+    });
+  });
+
+  describe("buildEvalFailureRecord", () => {
+    it("should build a failed evaluation record with error details", () => {
+      const record = buildEvalFailureRecord({
+        pk: "agent-eval-results/ws/agent/conv/judge",
+        sk: "result",
+        workspaceId: "ws",
+        agentId: "agent",
+        conversationId: "conv",
+        judgeId: "judge",
+        evaluatedAt: "2025-01-01T00:00:00.000Z",
+        costUsd: 123,
+        usesByok: false,
+        tokenUsage: {
+          promptTokens: 10,
+          completionTokens: 5,
+          totalTokens: 15,
+        },
+        errorMessage: "Failed to parse evaluation response",
+        errorDetails: "Invalid JSON",
+      });
+
+      expect(record).toMatchObject({
+        status: "failed",
+        summary: "Evaluation failed",
+        errorMessage: "Failed to parse evaluation response",
+        errorDetails: "Invalid JSON",
+        scoreGoalCompletion: null,
+        scoreToolEfficiency: null,
+        scoreFaithfulness: null,
+      });
+      expect(record.createdAt).toBe("2025-01-01T00:00:00.000Z");
+      expect(record.evaluatedAt).toBe("2025-01-01T00:00:00.000Z");
+    });
+  });
+
+  describe("executeEvaluation", () => {
+    const workspaceId = "ws-1";
+    const agentId = "agent-1";
+    const conversationId = "conv-1";
+    const judgeId = "judge-1";
+    const baseMessages: UIMessage[] = [
+      { role: "user", content: "Hello" },
+      { role: "assistant", content: "Hi there" },
+    ];
+
+    const buildDb = () => ({
+      "agent-eval-judge": {
+        get: vi.fn().mockResolvedValue({
+          judgeId,
+          enabled: true,
+          provider: "openrouter",
+          modelName: "test-model",
+          evalPrompt: "Evaluate {agent_goal}",
+          name: "Judge",
+        }),
+      },
+      "agent-conversations": {
+        get: vi.fn().mockResolvedValue({
+          workspaceId,
+          agentId,
+          conversationId,
+          messages: baseMessages,
+        }),
+      },
+      agent: {
+        get: vi.fn().mockResolvedValue({
+          systemPrompt: "Be helpful",
+          workspaceId,
+        }),
+      },
+      "agent-eval-result": {
+        create: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    it("retries parsing by including the prior assistant response", async () => {
+      const capturedMessages: Array<
+        Array<{ role: string; content: unknown }>
+      > = [];
+      const generateTextMock = vi.mocked(generateText);
+      generateTextMock.mockImplementation(async ({ messages }) => {
+        capturedMessages.push(JSON.parse(JSON.stringify(messages)));
+        if (capturedMessages.length < 3) {
+          return { text: "not json" } as Awaited<ReturnType<typeof generateText>>;
+        }
+        return {
+          text: JSON.stringify({
+            summary: "OK",
+            score_goal_completion: 80,
+            score_tool_efficiency: 70,
+            score_faithfulness: 90,
+            critical_failure_detected: false,
+            reasoning_trace: "Looks good",
+          }),
+        } as Awaited<ReturnType<typeof generateText>>;
+      });
+
+      await executeEvaluation(
+        buildDb(),
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId,
+        {
+          addWorkspaceCreditTransaction: vi.fn(),
+          awsRequestId: "req-1",
+        } as unknown as AugmentedContext
+      );
+
+      expect(capturedMessages).toHaveLength(3);
+      const secondAttempt = capturedMessages[1];
+      expect(
+        secondAttempt.some(
+          (message) =>
+            message.role === "assistant" && message.content === "not json"
+        )
+      ).toBe(true);
+      expect(
+        secondAttempt.some(
+          (message) =>
+            message.role === "user" &&
+            typeof message.content === "string" &&
+            message.content.includes(
+              "previous response could not be parsed as valid JSON"
+            )
+        )
+      ).toBe(true);
+    });
+
+    it("stores a failed record after exhausting retries", async () => {
+      const generateTextMock = vi.mocked(generateText);
+      generateTextMock.mockResolvedValue(
+        { text: "not json" } as Awaited<ReturnType<typeof generateText>>
+      );
+      const db = buildDb();
+
+      await executeEvaluation(
+        db,
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId,
+        {
+          addWorkspaceCreditTransaction: vi.fn(),
+          awsRequestId: "req-2",
+        } as unknown as AugmentedContext
+      );
+
+      expect(db["agent-eval-result"].create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "failed",
+          errorMessage: "Failed to parse evaluation response",
+          scoreGoalCompletion: null,
+          scoreToolEfficiency: null,
+          scoreFaithfulness: null,
+        })
+      );
     });
   });
 });

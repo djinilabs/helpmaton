@@ -555,12 +555,15 @@ export const tableSchemas = {
     agentId: z.string(), // agent ID for GSI queries
     conversationId: z.string(), // conversation ID being evaluated
     judgeId: z.string(), // judge ID that performed the evaluation
+    status: z.enum(["completed", "failed"]).default("completed"),
     summary: z.string(), // 1-sentence summary from evaluation
-    scoreGoalCompletion: z.number().int().min(0).max(100), // goal completion score (0-100)
-    scoreToolEfficiency: z.number().int().min(0).max(100), // tool efficiency score (0-100)
-    scoreFaithfulness: z.number().int().min(0).max(100), // faithfulness score (0-100)
+    scoreGoalCompletion: z.number().int().min(0).max(100).nullable().optional(), // goal completion score (0-100)
+    scoreToolEfficiency: z.number().int().min(0).max(100).nullable().optional(), // tool efficiency score (0-100)
+    scoreFaithfulness: z.number().int().min(0).max(100).nullable().optional(), // faithfulness score (0-100)
     criticalFailureDetected: z.boolean(), // whether a critical failure was detected
     reasoningTrace: z.string(), // explanation of scoring logic
+    errorMessage: z.string().optional(), // error summary when evaluation fails
+    errorDetails: z.string().optional(), // detailed error message when evaluation fails
     costUsd: z.number().int().optional(), // cost of the evaluation call in USD millionths
     usesByok: z.boolean().optional(), // whether this evaluation used BYOK
     tokenUsage: z
