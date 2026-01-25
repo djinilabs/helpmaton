@@ -87,7 +87,7 @@ export class McpServerPage extends BasePage {
       await this.page.waitForFunction(
         (el) => el.getAttribute("aria-expanded") === "true",
         handle,
-        { timeout: 10000 }
+        { timeout: 10000 },
       );
     }
   }
@@ -97,7 +97,7 @@ export class McpServerPage extends BasePage {
    */
   async createMcpServerViaApi(
     workspaceId: string,
-    input: CreateMcpServerInput
+    input: CreateMcpServerInput,
   ): Promise<McpServer> {
     const baseUrl = this.getBaseUrl();
     const token = await this.getAccessToken();
@@ -110,13 +110,13 @@ export class McpServerPage extends BasePage {
           Authorization: `Bearer ${token}`,
         },
         data: input,
-      }
+      },
     );
 
     if (!response.ok()) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to create MCP server: ${response.status()} ${errorText}`
+        `Failed to create MCP server: ${response.status()} ${errorText}`,
       );
     }
 
@@ -144,10 +144,10 @@ export class McpServerPage extends BasePage {
     workspaceId: string,
     serverId: string,
     serviceType: McpServiceType,
-    timeout: number = 120000
+    timeout: number = 120000,
   ): Promise<{ success: boolean; error?: OAuthError }> {
     const callbackPattern = new RegExp(
-      `/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/callback`
+      `/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/callback`,
     );
 
     try {
@@ -217,10 +217,10 @@ export class McpServerPage extends BasePage {
   async waitForManualOAuthCompletion(
     workspaceId: string,
     serverId: string,
-    serviceType: McpServiceType
+    serviceType: McpServiceType,
   ): Promise<void> {
     const callbackPattern = new RegExp(
-      `/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/callback`
+      `/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/callback`,
     );
 
     const manualNeeded = await this.detectManualInterventionNeeded();
@@ -229,12 +229,12 @@ export class McpServerPage extends BasePage {
     }
 
     console.log(
-      `[MCP OAuth] Manual step required for ${serviceType}. Complete the OAuth flow in the browser.`
+      `[MCP OAuth] Manual step required for ${serviceType}. Complete the OAuth flow in the browser.`,
     );
 
     if (process.env.HEADLESS === "true") {
       console.log(
-        "[MCP OAuth] HEADLESS=true detected. Manual OAuth completion may not be possible."
+        "[MCP OAuth] HEADLESS=true detected. Manual OAuth completion may not be possible.",
       );
     } else {
       process.stdout.write("\x07");
@@ -250,7 +250,7 @@ export class McpServerPage extends BasePage {
   async verifyOAuthConnection(serverName: string): Promise<boolean> {
     const serverCard = this.getServerCard(serverName);
     const connectedIndicator = serverCard.locator(
-      'text=/Connected|✓ Connected/i'
+      "text=/Connected|✓ Connected/i",
     );
 
     try {
@@ -274,7 +274,7 @@ export class McpServerPage extends BasePage {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     if (!response.ok()) {
@@ -292,7 +292,7 @@ export class McpServerPage extends BasePage {
     workspaceId: string,
     agentId: string,
     serverId: string,
-    currentEnabledIds: string[] = []
+    currentEnabledIds: string[] = [],
   ): Promise<void> {
     const baseUrl = this.getBaseUrl();
     const token = await this.getAccessToken();
@@ -309,13 +309,13 @@ export class McpServerPage extends BasePage {
         data: {
           enabledMcpServerIds,
         },
-      }
+      },
     );
 
     if (!response.ok()) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to enable MCP server on agent: ${response.status()} ${errorText}`
+        `Failed to enable MCP server on agent: ${response.status()} ${errorText}`,
       );
     }
   }
@@ -324,12 +324,14 @@ export class McpServerPage extends BasePage {
     workspaceId: string,
     agentId: string,
     serverId: string,
-    currentEnabledIds: string[] = []
+    currentEnabledIds: string[] = [],
   ): Promise<void> {
     const baseUrl = this.getBaseUrl();
     const token = await this.getAccessToken();
 
-    const enabledMcpServerIds = currentEnabledIds.filter((id) => id !== serverId);
+    const enabledMcpServerIds = currentEnabledIds.filter(
+      (id) => id !== serverId,
+    );
 
     const response = await this.page.request.put(
       `${baseUrl}/api/workspaces/${workspaceId}/agents/${agentId}`,
@@ -341,21 +343,18 @@ export class McpServerPage extends BasePage {
         data: {
           enabledMcpServerIds,
         },
-      }
+      },
     );
 
     if (!response.ok()) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to disable MCP server on agent: ${response.status()} ${errorText}`
+        `Failed to disable MCP server on agent: ${response.status()} ${errorText}`,
       );
     }
   }
 
-  async deleteMcpServer(
-    workspaceId: string,
-    serverId: string
-  ): Promise<void> {
+  async deleteMcpServer(workspaceId: string, serverId: string): Promise<void> {
     const baseUrl = this.getBaseUrl();
     const token = await this.getAccessToken();
 
@@ -365,13 +364,13 @@ export class McpServerPage extends BasePage {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     if (!response.ok()) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to delete MCP server: ${response.status()} ${errorText}`
+        `Failed to delete MCP server: ${response.status()} ${errorText}`,
       );
     }
   }
@@ -381,7 +380,7 @@ export class McpServerPage extends BasePage {
    */
   async getAgentTools(
     workspaceId: string,
-    agentId: string
+    agentId: string,
   ): Promise<ToolDescriptor[]> {
     const baseUrl = this.getBaseUrl();
     const token = await this.getAccessToken();
@@ -392,13 +391,13 @@ export class McpServerPage extends BasePage {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     if (!response.ok()) {
       const errorText = await response.text();
       throw new Error(
-        `Failed to get agent tools: ${response.status()} ${errorText}`
+        `Failed to get agent tools: ${response.status()} ${errorText}`,
       );
     }
 
@@ -419,7 +418,7 @@ export class McpServerPage extends BasePage {
    */
   async promptForConfigValue(
     serviceType: McpServiceType,
-    fieldName: string
+    fieldName: string,
   ): Promise<string> {
     const envKey = `MCP_OAUTH_${toEnvKey(serviceType)}_${toEnvKey(fieldName)}`;
     const envValue = process.env[envKey];
@@ -429,7 +428,7 @@ export class McpServerPage extends BasePage {
     }
 
     throw new Error(
-      `Missing ${envKey}. Set it in tests/e2e/.env or export it before running the tests.`
+      `Missing ${envKey}. Set it in tests/e2e/.env or export it before running the tests.`,
     );
   }
 
@@ -442,6 +441,7 @@ export class McpServerPage extends BasePage {
         input: process.stdin,
         output: process.stdout,
       });
+      process.stdout.write("\x07");
       rl.question(
         `Provide JSON args for tool "${toolName}" (or leave blank for {}): `,
         (answer) => {
@@ -454,12 +454,10 @@ export class McpServerPage extends BasePage {
           try {
             resolve(JSON.parse(trimmed));
           } catch {
-            console.warn(
-              "Invalid JSON provided, defaulting to empty object."
-            );
+            console.warn("Invalid JSON provided, defaulting to empty object.");
             resolve({});
           }
-        }
+        },
       );
     });
   }
@@ -469,7 +467,7 @@ export class McpServerPage extends BasePage {
    */
   async takeErrorScreenshot(
     serviceType: McpServiceType,
-    errorType: string
+    errorType: string,
   ): Promise<string> {
     const timestamp = Date.now();
     const filename = `mcp-oauth-${serviceType}-${errorType}-${timestamp}.png`;
@@ -480,7 +478,7 @@ export class McpServerPage extends BasePage {
 
   private getServerCard(serverName: string): Locator {
     return this.page.locator(
-      `xpath=//div[contains(@class,"rounded-xl") and .//div[text()="${serverName}"]]`
+      `xpath=//div[contains(@class,"rounded-xl") and .//div[text()="${serverName}"]]`,
     );
   }
 
@@ -495,7 +493,9 @@ export class McpServerPage extends BasePage {
     const sessionCookie = cookies.find((c) => c.name.includes("session"));
 
     if (!sessionCookie) {
-      throw new Error("No session cookie found. User may not be authenticated.");
+      throw new Error(
+        "No session cookie found. User may not be authenticated.",
+      );
     }
 
     return sessionCookie;
@@ -505,10 +505,10 @@ export class McpServerPage extends BasePage {
     const baseOrigin = new URL(this.getBaseUrl()).origin;
     const storage = await this.page.context().storageState();
     const originState = storage.origins.find(
-      (origin) => origin.origin === baseOrigin
+      (origin) => origin.origin === baseOrigin,
     );
     const tokenEntry = originState?.localStorage.find(
-      (entry) => entry.name === "helpmaton_access_token"
+      (entry) => entry.name === "helpmaton_access_token",
     );
     const token =
       tokenEntry?.value ||
@@ -576,7 +576,7 @@ export class McpServerPage extends BasePage {
     ];
 
     return indicators.some(
-      (indicator) => url.includes(indicator) || pageText.includes(indicator)
+      (indicator) => url.includes(indicator) || pageText.includes(indicator),
     );
   }
 
@@ -602,14 +602,14 @@ export class McpServerPage extends BasePage {
 
     return errorIndicators.some(
       (indicator) =>
-        lowerText.includes(indicator) || lowerUrl.includes(indicator)
+        lowerText.includes(indicator) || lowerUrl.includes(indicator),
     );
   }
 
   private extractOAuthError(
     pageText: string,
     url: string,
-    serviceType: McpServiceType
+    serviceType: McpServiceType,
   ): OAuthError {
     const lowerText = pageText.toLowerCase();
     const lowerUrl = url.toLowerCase();
@@ -623,7 +623,7 @@ export class McpServerPage extends BasePage {
       details =
         "The redirect URI in the OAuth app configuration does not match the callback URL";
       action = `Update OAuth app redirect URI to match: ${this.getCallbackUrl(
-        serviceType
+        serviceType,
       )}`;
     } else if (
       lowerText.includes("scope") ||
@@ -667,7 +667,5 @@ export class McpServerPage extends BasePage {
 }
 
 function toEnvKey(fieldName: string): string {
-  return fieldName
-    .replace(/([a-z])([A-Z])/g, "$1_$2")
-    .toUpperCase();
+  return fieldName.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase();
 }

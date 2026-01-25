@@ -85,6 +85,8 @@ MCP_OAUTH_ZENDESK_CLIENT_SECRET=your-zendesk-client-secret
 SHOPIFY_OAUTH_CLIENT_ID=your-shopify-client-id
 SHOPIFY_OAUTH_CLIENT_SECRET=your-shopify-client-secret
 MCP_OAUTH_SKIP_SERVICES=google-drive,gmail
+MCP_OAUTH_SKIP_GOOGLE_DRIVE=true
+MCP_OAUTH_SKIP_GMAIL=true
 ```
 
 For best results, put these in `tests/e2e/.env` so they are loaded before

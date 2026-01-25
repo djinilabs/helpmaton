@@ -22,7 +22,7 @@ const processInfoPath = join(process.cwd(), ".test-processes.json");
 async function checkServiceReady(
   url: string,
   maxAttempts: number = 60,
-  intervalMs: number = 1000
+  intervalMs: number = 1000,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -33,7 +33,7 @@ async function checkServiceReady(
       // If we get a non-5xx response, the service is ready (even 404 is fine, means handlers are compiled)
       if (response.status < 500) {
         console.log(
-          `✅ Service at ${url} is ready (status: ${response.status})`
+          `✅ Service at ${url} is ready (status: ${response.status})`,
         );
         return true;
       }
@@ -89,7 +89,7 @@ async function globalSetup(config: FullConfig) {
   // Only start local services if testing against localhost
   if (!baseURL || !baseURL.startsWith("http://localhost")) {
     console.log(
-      "Testing against remote environment, skipping local service startup"
+      "Testing against remote environment, skipping local service startup",
     );
     console.log("✅ Test environment setup completed");
     return;
@@ -112,7 +112,7 @@ async function globalSetup(config: FullConfig) {
     const authSecret = (() => {
       if (process.env.CI && !process.env.AUTH_SECRET) {
         throw new Error(
-          "AUTH_SECRET environment variable is required in CI environment"
+          "AUTH_SECRET environment variable is required in CI environment",
         );
       }
       // Only allow fallback in local development
@@ -171,10 +171,10 @@ async function globalSetup(config: FullConfig) {
     console.log(`  - MAILGUN_DOMAIN: ${backendEnv.MAILGUN_DOMAIN}`);
     console.log(`  - FRONTEND_URL: ${frontendUrl}`);
     console.log(
-      `  - ARC_DB_PATH: ${backendEnv.ARC_DB_PATH} (relative to apps/backend)`
+      `  - ARC_DB_PATH: ${backendEnv.ARC_DB_PATH} (relative to apps/backend)`,
     );
     console.log(
-      `  - E2E_OVERRIDE_MAX_USERS: ${backendEnv.E2E_OVERRIDE_MAX_USERS} (allows team invitations in tests)`
+      `  - E2E_OVERRIDE_MAX_USERS: ${backendEnv.E2E_OVERRIDE_MAX_USERS} (allows team invitations in tests)`,
     );
 
     // Create .env file in apps/backend directory for Architect sandbox
@@ -260,7 +260,7 @@ async function globalSetup(config: FullConfig) {
     writeFileSync(envFilePath, envFileContent, "utf-8");
     console.log(`Created .env file at ${envFilePath}`);
     console.log(
-      `  Included ${Object.keys(envVars).length} environment variables`
+      `  Included ${Object.keys(envVars).length} environment variables`,
     );
     console.log(`  FRONTEND_URL: ${frontendUrl}`);
 
@@ -357,16 +357,16 @@ async function globalSetup(config: FullConfig) {
     // Verify backend is actually ready (handlers compiled and responding)
     // We check for a non-5xx response to ensure TypeScript compilation is complete
     console.log(
-      "Waiting for backend compilation to complete and handlers to be ready..."
+      "Waiting for backend compilation to complete and handlers to be ready...",
     );
     const backendReady = await checkServiceReady(
       "http://localhost:3333",
       90,
-      1000
+      1000,
     );
     if (!backendReady) {
       throw new Error(
-        "Backend did not become ready within 90 seconds. Check logs above for compilation errors."
+        "Backend did not become ready within 90 seconds. Check logs above for compilation errors.",
       );
     }
     console.log("✅ Backend sandbox is ready and handlers are compiled");
@@ -455,7 +455,7 @@ async function globalSetup(config: FullConfig) {
         frontendPid,
         timestamp: Date.now(),
       }),
-      "utf-8"
+      "utf-8",
     );
   } catch (error) {
     console.warn("Failed to save process info:", error);
@@ -464,7 +464,7 @@ async function globalSetup(config: FullConfig) {
   // Wait a bit more for the frontend to fully initialize
   // Then wait additional time to ensure both servers are fully ready before tests start
   console.log(
-    "Waiting for servers to fully stabilize before starting tests..."
+    "Waiting for servers to fully stabilize before starting tests...",
   );
   await new Promise((resolve) => setTimeout(resolve, 8000)); // 8 seconds total (5 + 3 extra)
 
@@ -518,7 +518,7 @@ async function ensureMcpOauthEnv(): Promise<void> {
   if (stillMissing.length > 0) {
     throw new Error(
       `Missing required MCP OAuth environment variables: ${stillMissing.join(", ")}\n` +
-        "Set them in tests/e2e/.env or export them before running the tests."
+        "Set them in tests/e2e/.env or export them before running the tests.",
     );
   }
 }
