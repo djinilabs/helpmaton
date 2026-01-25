@@ -502,13 +502,43 @@ export class McpServerPage extends BasePage {
   }
 
   private async getAccessToken(): Promise<string> {
-    const token = await this.page.evaluate(() => {
-      return (
-        localStorage.getItem("helpmaton_access_token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("auth_token")
-      );
-    });
+    const baseOrigin = new URL(this.getBaseUrl()).origin;
+    const storage = await this.page.context().storageState();
+    const originState = storage.origins.find(
+      (origin) => origin.origin === baseOrigin
+    );
+    const tokenEntry = originState?.localStorage.find(
+      (entry) => entry.name === "helpmaton_access_token"
+    );
+    const token =
+      tokenEntry?.value ||
+      (await this.page.evaluate(() => {
+        return (
+          localStorage.getItem("helpmaton_access_token") ||
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("auth_token")
+        );
+      }));
+    if (token) {
+      return token;
+    }
+
+    const tokenPage = await this.page.context().newPage();
+    try {
+      await tokenPage.goto(baseOrigin, { waitUntil: "domcontentloaded" });
+      const tokenFromOrigin = await tokenPage.evaluate(() => {
+        return (
+          localStorage.getItem("helpmaton_access_token") ||
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("auth_token")
+        );
+      });
+      if (tokenFromOrigin) {
+        return tokenFromOrigin;
+      }
+    } finally {
+      await tokenPage.close();
+    }
     if (!token) {
       throw new Error("No auth token found in localStorage.");
     }
@@ -518,9 +548,13 @@ export class McpServerPage extends BasePage {
   private getBaseUrl(): string {
     const currentUrl = this.page.url();
     if (currentUrl.includes("/workspaces")) {
-      return currentUrl.split("/workspaces")[0];
+      const base = currentUrl.split("/workspaces")[0];
+      if (base.includes("localhost:5173")) {
+        return "http://localhost:3333";
+      }
+      return base;
     }
-    return "http://localhost:5173";
+    return "http://localhost:3333";
   }
 
   private async detectManualInterventionNeeded(): Promise<boolean> {

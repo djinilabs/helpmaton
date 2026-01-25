@@ -134,6 +134,11 @@ async function globalSetup(config: FullConfig) {
       config.projects[0]?.use?.baseURL ||
       process.env.BASE_URL ||
       "http://localhost:5173";
+    const oauthRedirectBaseUrl =
+      process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333";
+    if (oauthRedirectBaseUrl.includes("localhost:5173")) {
+      process.env.OAUTH_REDIRECT_BASE_URL = "http://localhost:3333";
+    }
 
     // Prepare environment variables for the backend process
     // We need to explicitly set all required variables to ensure they're available
@@ -151,6 +156,9 @@ async function globalSetup(config: FullConfig) {
       AUTH_SECRET: authSecret,
       // FRONTEND_URL is critical for auth redirects
       FRONTEND_URL: frontendUrl,
+      // OAuth redirect base URL for MCP OAuth callbacks
+      OAUTH_REDIRECT_BASE_URL:
+        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333",
       // E2E test overrides - allow team invitations in tests
       E2E_OVERRIDE_MAX_USERS: process.env.E2E_OVERRIDE_MAX_USERS || "10",
       // Bypass auth gate in E2E environment
@@ -188,6 +196,8 @@ async function globalSetup(config: FullConfig) {
       NODE_ENV: "test",
       ARC_ENV: "testing", // Explicitly set to "testing" to skip API Gateway operations
       FRONTEND_URL: frontendUrl,
+      OAUTH_REDIRECT_BASE_URL:
+        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333",
       // TESTMAIL variables (for test code that might need them)
       TESTMAIL_NAMESPACE: testmailNamespace,
       TESTMAIL_API_KEY: testmailApiKey,
