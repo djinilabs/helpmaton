@@ -660,8 +660,7 @@ export class McpServerPage extends BasePage {
   }
 
   private getCallbackUrl(serviceType: McpServiceType): string {
-    const baseUrl =
-      process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333";
+    const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     return `${baseUrl}/api/mcp-oauth/${serviceType}/callback`;
   }
 }
