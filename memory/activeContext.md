@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Webhook conversation conflict investigation**: Found `startConversation` uses conditional DynamoDB create for `agent-conversations`. Webhook queue uses a fixed `conversationId` from enqueue without SQS dedup IDs. When a webhook SQS message is delivered/retried, `startConversation` throws `Item already exists` on the second attempt. Recommend idempotent create or SQS dedup/group IDs to prevent duplicate processing.
+- **Git checkout cleanup note**: Verified `apps/backend/.env` is not tracked and no repo/global hooks are configured; likely removed by an external clean operation (e.g., `git clean -fdx`) triggered by a tool/IDE during branch switches.
 - **MCP OAuth redirect base**: Forced `OAUTH_REDIRECT_BASE_URL` to `http://localhost:3333` in E2E global setup and documented it in `.env.example`.
 - **MCP OAuth skip list**: Added `MCP_OAUTH_SKIP_SERVICES` env var to skip specific services during MCP OAuth E2E runs.
 - **Zendesk OAuth UI instructions**: Added step-by-step Zendesk client ID/secret setup guidance in the MCP server modal.
