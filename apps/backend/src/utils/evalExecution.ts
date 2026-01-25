@@ -313,24 +313,31 @@ const mergeTokenUsage = (
   next: TokenUsage | undefined
 ): TokenUsage | undefined => {
   if (!next) {
-    return base;
+    return base ? { ...base } : undefined;
   }
   if (!base) {
     return { ...next };
   }
-  return {
+  const reasoningTokens = mergeOptionalNumber(
+    base.reasoningTokens,
+    next.reasoningTokens
+  );
+  const cachedPromptTokens = mergeOptionalNumber(
+    base.cachedPromptTokens,
+    next.cachedPromptTokens
+  );
+  const merged: TokenUsage = {
     promptTokens: base.promptTokens + next.promptTokens,
     completionTokens: base.completionTokens + next.completionTokens,
     totalTokens: base.totalTokens + next.totalTokens,
-    reasoningTokens: mergeOptionalNumber(
-      base.reasoningTokens,
-      next.reasoningTokens
-    ),
-    cachedPromptTokens: mergeOptionalNumber(
-      base.cachedPromptTokens,
-      next.cachedPromptTokens
-    ),
   };
+  if (reasoningTokens !== undefined) {
+    merged.reasoningTokens = reasoningTokens;
+  }
+  if (cachedPromptTokens !== undefined) {
+    merged.cachedPromptTokens = cachedPromptTokens;
+  }
+  return merged;
 };
 
 /**
