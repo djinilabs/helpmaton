@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **MCP server tools viewer**: Added per-server MCP tools endpoint + tests, and a Connected tools “View tools” dialog/button with tool parameters/availability. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Conversation logger tests**: Updated mocks/expectations to use `upsert` for `agent-conversations` in unit tests and reran `pnpm --filter backend test --run conversationLogger`.
 - **Webhook logging idempotency**: Switched conversation logging to `upsert` with retry/backoff on version conflicts to tolerate duplicate webhook deliveries; added `createdAt` to upserted records. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent Chat streaming UI**: Moved the loading indicator into the submit button (disabled during streaming), removed the inline “Thinking…” bubble, and forced auto-scroll to bottom on every streaming update. Ran `pnpm typecheck` and `pnpm lint --fix`.

@@ -3314,6 +3314,53 @@ function getMcpServerToolMetadata(
   return tools;
 }
 
+export function buildMcpServerToolList(options: {
+  serverName: string;
+  serviceType?: string | null;
+  authType?: string | null;
+  oauthConnected: boolean;
+}): GroupedToolMetadata[] {
+  const oauthServiceTypes = [
+    "google-drive",
+    "gmail",
+    "google-calendar",
+    "notion",
+    "github",
+    "linear",
+    "hubspot",
+    "shopify",
+    "salesforce",
+    "slack",
+    "intercom",
+    "todoist",
+    "zendesk",
+    "stripe",
+  ];
+  const serviceType = options.serviceType;
+  const resolvedServiceType =
+    serviceType === "posthog"
+      ? "posthog"
+      : options.authType === "oauth" &&
+        serviceType &&
+        oauthServiceTypes.includes(serviceType)
+      ? serviceType
+      : "generic";
+
+  const tools = getMcpServerToolMetadata(
+    resolvedServiceType,
+    options.serverName,
+    "",
+    options.oauthConnected
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  return [
+    {
+      category: "MCP Server Tools",
+      tools,
+    },
+  ];
+}
+
 /**
  * Sanitize server name for use in tool names
  */
