@@ -39,6 +39,7 @@ import { registerGetEmailOauthCallback } from "./routes/get-email-oauth-callback
 import { registerGetMcpServer } from "./routes/get-mcp-server";
 import { registerGetMcpServerOauthAuthorize } from "./routes/get-mcp-server-oauth-authorize";
 import { registerGetMcpServerOauthStatus } from "./routes/get-mcp-server-oauth-status";
+import { registerGetMcpServerTools } from "./routes/get-mcp-server-tools";
 import { registerGetMcpServers } from "./routes/get-mcp-servers";
 import { registerGetStreamServers } from "./routes/get-stream-servers";
 import { registerGetTrialStatus } from "./routes/get-trial-status";
@@ -242,6 +243,7 @@ export const createApp: () => express.Application = () => {
   registerDeleteAgentEvalJudge(app);
   registerGetMcpServers(app);
   registerGetMcpServer(app);
+  registerGetMcpServerTools(app);
   registerGetMcpServerOauthAuthorize(app);
   registerGetMcpServerOauthStatus(app);
   registerPostMcpServerOauthDisconnect(app);

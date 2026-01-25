@@ -1557,6 +1557,16 @@ export async function getMcpServer(
   return response.json();
 }
 
+export async function getMcpServerTools(
+  workspaceId: string,
+  serverId: string
+): Promise<GroupedToolMetadata[]> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/tools`
+  );
+  return response.json();
+}
+
 export async function createMcpServer(
   workspaceId: string,
   input: CreateMcpServerInput
