@@ -6,7 +6,7 @@ import {
 } from "./common";
 import type { McpOAuthTokenInfo } from "./types";
 
-const TODOIST_AUTH_URL = "https://api.todoist.com/oauth/authorize";
+const TODOIST_AUTH_URL = "https://app.todoist.com/oauth/authorize";
 const TODOIST_TOKEN_URL = "https://api.todoist.com/oauth/access_token";
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
