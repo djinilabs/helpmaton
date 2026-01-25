@@ -8,6 +8,10 @@
 
 - **MCP tools integration test**: Added a Vitest integration test that queries the local sandbox DB to find latest OAuth MCP servers per provider and invokes every tool with chained args; added `MCP_OAUTH_PRESERVE` to keep OAuth E2E credentials, plus a root script + docs for running the tool integration test with optional provider filters.
 - **MCP tool integration args**: Added support for comma-separated provider lists passed directly on the CLI (alongside `--services=...`) when running `pnpm test:mcp-tools:integration`.
+- **Google Drive integration fallback**: Added Google Drive file/query env fallbacks (`MCP_GOOGLE_DRIVE_FILE_ID`, `MCP_GOOGLE_DRIVE_QUERY`) and search-based fileId extraction to keep Google Drive tool tests passing.
+- **MCP tools integration runner**: Added `scripts/run-mcp-tools-integration.mjs` so `pnpm test:mcp-tools:integration <services>` passes a provider list without Vitest running unrelated tests.
+- **MCP tool call logging**: Integration test now logs each tool call args and raw return value.
+- **MCP tools env loading**: Runner now loads `tests/e2e/.env` before executing integration tests.
 - **Webhook conversation conflict investigation**: Found `startConversation` uses conditional DynamoDB create for `agent-conversations`. Webhook queue uses a fixed `conversationId` from enqueue without SQS dedup IDs. When a webhook SQS message is delivered/retried, `startConversation` throws `Item already exists` on the second attempt. Recommend idempotent create or SQS dedup/group IDs to prevent duplicate processing.
 - **Git checkout cleanup note**: Verified `apps/backend/.env` is not tracked and no repo/global hooks are configured; likely removed by an external clean operation (e.g., `git clean -fdx`) triggered by a tool/IDE during branch switches.
 - **MCP OAuth redirect base**: Forced `OAUTH_REDIRECT_BASE_URL` to `http://localhost:3333` in E2E global setup and documented it in `.env.example`.

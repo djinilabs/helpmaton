@@ -126,6 +126,13 @@ You can also pass a comma-separated list directly:
 RUN_MCP_TOOLS_INTEGRATION=true pnpm test:mcp-tools:integration github,slack
 ```
 
+Google Drive note:
+
+```
+MCP_GOOGLE_DRIVE_FILE_ID=your-file-id
+MCP_GOOGLE_DRIVE_QUERY=your-search-query
+```
+
 ## Error Reporting
 
 When a service fails, the test will:

@@ -71,12 +71,23 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
     resolveArgs: {
       google_drive_list: () => ({}),
       google_drive_read: (context) => ({
-        fileId: getRequired(context, "fileId", "google_drive_list"),
+        fileId: getRequired(
+          context,
+          "fileId",
+          "google_drive_list",
+          process.env.MCP_GOOGLE_DRIVE_FILE_ID
+        ),
       }),
-      google_drive_search: () => ({ query: "test" }),
+      google_drive_search: () => ({
+        query: process.env.MCP_GOOGLE_DRIVE_QUERY || "test",
+      }),
     },
     extract: {
       google_drive_list: (context, parsed) => {
+        const file = pickFirstArrayItem(parsed, "files") as { id?: string } | undefined;
+        setValue(context, "fileId", file?.id);
+      },
+      google_drive_search: (context, parsed) => {
         const file = pickFirstArrayItem(parsed, "files") as { id?: string } | undefined;
         setValue(context, "fileId", file?.id);
       },
@@ -944,9 +955,14 @@ async function executeTool(
   tool: { execute: (args: unknown) => Promise<unknown> },
   args: Record<string, unknown>
 ): Promise<{ raw: string; parsed: unknown }> {
-  console.log(`[MCP Tools] ${serviceType}: ${toolName}`, args);
+  console.log(`[MCP Tools] ${serviceType}: ${toolName}`, {
+    args,
+  });
   const rawResult = await tool.execute(args);
   const raw = typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult);
+  console.log(`[MCP Tools] ${serviceType}: ${toolName} result`, {
+    raw,
+  });
 
   if (raw.startsWith("Error")) {
     throw new Error(`[MCP Tools] ${toolName} failed: ${raw}`);
@@ -979,7 +995,8 @@ function setValue(
 function getRequired(
   context: ProviderContext,
   key: string,
-  sourceTool: string
+  sourceTool: string,
+  fallback?: string
 ): string {
   const value = context.values[key];
   if (typeof value === "string" && value.trim().length > 0) {
@@ -987,6 +1004,9 @@ function getRequired(
   }
   if (typeof value === "number") {
     return String(value);
+  }
+  if (fallback && fallback.trim().length > 0) {
+    return fallback.trim();
   }
   throw new Error(
     `Missing ${key} for ${context.serviceType}. Ensure ${sourceTool} returns data.`
