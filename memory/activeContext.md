@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Agent Chat streaming UI**: Moved the loading indicator into the submit button (disabled during streaming), removed the inline “Thinking…” bubble, and forced auto-scroll to bottom on every streaming update. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Conversation record reasoning order**: Split reasoning into separate assistant messages in `buildConversationMessagesFromObserver`, preserved assistant content order during expansion, and added tests for reasoning/message ordering. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent delegation LLM breadcrumbs**: Added Sentry breadcrumbs before/after `executeGenerateTextWithTimeout` in `callAgentInternal` capturing provider/model, duration, and success/failure. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **AbortError root-cause analysis**: Investigated production Sentry report for webhook queue AbortError; traced to `callAgentInternal` abort timer (`requestTimeout` 14-minute AbortController) and confirmed timeout abort is the source of the stack (`Timeout._onTimeout`). CloudWatch log groups searched in `eu-west-2` for the request/message IDs but no matching logs found.

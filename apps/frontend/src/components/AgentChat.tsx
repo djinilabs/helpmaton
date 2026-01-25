@@ -4,12 +4,18 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { FC } from "react";
 
 import { useAgentOptional } from "../hooks/useAgents";
 import { apiFetch, getAccessToken } from "../utils/api";
-import { getDefaultAvatar } from "../utils/avatarUtils";
 
 import { ChatMessage, type ChatMessageProps } from "./ChatMessage";
 
@@ -70,8 +76,6 @@ export const AgentChat: FC<AgentChatProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const userHasScrolledRef = useRef(false);
-  const lastMessageCountRef = useRef(0);
   const [input, setInput] = useState("");
   // State to track API errors that might not be caught by useChat
   const [apiError, setApiError] = useState<Error | null>(null);
@@ -588,45 +592,11 @@ export const AgentChat: FC<AgentChatProps> = ({
     onClear?.();
   };
 
-  // Track user scroll position to avoid auto-scrolling when user has scrolled up
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      // Consider user scrolled up if they're not near the bottom (within 100px)
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      userHasScrolledRef.current = !isNearBottom;
-    };
-
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Auto-scroll to bottom only when new messages are added and user hasn't scrolled up
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const messageCount = messages.length;
-    const hasNewMessages = messageCount > lastMessageCountRef.current;
-    lastMessageCountRef.current = messageCount;
-
-    // Only auto-scroll if:
-    // 1. New messages were added, OR
-    // 2. Loading state changed (streaming started/stopped) AND user hasn't scrolled up
-    if (hasNewMessages || (!userHasScrolledRef.current && isLoading)) {
-      // Use requestAnimationFrame for smoother scrolling
-      requestAnimationFrame(() => {
-        if (container) {
-          container.scrollTop = container.scrollHeight;
-          // Reset scroll flag after auto-scrolling
-          userHasScrolledRef.current = false;
-        }
-      });
-    }
-  }, [messages.length, isLoading]);
+    container.scrollTop = container.scrollHeight;
+  }, [messages, status]);
 
   // Auto-focus textarea when component mounts (when Test Agent section is expanded)
   useEffect(() => {
@@ -729,23 +699,6 @@ export const AgentChat: FC<AgentChatProps> = ({
                 />
               );
             })}
-            {isLoading && (
-              <div className="max-w-[80%] overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
-                <div className="mb-2 flex items-center gap-2">
-                  {agent?.avatar && (
-                    <img
-                      src={agent.avatar || getDefaultAvatar()}
-                      alt="Agent avatar"
-                      className="size-6 rounded object-contain"
-                    />
-                  )}
-                  <div className="text-xs font-medium text-neutral-600">
-                    Agent
-                  </div>
-                </div>
-                <div className="text-sm text-neutral-600">Thinking...</div>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -869,7 +822,12 @@ export const AgentChat: FC<AgentChatProps> = ({
           }
           className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
         >
-          Send
+          <span className="flex items-center gap-2">
+            {isLoading && (
+              <span className="size-4 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
+            )}
+            <span>{isLoading ? "Sending..." : "Send"}</span>
+          </span>
         </button>
       </form>
     </div>
