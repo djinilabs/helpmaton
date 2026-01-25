@@ -9,6 +9,8 @@ import type { McpOAuthTokenInfo } from "./types";
 const SLACK_AUTH_URL = "https://slack.com/oauth/v2/authorize";
 const SLACK_TOKEN_URL = "https://slack.com/api/oauth.v2.access";
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+const SLACK_LOCAL_CALLBACK_URL =
+  "https://redirectmeto.com/http://localhost:5173/api/mcp/oauth/slack/callback";
 
 const SLACK_BOT_SCOPES = [
   "channels:read",
@@ -33,6 +35,14 @@ interface SlackOauthResponse {
   bot_user_id?: string;
 }
 
+function resolveSlackRedirectUri(): string {
+  if (process.env.ARC_ENV === "testing") {
+    return SLACK_LOCAL_CALLBACK_URL;
+  }
+
+  return buildMcpOAuthCallbackUrl("slack");
+}
+
 /**
  * Generate Slack OAuth authorization URL
  */
@@ -45,7 +55,7 @@ export function generateSlackAuthUrl(
     process.env.SLACK_OAUTH_CLIENT_ID,
     "SLACK_OAUTH_CLIENT_ID is not set"
   );
-  const redirectUri = buildMcpOAuthCallbackUrl("slack");
+  const redirectUri = resolveSlackRedirectUri();
   const stateToken = state || generateMcpOAuthStateToken(workspaceId, serverId);
 
   const params = new URLSearchParams({
@@ -72,7 +82,7 @@ export async function exchangeSlackCode(
     process.env.SLACK_OAUTH_CLIENT_SECRET,
     "SLACK_OAUTH_CLIENT_SECRET is not set"
   );
-  const redirectUri = buildMcpOAuthCallbackUrl("slack");
+  const redirectUri = resolveSlackRedirectUri();
 
   const response = await fetch(SLACK_TOKEN_URL, {
     method: "POST",

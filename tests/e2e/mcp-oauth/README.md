@@ -18,6 +18,7 @@ This suite tests all OAuth-based MCP integrations end-to-end:
 ## How It Works
 
 1. Creates a workspace + agent
+1b. Upgrades the local test subscription to `pro` to avoid MCP server limits
 2. Creates an OAuth MCP server for each service
 3. Initiates OAuth flow and pauses for manual completion if needed
 4. Verifies the OAuth connection

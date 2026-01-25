@@ -704,13 +704,9 @@ mcpDescribe("MCP tools integration (real services)", () => {
     "invokes all MCP tools for configured providers",
     async () => {
       const serviceFilter = parseServiceFilter();
-      const db = await database();
-      const workspaceIds = await fetchWorkspaceIds(db);
-      const serversByService = await fetchLatestServers(
-        db,
-        workspaceIds,
-        serviceFilter
-      );
+      const serversFromEnv = loadServersFromEnv(serviceFilter);
+      const serversByService =
+        serversFromEnv ?? (await fetchLatestServersFromDb(serviceFilter));
 
       const missingServices = serviceFilter.filter(
         (serviceType) => !serversByService.has(serviceType)
@@ -807,6 +803,14 @@ function getServiceListArg(): string | undefined {
   return undefined;
 }
 
+async function fetchLatestServersFromDb(
+  services: McpServiceType[]
+): Promise<Map<McpServiceType, { workspaceId: string; serverId: string }>> {
+  const db = await database();
+  const workspaceIds = await fetchWorkspaceIds(db);
+  return fetchLatestServers(db, workspaceIds, services);
+}
+
 async function fetchWorkspaceIds(
   db: Awaited<ReturnType<typeof database>>
 ): Promise<string[]> {
@@ -895,6 +899,73 @@ async function fetchLatestServers(
   }
 
   return selected;
+}
+
+type EnvCredentialPayload = {
+  generatedAt?: string;
+  services: Record<
+    string,
+    | {
+        workspaceId: string;
+        serverId: string;
+        name?: string;
+        authType?: string;
+        serviceType?: string;
+        url?: string;
+        config?: Record<string, unknown>;
+        createdAt?: string;
+      }
+    | null
+  >;
+};
+
+function loadServersFromEnv(
+  services: McpServiceType[]
+): Map<McpServiceType, { workspaceId: string; serverId: string }> | null {
+  const raw = process.env.TEST_MCP_CREDENTIALS;
+  if (!raw) {
+    return null;
+  }
+
+  let parsed: EnvCredentialPayload;
+  try {
+    parsed = JSON.parse(raw) as EnvCredentialPayload;
+  } catch (error) {
+    throw new Error(
+      `Failed to parse TEST_MCP_CREDENTIALS JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  if (!parsed || typeof parsed !== "object" || !parsed.services) {
+    throw new Error("TEST_MCP_CREDENTIALS is missing a services map.");
+  }
+
+  const entries = new Map<McpServiceType, { workspaceId: string; serverId: string }>();
+
+  for (const serviceType of services) {
+    const record = parsed.services[serviceType];
+    if (!record) {
+      continue;
+    }
+    if (!record.workspaceId || !record.serverId) {
+      throw new Error(
+        `TEST_MCP_CREDENTIALS entry for ${serviceType} is missing workspaceId/serverId.`
+      );
+    }
+    if (record.serviceType && record.serviceType !== serviceType) {
+      throw new Error(
+        `TEST_MCP_CREDENTIALS entry mismatch for ${serviceType} (serviceType=${record.serviceType}).`
+      );
+    }
+    entries.set(serviceType, {
+      workspaceId: record.workspaceId,
+      serverId: record.serverId,
+    });
+  }
+
+  return entries;
 }
 
 function hasOAuthCredentials(server: McpServerRecord): boolean {

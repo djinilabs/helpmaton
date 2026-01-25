@@ -49,6 +49,16 @@ describe("Salesforce OAuth Utilities", () => {
       expect(authUrl).toContain("state=custom-state-token");
     });
 
+    it("should use redirectmeto callback in local dev", () => {
+      process.env.ARC_ENV = "testing";
+
+      const authUrl = generateSalesforceAuthUrl("workspace-1", "server-1");
+
+      expect(authUrl).toContain(
+        "redirect_uri=https%3A%2F%2Fredirectmeto.com%2Fhttp%3A%2F%2Flocalhost%3A5173%2Fapi%2Fmcp%2Foauth%2Fsalesforce%2Fcallback"
+      );
+    });
+
     it("should throw error if SALESFORCE_OAUTH_CLIENT_ID is not set", () => {
       delete process.env.SALESFORCE_OAUTH_CLIENT_ID;
 
@@ -110,6 +120,29 @@ describe("Salesforce OAuth Utilities", () => {
       const result = await exchangeSalesforceCode("auth-code-123");
 
       expect(result.refreshToken).toBe("salesforce-access-token");
+    });
+
+    it("should use redirectmeto callback in local dev", async () => {
+      process.env.ARC_ENV = "testing";
+
+      const mockTokenResponse = {
+        access_token: "salesforce-access-token",
+        instance_url: "https://na1.salesforce.com",
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(mockTokenResponse),
+      } as Partial<Response> as Response);
+
+      await exchangeSalesforceCode("auth-code-123");
+
+      const callArgs = vi.mocked(fetch).mock.calls[0];
+      const body = callArgs[1]?.body as URLSearchParams;
+      expect(body.toString()).toContain(
+        "redirect_uri=https%3A%2F%2Fredirectmeto.com%2Fhttp%3A%2F%2Flocalhost%3A5173%2Fapi%2Fmcp%2Foauth%2Fsalesforce%2Fcallback"
+      );
     });
   });
 

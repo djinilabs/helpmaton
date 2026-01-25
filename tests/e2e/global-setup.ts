@@ -226,6 +226,8 @@ async function globalSetup(config: FullConfig) {
       "CLOUDFLARE_TURNSTILE_SECRET_KEY",
       "CLOUDFLARE_TURNSTILE_SITE_KEY",
       "DISABLE_TRIAL_PERIOD_CHECK",
+      "STRIPE_OAUTH_CLIENT_ID",
+      "STRIPE_OAUTH_CLIENT_SECRET",
       // Note: E2E_OVERRIDE_MAX_USERS is handled explicitly above with a default value
     ];
 

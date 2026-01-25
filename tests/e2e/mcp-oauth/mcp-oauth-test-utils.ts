@@ -51,6 +51,14 @@ export class McpServerPage extends BasePage {
     super(page);
   }
 
+  async getAccessTokenForApi(): Promise<string> {
+    return this.getAccessToken();
+  }
+
+  getApiBaseUrl(): string {
+    return this.getBaseUrl();
+  }
+
   /**
    * Navigate to workspace detail page and expand MCP servers section
    */

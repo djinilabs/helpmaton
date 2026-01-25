@@ -8,7 +8,7 @@ import type { McpOAuthTokenInfo } from "./types";
 
 const STRIPE_AUTH_URL = "https://connect.stripe.com/oauth/authorize";
 const STRIPE_TOKEN_URL = "https://connect.stripe.com/oauth/token";
-const STRIPE_SCOPES = "read_only";
+const STRIPE_SCOPES = "read_write";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
 export interface StripeTokenResponse {

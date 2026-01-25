@@ -11,6 +11,8 @@ const SALESFORCE_AUTH_URL =
 const SALESFORCE_TOKEN_URL =
   "https://login.salesforce.com/services/oauth2/token";
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+const SALESFORCE_LOCAL_CALLBACK_URL =
+  "https://redirectmeto.com/http://localhost:5173/api/mcp/oauth/salesforce/callback";
 
 const SALESFORCE_SCOPES = ["api", "refresh_token", "offline_access"].join(" ");
 
@@ -25,6 +27,14 @@ interface SalesforceTokenResponse {
   scope?: string;
 }
 
+function resolveSalesforceRedirectUri(): string {
+  if (process.env.ARC_ENV === "testing") {
+    return SALESFORCE_LOCAL_CALLBACK_URL;
+  }
+
+  return buildMcpOAuthCallbackUrl("salesforce");
+}
+
 /**
  * Generate Salesforce OAuth authorization URL
  */
@@ -37,7 +47,7 @@ export function generateSalesforceAuthUrl(
     process.env.SALESFORCE_OAUTH_CLIENT_ID,
     "SALESFORCE_OAUTH_CLIENT_ID is not set"
   );
-  const redirectUri = buildMcpOAuthCallbackUrl("salesforce");
+  const redirectUri = resolveSalesforceRedirectUri();
   const stateToken = state || generateMcpOAuthStateToken(workspaceId, serverId);
 
   const params = new URLSearchParams({
@@ -65,7 +75,7 @@ export async function exchangeSalesforceCode(
     process.env.SALESFORCE_OAUTH_CLIENT_SECRET,
     "SALESFORCE_OAUTH_CLIENT_SECRET is not set"
   );
-  const redirectUri = buildMcpOAuthCallbackUrl("salesforce");
+  const redirectUri = resolveSalesforceRedirectUri();
 
   const response = await fetch(SALESFORCE_TOKEN_URL, {
     method: "POST",

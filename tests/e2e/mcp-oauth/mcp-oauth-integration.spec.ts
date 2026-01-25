@@ -1,6 +1,7 @@
 import { spawnSync } from "child_process";
+import { createRequire } from "module";
 
-import { expect } from "@playwright/test";
+import { expect, Page } from "@playwright/test";
 
 import { testWithUserManagement } from "../fixtures/test-fixtures";
 import { AgentDetailPage } from "../pages/agent-detail-page";
@@ -42,6 +43,13 @@ mcpDescribe("MCP OAuth Integrations - Full Integration", () => {
       const user = await userManagement.createAndLoginUser();
       state.user = user;
       expect(page.url()).not.toContain("/api/auth/signin");
+    },
+  );
+
+  testWithUserManagement(
+    "1b. Upgrade subscription to pro",
+    async ({ page }) => {
+      await ensureProSubscription(page);
     },
   );
 
@@ -367,4 +375,65 @@ function addCreditsToWorkspace(workspaceId: string, amount: string): void {
       `Failed to add credits to workspace ${workspaceId} (exit code ${result.status})`,
     );
   }
+}
+
+async function ensureProSubscription(page: Page): Promise<void> {
+  const baseUrl = process.env.BASE_URL || "http://localhost:5173";
+  if (!baseUrl.includes("localhost")) {
+    console.warn(
+      "[MCP OAuth] Skipping subscription upgrade: non-local BASE_URL detected.",
+    );
+    return;
+  }
+
+  const mcpPage = new McpServerPage(page);
+  const token = await mcpPage.getAccessTokenForApi();
+  const apiBaseUrl = mcpPage.getApiBaseUrl();
+
+  const response = await page.request.get(`${apiBaseUrl}/api/subscription`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok()) {
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to fetch subscription details: ${response.status()} ${errorText}`,
+    );
+  }
+
+  const subscription = (await response.json()) as {
+    subscriptionId: string;
+    plan: string;
+  };
+
+  if (subscription.plan === "pro") {
+    console.log("[MCP OAuth] Subscription already set to pro.");
+    return;
+  }
+
+  const require = createRequire(import.meta.url);
+  const { database } = require("../../../apps/backend/src/tables/database");
+  const db = await database();
+  const subscriptionPk = `subscriptions/${subscription.subscriptionId}`;
+  const existing = await db.subscription.get(subscriptionPk, "subscription");
+
+  if (!existing) {
+    throw new Error(
+      `Subscription record not found for ${subscription.subscriptionId}`,
+    );
+  }
+
+  await db.subscription.update({
+    ...existing,
+    plan: "pro",
+    status: "active",
+    endsAt: undefined,
+    gracePeriodEndsAt: undefined,
+  });
+
+  console.log(
+    `[MCP OAuth] Subscription ${subscription.subscriptionId} updated to pro.`,
+  );
 }
