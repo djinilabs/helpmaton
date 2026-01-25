@@ -900,9 +900,10 @@ export async function startConversation(
     startedAt: now,
     lastMessageAt: now,
     expires: calculateTTL(),
+    createdAt: now,
   };
 
-  await db["agent-conversations"].create(conversationRecord);
+  await upsertConversationWithRetry(db, conversationRecord);
 
   // Write to working memory - await to ensure it completes before Lambda finishes
   // This prevents Lambda from freezing the execution context before SQS message is sent
@@ -956,6 +957,76 @@ export async function startConversation(
   }
 
   return conversationId;
+}
+
+const CONVERSATION_UPSERT_MAX_ATTEMPTS = 3;
+const CONVERSATION_UPSERT_BASE_DELAY_MS = 100;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isConversationVersionConflict(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message.toLowerCase()
+      : "";
+
+  return (
+    message.includes("item was outdated") ||
+    message.includes("item already exists") ||
+    message.includes("conditional request failed") ||
+    message.includes("conditionalcheckfailed")
+  );
+}
+
+async function upsertConversationWithRetry(
+  db: DatabaseSchema,
+  conversationRecord: Parameters<
+    DatabaseSchema["agent-conversations"]["upsert"]
+  >[0]
+): Promise<void> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < CONVERSATION_UPSERT_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await db["agent-conversations"].upsert(conversationRecord);
+      return;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (
+        isConversationVersionConflict(error) &&
+        attempt < CONVERSATION_UPSERT_MAX_ATTEMPTS - 1
+      ) {
+        const backoffMs =
+          CONVERSATION_UPSERT_BASE_DELAY_MS * Math.pow(2, attempt);
+        console.warn(
+          `[Conversation Logger] Conversation upsert conflict, retrying in ${backoffMs}ms (attempt ${
+            attempt + 1
+          }/${CONVERSATION_UPSERT_MAX_ATTEMPTS}):`,
+          {
+            conversationId: conversationRecord.conversationId,
+            workspaceId: conversationRecord.workspaceId,
+            agentId: conversationRecord.agentId,
+            error: lastError.message,
+          }
+        );
+        await sleep(backoffMs);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(
+    `Failed to upsert conversation after ${CONVERSATION_UPSERT_MAX_ATTEMPTS} attempts due to concurrent updates: ${
+      lastError?.message || "Unknown error"
+    }`
+  );
 }
 
 /**

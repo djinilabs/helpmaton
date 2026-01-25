@@ -1256,7 +1256,7 @@ describe("conversationLogger", () => {
       // Mock the database
       mockDb = {
         "agent-conversations": {
-          create: vi.fn().mockResolvedValue(undefined),
+          upsert: vi.fn().mockResolvedValue(undefined),
           atomicUpdate: vi.fn(async (pk, sk, callback) => {
             const result = await callback(null);
             return result;
@@ -1303,7 +1303,7 @@ describe("conversationLogger", () => {
 
       // Should use finalCostUsd (2000) instead of calculating from tokenUsage
       expect(mockCalculateConversationCosts).not.toHaveBeenCalled();
-      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+      expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           costUsd: 2000,
         })
@@ -1343,7 +1343,7 @@ describe("conversationLogger", () => {
           completionTokens: 50,
         })
       );
-      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+      expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           costUsd: 1000, // From mockCalculateConversationCosts
         })
@@ -1508,7 +1508,7 @@ describe("conversationLogger", () => {
     beforeEach(async () => {
       mockDb = {
         "agent-conversations": {
-          create: vi.fn().mockResolvedValue(undefined),
+          upsert: vi.fn().mockResolvedValue(undefined),
           atomicUpdate: vi.fn(async (_pk: string, _sk: unknown, callback: (existing: unknown) => unknown) => {
             return callback(null);
           }),
@@ -1539,7 +1539,7 @@ describe("conversationLogger", () => {
         },
       });
 
-      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+      expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           error: expect.objectContaining({
             message: "LLM failure",
