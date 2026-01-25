@@ -146,6 +146,77 @@ describe("conversationLogger", () => {
 
       expect(hasFilePart).toBe(true);
     });
+
+    it("preserves assistant content order after tool expansion", () => {
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "tool-1",
+              toolName: "generate_image",
+              args: {},
+            },
+            {
+              type: "tool-result",
+              toolCallId: "tool-1",
+              toolName: "generate_image",
+              result: { url: "https://example.com/image.png" },
+            },
+            {
+              type: "text",
+              text: "before",
+            },
+            {
+              type: "file",
+              file: "https://example.com/image.png",
+              mediaType: "image/png",
+            },
+            {
+              type: "reasoning",
+              text: "thinking",
+            },
+            {
+              type: "text",
+              text: "after",
+            },
+          ],
+        },
+      ];
+
+      const expanded = expandMessagesWithToolCalls(messages);
+      const assistantMessages = expanded.filter((msg) => msg.role === "assistant");
+      const textOnlyMessage = assistantMessages.find(
+        (msg) =>
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              (item.type === "text" || item.type === "reasoning" || item.type === "file")
+          ) &&
+          !msg.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              (item.type === "tool-call" || item.type === "tool-result")
+          )
+      );
+
+      expect(textOnlyMessage?.content).toEqual([
+        { type: "text", text: "before" },
+        {
+          type: "file",
+          file: "https://example.com/image.png",
+          mediaType: "image/png",
+        },
+        { type: "reasoning", text: "thinking" },
+        { type: "text", text: "after" },
+      ]);
+    });
   });
   describe("extractTokenUsage", () => {
     it("should extract token usage from standard AI SDK format", () => {

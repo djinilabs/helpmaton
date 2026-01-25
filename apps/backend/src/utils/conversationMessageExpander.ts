@@ -45,6 +45,10 @@ type AssistantParts = {
   reasoning: ReasoningPart[];
   text: TextPart[];
   fileParts: FilePart[];
+  orderedTextContent: Array<ReasoningPart | TextPart | FilePart>;
+  orderedAssistantContent: Array<
+    ReasoningPart | TextPart | FilePart | DelegationPart
+  >;
 };
 
 type ToolCallMapEntry = {
@@ -59,6 +63,8 @@ const createEmptyAssistantParts = (): AssistantParts => ({
   reasoning: [],
   text: [],
   fileParts: [],
+  orderedTextContent: [],
+  orderedAssistantContent: [],
 });
 
 const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
@@ -182,6 +188,18 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           timestamp: delegationItem.timestamp,
           ...(delegationItem.taskId && { taskId: delegationItem.taskId }),
         });
+        parts.orderedAssistantContent.push({
+          type: "delegation",
+          toolCallId: delegationItem.toolCallId,
+          callingAgentId: delegationItem.callingAgentId,
+          targetAgentId: delegationItem.targetAgentId,
+          ...(delegationItem.targetConversationId && {
+            targetConversationId: delegationItem.targetConversationId,
+          }),
+          status: delegationItem.status,
+          timestamp: delegationItem.timestamp,
+          ...(delegationItem.taskId && { taskId: delegationItem.taskId }),
+        });
       }
       continue;
     }
@@ -189,7 +207,13 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
     if (item.type === "reasoning" && "text" in item) {
       const reasoningItem = item as { text?: unknown };
       if (typeof reasoningItem.text === "string") {
-        parts.reasoning.push({ type: "reasoning", text: reasoningItem.text });
+        const reasoningPart: ReasoningPart = {
+          type: "reasoning",
+          text: reasoningItem.text,
+        };
+        parts.reasoning.push(reasoningPart);
+        parts.orderedTextContent.push(reasoningPart);
+        parts.orderedAssistantContent.push(reasoningPart);
       }
       continue;
     }
@@ -197,7 +221,10 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
     if (item.type === "text" && "text" in item) {
       const textItem = item as { text?: unknown };
       if (typeof textItem.text === "string") {
-        parts.text.push({ type: "text", text: textItem.text });
+        const textPart: TextPart = { type: "text", text: textItem.text };
+        parts.text.push(textPart);
+        parts.orderedTextContent.push(textPart);
+        parts.orderedAssistantContent.push(textPart);
       }
       continue;
     }
@@ -212,12 +239,15 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
         mediaType?: string;
         filename?: string;
       };
-      parts.fileParts.push({
+      const filePart: FilePart = {
         type: "file",
         file: fileItem.file,
         ...(fileItem.mediaType && { mediaType: fileItem.mediaType }),
         ...(fileItem.filename && { filename: fileItem.filename }),
-      });
+      };
+      parts.fileParts.push(filePart);
+      parts.orderedTextContent.push(filePart);
+      parts.orderedAssistantContent.push(filePart);
     }
   }
 
@@ -328,15 +358,13 @@ const buildToolResultMessages = (options: {
 
 const buildTextOnlyMessage = (options: {
   message: AssistantMessage;
-  reasoning: ReasoningPart[];
-  text: TextPart[];
-  fileParts: FilePart[];
+  orderedTextContent: Array<ReasoningPart | TextPart | FilePart>;
   toolResultEndTimes: string[];
   awsRequestId?: string;
 }): AssistantMessage | null => {
-  const { message, reasoning, text, fileParts, toolResultEndTimes, awsRequestId } =
+  const { message, orderedTextContent, toolResultEndTimes, awsRequestId } =
     options;
-  if (reasoning.length === 0 && text.length === 0 && fileParts.length === 0) {
+  if (orderedTextContent.length === 0) {
     return null;
   }
 
@@ -358,15 +386,9 @@ const buildTextOnlyMessage = (options: {
     textGenerationStartedAt = message.generationStartedAt;
   }
 
-  const reasoningAndTextContent: Array<ReasoningPart | TextPart | FilePart> = [
-    ...reasoning,
-    ...text,
-    ...fileParts,
-  ];
-
   return {
     role: "assistant",
-    content: reasoningAndTextContent,
+    content: orderedTextContent,
     ...(awsRequestId && { awsRequestId }),
     ...(message.tokenUsage && { tokenUsage: message.tokenUsage }),
     ...(message.modelName && { modelName: message.modelName }),
@@ -394,16 +416,13 @@ const buildTextOnlyMessage = (options: {
 
 const buildDelegationOnlyMessage = (options: {
   message: AssistantMessage;
-  delegations: DelegationPart[];
-  reasoning: ReasoningPart[];
-  text: TextPart[];
-  fileParts: FilePart[];
+  orderedAssistantContent: Array<
+    ReasoningPart | TextPart | FilePart | DelegationPart
+  >;
   awsRequestId?: string;
 }): AssistantMessage | null => {
-  const { message, delegations, reasoning, text, fileParts, awsRequestId } = options;
-  const contentWithDelegations: Array<
-    TextPart | ReasoningPart | DelegationPart | FilePart
-  > = [...reasoning, ...text, ...fileParts, ...delegations];
+  const { message, orderedAssistantContent, awsRequestId } = options;
+  const contentWithDelegations = orderedAssistantContent;
 
   if (contentWithDelegations.length === 0) {
     return awsRequestId ? { ...message, awsRequestId } : message;
@@ -457,9 +476,7 @@ export function expandMessagesWithToolCalls(
 
         const textOnlyMessage = buildTextOnlyMessage({
           message: assistantMessage,
-          reasoning: parts.reasoning,
-          text: parts.text,
-          fileParts: parts.fileParts,
+          orderedTextContent: parts.orderedTextContent,
           toolResultEndTimes,
           awsRequestId,
         });
@@ -476,10 +493,7 @@ export function expandMessagesWithToolCalls(
         );
         const delegationOnlyMessage = buildDelegationOnlyMessage({
           message: assistantMessage,
-          delegations: parts.delegations,
-          reasoning: parts.reasoning,
-          text: parts.text,
-          fileParts: parts.fileParts,
+          orderedAssistantContent: parts.orderedAssistantContent,
           awsRequestId,
         });
         if (delegationOnlyMessage) {

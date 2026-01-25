@@ -738,7 +738,7 @@ export function buildConversationMessagesFromObserver(params: {
     return syntheticId;
   };
 
-  const content: Array<
+  type AssistantContentItem =
     | { type: "text"; text: string }
     | {
         type: "tool-call";
@@ -757,7 +757,9 @@ export function buildConversationMessagesFromObserver(params: {
     | { type: "reasoning"; text: string }
     | { type: "file"; file: string; mediaType?: string; filename?: string }
     | DelegationContent
-  > = [];
+  ;
+  const assistantSegments: AssistantContentItem[][] = [];
+  let currentContent: AssistantContentItem[] = [];
   const filePartKeys = new Set<string>();
 
   let generationStartedAt: string | undefined;
@@ -768,9 +770,25 @@ export function buildConversationMessagesFromObserver(params: {
     const trimmed = textBuffer.trim();
     if (trimmed.length > 0) {
       // Preserve original whitespace while skipping whitespace-only buffers.
-      content.push({ type: "text", text: textBuffer });
+      currentContent.push({ type: "text", text: textBuffer });
       textBuffer = "";
     }
+  };
+
+  const pushCurrentContent = () => {
+    if (currentContent.length > 0) {
+      assistantSegments.push(currentContent);
+      currentContent = [];
+    }
+  };
+
+  const appendReasoningSegment = (text: string) => {
+    const lastSegment = assistantSegments.at(-1);
+    if (lastSegment && lastSegment.every((item) => item.type === "reasoning")) {
+      lastSegment.push({ type: "reasoning", text });
+      return;
+    }
+    assistantSegments.push([{ type: "reasoning", text }]);
   };
 
   const buildFileKey = (file: string, mediaType?: string, filename?: string) =>
@@ -786,7 +804,7 @@ export function buildConversationMessagesFromObserver(params: {
       return;
     }
     filePartKeys.add(key);
-    content.push({
+    currentContent.push({
       type: "file",
       file: part.file,
       ...(part.mediaType && { mediaType: part.mediaType }),
@@ -809,7 +827,7 @@ export function buildConversationMessagesFromObserver(params: {
           const signature = `${event.toolCallId}:${event.toolName}`;
           if (!toolCallSignatures.has(signature)) {
             toolCallSignatures.add(signature);
-            content.push({
+            currentContent.push({
               type: "tool-call",
               toolCallId: event.toolCallId,
               toolName: event.toolName,
@@ -861,7 +879,7 @@ export function buildConversationMessagesFromObserver(params: {
                 };
                 pushFilePart(fileItem);
               } else {
-                content.push(item);
+                currentContent.push(item as AssistantContentItem);
               }
             }
           }
@@ -879,7 +897,7 @@ export function buildConversationMessagesFromObserver(params: {
           if (!hasToolCallEvents && !toolCallSignatures.has(signature)) {
             flushTextBuffer();
             toolCallSignatures.add(signature);
-            content.push({
+            currentContent.push({
               type: "tool-call",
               toolCallId,
               toolName: event.toolName,
@@ -935,7 +953,7 @@ export function buildConversationMessagesFromObserver(params: {
                   };
                   pushFilePart(fileItem);
                 } else {
-                  content.push(item);
+                  currentContent.push(item as AssistantContentItem);
                 }
               }
             }
@@ -944,7 +962,8 @@ export function buildConversationMessagesFromObserver(params: {
         break;
       case "assistant-reasoning":
         flushTextBuffer();
-        content.push({ type: "reasoning", text: event.text });
+        pushCurrentContent();
+        appendReasoningSegment(event.text);
         break;
       case "assistant-file":
         flushTextBuffer();
@@ -963,38 +982,78 @@ export function buildConversationMessagesFromObserver(params: {
   }
 
   flushTextBuffer();
+  pushCurrentContent();
 
-  const hasAssistantText = content.some(
-    (item) => typeof item === "object" && item.type === "text"
+  const hasAssistantText = assistantSegments.some((segment) =>
+    segment.some((item) => item.type === "text")
   );
   if (
     !hasAssistantText &&
     typeof fallbackAssistantText === "string" &&
     fallbackAssistantText.trim().length > 0
   ) {
-    content.push({ type: "text", text: fallbackAssistantText });
+    assistantSegments.push([{ type: "text", text: fallbackAssistantText }]);
   }
 
-  const assistantMessage: UIMessage = {
-    role: "assistant",
-    content: content.length > 0 ? content : "",
-    ...(assistantMeta.tokenUsage && { tokenUsage: assistantMeta.tokenUsage }),
-    ...(assistantMeta.modelName && { modelName: assistantMeta.modelName }),
-    ...(assistantMeta.provider && { provider: assistantMeta.provider }),
-    ...(assistantMeta.openrouterGenerationId && {
-      openrouterGenerationId: assistantMeta.openrouterGenerationId,
-    }),
-    ...(assistantMeta.provisionalCostUsd !== undefined && {
-      provisionalCostUsd: assistantMeta.provisionalCostUsd,
-    }),
-    ...(assistantMeta.generationTimeMs !== undefined && {
-      generationTimeMs: assistantMeta.generationTimeMs,
-    }),
-    ...(generationStartedAt && { generationStartedAt }),
-    ...(generationEndedAt && { generationEndedAt }),
-  };
+  if (assistantSegments.length === 0) {
+    const assistantMessage: UIMessage = {
+      role: "assistant",
+      content: "",
+      ...(assistantMeta.tokenUsage && { tokenUsage: assistantMeta.tokenUsage }),
+      ...(assistantMeta.modelName && { modelName: assistantMeta.modelName }),
+      ...(assistantMeta.provider && { provider: assistantMeta.provider }),
+      ...(assistantMeta.openrouterGenerationId && {
+        openrouterGenerationId: assistantMeta.openrouterGenerationId,
+      }),
+      ...(assistantMeta.provisionalCostUsd !== undefined && {
+        provisionalCostUsd: assistantMeta.provisionalCostUsd,
+      }),
+      ...(assistantMeta.generationTimeMs !== undefined && {
+        generationTimeMs: assistantMeta.generationTimeMs,
+      }),
+      ...(generationStartedAt && { generationStartedAt }),
+      ...(generationEndedAt && { generationEndedAt }),
+    };
 
-  return [...inputMessages, assistantMessage];
+    return [...inputMessages, assistantMessage];
+  }
+
+  const lastTextIndex = assistantSegments.findLastIndex((segment) =>
+    segment.some((item) => item.type === "text")
+  );
+  const metaIndex =
+    lastTextIndex >= 0 ? lastTextIndex : assistantSegments.length - 1;
+
+  const assistantMessages = assistantSegments.map((segment, index): UIMessage => {
+    const baseMessage: UIMessage = {
+      role: "assistant",
+      content: segment,
+    };
+
+    if (index !== metaIndex) {
+      return baseMessage;
+    }
+
+    return {
+      ...baseMessage,
+      ...(assistantMeta.tokenUsage && { tokenUsage: assistantMeta.tokenUsage }),
+      ...(assistantMeta.modelName && { modelName: assistantMeta.modelName }),
+      ...(assistantMeta.provider && { provider: assistantMeta.provider }),
+      ...(assistantMeta.openrouterGenerationId && {
+        openrouterGenerationId: assistantMeta.openrouterGenerationId,
+      }),
+      ...(assistantMeta.provisionalCostUsd !== undefined && {
+        provisionalCostUsd: assistantMeta.provisionalCostUsd,
+      }),
+      ...(assistantMeta.generationTimeMs !== undefined && {
+        generationTimeMs: assistantMeta.generationTimeMs,
+      }),
+      ...(generationStartedAt && { generationStartedAt }),
+      ...(generationEndedAt && { generationEndedAt }),
+    };
+  });
+
+  return [...inputMessages, ...assistantMessages];
 }
 
 export function getGenerationTimingFromObserver(

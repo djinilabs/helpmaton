@@ -6,6 +6,10 @@
 
 **Latest Work**:
 
+- **Conversation record reasoning order**: Split reasoning into separate assistant messages in `buildConversationMessagesFromObserver`, preserved assistant content order during expansion, and added tests for reasoning/message ordering. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Agent delegation LLM breadcrumbs**: Added Sentry breadcrumbs before/after `executeGenerateTextWithTimeout` in `callAgentInternal` capturing provider/model, duration, and success/failure. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **AbortError root-cause analysis**: Investigated production Sentry report for webhook queue AbortError; traced to `callAgentInternal` abort timer (`requestTimeout` 14-minute AbortController) and confirmed timeout abort is the source of the stack (`Timeout._onTimeout`). CloudWatch log groups searched in `eu-west-2` for the request/message IDs but no matching logs found.
+
 - **Eval retry + failure records**: Kept the 3-attempt retry loop for judge parse errors, stored failed eval records with status/error details and nullable scores, updated eval result APIs/UI to show failed entries and exclude them from aggregates/charts, and updated tests. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Eval token usage marshalling fix**: Prevented undefined optional token fields when merging eval token usage so DynamoDB marshalling succeeds; added unit coverage and ran `pnpm lint --fix` + `pnpm typecheck`.
 - **PR 215 review fixes**: Added assistant responses to eval retry messages, cleaned up eval reservations when token usage is missing, fixed eval cost display for zero values, and added executeEvaluation tests for retry/failure paths. Ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm test`.
