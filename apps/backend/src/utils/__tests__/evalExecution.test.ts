@@ -584,6 +584,73 @@ describe("evalExecution", () => {
       ).toBe(true);
     });
 
+    it("omits undefined token usage fields when merging attempts", async () => {
+      const db = buildDb();
+      const generateTextMock = vi.mocked(generateText);
+      generateTextMock
+        .mockResolvedValueOnce({ text: "not json" } as Awaited<
+          ReturnType<typeof generateText>
+        >)
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            summary: "OK",
+            score_goal_completion: 80,
+            score_tool_efficiency: 70,
+            score_faithfulness: 90,
+            critical_failure_detected: false,
+            reasoning_trace: "Trace",
+          }),
+        } as Awaited<ReturnType<typeof generateText>>);
+
+      const extractMock = vi.mocked(extractTokenUsageAndCosts);
+      extractMock
+        .mockReturnValueOnce({
+          tokenUsage: {
+            promptTokens: 5,
+            completionTokens: 5,
+            totalTokens: 10,
+          },
+          openrouterGenerationId: "gen-1",
+          openrouterGenerationIds: ["gen-1"],
+          provisionalCostUsd: 100,
+        })
+        .mockReturnValueOnce({
+          tokenUsage: {
+            promptTokens: 7,
+            completionTokens: 3,
+            totalTokens: 10,
+          },
+          openrouterGenerationId: "gen-2",
+          openrouterGenerationIds: ["gen-2"],
+          provisionalCostUsd: 50,
+        });
+
+      await executeEvaluation(
+        db,
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId,
+        {
+          addWorkspaceCreditTransaction: vi.fn(),
+          awsRequestId: "req-3",
+        } as unknown as AugmentedContext
+      );
+
+      const createCall = (db["agent-eval-result"].create as ReturnType<
+        typeof vi.fn
+      >).mock.calls[0]?.[0] as Record<string, unknown>;
+      const tokenUsage = createCall.tokenUsage as Record<string, unknown>;
+
+      expect(tokenUsage).toMatchObject({
+        promptTokens: 12,
+        completionTokens: 8,
+        totalTokens: 20,
+      });
+      expect("reasoningTokens" in tokenUsage).toBe(false);
+      expect("cachedPromptTokens" in tokenUsage).toBe(false);
+    });
+
     it("stores a failed record after exhausting retries", async () => {
       const generateTextMock = vi.mocked(generateText);
       generateTextMock.mockResolvedValue(

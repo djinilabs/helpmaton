@@ -146,6 +146,77 @@ describe("conversationLogger", () => {
 
       expect(hasFilePart).toBe(true);
     });
+
+    it("preserves assistant content order after tool expansion", () => {
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "tool-1",
+              toolName: "generate_image",
+              args: {},
+            },
+            {
+              type: "tool-result",
+              toolCallId: "tool-1",
+              toolName: "generate_image",
+              result: { url: "https://example.com/image.png" },
+            },
+            {
+              type: "text",
+              text: "before",
+            },
+            {
+              type: "file",
+              file: "https://example.com/image.png",
+              mediaType: "image/png",
+            },
+            {
+              type: "reasoning",
+              text: "thinking",
+            },
+            {
+              type: "text",
+              text: "after",
+            },
+          ],
+        },
+      ];
+
+      const expanded = expandMessagesWithToolCalls(messages);
+      const assistantMessages = expanded.filter((msg) => msg.role === "assistant");
+      const textOnlyMessage = assistantMessages.find(
+        (msg) =>
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              (item.type === "text" || item.type === "reasoning" || item.type === "file")
+          ) &&
+          !msg.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              (item.type === "tool-call" || item.type === "tool-result")
+          )
+      );
+
+      expect(textOnlyMessage?.content).toEqual([
+        { type: "text", text: "before" },
+        {
+          type: "file",
+          file: "https://example.com/image.png",
+          mediaType: "image/png",
+        },
+        { type: "reasoning", text: "thinking" },
+        { type: "text", text: "after" },
+      ]);
+    });
   });
   describe("extractTokenUsage", () => {
     it("should extract token usage from standard AI SDK format", () => {
@@ -1185,7 +1256,7 @@ describe("conversationLogger", () => {
       // Mock the database
       mockDb = {
         "agent-conversations": {
-          create: vi.fn().mockResolvedValue(undefined),
+          upsert: vi.fn().mockResolvedValue(undefined),
           atomicUpdate: vi.fn(async (pk, sk, callback) => {
             const result = await callback(null);
             return result;
@@ -1232,7 +1303,7 @@ describe("conversationLogger", () => {
 
       // Should use finalCostUsd (2000) instead of calculating from tokenUsage
       expect(mockCalculateConversationCosts).not.toHaveBeenCalled();
-      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+      expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           costUsd: 2000,
         })
@@ -1272,7 +1343,7 @@ describe("conversationLogger", () => {
           completionTokens: 50,
         })
       );
-      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+      expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           costUsd: 1000, // From mockCalculateConversationCosts
         })
@@ -1437,7 +1508,7 @@ describe("conversationLogger", () => {
     beforeEach(async () => {
       mockDb = {
         "agent-conversations": {
-          create: vi.fn().mockResolvedValue(undefined),
+          upsert: vi.fn().mockResolvedValue(undefined),
           atomicUpdate: vi.fn(async (_pk: string, _sk: unknown, callback: (existing: unknown) => unknown) => {
             return callback(null);
           }),
@@ -1468,7 +1539,7 @@ describe("conversationLogger", () => {
         },
       });
 
-      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+      expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           error: expect.objectContaining({
             message: "LLM failure",

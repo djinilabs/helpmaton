@@ -981,15 +981,61 @@ export async function callAgentInternal(
       logToolDefinitions(effectiveTools, "Agent Delegation", targetAgent);
     }
 
-    result = await executeGenerateTextWithTimeout({
-      model: model as unknown as Parameters<typeof generateText>[0]["model"],
-      system: targetAgent.systemPrompt,
-      messages: modelMessagesWithKnowledge,
-      tools: effectiveTools,
-      generateOptions,
-      abortSignal,
-      timeoutMs,
+    const llmCallStartedAt = Date.now();
+    Sentry.addBreadcrumb({
+      category: "agent-delegation",
+      message: "Starting LLM call",
+      level: "info",
+      data: {
+        workspaceId,
+        targetAgentId,
+        provider: agentProvider,
+        model: resolvedModelName || MODEL_NAME,
+        timeoutMs,
+        toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
+      },
     });
+
+    try {
+      result = await executeGenerateTextWithTimeout({
+        model: model as unknown as Parameters<typeof generateText>[0]["model"],
+        system: targetAgent.systemPrompt,
+        messages: modelMessagesWithKnowledge,
+        tools: effectiveTools,
+        generateOptions,
+        abortSignal,
+        timeoutMs,
+      });
+      Sentry.addBreadcrumb({
+        category: "agent-delegation",
+        message: "LLM call completed",
+        level: "info",
+        data: {
+          workspaceId,
+          targetAgentId,
+          provider: agentProvider,
+          model: resolvedModelName || MODEL_NAME,
+          durationMs: Date.now() - llmCallStartedAt,
+          success: true,
+        },
+      });
+    } catch (error) {
+      Sentry.addBreadcrumb({
+        category: "agent-delegation",
+        message: "LLM call failed",
+        level: "error",
+        data: {
+          workspaceId,
+          targetAgentId,
+          provider: agentProvider,
+          model: resolvedModelName || MODEL_NAME,
+          durationMs: Date.now() - llmCallStartedAt,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw error;
+    }
 
     llmCallAttempted = true;
     shouldTrackRequest = true;

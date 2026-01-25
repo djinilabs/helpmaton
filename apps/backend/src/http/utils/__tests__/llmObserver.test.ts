@@ -153,6 +153,74 @@ describe("buildConversationMessagesFromObserver", () => {
     }
   });
 
+  it("splits reasoning into its own assistant messages", () => {
+    const events: LlmObserverEvent[] = [
+      {
+        type: "input-messages",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        messages: [{ role: "user", content: "hello" }],
+      },
+      {
+        type: "generation-started",
+        timestamp: "2025-01-01T00:00:01.000Z",
+      },
+      {
+        type: "assistant-text",
+        timestamp: "2025-01-01T00:00:02.000Z",
+        text: "first",
+      },
+      {
+        type: "assistant-reasoning",
+        timestamp: "2025-01-01T00:00:03.000Z",
+        text: "thinking",
+      },
+      {
+        type: "assistant-text",
+        timestamp: "2025-01-01T00:00:04.000Z",
+        text: "second",
+      },
+      {
+        type: "generation-ended",
+        timestamp: "2025-01-01T00:00:05.000Z",
+      },
+    ];
+
+    const messages = buildConversationMessagesFromObserver({
+      observerEvents: events,
+      assistantMeta: {
+        provider: "openrouter",
+        modelName: "test-model",
+      },
+    });
+
+    expect(messages).toHaveLength(4);
+    const firstAssistant = messages[1];
+    const reasoningAssistant = messages[2];
+    const secondAssistant = messages[3];
+
+    expect(firstAssistant.role).toBe("assistant");
+    expect(reasoningAssistant.role).toBe("assistant");
+    expect(secondAssistant.role).toBe("assistant");
+
+    expect(firstAssistant.content).toEqual([{ type: "text", text: "first" }]);
+    expect(reasoningAssistant.content).toEqual([
+      { type: "reasoning", text: "thinking" },
+    ]);
+    expect(secondAssistant.content).toEqual([{ type: "text", text: "second" }]);
+
+    expect("tokenUsage" in reasoningAssistant).toBe(false);
+    const secondAssistantMessage = secondAssistant as Extract<
+      typeof secondAssistant,
+      { role: "assistant" }
+    >;
+    expect(secondAssistantMessage.generationStartedAt).toBe(
+      "2025-01-01T00:00:01.000Z"
+    );
+    expect(secondAssistantMessage.generationEndedAt).toBe(
+      "2025-01-01T00:00:05.000Z"
+    );
+  });
+
   it("includes assistant file parts from observer events", () => {
     const events: LlmObserverEvent[] = [
       {
