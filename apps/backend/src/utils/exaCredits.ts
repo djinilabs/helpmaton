@@ -5,19 +5,19 @@
 
 import type { DatabaseSchema } from "../tables/schema";
 
-import { formatCurrencyMillionths } from "./creditConversions";
+import { formatCurrencyNanoDollars } from "./creditConversions";
 import type { CreditReservation } from "./creditManagement";
 import { reserveCredits } from "./creditManagement";
 import { isCreditDeductionEnabled } from "./featureFlags";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
- * Convert dollars to millionths
+ * Convert dollars to nano-dollars
  * @param dollars - Cost in dollars
- * @returns Cost in millionths
+ * @returns Cost in nano-dollars
  */
-function dollarsToMillionths(dollars: number): number {
-  return Math.ceil(dollars * 1_000_000);
+function dollarsToNanoDollars(dollars: number): number {
+  return Math.ceil(dollars * 1_000_000_000);
 }
 
 /**
@@ -40,7 +40,7 @@ export async function reserveExaCredits(
   agentId?: string,
   conversationId?: string
 ): Promise<CreditReservation> {
-  const estimatedCost = dollarsToMillionths(estimatedCostDollars);
+  const estimatedCost = dollarsToNanoDollars(estimatedCostDollars);
   console.log("[reserveExaCredits] Reserving credits:", {
     workspaceId,
     estimatedCostDollars,
@@ -80,7 +80,7 @@ export async function reserveExaCredits(
         supplier: "exa",
         tool_call: "exa-api", // Will be updated in adjustment
         description: `Exa API call: reservation (credit deduction disabled)`,
-        amountMillionthUsd: 0, // No charge when deduction is disabled
+        amountNanoUsd: 0, // No charge when deduction is disabled
       });
       console.log(
         "[reserveExaCredits] Created transaction (deduction disabled):",
@@ -141,7 +141,7 @@ export async function adjustExaCreditReservation(
 ): Promise<void> {
   // Handle special case: deduction disabled (transaction already created in reservation step)
   if (reservationId === "deduction-disabled") {
-    const actualCost = dollarsToMillionths(actualCostDollars);
+    const actualCost = dollarsToNanoDollars(actualCostDollars);
     console.log(
       "[adjustExaCreditReservation] Credit deduction disabled, updating transaction with actual cost:",
       {
@@ -168,8 +168,8 @@ export async function adjustExaCreditReservation(
       source: "tool-execution",
       supplier: "exa",
       tool_call: toolName,
-      description: `Exa API call: ${toolName} (credit deduction disabled) - actual cost: ${actualCost} millionths`,
-      amountMillionthUsd: 0, // No charge when deduction is disabled, but track usage
+      description: `Exa API call: ${toolName} (credit deduction disabled) - actual cost: ${actualCost} nano-dollars`,
+      amountNanoUsd: 0, // No charge when deduction is disabled, but track usage
     });
 
     console.log(
@@ -194,7 +194,7 @@ export async function adjustExaCreditReservation(
     );
 
     // Even if reservation is not found, create a transaction to track the API call
-    const actualCost = dollarsToMillionths(actualCostDollars);
+    const actualCost = dollarsToNanoDollars(actualCostDollars);
 
     // Get current workspace for logging
     const workspacePk = `workspaces/${workspaceId}`;
@@ -220,7 +220,7 @@ export async function adjustExaCreditReservation(
       supplier: "exa",
       tool_call: toolName,
       description: `Exa API call: ${toolName} - reservation not found, using actual cost`,
-      amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+      amountNanoUsd: -actualCost, // Negative for debit (deducting from workspace)
     });
 
     console.log("[adjustExaCreditReservation] Created transaction (reservation not found):", {
@@ -232,7 +232,7 @@ export async function adjustExaCreditReservation(
   }
 
   // Calculate actual cost from dollars
-  const actualCost = dollarsToMillionths(actualCostDollars);
+  const actualCost = dollarsToNanoDollars(actualCostDollars);
 
   // Calculate difference between actual cost and reserved amount
   const difference = actualCost - reservation.reservedAmount;
@@ -273,9 +273,11 @@ export async function adjustExaCreditReservation(
   });
 
   // Format costs for description
-  const actualCostFormatted = formatCurrencyMillionths(actualCost);
-  const reservedAmountFormatted = formatCurrencyMillionths(reservation.reservedAmount);
-  const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
+  const actualCostFormatted = formatCurrencyNanoDollars(actualCost);
+  const reservedAmountFormatted = formatCurrencyNanoDollars(
+    reservation.reservedAmount
+  );
+  const differenceFormatted = formatCurrencyNanoDollars(Math.abs(difference));
   const action = difference > 0 ? "additional charge" : difference < 0 ? "refund" : "no adjustment";
 
   // For Exa, use the negated difference for the transaction amount
@@ -304,7 +306,7 @@ export async function adjustExaCreditReservation(
     supplier: "exa",
     tool_call: toolName,
     description: `Exa API call: ${toolName} - actual cost ${actualCostFormatted}, reserved ${reservedAmountFormatted}, ${action} ${differenceFormatted}`,
-    amountMillionthUsd: transactionAmount, // Negative for debit, positive for credit (can be 0, but will be tracked)
+    amountNanoUsd: transactionAmount, // Negative for debit, positive for credit (can be 0, but will be tracked)
   });
 
   console.log("[adjustExaCreditReservation] Transaction added to buffer:", {
@@ -401,7 +403,7 @@ export async function refundExaCredits(
     supplier: "exa",
     tool_call: toolName,
     description: `Exa API call refund (error occurred)${toolName ? ` - ${toolName}` : ""}`,
-    amountMillionthUsd: transactionAmount, // Positive for credit/refund
+    amountNanoUsd: transactionAmount, // Positive for credit/refund
   });
 
   // Delete the reservation

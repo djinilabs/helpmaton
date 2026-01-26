@@ -1385,7 +1385,7 @@ describe("conversationLogger", () => {
           modelName: "openrouter/auto",
           provider: "openrouter",
           openrouterGenerationId: "gen-12345",
-          finalCostUsd: 2000, // Final cost from OpenRouter API (in millionths)
+          finalCostUsd: 2_000_000, // Final cost from OpenRouter API (in nano-dollars)
           tokenUsage: {
             promptTokens: 100,
             completionTokens: 50,
@@ -1401,11 +1401,11 @@ describe("conversationLogger", () => {
         messages,
       });
 
-      // Should use finalCostUsd (2000) instead of calculating from tokenUsage
+      // Should use finalCostUsd (2_000_000) instead of calculating from tokenUsage
       expect(mockCalculateConversationCosts).not.toHaveBeenCalled();
       expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          costUsd: 2000,
+          costUsd: 2_000_000,
         }),
       );
     });

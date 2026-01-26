@@ -35,12 +35,12 @@ export const getCostColor = (costUsd: number): string => {
 
 /**
  * Get color classes for balance levels
- * @param balance - Balance in millionths (will be converted to USD for comparison)
+ * @param balance - Balance in nano-dollars (will be converted to USD for comparison)
  * @returns Tailwind CSS classes for the balance level
  */
 export const getBalanceColor = (balance: number): string => {
-  // Convert from millionths to USD
-  const balanceUsd = balance / 1_000_000;
+  // Convert from nano-dollars to USD
+  const balanceUsd = balance / 1_000_000_000;
   
   if (balanceUsd < 0) {
     return "bg-error-100 text-error-700 border-error-200 dark:bg-error-900 dark:text-error-300 dark:border-error-700";

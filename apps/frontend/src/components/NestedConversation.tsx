@@ -639,11 +639,11 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                     </div>
                     <span
                       className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                        totalCost.cost / 1_000_000
+                        totalCost.cost / 1_000_000_000
                       )}`}
                     >
                       <CurrencyDollarIcon className="size-3" />
-                      {formatCurrency(totalCost.cost, "usd", 10)}
+                      {formatCurrency(totalCost.cost, "usd", 12)}
                       {totalCost.isFinal === true && (
                         <span className="ml-1 text-[10px]">✓</span>
                       )}
@@ -661,11 +661,11 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                       </div>
                       <span
                         className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                          tokenBasedCost.cost / 1_000_000
+                          tokenBasedCost.cost / 1_000_000_000
                         )}`}
                       >
                         <CurrencyDollarIcon className="size-3" />
-                        {formatCurrency(tokenBasedCost.cost, "usd", 10)}
+                        {formatCurrency(tokenBasedCost.cost, "usd", 12)}
                         {tokenBasedCost.isFinal === true && (
                           <span className="ml-1 text-[10px]">✓</span>
                         )}
@@ -684,11 +684,11 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                       </div>
                       <span
                         className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                          conversationCostUsd / 1_000_000
+                          conversationCostUsd / 1_000_000_000
                         )}`}
                       >
                         <CurrencyDollarIcon className="size-3" />
-                        {formatCurrency(conversationCostUsd, "usd", 10)}
+                        {formatCurrency(conversationCostUsd, "usd", 12)}
                         <span className="ml-1 text-[10px]">✓</span>
                       </span>
                     </div>
@@ -700,12 +700,12 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                           Reranking
                         </div>
                         <span
-                          className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                            rerankingCostUsd / 1_000_000
+                        className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                            rerankingCostUsd / 1_000_000_000
                           )}`}
                         >
                           <CurrencyDollarIcon className="size-3" />
-                          {formatCurrency(rerankingCostUsd, "usd", 10)}
+                          {formatCurrency(rerankingCostUsd, "usd", 12)}
                           <span className="ml-1 text-[10px]">✓</span>
                         </span>
                       </div>

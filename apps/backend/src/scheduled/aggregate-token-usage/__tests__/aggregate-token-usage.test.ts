@@ -73,21 +73,21 @@ describe("aggregate-token-usage helpers", () => {
         agentId: "agent-1",
         tool_call: "search",
         supplier: "tavily",
-        amountMillionthUsd: -5000,
+        amountNanoUsd: -5_000_000,
       },
       {
         workspaceId: "workspace-1",
         agentId: "agent-1",
         tool_call: "search",
         supplier: "tavily",
-        amountMillionthUsd: -2000,
+        amountNanoUsd: -2_000_000,
       },
       {
         workspaceId: "workspace-1",
         agentId: "agent-1",
         tool_call: "fetch",
         supplier: "jina",
-        amountMillionthUsd: -1000,
+        amountNanoUsd: -1_000_000,
       },
     ] as WorkspaceCreditTransactionRecord[];
 
@@ -100,7 +100,7 @@ describe("aggregate-token-usage helpers", () => {
       agentId: "agent-1",
       toolCall: "search",
       supplier: "tavily",
-      costUsd: 7000,
+      costUsd: 7_000_000,
       callCount: 2,
     });
   });

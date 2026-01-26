@@ -71,12 +71,12 @@ describe("creditValidation", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock workspace (creditBalance in millionths)
+    // Setup mock workspace (creditBalance in nano-dollars)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
       name: "Test Workspace",
-      creditBalance: 100_000_000, // 100.0 USD in millionths
+      creditBalance: 100_000_000_000, // 100.0 USD in nano-dollars
       currency: "usd",
       version: 1,
       createdAt: new Date().toISOString(),
@@ -121,15 +121,15 @@ describe("creditValidation", () => {
     mockIsCreditDeductionEnabled.mockReturnValue(true);
     mockIsSpendingLimitChecksEnabled.mockReturnValue(true);
 
-    // Default mocks (all values in millionths)
-    mockEstimateTokenCost.mockReturnValue(10_000_000); // 10.0 USD in millionths
+    // Default mocks (all values in nano-dollars)
+    mockEstimateTokenCost.mockReturnValue(10_000_000_000); // 10.0 USD in nano-dollars
     mockCheckSpendingLimits.mockResolvedValue({
       passed: true,
       failedLimits: [],
     });
     mockReserveCredits.mockResolvedValue({
       reservationId: "test-reservation",
-      reservedAmount: 10_000_000, // 10.0 USD in millionths
+      reservedAmount: 10_000_000_000, // 10.0 USD in nano-dollars
       workspace: mockWorkspace,
     });
   });
@@ -370,7 +370,7 @@ describe("creditValidation", () => {
         mockDb,
         mockWorkspace,
         undefined,
-        10_000_000 // 10.0 USD in millionths
+        10_000_000_000 // 10.0 USD in nano-dollars
       );
     });
 
@@ -413,7 +413,7 @@ describe("creditValidation", () => {
         mockDb,
         mockWorkspace,
         mockAgent,
-        10_000_000 // 10.0 USD in millionths
+        10_000_000_000 // 10.0 USD in nano-dollars
       );
     });
 
@@ -433,7 +433,7 @@ describe("creditValidation", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        10_000_000, // 10.0 USD in millionths
+        10_000_000_000, // 10.0 USD in nano-dollars
         3,
         false,
         undefined, // context (optional)

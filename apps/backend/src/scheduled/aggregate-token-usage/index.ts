@@ -406,7 +406,7 @@ export const buildToolAggregates = (
     }
 
     const agg = toolAggregates.get(key)!;
-    const rawAmount = txn.amountMillionthUsd || 0;
+    const rawAmount = txn.amountNanoUsd || 0;
     const costUsd = rawAmount < 0 ? -rawAmount : 0;
     agg.costUsd += costUsd;
     agg.callCount += 1;

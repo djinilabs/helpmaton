@@ -1,5 +1,5 @@
 import type { TokenUsage } from "./conversationLogger";
-import { fromMillionths } from "./creditConversions";
+import { fromNanoDollars } from "./creditConversions";
 import { calculateTokenCost, getModelPricing } from "./pricing";
 
 /**
@@ -104,12 +104,12 @@ export function compareCosts(
   percentageDifference: number;
   breakdown: CostBreakdown | null;
 } {
-  // Both calculatedCost and expectedCost are in millionths
+  // Both calculatedCost and expectedCost are in nano-dollars
   const difference = calculatedCost - expectedCost;
   const percentageDifference =
     expectedCost > 0 ? (difference / expectedCost) * 100 : 0;
-  // Allow for small difference in millionths (equivalent to 0.0001 currency units)
-  const match = Math.abs(difference) < 100; // 100 millionths = 0.0001 currency units
+  // Allow for small difference in nano-dollars (equivalent to 0.0001 currency units)
+  const match = Math.abs(difference) < 100_000; // 100,000 nano-dollars = 0.0001 currency units
 
   const breakdown = generateCostBreakdown(
     provider,
@@ -306,49 +306,49 @@ export function generateCostReport(
   );
   lines.push("");
   lines.push("Cost Breakdown:");
-  // Convert from millionths to currency units for display, remove trailing zeros
+  // Convert from nano-dollars to currency units for display, remove trailing zeros
   lines.push(
-    `  Input Cost:           $${fromMillionths(
+    `  Input Cost:           $${fromNanoDollars(
       breakdown.costs.inputCost
-    ).toFixed(10).replace(/\.?0+$/, "")}`
+    ).toFixed(12).replace(/\.?0+$/, "")}`
   );
   lines.push(
-    `  Cached Input Cost:    $${fromMillionths(
+    `  Cached Input Cost:    $${fromNanoDollars(
       breakdown.costs.cachedInputCost
-    ).toFixed(10).replace(/\.?0+$/, "")}`
+    ).toFixed(12).replace(/\.?0+$/, "")}`
   );
   lines.push(
-    `  Output Cost:          $${fromMillionths(
+    `  Output Cost:          $${fromNanoDollars(
       breakdown.costs.outputCost
-    ).toFixed(10).replace(/\.?0+$/, "")}`
+    ).toFixed(12).replace(/\.?0+$/, "")}`
   );
   lines.push(
-    `  Reasoning Cost:       $${fromMillionths(
+    `  Reasoning Cost:       $${fromNanoDollars(
       breakdown.costs.reasoningCost
-    ).toFixed(10).replace(/\.?0+$/, "")}`
+    ).toFixed(12).replace(/\.?0+$/, "")}`
   );
   lines.push(
-    `  Total Cost:           $${fromMillionths(
+    `  Total Cost:           $${fromNanoDollars(
       breakdown.costs.totalCost
-    ).toFixed(10).replace(/\.?0+$/, "")}`
+    ).toFixed(12).replace(/\.?0+$/, "")}`
   );
 
   if (expectedCost !== undefined) {
     lines.push("");
     lines.push("Cost Comparison:");
-    // Both values are in millionths, convert to currency units for display
-    const calculatedCostDisplay = fromMillionths(breakdown.costs.totalCost);
-    const expectedCostDisplay = fromMillionths(expectedCost);
+    // Both values are in nano-dollars, convert to currency units for display
+    const calculatedCostDisplay = fromNanoDollars(breakdown.costs.totalCost);
+    const expectedCostDisplay = fromNanoDollars(expectedCost);
     const differenceDisplay = calculatedCostDisplay - expectedCostDisplay;
     const percentageDifference =
       expectedCostDisplay > 0
         ? (differenceDisplay / expectedCostDisplay) * 100
         : 0;
-    lines.push(`  Calculated Cost:     $${calculatedCostDisplay.toFixed(10).replace(/\.?0+$/, "")}`);
-    lines.push(`  Expected Cost:       $${expectedCostDisplay.toFixed(10).replace(/\.?0+$/, "")}`);
+    lines.push(`  Calculated Cost:     $${calculatedCostDisplay.toFixed(12).replace(/\.?0+$/, "")}`);
+    lines.push(`  Expected Cost:       $${expectedCostDisplay.toFixed(12).replace(/\.?0+$/, "")}`);
     lines.push(
       `  Difference:          $${differenceDisplay.toFixed(
-        10
+        12
       ).replace(/\.?0+$/, "")} (${percentageDifference.toFixed(2)}%)`
     );
   }

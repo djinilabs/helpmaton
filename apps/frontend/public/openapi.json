@@ -212,7 +212,7 @@
           },
           "creditBalance": {
             "type": "integer",
-            "description": "Current credit balance in millionths"
+            "description": "Current credit balance in nano-dollars"
           },
           "currency": {
             "type": "string",
@@ -507,7 +507,7 @@
         "properties": {
           "amount": {
             "type": "integer",
-            "description": "Limit amount in millionths"
+            "description": "Limit amount in nano-dollars"
           },
           "currency": {
             "type": "string",
@@ -572,7 +572,7 @@
               },
               "cost": {
                 "type": "integer",
-                "description": "Total cost in specified currency (millionths)"
+                "description": "Total cost in specified currency (nano-dollars)"
               },
               "byModel": {
                 "type": "array",
@@ -6744,13 +6744,13 @@
                           "description": {
                             "type": "string"
                           },
-                          "amountMillionthUsd": {
+                          "amountNanoUsd": {
                             "type": "integer"
                           },
-                          "workspaceCreditsBeforeMillionthUsd": {
+                          "workspaceCreditsBeforeNanoUsd": {
                             "type": "integer"
                           },
-                          "workspaceCreditsAfterMillionthUsd": {
+                          "workspaceCreditsAfterNanoUsd": {
                             "type": "integer"
                           },
                           "createdAt": {
@@ -7993,13 +7993,13 @@
                           "description": {
                             "type": "string"
                           },
-                          "amountMillionthUsd": {
+                          "amountNanoUsd": {
                             "type": "integer"
                           },
-                          "workspaceCreditsBeforeMillionthUsd": {
+                          "workspaceCreditsBeforeNanoUsd": {
                             "type": "integer"
                           },
-                          "workspaceCreditsAfterMillionthUsd": {
+                          "workspaceCreditsAfterNanoUsd": {
                             "type": "integer"
                           },
                           "createdAt": {

@@ -53,9 +53,9 @@ export function extractTokenUsageAndCosts(
   );
   let provisionalCostUsd: number | undefined;
   if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
-    // Convert from USD to millionths with 5.5% markup
+    // Convert from USD to nano-dollars with 5.5% markup
     // Math.ceil ensures we never undercharge
-    provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+    provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000_000 * 1.055);
     console.log(`[${endpoint} Handler] Extracted cost from response:`, {
       openrouterCostUsd,
       provisionalCostUsd,
@@ -104,9 +104,9 @@ export function calculateProvisionalCost(
   modelName: string | undefined
 ): number | undefined {
   if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
-    // Convert from USD to millionths with 5.5% markup
+    // Convert from USD to nano-dollars with 5.5% markup
     // Math.ceil ensures we never undercharge
-    return Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+    return Math.ceil(openrouterCostUsd * 1_000_000_000 * 1.055);
   }
 
   if (tokenUsage && modelName) {

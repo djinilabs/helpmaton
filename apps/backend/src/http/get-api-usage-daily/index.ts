@@ -79,10 +79,10 @@ import { requireSession, userRef } from "../utils/session";
  *                         type: number
  *                       rerankingCostUsd:
  *                         type: number
- *                         description: Reranking costs in USD (millionths)
+ *                         description: Reranking costs in USD (nano-dollars)
  *                       evalCostUsd:
  *                         type: number
- *                         description: Eval judge costs in USD (millionths)
+ *                         description: Eval judge costs in USD (nano-dollars)
  *                       conversationCount:
  *                         type: integer
  *                       messagesIn:

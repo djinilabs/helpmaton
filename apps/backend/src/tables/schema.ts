@@ -50,12 +50,12 @@ export const tableSchemas = {
     description: z.string().optional(),
     subscriptionId: z.string().optional(), // subscription ID this workspace belongs to
     currency: z.enum(["usd"]).default("usd"),
-    creditBalance: z.number().int().default(0), // millionths
+    creditBalance: z.number().int().default(0), // nano-dollars
     spendingLimits: z
       .array(
         z.object({
           timeFrame: z.enum(["daily", "weekly", "monthly"]),
-          amount: z.number().int(), // millionths
+          amount: z.number().int(), // nano-dollars
         })
       )
       .optional(),
@@ -64,7 +64,7 @@ export const tableSchemas = {
     trialCreditRequestedAt: z.iso.datetime().optional(),
     trialCreditApproved: z.boolean().optional(),
     trialCreditApprovedAt: z.iso.datetime().optional(),
-    trialCreditAmount: z.number().int().optional(), // millionths
+    trialCreditAmount: z.number().int().optional(), // nano-dollars
     // Lemon Squeezy integration fields
     lemonSqueezyOrderId: z.string().optional(), // Lemon Squeezy order ID for credit purchases
     version: z.number().default(1),
@@ -116,7 +116,7 @@ export const tableSchemas = {
       .array(
         z.object({
           timeFrame: z.enum(["daily", "weekly", "monthly"]),
-          amount: z.number().int(), // millionths
+          amount: z.number().int(), // nano-dollars
         })
       )
       .optional(),
@@ -234,8 +234,8 @@ export const tableSchemas = {
         metadata: z.record(z.string(), z.unknown()).optional(),
       })
       .optional(),
-    costUsd: z.number().int().optional(), // cost in USD in millionths
-    rerankingCostUsd: z.number().int().optional(), // re-ranking cost in USD in millionths (tracked separately since re-ranking happens before LLM call)
+    costUsd: z.number().int().optional(), // cost in USD in nano-dollars
+    rerankingCostUsd: z.number().int().optional(), // re-ranking cost in USD in nano-dollars (tracked separately since re-ranking happens before LLM call)
     totalGenerationTimeMs: z.number().optional(), // sum of all generation times in milliseconds
     awsRequestIds: z.array(z.string()).optional(), // array of AWS Lambda/API Gateway request IDs that added messages to this conversation
     delegations: z
@@ -262,8 +262,8 @@ export const tableSchemas = {
     workspaceId: z.string(), // workspace ID
     agentId: z.string().optional(), // agent ID (if transaction is associated with an agent)
     conversationId: z.string().optional(), // conversation ID (if transaction is associated with a conversation)
-    reservedAmount: z.number().int(), // amount reserved (estimated cost) in millionths
-    estimatedCost: z.number().int(), // estimated cost at reservation time in millionths
+    reservedAmount: z.number().int(), // amount reserved (estimated cost) in nano-dollars
+    estimatedCost: z.number().int(), // estimated cost at reservation time in nano-dollars
     currency: z.enum(["usd"]), // workspace currency
     expires: z.number(), // TTL timestamp (15 minutes from creation)
     expiresHour: z.number(), // Hour bucket for GSI (expires truncated to hour)
@@ -273,14 +273,14 @@ export const tableSchemas = {
     openrouterGenerationIds: z.array(z.string()).optional(), // All generation IDs from this request
     expectedGenerationCount: z.number().optional(), // Total expected count
     verifiedGenerationIds: z.array(z.string()).optional(), // IDs that have been verified
-    verifiedCosts: z.array(z.number().int()).optional(), // Costs in millionths for each verified generation
+    verifiedCosts: z.array(z.number().int()).optional(), // Costs in nano-dollars for each verified generation
     allGenerationsVerified: z.boolean().optional(), // Flag indicating all generations have been verified
     totalOpenrouterCost: z.number().int().optional(), // Sum of all verified costs (for finalization)
     provider: z.string().optional(), // Provider used (for tracking)
     modelName: z.string().optional(), // Model used (for tracking)
-    tokenUsageBasedCost: z.number().int().optional(), // Cost calculated from token usage (step 2) in millionths
-    openrouterCost: z.number().int().optional(), // Cost from OpenRouter API (step 3) in millionths
-    provisionalCost: z.number().int().optional(), // Provisional cost from API response (step 2) in millionths (used for re-ranking)
+    tokenUsageBasedCost: z.number().int().optional(), // Cost calculated from token usage (step 2) in nano-dollars
+    openrouterCost: z.number().int().optional(), // Cost from OpenRouter API (step 3) in nano-dollars
+    provisionalCost: z.number().int().optional(), // Provisional cost from API response (step 2) in nano-dollars (used for re-ranking)
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),
@@ -298,7 +298,7 @@ export const tableSchemas = {
     inputTokens: z.number(), // total input tokens for this aggregate
     outputTokens: z.number(), // total output tokens for this aggregate
     totalTokens: z.number(), // total tokens
-    costUsd: z.number().int(), // total cost in USD in millionths
+    costUsd: z.number().int(), // total cost in USD in nano-dollars
     conversationCount: z.number().int().optional(), // number of conversations for this workspace/agent/user/date (same value across all aggregates for same key)
     messagesIn: z.number().int().optional(), // number of user messages for this workspace/agent/user/date (same value across all aggregates for same key)
     messagesOut: z.number().int().optional(), // number of assistant messages for this workspace/agent/user/date (same value across all aggregates for same key)
@@ -316,7 +316,7 @@ export const tableSchemas = {
     userId: z.string().optional(), // user ID (required for user aggregates)
     toolCall: z.string(), // tool name (e.g., "search_web", "fetch_url")
     supplier: z.string(), // supplier name (e.g., "tavily")
-    costUsd: z.number().int(), // total cost in USD in millionths
+    costUsd: z.number().int(), // total cost in USD in nano-dollars
     callCount: z.number().int(), // number of tool calls
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
@@ -492,9 +492,9 @@ export const tableSchemas = {
     model: z.string().optional(), // the model that originated this charge, if any
     tool_call: z.string().optional(), // the tool call that was used when originating this charge, if any
     description: z.string(),
-    amountMillionthUsd: z.number().int(), // should be integer
-    workspaceCreditsBeforeMillionthUsd: z.number().int(), // the expected credits before applying this transaction
-    workspaceCreditsAfterMillionthUsd: z.number().int(), // the expected credits after applying this transaction
+    amountNanoUsd: z.number().int(), // should be integer
+    workspaceCreditsBeforeNanoUsd: z.number().int(), // the expected credits before applying this transaction
+    workspaceCreditsAfterNanoUsd: z.number().int(), // the expected credits after applying this transaction
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
     expires: z.number().optional(), // TTL timestamp (1 year from creation)
@@ -564,7 +564,7 @@ export const tableSchemas = {
     reasoningTrace: z.string(), // explanation of scoring logic
     errorMessage: z.string().optional(), // error summary when evaluation fails
     errorDetails: z.string().optional(), // detailed error message when evaluation fails
-    costUsd: z.number().int().optional(), // cost of the evaluation call in USD millionths
+    costUsd: z.number().int().optional(), // cost of the evaluation call in USD nano-dollars
     usesByok: z.boolean().optional(), // whether this evaluation used BYOK
     tokenUsage: z
       .object({

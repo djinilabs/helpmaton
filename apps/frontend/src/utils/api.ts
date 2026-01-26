@@ -1,6 +1,6 @@
 export interface SpendingLimit {
   timeFrame: "daily" | "weekly" | "monthly";
-  amount: number; // millionths (integer)
+  amount: number; // nano-dollars (integer)
 }
 
 export interface Workspace {
@@ -8,7 +8,7 @@ export interface Workspace {
   name: string;
   description: string | null;
   permissionLevel: number | null;
-  creditBalance?: number; // millionths (integer)
+  creditBalance?: number; // nano-dollars (integer)
   currency?: Currency;
   spendingLimits?: SpendingLimit[];
   apiKeys?: {
@@ -851,7 +851,7 @@ export interface TrialStatus {
   daysRemaining: number;
   hasRequestedCredits: boolean;
   creditsApproved: boolean;
-  initialCreditAmount: number; // millionths (integer)
+  initialCreditAmount: number; // nano-dollars (integer)
   currentUsage: number;
 }
 
@@ -1091,9 +1091,9 @@ export interface Transaction {
   model: string | null;
   tool_call: string | null;
   description: string;
-  amountMillionthUsd: number;
-  workspaceCreditsBeforeMillionthUsd: number;
-  workspaceCreditsAfterMillionthUsd: number;
+  amountNanoUsd: number;
+  workspaceCreditsBeforeNanoUsd: number;
+  workspaceCreditsAfterNanoUsd: number;
   createdAt: string;
 }
 
@@ -1658,9 +1658,9 @@ export interface UsageStats {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  cost: number; // millionths (integer)
-  rerankingCostUsd?: number; // millionths (integer)
-  evalCostUsd?: number; // millionths (integer)
+  cost: number; // nano-dollars (integer)
+  rerankingCostUsd?: number; // nano-dollars (integer)
+  evalCostUsd?: number; // nano-dollars (integer)
   conversationCount: number;
   messagesIn: number;
   messagesOut: number;
@@ -1696,7 +1696,7 @@ export interface UsageStats {
   toolExpenses?: Array<{
     toolCall: string;
     supplier: string;
-    cost: number; // millionths (integer)
+    cost: number; // nano-dollars (integer)
     callCount: number;
   }>;
 }
@@ -1714,9 +1714,9 @@ export interface DailyUsageData {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  cost: number; // millionths (integer)
-  rerankingCostUsd?: number; // millionths (integer)
-  evalCostUsd?: number; // millionths (integer)
+  cost: number; // nano-dollars (integer)
+  rerankingCostUsd?: number; // nano-dollars (integer)
+  evalCostUsd?: number; // nano-dollars (integer)
   conversationCount: number;
   messagesIn: number;
   messagesOut: number;

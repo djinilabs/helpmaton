@@ -6,7 +6,7 @@
 
 import type { DatabaseSchema } from "../tables/schema";
 
-import { formatCurrencyMillionths } from "./creditConversions";
+import { formatCurrencyNanoDollars } from "./creditConversions";
 import type { CreditReservation } from "./creditManagement";
 import { enqueueCostVerification, reserveCredits } from "./creditManagement";
 import { getModelPricing } from "./pricing";
@@ -14,19 +14,19 @@ import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
- * Convert dollars to millionths
+ * Convert dollars to nano-dollars
  * @param dollars - Cost in dollars
- * @returns Cost in millionths
+ * @returns Cost in nano-dollars
  */
-function dollarsToMillionths(dollars: number): number {
-  return Math.ceil(dollars * 1_000_000);
+function dollarsToNanoDollars(dollars: number): number {
+  return Math.ceil(dollars * 1_000_000_000);
 }
 
 /**
  * Estimate cost for re-ranking API call
  * @param model - Re-ranking model name
  * @param documentCount - Number of documents being re-ranked
- * @returns Estimated cost in millionths
+ * @returns Estimated cost in nano-dollars
  */
 function estimateRerankingCost(model: string, documentCount: number): number {
   // Get pricing for the re-ranking model
@@ -59,7 +59,7 @@ function estimateRerankingCost(model: string, documentCount: number): number {
   }
 
   // Apply 5.5% OpenRouter markup
-  const baseCost = dollarsToMillionths(estimatedCostDollars);
+  const baseCost = dollarsToNanoDollars(estimatedCostDollars);
   const totalCost = Math.ceil(baseCost * 1.055);
 
   console.log("[estimateRerankingCost] Estimated cost:", {
@@ -207,7 +207,7 @@ export async function adjustRerankingCreditReservation(
 
     // Even if reservation is not found, create a transaction to track the API call
     if (provisionalCostUsd !== undefined) {
-      const provisionalCost = dollarsToMillionths(provisionalCostUsd);
+      const provisionalCost = dollarsToNanoDollars(provisionalCostUsd);
       // Apply 5.5% markup
       const totalCost = Math.ceil(provisionalCost * 1.055);
 
@@ -219,7 +219,7 @@ export async function adjustRerankingCreditReservation(
         supplier: "openrouter",
         tool_call: "rerank",
         description: `Re-ranking API call: reservation not found, using provisional cost`,
-        amountMillionthUsd: -totalCost, // Negative for debit
+        amountNanoUsd: -totalCost, // Negative for debit
       });
 
       console.log(
@@ -240,7 +240,7 @@ export async function adjustRerankingCreditReservation(
   // Finally, fall back to reserved amount
   let provisionalCost: number;
   if (provisionalCostUsd !== undefined) {
-    provisionalCost = Math.ceil(dollarsToMillionths(provisionalCostUsd) * 1.055);
+    provisionalCost = Math.ceil(dollarsToNanoDollars(provisionalCostUsd) * 1.055);
   } else {
     // Try to get request pricing from config as fallback
     const modelName = reservation.modelName;
@@ -249,7 +249,7 @@ export async function adjustRerankingCreditReservation(
       if (pricing?.usd?.request !== undefined && pricing.usd.request > 0) {
         // Use request pricing from config with 5.5% markup
         const requestCostDollars = pricing.usd.request;
-        provisionalCost = Math.ceil(dollarsToMillionths(requestCostDollars) * 1.055);
+        provisionalCost = Math.ceil(dollarsToNanoDollars(requestCostDollars) * 1.055);
         console.log(
           "[adjustRerankingCreditReservation] Using request pricing from config as provisional cost:",
           {
@@ -307,11 +307,11 @@ export async function adjustRerankingCreditReservation(
   const transactionAmount = difference === 0 ? 0 : -difference;
 
   // Format costs for description
-  const provisionalCostFormatted = formatCurrencyMillionths(provisionalCost);
-  const reservedAmountFormatted = formatCurrencyMillionths(
+  const provisionalCostFormatted = formatCurrencyNanoDollars(provisionalCost);
+  const reservedAmountFormatted = formatCurrencyNanoDollars(
     reservation.reservedAmount
   );
-  const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
+  const differenceFormatted = formatCurrencyNanoDollars(Math.abs(difference));
   const action =
     difference > 0
       ? "additional charge"
@@ -328,7 +328,7 @@ export async function adjustRerankingCreditReservation(
     supplier: "openrouter",
     tool_call: "rerank",
     description: `Re-ranking API call: provisional cost ${provisionalCostFormatted}, reserved ${reservedAmountFormatted}, ${action} ${differenceFormatted}`,
-    amountMillionthUsd: transactionAmount,
+    amountNanoUsd: transactionAmount,
   });
 
   // Store generationId in reservation for Step 3 (async verification)
@@ -532,7 +532,7 @@ export async function refundRerankingCredits(
     supplier: "openrouter",
     tool_call: "rerank",
     description: `Re-ranking API call refund (error occurred)`,
-    amountMillionthUsd: transactionAmount, // Positive for credit/refund
+    amountNanoUsd: transactionAmount, // Positive for credit/refund
   });
 
   // Delete the reservation

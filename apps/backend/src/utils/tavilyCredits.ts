@@ -5,22 +5,22 @@
 
 import type { DatabaseSchema } from "../tables/schema";
 
-import { formatCurrencyMillionths } from "./creditConversions";
+import { formatCurrencyNanoDollars } from "./creditConversions";
 import type { CreditReservation } from "./creditManagement";
 import { reserveCredits } from "./creditManagement";
 import { isCreditDeductionEnabled } from "./featureFlags";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
-// Tavily pricing: $0.008 per API call = 8,000 millionths (1 Tavily API call = $0.008)
-const TAVILY_COST_PER_CALL_MILLIONTHS = 8_000; // $0.008 = 8,000 millionths
+// Tavily pricing: $0.008 per API call = 8,000,000 nano-dollars (1 Tavily API call = $0.008)
+const TAVILY_COST_PER_CALL_NANO_DOLLARS = 8_000_000; // $0.008 = 8,000,000 nano-dollars
 
 /**
  * Calculate estimated cost for a Tavily API call
- * @returns Cost in millionths (8,000 = $0.008)
+ * @returns Cost in nano-dollars (8,000,000 = $0.008)
  */
 export function calculateTavilyCost(creditsUsed: number = 1): number {
-  // Each credit = $0.008 = 8,000 millionths
-  return creditsUsed * TAVILY_COST_PER_CALL_MILLIONTHS;
+  // Each credit = $0.008 = 8,000,000 nano-dollars
+  return creditsUsed * TAVILY_COST_PER_CALL_NANO_DOLLARS;
 }
 
 /**
@@ -83,7 +83,7 @@ export async function reserveTavilyCredits(
         supplier: "tavily",
         tool_call: "tavily-api", // Will be updated in adjustment
         description: `Tavily API call: reservation (credit deduction disabled)`,
-        amountMillionthUsd: 0, // No charge when deduction is disabled
+        amountNanoUsd: 0, // No charge when deduction is disabled
       });
       console.log(
         "[reserveTavilyCredits] Created transaction (deduction disabled):",
@@ -171,8 +171,8 @@ export async function adjustTavilyCreditReservation(
       source: "tool-execution",
       supplier: "tavily",
       tool_call: toolName,
-      description: `Tavily API call: ${toolName} (credit deduction disabled) - actual cost: ${actualCost} millionths`,
-      amountMillionthUsd: 0, // No charge when deduction is disabled, but track usage
+      description: `Tavily API call: ${toolName} (credit deduction disabled) - actual cost: ${actualCost} nano-dollars`,
+      amountNanoUsd: 0, // No charge when deduction is disabled, but track usage
     });
 
     console.log(
@@ -223,7 +223,7 @@ export async function adjustTavilyCreditReservation(
       supplier: "tavily",
       tool_call: toolName,
       description: `Tavily API call: ${toolName} - reservation not found, using actual cost`,
-      amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+      amountNanoUsd: -actualCost, // Negative for debit (deducting from workspace)
     });
 
     console.log("[adjustTavilyCreditReservation] Created transaction (reservation not found):", {
@@ -276,9 +276,11 @@ export async function adjustTavilyCreditReservation(
   });
 
   // Format costs for description
-  const actualCostFormatted = formatCurrencyMillionths(actualCost);
-  const reservedAmountFormatted = formatCurrencyMillionths(reservation.reservedAmount);
-  const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
+  const actualCostFormatted = formatCurrencyNanoDollars(actualCost);
+  const reservedAmountFormatted = formatCurrencyNanoDollars(
+    reservation.reservedAmount
+  );
+  const differenceFormatted = formatCurrencyNanoDollars(Math.abs(difference));
   const action = difference > 0 ? "additional charge" : difference < 0 ? "refund" : "no adjustment";
 
   // For Tavily, use the negated difference for the transaction amount
@@ -307,7 +309,7 @@ export async function adjustTavilyCreditReservation(
     supplier: "tavily",
     tool_call: toolName,
     description: `Tavily API call: ${toolName} - actual cost ${actualCostFormatted}, reserved ${reservedAmountFormatted}, ${action} ${differenceFormatted}`,
-    amountMillionthUsd: transactionAmount, // Negative for debit, positive for credit (can be 0, but will be tracked)
+    amountNanoUsd: transactionAmount, // Negative for debit, positive for credit (can be 0, but will be tracked)
   });
   
   console.log("[adjustTavilyCreditReservation] Transaction added to buffer:", {
@@ -404,7 +406,7 @@ export async function refundTavilyCredits(
     supplier: "tavily",
     tool_call: toolName,
     description: `Tavily API call refund (error occurred)${toolName ? ` - ${toolName}` : ""}`,
-    amountMillionthUsd: transactionAmount, // Positive for credit/refund
+    amountNanoUsd: transactionAmount, // Positive for credit/refund
   });
 
   // Delete the reservation

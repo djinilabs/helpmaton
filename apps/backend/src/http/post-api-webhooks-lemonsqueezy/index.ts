@@ -780,9 +780,9 @@ async function handleOrderCreated(
     });
   }
 
-  // Extract credit amount from order total (in cents, convert to millionths)
-  // Lemon Squeezy stores amounts in cents, so: cents * 10_000 = millionths
-  const creditAmount = attributes.total * 10_000;
+  // Extract credit amount from order total (in cents, convert to nano-dollars)
+  // Lemon Squeezy stores amounts in cents, so: cents * 10_000_000 = nano-dollars
+  const creditAmount = attributes.total * 10_000_000;
 
   if (!context) {
     throw new Error("Context not available for workspace credit transactions");
@@ -808,7 +808,7 @@ async function handleOrderCreated(
     source: "credit-purchase",
     supplier: "openrouter", // Default supplier
     description: `Credit purchase from Lemon Squeezy order ${orderData.id}`,
-    amountMillionthUsd: creditAmount, // Positive for credit
+    amountNanoUsd: creditAmount, // Positive for credit
   });
 
   // Update workspace with order ID (non-credit field, can be done separately)
@@ -823,7 +823,7 @@ async function handleOrderCreated(
     "purchased",
     {
       workspace_id: workspaceId,
-      amount_millionth_usd: creditAmount,
+      amount_nano_usd: creditAmount,
       order_id: orderData.id,
     },
     undefined // Webhook doesn't have user request context
@@ -929,17 +929,17 @@ async function handleOrderRefunded(
     });
   }
 
-  // Get the order total (in cents, convert to millionths)
-  // Lemon Squeezy stores amounts in cents, so: cents * 10_000 = millionths
+  // Get the order total (in cents, convert to nano-dollars)
+  // Lemon Squeezy stores amounts in cents, so: cents * 10_000_000 = nano-dollars
   let creditAmount: number | undefined;
   if (orderData.attributes?.total) {
-    creditAmount = (orderData.attributes.total as number) * 10_000;
+    creditAmount = (orderData.attributes.total as number) * 10_000_000;
   } else {
     // Fallback: fetch order from Lemon Squeezy
     try {
       const order = await getLemonSqueezyOrder(orderData.id);
       creditAmount = order?.attributes?.total
-        ? order.attributes.total * 10_000
+        ? order.attributes.total * 10_000_000
         : undefined;
     } catch (err) {
       console.error(
@@ -972,8 +972,8 @@ async function handleOrderRefunded(
       const newBalance = Math.max(
         0,
         Math.round(
-          ((workspace.creditBalance || 0) - creditAmount) * 1_000_000
-        ) / 1_000_000
+          ((workspace.creditBalance || 0) - creditAmount) * 1_000_000_000
+        ) / 1_000_000_000
       );
       return {
         pk: workspacePk,

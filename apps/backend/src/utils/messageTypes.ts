@@ -30,7 +30,7 @@ export type ToolResultContent = {
   toolName: string;
   result: unknown;
   toolExecutionTimeMs?: number; // Duration in milliseconds
-  costUsd?: number; // Cost in millionths (e.g., 8000 = $0.008)
+  costUsd?: number; // Cost in nano-dollars (e.g., 8_000_000 = $0.008)
   openrouterGenerationId?: string;
 };
 
@@ -62,7 +62,7 @@ export type RerankingResultContent = {
   type: "reranking-result";
   model: string;
   documentCount: number;
-  costUsd: number; // Cost in millionths (e.g., 1000 = $0.001)
+  costUsd: number; // Cost in nano-dollars (e.g., 1_000_000 = $0.001)
   generationId?: string; // Generation ID for cost verification
   executionTimeMs?: number; // Duration in milliseconds
   rerankedDocuments: Array<{
@@ -104,8 +104,8 @@ export type UIMessage =
       modelName?: string; // AI model name used for this message (e.g., "gemini-2.0-flash-exp")
       provider?: string; // AI provider name used for this message (e.g., "google")
       openrouterGenerationId?: string; // OpenRouter generation ID for cost verification
-      provisionalCostUsd?: number; // Provisional cost extracted from LLM response (in millionths)
-      finalCostUsd?: number; // Final cost from OpenRouter API (in millionths) after verification
+      provisionalCostUsd?: number; // Provisional cost extracted from LLM response (in nano-dollars)
+      finalCostUsd?: number; // Final cost from OpenRouter API (in nano-dollars) after verification
       generationTimeMs?: number; // Time in milliseconds for LLM generation call
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
       generationStartedAt?: string; // ISO timestamp when message generation started

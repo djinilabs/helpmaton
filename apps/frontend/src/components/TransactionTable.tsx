@@ -284,21 +284,21 @@ export const TransactionTable: FC<TransactionTableProps> = ({
                     <td className="px-4 py-3 text-right">
                       <span
                         className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
-                          transaction.amountMillionthUsd / 1_000_000
+                          transaction.amountNanoUsd / 1_000_000_000
                         )}`}
                       >
-                        {formatCurrency(transaction.amountMillionthUsd, "usd")}
+                        {formatCurrency(transaction.amountNanoUsd, "usd")}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-neutral-600 dark:text-neutral-400">
                       {formatCurrency(
-                        transaction.workspaceCreditsBeforeMillionthUsd,
+                        transaction.workspaceCreditsBeforeNanoUsd,
                         "usd"
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-neutral-600 dark:text-neutral-400">
                       {formatCurrency(
-                        transaction.workspaceCreditsAfterMillionthUsd,
+                        transaction.workspaceCreditsAfterNanoUsd,
                         "usd"
                       )}
                     </td>

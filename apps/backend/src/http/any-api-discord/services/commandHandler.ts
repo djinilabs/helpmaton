@@ -2,7 +2,7 @@ import { APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { database } from "../../../tables";
 import { sendWorkspaceCreditNotifications } from "../../../utils/creditAdminNotifications";
-import { fromMillionths, toMillionths } from "../../../utils/creditConversions";
+import { fromNanoDollars, toNanoDollars } from "../../../utils/creditConversions";
 import { creditCredits } from "../../../utils/creditManagement";
 
 import { discordResponse } from "./discordResponse";
@@ -29,15 +29,15 @@ interface DiscordInteraction {
  * Similar to creditCredits but subtracts instead of adds
  * Uses optimistic locking with retry logic for concurrent updates
  * @param workspaceId - Workspace ID
- * @param amount - Amount in millionths (integer)
+ * @param amount - Amount in nano-dollars (integer)
  */
 async function debitCreditsManual(
   workspaceId: string,
-  amount: number // millionths
+  amount: number // nano-dollars
 ): Promise<{
   workspaceId: string;
-  oldBalance: number; // millionths
-  newBalance: number; // millionths
+  oldBalance: number; // nano-dollars
+  newBalance: number; // nano-dollars
   currency: string;
 }> {
   const db = await database();
@@ -54,15 +54,15 @@ async function debitCreditsManual(
         throw new Error(`Workspace ${workspaceId} not found`);
       }
 
-      // Calculate new balance (all values in millionths, so simple subtraction)
+      // Calculate new balance (all values in nano-dollars, so simple subtraction)
       const newBalance = workspace.creditBalance - amount;
 
       // Warn if debit would result in negative balance
       if (newBalance < 0) {
         console.warn(
           `[debitCreditsManual] Negative balance detected for workspace ${workspaceId}: ` +
-            `Attempted to debit ${amount} millionths from balance ${workspace.creditBalance} millionths. ` +
-            `Resulting balance: ${newBalance} millionths`
+            `Attempted to debit ${amount} nano-dollars from balance ${workspace.creditBalance} nano-dollars. ` +
+            `Resulting balance: ${newBalance} nano-dollars`
         );
       }
 
@@ -211,30 +211,30 @@ async function handleCreditCommand(
         approvedBy: "discord-admin", // Could be enhanced to get actual Discord user ID
       });
 
-      // Update workspace to mark credits as approved and store the amount (in millionths)
+      // Update workspace to mark credits as approved and store the amount (in nano-dollars)
       await db.workspace.update({
         pk: workspacePk,
         sk: "workspace",
         trialCreditApproved: true,
         trialCreditApprovedAt: new Date().toISOString(),
-        trialCreditAmount: toMillionths(amount),
+        trialCreditAmount: toNanoDollars(amount),
       });
     }
 
-    // Convert amount from currency units to millionths
-    const amountInMillionths = toMillionths(amount);
+    // Convert amount from currency units to nano-dollars
+    const amountInNanoDollars = toNanoDollars(amount);
     
-    // Add credits (amount is in millionths)
-    const updated = await creditCredits(db, workspaceId, amountInMillionths);
+    // Add credits (amount is in nano-dollars)
+    const updated = await creditCredits(db, workspaceId, amountInNanoDollars);
 
     const trialInfo = trialRequestId
       ? `\n🎁 Trial credit request approved and linked.`
       : "";
 
-    // Convert millionths back to currency units for display
-    const amountDisplay = fromMillionths(amountInMillionths);
-    const balanceDisplay = fromMillionths(updated.creditBalance);
-    const oldBalanceDisplay = fromMillionths(workspace.creditBalance);
+    // Convert nano-dollars back to currency units for display
+    const amountDisplay = fromNanoDollars(amountInNanoDollars);
+    const balanceDisplay = fromNanoDollars(updated.creditBalance);
+    const oldBalanceDisplay = fromNanoDollars(workspace.creditBalance);
     
     // Ensure currency is available (fallback to workspace currency if missing from updated)
     const currency = updated.currency || workspace.currency || "usd";
@@ -243,7 +243,7 @@ async function handleCreditCommand(
     try {
       await sendWorkspaceCreditNotifications({
         workspace,
-        amountInMillionths,
+        amountInNanoDollars,
         oldBalance: workspace.creditBalance,
         newBalance: updated.creditBalance,
         currency,
@@ -258,8 +258,8 @@ async function handleCreditCommand(
     }
 
     return discordResponse(
-      `✅ Successfully credited **${amountDisplay.toFixed(10).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${balanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})${trialInfo}${notificationWarning}`
+      `✅ Successfully credited **${amountDisplay.toFixed(12).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
+        `📊 Balance: **${balanceDisplay.toFixed(12).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(12).replace(/\.?0+$/, "")})${trialInfo}${notificationWarning}`
     );
   } catch (error) {
     console.error("Error crediting workspace:", error);
@@ -298,20 +298,20 @@ async function handleDebitCommand(
   }
 
   try {
-    // Convert amount from currency units to millionths
-    const amountInMillionths = toMillionths(amount);
+    // Convert amount from currency units to nano-dollars
+    const amountInNanoDollars = toNanoDollars(amount);
     
-    // Debit credits (amount is in millionths)
-    const result = await debitCreditsManual(workspaceId, amountInMillionths);
+    // Debit credits (amount is in nano-dollars)
+    const result = await debitCreditsManual(workspaceId, amountInNanoDollars);
 
-    // Convert millionths back to currency units for display
-    const amountDisplay = fromMillionths(amountInMillionths);
-    const newBalanceDisplay = fromMillionths(result.newBalance);
-    const oldBalanceDisplay = fromMillionths(result.oldBalance);
+    // Convert nano-dollars back to currency units for display
+    const amountDisplay = fromNanoDollars(amountInNanoDollars);
+    const newBalanceDisplay = fromNanoDollars(result.newBalance);
+    const oldBalanceDisplay = fromNanoDollars(result.oldBalance);
 
     return discordResponse(
-      `✅ Successfully debited **${amountDisplay.toFixed(10).replace(/\.?0+$/, "")} ${result.currency.toUpperCase()}** from workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${newBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${result.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})`
+      `✅ Successfully debited **${amountDisplay.toFixed(12).replace(/\.?0+$/, "")} ${result.currency.toUpperCase()}** from workspace \`${workspaceId}\`\n` +
+        `📊 Balance: **${newBalanceDisplay.toFixed(12).replace(/\.?0+$/, "")} ${result.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(12).replace(/\.?0+$/, "")})`
     );
   } catch (error) {
     console.error("Error debiting workspace:", error);

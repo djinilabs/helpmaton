@@ -154,22 +154,22 @@ async function fetchOpenRouterCost(generationId: string): Promise<number> {
       const cost =
         data.data?.total_cost !== undefined ? data.data.total_cost : data.cost;
 
-      // OpenRouter returns cost in USD, convert to millionths
+      // OpenRouter returns cost in USD, convert to nano-dollars
       if (cost !== undefined) {
         // Always use Math.ceil to round up, ensuring we never undercharge
-        const baseCostInMillionths = Math.ceil(cost * 1_000_000);
+        const baseCostInNanoDollars = Math.ceil(cost * 1_000_000_000);
         // Apply 5.5% markup to account for OpenRouter's credit purchase fee
         // OpenRouter charges 5.5% fee when adding credits to account
-        const costInMillionths = Math.ceil(baseCostInMillionths * 1.055);
+        const costInNanoDollars = Math.ceil(baseCostInNanoDollars * 1.055);
         console.log("[Cost Verification] Fetched cost from OpenRouter:", {
           generationId,
           cost,
-          baseCostInMillionths,
-          costInMillionthsWithMarkup: costInMillionths,
+          baseCostInNanoDollars,
+          costInNanoDollarsWithMarkup: costInNanoDollars,
           markup: "5.5%",
           attempt: attempt + 1,
         });
-        return costInMillionths;
+        return costInNanoDollars;
       }
 
       // Cost field is missing - cannot compute the real value

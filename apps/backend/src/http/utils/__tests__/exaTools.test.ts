@@ -42,7 +42,7 @@ vi.mock("../../../utils/exa", () => ({
 vi.mock("../../../utils/exaCredits", () => ({
   reserveExaCredits: mockReserveExaCredits,
   adjustExaCreditReservation: mockAdjustExaCreditReservation,
-  calculateExaCost: vi.fn((dollars) => Math.ceil(dollars * 1_000_000)),
+  calculateExaCost: vi.fn((dollars) => Math.ceil(dollars * 1_000_000_000)),
 }));
 
 // Import after mocks are set up
@@ -73,11 +73,11 @@ describe("exaTools", () => {
     // Default mock for reservation
     mockReserveExaCredits.mockResolvedValue({
       reservationId: "test-reservation-id",
-      reservedAmount: 10_000, // $0.01 = 10,000 millionths
+      reservedAmount: 10_000_000, // $0.01 = 10,000,000 nano-dollars
       workspace: {
         pk: "workspaces/test-workspace",
         sk: "workspace",
-        creditBalance: 100_000_000,
+        creditBalance: 100_000_000_000,
         currency: "usd",
       },
     });
@@ -252,11 +252,11 @@ describe("exaTools", () => {
         // Re-setup mocks after clearing
         mockReserveExaCredits.mockResolvedValue({
           reservationId: "test-reservation-id",
-          reservedAmount: 10_000,
+          reservedAmount: 10_000_000,
           workspace: {
             pk: "workspaces/test-workspace",
             sk: "workspace",
-            creditBalance: 100_000_000,
+            creditBalance: 100_000_000_000,
             currency: "usd",
           },
         });
@@ -455,7 +455,7 @@ describe("exaTools", () => {
         workspace: {
           pk: "workspaces/test-workspace",
           sk: "workspace",
-          creditBalance: 100_000_000,
+          creditBalance: 100_000_000_000,
           currency: "usd",
         },
       });

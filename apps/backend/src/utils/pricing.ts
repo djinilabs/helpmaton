@@ -62,6 +62,8 @@ export interface PricingConfig {
 }
 
 const REASONING_PARAMETERS = new Set(["reasoning", "include_reasoning"]);
+const NANO_DOLLARS_PER_DOLLAR = 1_000_000_000;
+const TOKEN_PRICE_SCALE = 1_000; // 1e9 (nano) / 1e6 (per-million tokens)
 
 // Import pricing config directly (bundled with Lambda)
 const config = pricingConfigData as PricingConfig;
@@ -173,7 +175,7 @@ export function getImageCapableModels(provider: string): string[] {
  * @param tokens - Number of tokens
  * @param tiers - Pricing tiers with thresholds
  * @param priceField - Field to use for pricing ('input', 'output', 'reasoning', or 'cachedInput')
- * @returns Total cost in millionths (integer)
+ * @returns Total cost in nano-dollars (integer)
  */
 function calculateTieredCost(
   tokens: number,
@@ -220,9 +222,9 @@ function calculateTieredCost(
 
     if (tier.threshold === undefined || tier.threshold === null) {
       // No threshold means this tier applies to all remaining tokens
-      // Price is per 1M tokens, so: (remainingTokens / 1_000_000) * price * 1_000_000 = remainingTokens * price
+      // Price is per 1M tokens, so: (remainingTokens / 1_000_000) * price * 1_000_000_000 = remainingTokens * price * 1_000
       // Always round up to ensure we never undercharge
-      const cost = Math.ceil(remainingTokens * price);
+      const cost = Math.ceil(remainingTokens * price * TOKEN_PRICE_SCALE);
       totalCost += cost;
       remainingTokens = 0;
     } else {
@@ -239,9 +241,9 @@ function calculateTieredCost(
 
         if (tokensInTier > 0 && remainingTokens > 0) {
           const tokensToCharge = Math.min(tokensInTier, remainingTokens);
-          // Price is per 1M tokens, so: (tokensToCharge / 1_000_000) * price * 1_000_000 = tokensToCharge * price
+          // Price is per 1M tokens, so: (tokensToCharge / 1_000_000) * price * 1_000_000_000 = tokensToCharge * price * 1_000
           // Always round up to ensure we never undercharge
-          const cost = Math.ceil(tokensToCharge * price);
+          const cost = Math.ceil(tokensToCharge * price * TOKEN_PRICE_SCALE);
           totalCost += cost;
           remainingTokens -= tokensToCharge;
         }
@@ -262,9 +264,9 @@ function calculateTieredCost(
           ? defaultTier.reasoning ?? defaultTier.output
           : defaultTier.output;
       if (price !== undefined) {
-        // Price is per 1M tokens, so: (remainingTokens / 1_000_000) * price * 1_000_000 = remainingTokens * price
+        // Price is per 1M tokens, so: (remainingTokens / 1_000_000) * price * 1_000_000_000 = remainingTokens * price * 1_000
         // Always round up to ensure we never undercharge
-        const cost = Math.ceil(remainingTokens * price);
+        const cost = Math.ceil(remainingTokens * price * TOKEN_PRICE_SCALE);
         totalCost += cost;
       }
     }
@@ -275,7 +277,7 @@ function calculateTieredCost(
 
 /**
  * Calculate cost for input tokens using pricing structure
- * @returns Cost in millionths (integer)
+ * @returns Cost in nano-dollars (integer)
  */
 function calculateInputCost(
   inputTokens: number,
@@ -287,10 +289,10 @@ function calculateInputCost(
   }
 
   // Use flat pricing (backward compatible)
-  // Price is per 1M tokens, so: (inputTokens / 1_000_000) * price * 1_000_000 = inputTokens * price
+  // Price is per 1M tokens, so: (inputTokens / 1_000_000) * price * 1_000_000_000 = inputTokens * price * 1_000
   // Always round up to ensure we never undercharge
   if (currencyPricing.input !== undefined) {
-    return Math.ceil(inputTokens * currencyPricing.input);
+    return Math.ceil(inputTokens * currencyPricing.input * TOKEN_PRICE_SCALE);
   }
 
   return 0;
@@ -298,7 +300,7 @@ function calculateInputCost(
 
 /**
  * Calculate cost for output tokens using pricing structure
- * @returns Cost in millionths (integer)
+ * @returns Cost in nano-dollars (integer)
  */
 function calculateOutputCost(
   outputTokens: number,
@@ -310,10 +312,10 @@ function calculateOutputCost(
   }
 
   // Use flat pricing (backward compatible)
-  // Price is per 1M tokens, so: (outputTokens / 1_000_000) * price * 1_000_000 = outputTokens * price
+  // Price is per 1M tokens, so: (outputTokens / 1_000_000) * price * 1_000_000_000 = outputTokens * price * 1_000
   // Always round up to ensure we never undercharge
   if (currencyPricing.output !== undefined) {
-    return Math.ceil(outputTokens * currencyPricing.output);
+    return Math.ceil(outputTokens * currencyPricing.output * TOKEN_PRICE_SCALE);
   }
 
   return 0;
@@ -322,7 +324,7 @@ function calculateOutputCost(
 /**
  * Calculate cost for cached input tokens using pricing structure
  * Cached tokens are typically charged at ~10% of regular input token rate
- * @returns Cost in millionths (integer)
+ * @returns Cost in nano-dollars (integer)
  */
 function calculateCachedInputCost(
   cachedTokens: number,
@@ -350,10 +352,10 @@ function calculateCachedInputCost(
   }
 
   // Use flat pricing (backward compatible)
-  // Price is per 1M tokens, so: (cachedTokens / 1_000_000) * price * 1_000_000 = cachedTokens * price
+  // Price is per 1M tokens, so: (cachedTokens / 1_000_000) * price * 1_000_000_000 = cachedTokens * price * 1_000
   // Always round up to ensure we never undercharge
   if (currencyPricing.cachedInput !== undefined) {
-    return Math.ceil(cachedTokens * currencyPricing.cachedInput);
+    return Math.ceil(cachedTokens * currencyPricing.cachedInput * TOKEN_PRICE_SCALE);
   }
 
   // If no cached input pricing is specified, treat cached tokens as regular input tokens
@@ -363,7 +365,7 @@ function calculateCachedInputCost(
 
 /**
  * Calculate cost for reasoning tokens using pricing structure
- * @returns Cost in millionths (integer)
+ * @returns Cost in nano-dollars (integer)
  */
 function calculateReasoningCost(
   reasoningTokens: number,
@@ -391,10 +393,10 @@ function calculateReasoningCost(
   }
 
   // Use flat pricing (backward compatible)
-  // Price is per 1M tokens, so: (reasoningTokens / 1_000_000) * price * 1_000_000 = reasoningTokens * price
+  // Price is per 1M tokens, so: (reasoningTokens / 1_000_000) * price * 1_000_000_000 = reasoningTokens * price * 1_000
   // Always round up to ensure we never undercharge
   if (currencyPricing.reasoning !== undefined) {
-    return Math.ceil(reasoningTokens * currencyPricing.reasoning);
+    return Math.ceil(reasoningTokens * currencyPricing.reasoning * TOKEN_PRICE_SCALE);
   }
 
   // If no reasoning pricing is specified, treat reasoning tokens as regular output tokens
@@ -404,7 +406,7 @@ function calculateReasoningCost(
 /**
  * Calculate cost for token usage in a specific currency
  * Supports both flat and tiered pricing, reasoning tokens, and cached tokens
- * @returns Cost in millionths (integer)
+ * @returns Cost in nano-dollars (integer)
  */
 export function calculateTokenCost(
   provider: string,
@@ -450,7 +452,7 @@ export function calculateTokenCost(
     return 0;
   }
 
-  // Calculate costs for each token type (all in millionths)
+  // Calculate costs for each token type (all in nano-dollars)
   const inputCost = calculateInputCost(inputTokens, currencyPricing);
   const cachedInputCost = calculateCachedInputCost(
     cachedPromptTokens,
@@ -463,19 +465,19 @@ export function calculateTokenCost(
   );
 
   // Calculate request cost (fixed cost per request, if applicable)
-  // Request pricing is in USD, convert to millionths
+  // Request pricing is in USD, convert to nano-dollars
   let requestCost = 0;
   if (currencyPricing.request !== undefined && currencyPricing.request > 0) {
     // Request pricing is per request, not per token
-    // Convert from USD to millionths and round up to ensure we never undercharge
-    requestCost = Math.ceil(currencyPricing.request * 1_000_000);
+    // Convert from USD to nano-dollars and round up to ensure we never undercharge
+    requestCost = Math.ceil(currencyPricing.request * NANO_DOLLARS_PER_DOLLAR);
     console.log("[calculateTokenCost] Request cost:", {
       requestPrice: currencyPricing.request,
-      requestCostInMillionths: requestCost,
+      requestCostInNanoDollars: requestCost,
     });
   }
 
-  // Sum all costs (all already in millionths, so simple addition)
+  // Sum all costs (all already in nano-dollars, so simple addition)
   const baseCost =
     inputCost + cachedInputCost + outputCost + reasoningCost + requestCost;
   let totalCost = baseCost;

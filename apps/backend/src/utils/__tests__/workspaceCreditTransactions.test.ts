@@ -39,7 +39,7 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction",
-        amountMillionthUsd: -1000000, // Negative for debit (deducting from workspace)
+        amountNanoUsd: -1_000_000_000, // Negative for debit (deducting from workspace)
       };
 
       addTransactionToBuffer(buffer, transaction);
@@ -56,14 +56,14 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 1",
-        amountMillionthUsd: -1000000, // Negative for debit
+        amountNanoUsd: -1_000_000_000, // Negative for debit
       };
       const transaction2: WorkspaceCreditTransaction = {
         workspaceId: "workspace-1",
         source: "tool-execution",
         supplier: "tavily",
         description: "Test transaction 2",
-        amountMillionthUsd: -2000000, // Negative for debit
+        amountNanoUsd: -2_000_000_000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, transaction1);
@@ -82,14 +82,14 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 1",
-        amountMillionthUsd: -1000000, // Negative for debit
+        amountNanoUsd: -1_000_000_000, // Negative for debit
       };
       const transaction2: WorkspaceCreditTransaction = {
         workspaceId: "workspace-2",
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 2",
-        amountMillionthUsd: -2000000, // Negative for debit
+        amountNanoUsd: -2_000_000_000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, transaction1);
@@ -107,14 +107,14 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Zero amount transaction",
-        amountMillionthUsd: 0,
+        amountNanoUsd: 0,
       };
       const nonZeroTransaction: WorkspaceCreditTransaction = {
         workspaceId: "workspace-1",
         source: "text-generation",
         supplier: "openrouter",
         description: "Non-zero transaction",
-        amountMillionthUsd: -1000000, // Negative for debit
+        amountNanoUsd: -1_000_000_000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, zeroTransaction);
@@ -141,7 +141,7 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction",
-        amountMillionthUsd: -1000000, // Negative for debit (deducting from workspace)
+        amountNanoUsd: -1_000_000_000, // Negative for debit (deducting from workspace)
       };
 
       addTransactionToBuffer(buffer, transaction);
@@ -149,7 +149,7 @@ describe("workspaceCreditTransactions", () => {
       const mockWorkspace = {
         pk: "workspaces/workspace-1",
         sk: "workspace",
-        creditBalance: 5000000,
+        creditBalance: 5_000_000_000,
         version: 1,
         createdAt: new Date().toISOString(),
       };
@@ -181,7 +181,7 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction",
-        amountMillionthUsd: -1000000, // Negative for debit (deducting from workspace)
+        amountNanoUsd: -1_000_000_000, // Negative for debit (deducting from workspace)
       };
 
       addTransactionToBuffer(buffer, transaction);
@@ -206,14 +206,14 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 1",
-        amountMillionthUsd: -1000000, // Negative for debit
+        amountNanoUsd: -1_000_000_000, // Negative for debit
       };
       const transaction2: WorkspaceCreditTransaction = {
         workspaceId: "workspace-1",
         source: "tool-execution",
         supplier: "tavily",
         description: "Test transaction 2",
-        amountMillionthUsd: -2000000, // Negative for debit
+        amountNanoUsd: -2_000_000_000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, transaction1);
@@ -222,7 +222,7 @@ describe("workspaceCreditTransactions", () => {
       const mockWorkspace = {
         pk: "workspaces/workspace-1",
         sk: "workspace",
-        creditBalance: 5000000,
+        creditBalance: 5_000_000_000,
         version: 1,
         createdAt: new Date().toISOString(),
       };
@@ -237,12 +237,12 @@ describe("workspaceCreditTransactions", () => {
 
       await commitTransactions(mockDb, buffer, "request-123");
 
-      // Should update workspace with aggregated amount (-1000000 + -2000000 = -3000000)
+      // Should update workspace with aggregated amount (-1_000_000_000 + -2_000_000_000 = -3_000_000_000)
       // Negative amounts = debits (deduct from workspace)
       const workspaceUpdate = recordsPut.find(
         (r) => (r as { pk?: string }).pk === "workspaces/workspace-1" && (r as { sk?: string }).sk === "workspace"
       ) as { creditBalance?: number } | undefined;
-      expect(workspaceUpdate?.creditBalance).toBe(2000000); // 5000000 + (-3000000) = 2000000
+      expect(workspaceUpdate?.creditBalance).toBe(2_000_000_000); // 5_000_000_000 + (-3_000_000_000) = 2_000_000_000
 
       // Should create two transaction records
       const transactionRecords = recordsPut.filter(
@@ -253,7 +253,7 @@ describe("workspaceCreditTransactions", () => {
 
     it("should calculate sequential balances for multiple transactions in same workspace", async () => {
       const buffer = createTransactionBuffer();
-      const initialBalance = 10000000; // 10.00 USD in millionths
+      const initialBalance = 10_000_000_000; // 10.00 USD in nano-dollars
       
       // Create three transactions for the same workspace
       const transaction1: WorkspaceCreditTransaction = {
@@ -261,21 +261,21 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Transaction 1",
-        amountMillionthUsd: -1000000, // -1.00 USD (debit)
+        amountNanoUsd: -1_000_000_000, // -1.00 USD (debit)
       };
       const transaction2: WorkspaceCreditTransaction = {
         workspaceId: "workspace-1",
         source: "tool-execution",
         supplier: "tavily",
         description: "Transaction 2",
-        amountMillionthUsd: -2000000, // -2.00 USD (debit)
+        amountNanoUsd: -2_000_000_000, // -2.00 USD (debit)
       };
       const transaction3: WorkspaceCreditTransaction = {
         workspaceId: "workspace-1",
         source: "embedding-generation",
         supplier: "openrouter",
         description: "Transaction 3",
-        amountMillionthUsd: -500000, // -0.50 USD (debit)
+        amountNanoUsd: -500_000_000, // -0.50 USD (debit)
       };
 
       addTransactionToBuffer(buffer, transaction1);
@@ -312,42 +312,42 @@ describe("workspaceCreditTransactions", () => {
             (b as { sk?: string }).sk || ""
           )
         ) as Array<{
-        workspaceCreditsBeforeMillionthUsd?: number;
-        workspaceCreditsAfterMillionthUsd?: number;
-        amountMillionthUsd?: number;
+        workspaceCreditsBeforeNanoUsd?: number;
+        workspaceCreditsAfterNanoUsd?: number;
+        amountNanoUsd?: number;
         description?: string;
       }>;
 
       expect(transactionRecords).toHaveLength(3);
 
       // Transaction 1: should use initial balance
-      expect(transactionRecords[0].workspaceCreditsBeforeMillionthUsd).toBe(
+      expect(transactionRecords[0].workspaceCreditsBeforeNanoUsd).toBe(
         initialBalance
       );
-      expect(transactionRecords[0].workspaceCreditsAfterMillionthUsd).toBe(
-        initialBalance + transaction1.amountMillionthUsd
-      ); // 10000000 + (-1000000) = 9000000
-      expect(transactionRecords[0].amountMillionthUsd).toBe(-1000000);
+      expect(transactionRecords[0].workspaceCreditsAfterNanoUsd).toBe(
+        initialBalance + transaction1.amountNanoUsd
+      ); // 10_000_000_000 + (-1_000_000_000) = 9_000_000_000
+      expect(transactionRecords[0].amountNanoUsd).toBe(-1_000_000_000);
 
       // Transaction 2: should use balance after transaction 1
-      const balanceAfterT1 = initialBalance + transaction1.amountMillionthUsd;
-      expect(transactionRecords[1].workspaceCreditsBeforeMillionthUsd).toBe(
+      const balanceAfterT1 = initialBalance + transaction1.amountNanoUsd;
+      expect(transactionRecords[1].workspaceCreditsBeforeNanoUsd).toBe(
         balanceAfterT1
       );
-      expect(transactionRecords[1].workspaceCreditsAfterMillionthUsd).toBe(
-        balanceAfterT1 + transaction2.amountMillionthUsd
-      ); // 9000000 + (-2000000) = 7000000
-      expect(transactionRecords[1].amountMillionthUsd).toBe(-2000000);
+      expect(transactionRecords[1].workspaceCreditsAfterNanoUsd).toBe(
+        balanceAfterT1 + transaction2.amountNanoUsd
+      ); // 9_000_000_000 + (-2_000_000_000) = 7_000_000_000
+      expect(transactionRecords[1].amountNanoUsd).toBe(-2_000_000_000);
 
       // Transaction 3: should use balance after transaction 2
-      const balanceAfterT2 = balanceAfterT1 + transaction2.amountMillionthUsd;
-      expect(transactionRecords[2].workspaceCreditsBeforeMillionthUsd).toBe(
+      const balanceAfterT2 = balanceAfterT1 + transaction2.amountNanoUsd;
+      expect(transactionRecords[2].workspaceCreditsBeforeNanoUsd).toBe(
         balanceAfterT2
       );
-      expect(transactionRecords[2].workspaceCreditsAfterMillionthUsd).toBe(
-        balanceAfterT2 + transaction3.amountMillionthUsd
-      ); // 7000000 + (-500000) = 6500000
-      expect(transactionRecords[2].amountMillionthUsd).toBe(-500000);
+      expect(transactionRecords[2].workspaceCreditsAfterNanoUsd).toBe(
+        balanceAfterT2 + transaction3.amountNanoUsd
+      ); // 7_000_000_000 + (-500_000_000) = 6_500_000_000
+      expect(transactionRecords[2].amountNanoUsd).toBe(-500_000_000);
 
       // Verify final workspace balance
       const workspaceUpdate = recordsPut.find(
@@ -355,7 +355,7 @@ describe("workspaceCreditTransactions", () => {
           (r as { pk?: string }).pk === "workspaces/workspace-1" &&
           (r as { sk?: string }).sk === "workspace"
       ) as { creditBalance?: number } | undefined;
-      expect(workspaceUpdate?.creditBalance).toBe(6500000); // 10000000 + (-3500000) = 6500000
+      expect(workspaceUpdate?.creditBalance).toBe(6_500_000_000); // 10_000_000_000 + (-3_500_000_000) = 6_500_000_000
     });
   });
 });

@@ -298,7 +298,7 @@ export const createSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (millionths)"
+        "amount is required and must be a non-negative integer (nano-dollars)"
       ),
   })
   .strict();
@@ -309,7 +309,7 @@ export const updateSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (millionths)"
+        "amount is required and must be a non-negative integer (nano-dollars)"
       ),
   })
   .strict();
@@ -321,7 +321,7 @@ export const createAgentSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (millionths)"
+        "amount is required and must be a non-negative integer (nano-dollars)"
       ),
   })
   .strict();
@@ -332,7 +332,7 @@ export const updateAgentSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (millionths)"
+        "amount is required and must be a non-negative integer (nano-dollars)"
       ),
   })
   .strict();

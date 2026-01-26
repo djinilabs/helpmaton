@@ -107,7 +107,7 @@ export const UsageChart: FC<UsageChartProps> = ({
 
   const formatValue = (value: number): string => {
     if (selectedMetric === "cost" || selectedMetric === "rerankingCost" || selectedMetric === "evalCost") {
-      return formatCurrency(value, currency, 10);
+      return formatCurrency(value, currency, 12);
     }
     return new Intl.NumberFormat("en-US").format(value);
   };
@@ -115,12 +115,14 @@ export const UsageChart: FC<UsageChartProps> = ({
   // Format Y-axis labels with consistent precision
   const formatYAxisValue = (value: number): string => {
     if (selectedMetric === "cost" || selectedMetric === "rerankingCost" || selectedMetric === "evalCost") {
-      // Cost values are in millionths, convert to currency units
-      const amountInUSD = value / 1_000_000;
+      // Cost values are in nano-dollars, convert to currency units
+      const amountInUSD = value / 1_000_000_000;
       // Determine appropriate decimal precision based on maxValue in USD
-      const maxValueInUSD = maxValue / 1_000_000;
+      const maxValueInUSD = maxValue / 1_000_000_000;
       let decimals = 2;
-      if (maxValueInUSD < 0.01) {
+      if (maxValueInUSD < 0.00001) {
+        decimals = 9;
+      } else if (maxValueInUSD < 0.01) {
         decimals = 6;
       } else if (maxValueInUSD < 1) {
         decimals = 4;

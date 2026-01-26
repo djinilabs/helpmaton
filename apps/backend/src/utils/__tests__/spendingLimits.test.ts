@@ -94,7 +94,7 @@ describe("spendingLimits", () => {
   describe("getSpendingInWindow", () => {
     it("should return spending for workspace in USD", async () => {
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 10_500_000, // 10.5 USD in millionths
+        costUsd: 10_500_000_000, // 10.5 USD in nano-dollars
         inputTokens: 1000,
         outputTokens: 200,
         totalTokens: 1200,
@@ -115,7 +115,7 @@ describe("spendingLimits", () => {
         startDate
       );
 
-      expect(spending).toBe(10_500_000); // millionths
+      expect(spending).toBe(10_500_000_000); // nano-dollars
       expect(mockQueryUsageStats).toHaveBeenCalledWith(mockDb, {
         workspaceId: "workspace-123",
         agentId: undefined,
@@ -126,7 +126,7 @@ describe("spendingLimits", () => {
 
     it("should return spending for specific agent", async () => {
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 5_000_000, // 5.0 USD in millionths
+        costUsd: 5_000_000_000, // 5.0 USD in nano-dollars
         inputTokens: 500,
         outputTokens: 100,
         totalTokens: 600,
@@ -147,7 +147,7 @@ describe("spendingLimits", () => {
         startDate
       );
 
-      expect(spending).toBe(5_000_000); // millionths
+      expect(spending).toBe(5_000_000_000); // nano-dollars
       expect(mockQueryUsageStats).toHaveBeenCalledWith(mockDb, {
         workspaceId: undefined,
         agentId: "agent-456",
@@ -212,7 +212,7 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        10_000_000 // 10.0 USD in millionths
+        10_000_000_000 // 10.0 USD in nano-dollars
       );
 
       expect(result.passed).toBe(true);
@@ -226,13 +226,13 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000_000 }], // 100.0 USD in nano-dollars
         version: 1,
         createdAt: new Date().toISOString(),
       };
 
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 50_000_000, // 50.0 USD in millionths (current spending)
+        costUsd: 50_000_000_000, // 50.0 USD in nano-dollars (current spending)
         inputTokens: 5000,
         outputTokens: 1000,
         totalTokens: 6000,
@@ -240,7 +240,7 @@ describe("spendingLimits", () => {
         byProvider: {},
         byByok: {
           byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
-          platform: { inputTokens: 5000, outputTokens: 1000, totalTokens: 6000, costUsd: 50_000_000 },
+          platform: { inputTokens: 5000, outputTokens: 1000, totalTokens: 6000, costUsd: 50_000_000_000 },
         },
         toolExpenses: {},
       });
@@ -249,7 +249,7 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        10_000_000 // 10.0 USD in millionths
+        10_000_000_000 // 10.0 USD in nano-dollars
       );
 
       expect(result.passed).toBe(true);
@@ -263,13 +263,13 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000_000 }], // 100.0 USD in nano-dollars
         version: 1,
         createdAt: new Date().toISOString(),
       };
 
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 95_000_000, // 95.0 USD in millionths (current spending)
+        costUsd: 95_000_000_000, // 95.0 USD in nano-dollars (current spending)
         inputTokens: 9500,
         outputTokens: 1900,
         totalTokens: 11400,
@@ -277,7 +277,7 @@ describe("spendingLimits", () => {
         byProvider: {},
         byByok: {
           byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
-          platform: { inputTokens: 9500, outputTokens: 1900, totalTokens: 11400, costUsd: 95_000_000 },
+          platform: { inputTokens: 9500, outputTokens: 1900, totalTokens: 11400, costUsd: 95_000_000_000 },
         },
         toolExpenses: {},
       });
@@ -286,7 +286,7 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        10_000_000 // 10.0 USD in millionths
+        10_000_000_000 // 10.0 USD in nano-dollars
       );
 
       expect(result.passed).toBe(false);
@@ -294,8 +294,8 @@ describe("spendingLimits", () => {
       expect(result.failedLimits[0]).toEqual({
         scope: "workspace",
         timeFrame: "daily",
-        limit: 100_000_000, // 100.0 USD in millionths
-        current: 105_000_000, // 95.0 + 10.0 = 105.0 USD in millionths
+        limit: 100_000_000_000, // 100.0 USD in nano-dollars
+        current: 105_000_000_000, // 95.0 + 10.0 = 105.0 USD in nano-dollars
       });
     });
 
@@ -307,8 +307,8 @@ describe("spendingLimits", () => {
         currency: "usd",
         creditBalance: 0,
         spendingLimits: [
-          { timeFrame: "daily", amount: 50_000_000 }, // 50.0 USD in millionths
-          { timeFrame: "weekly", amount: 200_000_000 }, // 200.0 USD in millionths
+          { timeFrame: "daily", amount: 50_000_000_000 }, // 50.0 USD in nano-dollars
+          { timeFrame: "weekly", amount: 200_000_000_000 }, // 200.0 USD in nano-dollars
         ],
         version: 1,
         createdAt: new Date().toISOString(),
@@ -318,12 +318,12 @@ describe("spendingLimits", () => {
       // Second call: weekly window
       mockQueryUsageStats
         .mockResolvedValueOnce({
-          costUsd: 60_000_000, // 60.0 USD in millionths (exceeds daily limit)
+          costUsd: 60_000_000_000, // 60.0 USD in nano-dollars (exceeds daily limit)
           inputTokens: 6000,
           outputTokens: 1200,
         })
         .mockResolvedValueOnce({
-          costUsd: 150_000_000, // 150.0 USD in millionths (under weekly limit)
+          costUsd: 150_000_000_000, // 150.0 USD in nano-dollars (under weekly limit)
           inputTokens: 15000,
           outputTokens: 3000,
         });
@@ -332,14 +332,14 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        5_000_000 // 5.0 USD in millionths
+        5_000_000_000 // 5.0 USD in nano-dollars
       );
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
       expect(result.failedLimits[0].timeFrame).toBe("daily");
-      // Verify current value is correct: 60.0 + 5.0 = 65.0 USD = 65_000_000 millionths
-      expect(result.failedLimits[0].current).toBe(65_000_000);
+      // Verify current value is correct: 60.0 + 5.0 = 65.0 USD = 65_000_000_000 nano-dollars
+      expect(result.failedLimits[0].current).toBe(65_000_000_000);
     });
 
     it("should check agent spending limits", async () => {
@@ -358,7 +358,7 @@ describe("spendingLimits", () => {
         sk: "agent",
         name: "Test Agent",
         workspaceId: "workspace-123",
-        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000 }], // 20.0 USD in millionths
+        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000_000 }], // 20.0 USD in nano-dollars
         systemPrompt: "You are helpful",
         provider: "google",
         version: 1,
@@ -366,7 +366,7 @@ describe("spendingLimits", () => {
       };
 
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 18_000_000, // 18.0 USD in millionths (current agent spending)
+        costUsd: 18_000_000_000, // 18.0 USD in nano-dollars (current agent spending)
         inputTokens: 1800,
         outputTokens: 360,
         totalTokens: 2160,
@@ -374,7 +374,7 @@ describe("spendingLimits", () => {
         byProvider: {},
         byByok: {
           byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
-          platform: { inputTokens: 1800, outputTokens: 360, totalTokens: 2160, costUsd: 18_000_000 },
+          platform: { inputTokens: 1800, outputTokens: 360, totalTokens: 2160, costUsd: 18_000_000_000 },
         },
         toolExpenses: {},
       });
@@ -383,16 +383,16 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         agent,
-        5_000_000
-      ); // 5.0 USD in millionths
+        5_000_000_000
+      ); // 5.0 USD in nano-dollars
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
       expect(result.failedLimits[0]).toEqual({
         scope: "agent",
         timeFrame: "daily",
-        limit: 20_000_000, // 20.0 USD in millionths
-        current: 23_000_000, // 18.0 + 5.0 = 23.0 USD in millionths
+        limit: 20_000_000_000, // 20.0 USD in nano-dollars
+        current: 23_000_000_000, // 18.0 + 5.0 = 23.0 USD in nano-dollars
       });
     });
 
@@ -403,7 +403,7 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000_000 }], // 100.0 USD in nano-dollars
         version: 1,
         createdAt: new Date().toISOString(),
       };
@@ -413,7 +413,7 @@ describe("spendingLimits", () => {
         sk: "agent",
         name: "Test Agent",
         workspaceId: "workspace-123",
-        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000 }], // 20.0 USD in millionths
+        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000_000 }], // 20.0 USD in nano-dollars
         systemPrompt: "You are helpful",
         provider: "google",
         version: 1,
@@ -424,12 +424,12 @@ describe("spendingLimits", () => {
       // Second call: agent daily
       mockQueryUsageStats
         .mockResolvedValueOnce({
-          costUsd: 50_000_000, // 50.0 USD in millionths (under workspace limit)
+          costUsd: 50_000_000_000, // 50.0 USD in nano-dollars (under workspace limit)
           inputTokens: 5000,
           outputTokens: 1000,
         })
         .mockResolvedValueOnce({
-          costUsd: 18_000_000, // 18.0 USD in millionths (would exceed agent limit with 5.0)
+          costUsd: 18_000_000_000, // 18.0 USD in nano-dollars (would exceed agent limit with 5.0)
           inputTokens: 1800,
           outputTokens: 360,
         });
@@ -438,8 +438,8 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         agent,
-        5_000_000
-      ); // 5.0 USD in millionths
+        5_000_000_000
+      ); // 5.0 USD in nano-dollars
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
@@ -453,7 +453,7 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000_000 }], // 100.0 USD in nano-dollars
         version: 1,
         createdAt: new Date().toISOString(),
       };
@@ -472,7 +472,7 @@ describe("spendingLimits", () => {
         toolExpenses: {},
       });
 
-      await checkSpendingLimits(mockDb, workspace, undefined, 10_000_000); // 10.0 USD in millionths
+      await checkSpendingLimits(mockDb, workspace, undefined, 10_000_000_000); // 10.0 USD in nano-dollars
 
       expect(mockQueryUsageStats).toHaveBeenCalledWith(
         mockDb,
@@ -498,7 +498,7 @@ describe("spendingLimits", () => {
         sk: "agent",
         name: "Test Agent",
         workspaceId: "workspace-123",
-        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000 }], // 20.0 USD in millionths
+        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000_000 }], // 20.0 USD in nano-dollars
         systemPrompt: "You are helpful",
         provider: "google",
         version: 1,
@@ -519,7 +519,7 @@ describe("spendingLimits", () => {
         toolExpenses: {},
       });
 
-      await checkSpendingLimits(mockDb, workspace, agent, 10_000_000); // 10.0 USD in millionths
+      await checkSpendingLimits(mockDb, workspace, agent, 10_000_000_000); // 10.0 USD in nano-dollars
 
       expect(mockQueryUsageStats).toHaveBeenCalledWith(
         mockDb,

@@ -204,11 +204,11 @@ if (provider === "openrouter") {
 
 ### Currency Representation
 
-All costs are stored as **integer millionths** to avoid floating-point precision issues:
+All costs are stored as **integer nano-dollars** to avoid floating-point precision issues:
 
-- `$0.001` = `1,000` millionths
-- `$1.00` = `1,000,000` millionths
-- `$0.000001` = `1` millionth
+- `$0.001` = `1,000,000` nano-dollars
+- `$1.00` = `1,000,000,000` nano-dollars
+- `$0.000000001` = `1` nano-dollar
 
 This ensures:
 - No precision loss in calculations
@@ -221,7 +221,7 @@ This ensures:
 
 ```typescript
 // Example: $0.0001234 becomes $0.000124 (rounded up)
-costInMillionths = Math.ceil(actualCost * 1_000_000)
+costInNanoDollars = Math.ceil(actualCost * 1_000_000_000)
 ```
 
 This policy applies to:
@@ -388,7 +388,7 @@ Each workspace maintains a credit balance:
 {
   pk: "workspaces/{workspaceId}",
   sk: "workspace",
-  creditBalance: number,  // In millionths (integer)
+  creditBalance: number,  // In nano-dollars (integer)
   currency: "usd"
 }
 ```
