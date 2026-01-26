@@ -154,6 +154,12 @@ pnpm tsx scripts/run-staging-agent-tests.ts --pr 186
 - `add-credits.ts` - Add credits to user accounts
 - `update-pricing.mjs` - Update pricing calculations
 - `migrate-to-usd.ts` - Migrate credit system to USD
+- `migrate-transaction-fields.ts` - Migrate legacy transaction fields to nano-dollars
+
+**Usage**
+```bash
+pnpm tsx scripts/migrate-transaction-fields.ts --stack HelpmatonProduction
+```
 
 ### API and Discord
 

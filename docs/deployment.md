@@ -4,9 +4,9 @@ This document describes the automated deployment process for Helpmaton, includin
 
 ## Overview
 
-Helpmaton uses GitHub Actions to automatically deploy to production when tests pass on the main branch. The deployment workflow:
+Helpmaton uses GitHub Actions to automatically deploy to production when E2E tests pass on the main branch. The deployment workflow:
 
-1. Triggers automatically when the "Tests" workflow completes successfully on main
+1. Triggers automatically when the "E2E Tests" workflow completes successfully on main
 2. Sets up AWS credentials
 3. Installs dependencies
 4. Configures environment variables
@@ -16,7 +16,7 @@ Helpmaton uses GitHub Actions to automatically deploy to production when tests p
 
 ## Deployment Workflow
 
-The deployment workflow (`.github/workflows/deploy-prod.yml`) runs automatically after successful tests on the main branch. It:
+The deployment workflow (`.github/workflows/deploy-prod.yml`) runs automatically after successful E2E tests on the main branch. It:
 
 - Only runs when tests pass on the main branch
 - Configures AWS credentials for deployment
