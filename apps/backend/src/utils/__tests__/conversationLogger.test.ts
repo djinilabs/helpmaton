@@ -84,17 +84,28 @@ describe("conversationLogger", () => {
 
       const expanded = expandMessagesWithToolCalls(messages);
       const toolMessages = expanded.filter((msg) => msg.role === "tool");
-      const assistantMessages = expanded.filter((msg) => msg.role === "assistant");
+      const assistantMessages = expanded.filter(
+        (msg) => msg.role === "assistant",
+      );
 
       expect(toolMessages).toHaveLength(1);
       expect(assistantMessages).toHaveLength(2);
+      expect(expanded.map((msg) => msg.role)).toEqual([
+        "assistant",
+        "tool",
+        "assistant",
+      ]);
 
       const textOnlyMessage = assistantMessages.find(
         (msg) =>
           Array.isArray(msg.content) &&
           msg.content.some(
-            (item) => typeof item === "object" && item !== null && "type" in item && item.type === "text"
-          )
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "text",
+          ),
       );
       expect(textOnlyMessage?.generationStartedAt).toBe(expectedToolEnd);
       expect(textOnlyMessage?.tokenUsage).toEqual({
@@ -102,6 +113,64 @@ describe("conversationLogger", () => {
         completionTokens: 2,
         totalTokens: 3,
       });
+    });
+
+    it("preserves event order across assistant and tool messages", () => {
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "before" },
+            {
+              type: "tool-call",
+              toolCallId: "tool-1",
+              toolName: "get_datetime",
+              args: { zone: "UTC" },
+              toolCallStartedAt: "2024-01-01T00:00:00.000Z",
+            },
+            { type: "text", text: "between" },
+            {
+              type: "tool-result",
+              toolCallId: "tool-1",
+              toolName: "get_datetime",
+              result: "ok",
+              toolExecutionTimeMs: 1000,
+            },
+            { type: "text", text: "after" },
+          ],
+          generationStartedAt: "2024-01-01T00:00:00.000Z",
+          generationEndedAt: "2024-01-01T00:00:05.000Z",
+        },
+      ];
+
+      const expanded = expandMessagesWithToolCalls(messages);
+      const sequence = expanded.map((msg) => {
+        if (msg.role === "tool") {
+          return "tool-result";
+        }
+        if (
+          msg.role === "assistant" &&
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-call",
+          )
+        ) {
+          return "tool-call";
+        }
+        return "assistant-text";
+      });
+
+      expect(sequence).toEqual([
+        "assistant-text",
+        "tool-call",
+        "assistant-text",
+        "tool-result",
+        "assistant-text",
+      ]);
     });
 
     it("preserves file parts when tool calls/results are expanded", () => {
@@ -135,13 +204,19 @@ describe("conversationLogger", () => {
       ];
 
       const expanded = expandMessagesWithToolCalls(messages);
-      const assistantMessages = expanded.filter((msg) => msg.role === "assistant");
+      const assistantMessages = expanded.filter(
+        (msg) => msg.role === "assistant",
+      );
       const hasFilePart = assistantMessages.some(
         (msg) =>
           Array.isArray(msg.content) &&
           msg.content.some(
-            (item) => typeof item === "object" && item !== null && "type" in item && item.type === "file"
-          )
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "file",
+          ),
       );
 
       expect(hasFilePart).toBe(true);
@@ -186,7 +261,9 @@ describe("conversationLogger", () => {
       ];
 
       const expanded = expandMessagesWithToolCalls(messages);
-      const assistantMessages = expanded.filter((msg) => msg.role === "assistant");
+      const assistantMessages = expanded.filter(
+        (msg) => msg.role === "assistant",
+      );
       const textOnlyMessage = assistantMessages.find(
         (msg) =>
           Array.isArray(msg.content) &&
@@ -195,15 +272,17 @@ describe("conversationLogger", () => {
               typeof item === "object" &&
               item !== null &&
               "type" in item &&
-              (item.type === "text" || item.type === "reasoning" || item.type === "file")
+              (item.type === "text" ||
+                item.type === "reasoning" ||
+                item.type === "file"),
           ) &&
           !msg.content.some(
             (item) =>
               typeof item === "object" &&
               item !== null &&
               "type" in item &&
-              (item.type === "tool-call" || item.type === "tool-result")
-          )
+              (item.type === "tool-call" || item.type === "tool-result"),
+          ),
       );
 
       expect(textOnlyMessage?.content).toEqual([
@@ -952,7 +1031,7 @@ describe("conversationLogger", () => {
       const memoryWriteModule = await import("../memory/writeMemory");
       mockWriteToWorkingMemory = vi.fn().mockResolvedValue(undefined);
       vi.spyOn(memoryWriteModule, "writeToWorkingMemory").mockImplementation(
-        mockWriteToWorkingMemory
+        mockWriteToWorkingMemory,
       );
     });
 
@@ -971,7 +1050,7 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
@@ -979,7 +1058,7 @@ describe("conversationLogger", () => {
         "agent1",
         "workspace1",
         "conv1",
-        messages
+        messages,
       );
     });
 
@@ -1002,7 +1081,7 @@ describe("conversationLogger", () => {
           };
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       const messages: UIMessage[] = [
@@ -1017,7 +1096,7 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
@@ -1029,7 +1108,7 @@ describe("conversationLogger", () => {
         [
           { role: "user", content: "How are you?" },
           { role: "assistant", content: "I'm good!" },
-        ]
+        ],
       );
     });
 
@@ -1052,7 +1131,7 @@ describe("conversationLogger", () => {
           };
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       const messages: UIMessage[] = [
@@ -1065,7 +1144,7 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       expect(mockWriteToWorkingMemory).not.toHaveBeenCalled();
@@ -1092,7 +1171,7 @@ describe("conversationLogger", () => {
           };
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       const messages: UIMessage[] = [
@@ -1108,7 +1187,7 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
@@ -1116,7 +1195,7 @@ describe("conversationLogger", () => {
         "agent1",
         "workspace1",
         "conv1",
-        [{ role: "user", content: "Goodbye" }]
+        [{ role: "user", content: "Goodbye" }],
       );
     });
 
@@ -1136,7 +1215,7 @@ describe("conversationLogger", () => {
           };
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       // Same message content but with tokenUsage added
@@ -1157,7 +1236,7 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       // Should not send to queue because content is the same (only metadata changed)
@@ -1166,7 +1245,7 @@ describe("conversationLogger", () => {
 
     it("should keep all messages including empty ones before queuing", async () => {
       let storedRecord: unknown = null;
-      
+
       // Mock atomicUpdate to capture what gets stored
       mockDb["agent-conversations"].atomicUpdate = vi.fn(
         async (pk, sk, callback) => {
@@ -1183,7 +1262,7 @@ describe("conversationLogger", () => {
           const result = await callback(existingConversation);
           storedRecord = result;
           return result;
-        }
+        },
       );
 
       const messages: UIMessage[] = [
@@ -1198,38 +1277,58 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
-      
+
       // Verify the database record contains all messages (including empty ones)
       expect(storedRecord).not.toBeNull();
       const record = storedRecord as { messages: UIMessage[] };
       const storedMessages = record.messages;
-      
+
       // All 4 original messages should be in the stored messages (after expansion)
       // expandMessagesWithToolCalls passes through string content messages as-is
       expect(storedMessages.length).toBeGreaterThanOrEqual(4);
-      
+
       // Find the original messages in the stored messages (they might be expanded)
-      const hasHello = storedMessages.some((m: UIMessage) => 
-        m.role === "user" && (m.content === "Hello" || (Array.isArray(m.content) && m.content.some((item: unknown) => 
-          typeof item === "object" && item !== null && "type" in item && item.type === "text" && "text" in item && item.text === "Hello"
-        )))
+      const hasHello = storedMessages.some(
+        (m: UIMessage) =>
+          m.role === "user" &&
+          (m.content === "Hello" ||
+            (Array.isArray(m.content) &&
+              m.content.some(
+                (item: unknown) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "text" &&
+                  "text" in item &&
+                  item.text === "Hello",
+              ))),
       );
-      const hasEmpty = storedMessages.some((m: UIMessage) => 
-        m.role === "assistant" && m.content === ""
+      const hasEmpty = storedMessages.some(
+        (m: UIMessage) => m.role === "assistant" && m.content === "",
       );
-      const hasWhitespace = storedMessages.some((m: UIMessage) => 
-        m.role === "user" && m.content === "   "
+      const hasWhitespace = storedMessages.some(
+        (m: UIMessage) => m.role === "user" && m.content === "   ",
       );
-      const hasHiThere = storedMessages.some((m: UIMessage) => 
-        m.role === "assistant" && (m.content === "Hi there" || (Array.isArray(m.content) && m.content.some((item: unknown) => 
-          typeof item === "object" && item !== null && "type" in item && item.type === "text" && "text" in item && item.text === "Hi there"
-        )))
+      const hasHiThere = storedMessages.some(
+        (m: UIMessage) =>
+          m.role === "assistant" &&
+          (m.content === "Hi there" ||
+            (Array.isArray(m.content) &&
+              m.content.some(
+                (item: unknown) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "text" &&
+                  "text" in item &&
+                  item.text === "Hi there",
+              ))),
       );
-      
+
       expect(hasHello).toBe(true);
       expect(hasEmpty).toBe(true); // Empty message should be preserved
       expect(hasWhitespace).toBe(true); // Whitespace-only message should be preserved
@@ -1249,9 +1348,10 @@ describe("conversationLogger", () => {
       // Mock calculateConversationCosts
       const tokenAccountingModule = await import("../tokenAccounting");
       mockCalculateConversationCosts = vi.fn().mockReturnValue({ usd: 1000 });
-      vi.spyOn(tokenAccountingModule, "calculateConversationCosts").mockImplementation(
-        mockCalculateConversationCosts
-      );
+      vi.spyOn(
+        tokenAccountingModule,
+        "calculateConversationCosts",
+      ).mockImplementation(mockCalculateConversationCosts);
 
       // Mock the database
       mockDb = {
@@ -1268,7 +1368,7 @@ describe("conversationLogger", () => {
       const memoryWriteModule = await import("../memory/writeMemory");
       mockWriteToWorkingMemory = vi.fn().mockResolvedValue(undefined);
       vi.spyOn(memoryWriteModule, "writeToWorkingMemory").mockImplementation(
-        mockWriteToWorkingMemory
+        mockWriteToWorkingMemory,
       );
     });
 
@@ -1306,7 +1406,7 @@ describe("conversationLogger", () => {
       expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           costUsd: 2000,
-        })
+        }),
       );
     });
 
@@ -1341,12 +1441,12 @@ describe("conversationLogger", () => {
         expect.objectContaining({
           promptTokens: 100,
           completionTokens: 50,
-        })
+        }),
       );
       expect(mockDb["agent-conversations"].upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           costUsd: 1000, // From mockCalculateConversationCosts
-        })
+        }),
       );
     });
 
@@ -1372,7 +1472,7 @@ describe("conversationLogger", () => {
           };
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       const messages: UIMessage[] = [
@@ -1393,13 +1493,13 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       // Verify atomicUpdate was called and cost is sum of both finalCostUsd
       expect(mockDb["agent-conversations"].atomicUpdate).toHaveBeenCalled();
-      const updateCall = mockDb["agent-conversations"].atomicUpdate.mock
-        .calls[0][2];
+      const updateCall =
+        mockDb["agent-conversations"].atomicUpdate.mock.calls[0][2];
       const updated = await updateCall({
         pk: "conversations/workspace1/agent1/conv1",
         workspaceId: "workspace1",
@@ -1437,7 +1537,7 @@ describe("conversationLogger", () => {
           };
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       const messages: UIMessage[] = [
@@ -1467,7 +1567,7 @@ describe("conversationLogger", () => {
         "workspace1",
         "agent1",
         "conv1",
-        messages
+        messages,
       );
 
       // Should calculate cost for second message only
@@ -1478,11 +1578,11 @@ describe("conversationLogger", () => {
         expect.objectContaining({
           promptTokens: 100,
           completionTokens: 50,
-        })
+        }),
       );
 
-      const updateCall = mockDb["agent-conversations"].atomicUpdate.mock
-        .calls[0][2];
+      const updateCall =
+        mockDb["agent-conversations"].atomicUpdate.mock.calls[0][2];
       const updated = await updateCall({
         pk: "conversations/workspace1/agent1/conv1",
         workspaceId: "workspace1",
@@ -1509,16 +1609,22 @@ describe("conversationLogger", () => {
       mockDb = {
         "agent-conversations": {
           upsert: vi.fn().mockResolvedValue(undefined),
-          atomicUpdate: vi.fn(async (_pk: string, _sk: unknown, callback: (existing: unknown) => unknown) => {
-            return callback(null);
-          }),
+          atomicUpdate: vi.fn(
+            async (
+              _pk: string,
+              _sk: unknown,
+              callback: (existing: unknown) => unknown,
+            ) => {
+              return callback(null);
+            },
+          ),
         },
       };
 
       const memoryWriteModule = await import("../memory/writeMemory");
       mockWriteToWorkingMemory = vi.fn().mockResolvedValue(undefined);
       vi.spyOn(memoryWriteModule, "writeToWorkingMemory").mockImplementation(
-        mockWriteToWorkingMemory
+        mockWriteToWorkingMemory,
       );
     });
 
@@ -1546,7 +1652,7 @@ describe("conversationLogger", () => {
             stack: "stack-trace",
             provider: "openrouter",
           }),
-        })
+        }),
       );
     });
 
@@ -1563,7 +1669,7 @@ describe("conversationLogger", () => {
           message: "provider timeout",
           stack: "timeout-stack",
           statusCode: 504,
-        }
+        },
       );
 
       expect(mockDb["agent-conversations"].atomicUpdate).toHaveBeenCalled();
@@ -1575,7 +1681,7 @@ describe("conversationLogger", () => {
           message: "provider timeout",
           stack: "timeout-stack",
           statusCode: 504,
-        })
+        }),
       );
     });
   });
@@ -1628,7 +1734,7 @@ describe("conversationLogger", () => {
         async (pk, sk, callback) => {
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       const newMessages: UIMessage[] = [
@@ -1646,7 +1752,7 @@ describe("conversationLogger", () => {
         false,
         undefined,
         undefined,
-        "test"
+        "test",
       );
 
       // Verify atomicUpdate was called
@@ -1685,7 +1791,7 @@ describe("conversationLogger", () => {
         async (pk, sk, callback) => {
           const result = await callback(existingConversation);
           return result;
-        }
+        },
       );
 
       const newMessages: UIMessage[] = [
@@ -1703,7 +1809,7 @@ describe("conversationLogger", () => {
         false,
         undefined,
         undefined,
-        "test"
+        "test",
       );
 
       // Get the result from the callback

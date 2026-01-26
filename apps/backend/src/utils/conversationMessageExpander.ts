@@ -35,8 +35,21 @@ type DelegationPart = {
 
 type ReasoningPart = { type: "reasoning"; text: string };
 type TextPart = { type: "text"; text: string };
-type FilePart = { type: "file"; file: string; mediaType?: string; filename?: string };
+type FilePart = {
+  type: "file";
+  file: string;
+  mediaType?: string;
+  filename?: string;
+};
 type AssistantMessage = Extract<UIMessage, { role: "assistant" }>;
+
+type OrderedAssistantContentItem =
+  | ToolCallPart
+  | ToolResultPart
+  | DelegationPart
+  | ReasoningPart
+  | TextPart
+  | FilePart;
 
 type AssistantParts = {
   toolCalls: ToolCallPart[];
@@ -45,10 +58,7 @@ type AssistantParts = {
   reasoning: ReasoningPart[];
   text: TextPart[];
   fileParts: FilePart[];
-  orderedTextContent: Array<ReasoningPart | TextPart | FilePart>;
-  orderedAssistantContent: Array<
-    ReasoningPart | TextPart | FilePart | DelegationPart
-  >;
+  orderedAssistantContent: OrderedAssistantContentItem[];
 };
 
 type ToolCallMapEntry = {
@@ -63,7 +73,6 @@ const createEmptyAssistantParts = (): AssistantParts => ({
   reasoning: [],
   text: [],
   fileParts: [],
-  orderedTextContent: [],
   orderedAssistantContent: [],
 });
 
@@ -100,7 +109,7 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           continue;
         }
         toolCallSignatures.add(signature);
-        parts.toolCalls.push({
+        const toolCallPart: ToolCallPart = {
           type: "tool-call",
           toolCallId: toolCall.toolCallId,
           toolName: toolCall.toolName,
@@ -108,7 +117,9 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           ...(toolCall.toolCallStartedAt && {
             toolCallStartedAt: toolCall.toolCallStartedAt,
           }),
-        });
+        };
+        parts.toolCalls.push(toolCallPart);
+        parts.orderedAssistantContent.push(toolCallPart);
       }
       continue;
     }
@@ -134,7 +145,7 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           continue;
         }
         toolResultSignatures.add(signature);
-        parts.toolResults.push({
+        const toolResultPart: ToolResultPart = {
           type: "tool-result",
           toolCallId: toolResult.toolCallId,
           toolName: toolResult.toolName,
@@ -148,7 +159,9 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           ...(toolResult.openrouterGenerationId && {
             openrouterGenerationId: toolResult.openrouterGenerationId,
           }),
-        });
+        };
+        parts.toolResults.push(toolResultPart);
+        parts.orderedAssistantContent.push(toolResultPart);
       }
       continue;
     }
@@ -212,7 +225,6 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
           text: reasoningItem.text,
         };
         parts.reasoning.push(reasoningPart);
-        parts.orderedTextContent.push(reasoningPart);
         parts.orderedAssistantContent.push(reasoningPart);
       }
       continue;
@@ -223,7 +235,6 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
       if (typeof textItem.text === "string") {
         const textPart: TextPart = { type: "text", text: textItem.text };
         parts.text.push(textPart);
-        parts.orderedTextContent.push(textPart);
         parts.orderedAssistantContent.push(textPart);
       }
       continue;
@@ -246,7 +257,6 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
         ...(fileItem.filename && { filename: fileItem.filename }),
       };
       parts.fileParts.push(filePart);
-      parts.orderedTextContent.push(filePart);
       parts.orderedAssistantContent.push(filePart);
     }
   }
@@ -256,7 +266,7 @@ const collectAssistantParts = (message: AssistantMessage): AssistantParts => {
 
 const buildToolCallMap = (
   toolCalls: ToolCallPart[],
-  toolResults: ToolResultPart[]
+  toolResults: ToolResultPart[],
 ): Map<string, ToolCallMapEntry> => {
   const toolCallMap = new Map<string, ToolCallMapEntry>();
   for (const toolCall of toolCalls) {
@@ -271,147 +281,66 @@ const buildToolCallMap = (
   return toolCallMap;
 };
 
-const buildToolCallMessages = (options: {
-  toolCalls: ToolCallPart[];
+const buildToolCallMessage = (options: {
+  toolCall: ToolCallPart;
   message: AssistantMessage;
   awsRequestId?: string;
-}): UIMessage[] => {
-  const { toolCalls, message, awsRequestId } = options;
-  return toolCalls.map((toolCall) => {
-    const toolCallStartedAt = toolCall.toolCallStartedAt;
-    const toolCallMessageStart =
-      message.generationStartedAt || toolCallStartedAt;
-    const toolCallMessageEnd = toolCallStartedAt || message.generationStartedAt;
-
-    return {
-      role: "assistant",
-      content: [toolCall],
-      ...(awsRequestId && { awsRequestId }),
-      ...(toolCallMessageStart && { generationStartedAt: toolCallMessageStart }),
-      ...(toolCallMessageEnd && { generationEndedAt: toolCallMessageEnd }),
-      ...(message.openrouterGenerationId && {
-        openrouterGenerationId: message.openrouterGenerationId,
-      }),
-    };
-  });
-};
-
-const buildToolResultMessages = (options: {
-  toolResults: ToolResultPart[];
-  toolCallMap: Map<string, ToolCallMapEntry>;
-  delegations: DelegationPart[];
-  awsRequestId?: string;
-}): { messages: UIMessage[]; toolResultEndTimes: string[] } => {
-  const { toolResults, toolCallMap, delegations, awsRequestId } = options;
-  const messages: UIMessage[] = [];
-  const toolResultEndTimes: string[] = [];
-
-  for (const toolResult of toolResults) {
-    const entry = toolCallMap.get(toolResult.toolCallId);
-    const toolCall = entry?.toolCall;
-    const toolCallStartedAt = toolCall?.toolCallStartedAt;
-
-    let toolResultStartedAt: string | undefined;
-    let toolResultEndedAt: string | undefined;
-
-    if (toolCallStartedAt) {
-      const callStartTime = new Date(toolCallStartedAt).getTime();
-      toolResultStartedAt = toolCallStartedAt;
-
-      if (toolResult.toolExecutionTimeMs !== undefined) {
-        const executionEndTime =
-          callStartTime + toolResult.toolExecutionTimeMs;
-        toolResultEndedAt = new Date(executionEndTime).toISOString();
-      } else {
-        toolResultEndedAt = toolResultStartedAt;
-      }
-    }
-
-    const associatedDelegation = delegations.find(
-      (delegation) => delegation.toolCallId === toolResult.toolCallId
-    );
-
-    const toolResultContent: Array<
-      ToolResultPart | DelegationPart | undefined
-    > = [toolResult, associatedDelegation];
-    const filteredContent = toolResultContent.filter(
-      (item): item is ToolResultPart | DelegationPart => item !== undefined
-    ) as Array<ToolResultContent | DelegationContent>;
-
-    const toolResultMessage: UIMessage = {
-      role: "tool",
-      content: filteredContent,
-      ...(awsRequestId && { awsRequestId }),
-      ...(toolResultStartedAt && { generationStartedAt: toolResultStartedAt }),
-      ...(toolResultEndedAt && { generationEndedAt: toolResultEndedAt }),
-    };
-
-    messages.push(toolResultMessage);
-
-    if (toolResultEndedAt) {
-      toolResultEndTimes.push(toolResultEndedAt);
-    }
-  }
-
-  return { messages, toolResultEndTimes };
-};
-
-const buildTextOnlyMessage = (options: {
-  message: AssistantMessage;
-  orderedTextContent: Array<ReasoningPart | TextPart | FilePart>;
-  toolResultEndTimes: string[];
-  awsRequestId?: string;
-}): AssistantMessage | null => {
-  const { message, orderedTextContent, toolResultEndTimes, awsRequestId } =
-    options;
-  if (orderedTextContent.length === 0) {
-    return null;
-  }
-
-  let textGenerationStartedAt: string | undefined;
-  const textGenerationEndedAt = message.generationEndedAt;
-
-  if (toolResultEndTimes.length > 0) {
-    let latestEndTime: number | undefined;
-    let latestEndTimeString: string | undefined;
-    for (const endTimeString of toolResultEndTimes) {
-      const endTime = new Date(endTimeString).getTime();
-      if (!latestEndTime || endTime > latestEndTime) {
-        latestEndTime = endTime;
-        latestEndTimeString = endTimeString;
-      }
-    }
-    textGenerationStartedAt = latestEndTimeString;
-  } else {
-    textGenerationStartedAt = message.generationStartedAt;
-  }
+}): UIMessage => {
+  const { toolCall, message, awsRequestId } = options;
+  const toolCallStartedAt = toolCall.toolCallStartedAt;
+  const toolCallMessageStart = message.generationStartedAt || toolCallStartedAt;
+  const toolCallMessageEnd = toolCallStartedAt || message.generationStartedAt;
 
   return {
     role: "assistant",
-    content: orderedTextContent,
+    content: [toolCall],
     ...(awsRequestId && { awsRequestId }),
-    ...(message.tokenUsage && { tokenUsage: message.tokenUsage }),
-    ...(message.modelName && { modelName: message.modelName }),
-    ...(message.provider && { provider: message.provider }),
-    ...(message.provisionalCostUsd !== undefined && {
-      provisionalCostUsd: message.provisionalCostUsd,
-    }),
-    ...(message.finalCostUsd !== undefined && {
-      finalCostUsd: message.finalCostUsd,
-    }),
-    ...(message.generationTimeMs !== undefined && {
-      generationTimeMs: message.generationTimeMs,
-    }),
+    ...(toolCallMessageStart && { generationStartedAt: toolCallMessageStart }),
+    ...(toolCallMessageEnd && { generationEndedAt: toolCallMessageEnd }),
     ...(message.openrouterGenerationId && {
       openrouterGenerationId: message.openrouterGenerationId,
     }),
-    ...(textGenerationStartedAt && {
-      generationStartedAt: textGenerationStartedAt,
-    }),
-    ...(textGenerationEndedAt && {
-      generationEndedAt: textGenerationEndedAt,
-    }),
   };
+};
+
+const buildToolResultMessage = (options: {
+  toolResult: ToolResultPart;
+  toolCallMap: Map<string, ToolCallMapEntry>;
+  awsRequestId?: string;
+}): {
+  message: UIMessage;
+  toolResultEndedAt?: string;
+  toolResultStartedAt?: string;
+} => {
+  const { toolResult, toolCallMap, awsRequestId } = options;
+  const entry = toolCallMap.get(toolResult.toolCallId);
+  const toolCall = entry?.toolCall;
+  const toolCallStartedAt = toolCall?.toolCallStartedAt;
+
+  let toolResultStartedAt: string | undefined;
+  let toolResultEndedAt: string | undefined;
+
+  if (toolCallStartedAt) {
+    const callStartTime = new Date(toolCallStartedAt).getTime();
+    toolResultStartedAt = toolCallStartedAt;
+
+    if (toolResult.toolExecutionTimeMs !== undefined) {
+      const executionEndTime = callStartTime + toolResult.toolExecutionTimeMs;
+      toolResultEndedAt = new Date(executionEndTime).toISOString();
+    } else {
+      toolResultEndedAt = toolResultStartedAt;
+    }
+  }
+
+  const toolResultMessage: UIMessage = {
+    role: "tool",
+    content: [toolResult] as Array<ToolResultContent | DelegationContent>,
+    ...(awsRequestId && { awsRequestId }),
+    ...(toolResultStartedAt && { generationStartedAt: toolResultStartedAt }),
+    ...(toolResultEndedAt && { generationEndedAt: toolResultEndedAt }),
+  };
+
+  return { message: toolResultMessage, toolResultEndedAt, toolResultStartedAt };
 };
 
 const buildDelegationOnlyMessage = (options: {
@@ -442,7 +371,7 @@ const buildDelegationOnlyMessage = (options: {
  */
 export function expandMessagesWithToolCalls(
   messages: UIMessage[],
-  awsRequestId?: string
+  awsRequestId?: string,
 ): UIMessage[] {
   const expandedMessages: UIMessage[] = [];
 
@@ -454,56 +383,166 @@ export function expandMessagesWithToolCalls(
       if (parts.toolCalls.length > 0 || parts.toolResults.length > 0) {
         const toolCallMap = buildToolCallMap(
           parts.toolCalls,
-          parts.toolResults
+          parts.toolResults,
         );
-
-        expandedMessages.push(
-          ...buildToolCallMessages({
-            toolCalls: parts.toolCalls,
-            message: assistantMessage,
-            awsRequestId,
-          })
+        const orderedItems = parts.orderedAssistantContent;
+        const lastAssistantIndex = orderedItems.findLastIndex(
+          (item) => item.type !== "tool-call" && item.type !== "tool-result",
         );
+        let lastToolResultEndTime: string | undefined;
+        let lastToolCallStartedAt: string | undefined;
+        let assistantBuffer: Array<
+          ReasoningPart | TextPart | FilePart | DelegationPart
+        > = [];
+        let assistantBufferStartTime: string | undefined;
 
-        const { messages: toolResultMessages, toolResultEndTimes } =
-          buildToolResultMessages({
-            toolResults: parts.toolResults,
-            toolCallMap,
-            delegations: parts.delegations,
-            awsRequestId,
-          });
-        expandedMessages.push(...toolResultMessages);
+        const flushAssistantBuffer = (options: {
+          nextEventTime?: string;
+          includeMeta: boolean;
+          isFinal: boolean;
+        }) => {
+          const { nextEventTime, includeMeta, isFinal } = options;
+          if (assistantBuffer.length === 0) {
+            assistantBufferStartTime = undefined;
+            return;
+          }
 
-        const textOnlyMessage = buildTextOnlyMessage({
-          message: assistantMessage,
-          orderedTextContent: parts.orderedTextContent,
-          toolResultEndTimes,
-          awsRequestId,
-        });
-        if (textOnlyMessage) {
-          expandedMessages.push(textOnlyMessage);
+          const generationStartedAt =
+            assistantBufferStartTime ??
+            lastToolResultEndTime ??
+            lastToolCallStartedAt ??
+            assistantMessage.generationStartedAt;
+          const generationEndedAt =
+            nextEventTime ||
+            (isFinal ? assistantMessage.generationEndedAt : undefined);
+
+          const contentMessage: AssistantMessage = {
+            role: "assistant",
+            content: assistantBuffer,
+            ...(awsRequestId && { awsRequestId }),
+            ...(includeMeta &&
+              assistantMessage.tokenUsage && {
+                tokenUsage: assistantMessage.tokenUsage,
+              }),
+            ...(includeMeta &&
+              assistantMessage.modelName && {
+                modelName: assistantMessage.modelName,
+              }),
+            ...(includeMeta &&
+              assistantMessage.provider && {
+                provider: assistantMessage.provider,
+              }),
+            ...(includeMeta &&
+              assistantMessage.provisionalCostUsd !== undefined && {
+                provisionalCostUsd: assistantMessage.provisionalCostUsd,
+              }),
+            ...(includeMeta &&
+              assistantMessage.finalCostUsd !== undefined && {
+                finalCostUsd: assistantMessage.finalCostUsd,
+              }),
+            ...(includeMeta &&
+              assistantMessage.generationTimeMs !== undefined && {
+                generationTimeMs: assistantMessage.generationTimeMs,
+              }),
+            ...(includeMeta &&
+              assistantMessage.openrouterGenerationId && {
+                openrouterGenerationId: assistantMessage.openrouterGenerationId,
+              }),
+            ...(generationStartedAt && { generationStartedAt }),
+            ...(generationEndedAt && { generationEndedAt }),
+          };
+
+          expandedMessages.push(contentMessage);
+          assistantBuffer = [];
+          assistantBufferStartTime = undefined;
+        };
+
+        for (let index = 0; index < orderedItems.length; index += 1) {
+          const item = orderedItems[index];
+          if (item.type === "tool-call") {
+            flushAssistantBuffer({
+              nextEventTime: item.toolCallStartedAt,
+              includeMeta:
+                lastAssistantIndex !== -1 && index - 1 >= lastAssistantIndex,
+              isFinal: false,
+            });
+            lastToolCallStartedAt =
+              item.toolCallStartedAt || lastToolCallStartedAt;
+            expandedMessages.push(
+              buildToolCallMessage({
+                toolCall: item,
+                message: assistantMessage,
+                awsRequestId,
+              }),
+            );
+            continue;
+          }
+
+          if (item.type === "tool-result") {
+            const {
+              message: toolResultMessage,
+              toolResultEndedAt,
+              toolResultStartedAt,
+            } = buildToolResultMessage({
+              toolResult: item,
+              toolCallMap,
+              awsRequestId,
+            });
+            flushAssistantBuffer({
+              nextEventTime: toolResultStartedAt,
+              includeMeta:
+                lastAssistantIndex !== -1 && index - 1 >= lastAssistantIndex,
+              isFinal: false,
+            });
+            expandedMessages.push(toolResultMessage);
+            lastToolResultEndTime = toolResultEndedAt || lastToolResultEndTime;
+            continue;
+          }
+
+          if (assistantBuffer.length === 0) {
+            assistantBufferStartTime =
+              lastToolResultEndTime ??
+              lastToolCallStartedAt ??
+              assistantMessage.generationStartedAt;
+          }
+          assistantBuffer.push(item);
         }
+
+        flushAssistantBuffer({
+          includeMeta: lastAssistantIndex !== -1,
+          isFinal: true,
+        });
       } else if (parts.delegations.length > 0) {
         console.warn(
           "[ConversationLogger] Found delegations without tool calls/results",
           {
             role: message.role,
             delegationCount: parts.delegations.length,
-          }
+          },
+        );
+        const orderedAssistantContent = parts.orderedAssistantContent.filter(
+          (
+            item,
+          ): item is ReasoningPart | TextPart | FilePart | DelegationPart =>
+            item.type !== "tool-call" && item.type !== "tool-result",
         );
         const delegationOnlyMessage = buildDelegationOnlyMessage({
           message: assistantMessage,
-          orderedAssistantContent: parts.orderedAssistantContent,
+          orderedAssistantContent,
           awsRequestId,
         });
         if (delegationOnlyMessage) {
           expandedMessages.push(delegationOnlyMessage);
         }
       } else {
-        expandedMessages.push(awsRequestId ? { ...message, awsRequestId } : message);
+        expandedMessages.push(
+          awsRequestId ? { ...message, awsRequestId } : message,
+        );
       }
     } else {
-      expandedMessages.push(awsRequestId ? { ...message, awsRequestId } : message);
+      expandedMessages.push(
+        awsRequestId ? { ...message, awsRequestId } : message,
+      );
     }
   }
 
