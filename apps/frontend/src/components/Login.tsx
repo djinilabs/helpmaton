@@ -1,8 +1,9 @@
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
 import type { FC } from "react";
 
 const Login: FC = () => {
+  const { status } = useSession();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -32,6 +33,10 @@ const Login: FC = () => {
       handleEmailSignIn(e as unknown as React.FormEvent);
     }
   };
+
+  if (status === "authenticated") {
+    return null;
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-soft p-4 dark:bg-gradient-soft-dark">

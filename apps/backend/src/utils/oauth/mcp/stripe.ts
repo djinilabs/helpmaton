@@ -5,7 +5,7 @@ import type { McpOAuthTokenInfo } from "./types";
 
 const STRIPE_AUTH_URL = "https://connect.stripe.com/oauth/authorize";
 const STRIPE_TOKEN_URL = "https://connect.stripe.com/oauth/token";
-// Use read-only scope to minimize permissions. Switch to read_write if needed.
+// Using read_write to support required Stripe operations in this integration.
 const STRIPE_SCOPES = "read_write";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 

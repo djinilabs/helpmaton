@@ -135,9 +135,12 @@ async function globalSetup(config: FullConfig) {
       process.env.BASE_URL ||
       "http://localhost:5173";
     const oauthRedirectBaseUrl =
-      process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333";
-    if (oauthRedirectBaseUrl.includes("localhost:5173")) {
-      process.env.OAUTH_REDIRECT_BASE_URL = "http://localhost:3333";
+      process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:5173";
+    if (oauthRedirectBaseUrl.includes("localhost:3333")) {
+      console.warn(
+        `⚠️  OAUTH_REDIRECT_BASE_URL contains "localhost:3333" (${oauthRedirectBaseUrl}) - overriding to "http://localhost:5173" for E2E tests.`
+      );
+      process.env.OAUTH_REDIRECT_BASE_URL = "http://localhost:5173";
     }
 
     // Prepare environment variables for the backend process
@@ -158,7 +161,7 @@ async function globalSetup(config: FullConfig) {
       FRONTEND_URL: frontendUrl,
       // OAuth redirect base URL for MCP OAuth callbacks
       OAUTH_REDIRECT_BASE_URL:
-        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333",
+        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:5173",
       // E2E test overrides - allow team invitations in tests
       E2E_OVERRIDE_MAX_USERS: process.env.E2E_OVERRIDE_MAX_USERS || "10",
       // Bypass auth gate in E2E environment
@@ -197,7 +200,7 @@ async function globalSetup(config: FullConfig) {
       ARC_ENV: "testing", // Explicitly set to "testing" to skip API Gateway operations
       FRONTEND_URL: frontendUrl,
       OAUTH_REDIRECT_BASE_URL:
-        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3333",
+        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:5173",
       // TESTMAIL variables (for test code that might need them)
       TESTMAIL_NAMESPACE: testmailNamespace,
       TESTMAIL_API_KEY: testmailApiKey,
@@ -363,11 +366,7 @@ async function globalSetup(config: FullConfig) {
     console.log(
       "Waiting for backend compilation to complete and handlers to be ready...",
     );
-    const backendReady = await checkServiceReady(
-      "http://localhost:3333",
-      90,
-      1000,
-    );
+    const backendReady = await checkServiceReady(frontendUrl, 90, 1000);
     if (!backendReady) {
       throw new Error(
         "Backend did not become ready within 90 seconds. Check logs above for compilation errors.",
@@ -484,6 +483,7 @@ async function ensureMcpOauthEnv(): Promise<void> {
   const requiredConfig = [
     "MCP_OAUTH_SHOPIFY_SHOP_DOMAIN",
     "MCP_OAUTH_ZENDESK_SUBDOMAIN",
+    // Zendesk "client id" refers to the OAuth Unique Identifier field.
     "MCP_OAUTH_ZENDESK_CLIENT_ID",
     "MCP_OAUTH_ZENDESK_CLIENT_SECRET",
     "SHOPIFY_OAUTH_CLIENT_ID",
@@ -515,6 +515,8 @@ async function ensureMcpOauthEnv(): Promise<void> {
 
       if (value) {
         process.env[key] = value;
+      } else {
+        console.warn(`No value provided for ${key}.`);
       }
     }
 

@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
 
 import { createMcpServerTools } from "../../http/utils/mcpUtils";
-import { database } from "../../tables";
-import type { McpServerRecord } from "../../tables/schema";
 type McpServiceType =
   | "google-drive"
   | "gmail"
@@ -959,7 +957,7 @@ mcpDescribe("MCP tools integration (real services)", () => {
         );
       }
     },
-    getOverallTimeoutMs()
+    getOverallTimeoutMs(parseServiceFilter().length, getPerServiceTimeoutMs())
   );
 });
 
@@ -1004,104 +1002,6 @@ function getServiceListArg(): string | undefined {
   return undefined;
 }
 
-async function fetchLatestServersFromDb(
-  services: McpServiceType[]
-): Promise<Map<McpServiceType, { workspaceId: string; serverId: string }>> {
-  const db = await database();
-  const workspaceIds = await fetchWorkspaceIds(db);
-  return fetchLatestServers(db, workspaceIds, services);
-}
-
-async function fetchWorkspaceIds(
-  db: Awaited<ReturnType<typeof database>>
-): Promise<string[]> {
-  const permissions = await db.permission.query({
-    IndexName: "byResourceTypeAndEntityId",
-    KeyConditionExpression: "resourceType = :resourceType",
-    ExpressionAttributeValues: {
-      ":resourceType": "workspaces",
-    },
-  });
-
-  const workspaceIds = new Set<string>();
-  for (const item of permissions.items) {
-    const pk = item.pk;
-    if (!pk?.startsWith("workspaces/")) {
-      continue;
-    }
-    const workspaceId = pk.split("/")[1];
-    if (workspaceId) {
-      workspaceIds.add(workspaceId);
-    }
-  }
-
-  if (workspaceIds.size === 0) {
-    throw new Error("No workspaces found in local sandbox.");
-  }
-
-  return [...workspaceIds];
-}
-
-async function fetchLatestServers(
-  db: Awaited<ReturnType<typeof database>>,
-  workspaceIds: string[],
-  services: McpServiceType[]
-): Promise<Map<McpServiceType, { workspaceId: string; serverId: string }>> {
-  const candidates = new Map<
-    McpServiceType,
-    Array<{ workspaceId: string; server: McpServerRecord }>
-  >();
-
-  for (const workspaceId of workspaceIds) {
-    const servers = await db["mcp-server"].query({
-      IndexName: "byWorkspaceId",
-      KeyConditionExpression: "workspaceId = :workspaceId",
-      ExpressionAttributeValues: {
-        ":workspaceId": workspaceId,
-      },
-    });
-
-    for (const server of servers.items) {
-      const serviceType = server.serviceType as McpServiceType | undefined;
-      if (!serviceType || !services.includes(serviceType)) {
-        continue;
-      }
-      if (!hasOAuthCredentials(server)) {
-        continue;
-      }
-      if (!candidates.has(serviceType)) {
-        candidates.set(serviceType, []);
-      }
-      candidates.get(serviceType)!.push({ workspaceId, server });
-    }
-  }
-
-  const selected = new Map<
-    McpServiceType,
-    { workspaceId: string; serverId: string }
-  >();
-
-  for (const serviceType of services) {
-    const entries = candidates.get(serviceType);
-    if (!entries || entries.length === 0) {
-      continue;
-    }
-    const latest = entries.reduce((acc, entry) => {
-      if (!acc) {
-        return entry;
-      }
-      return isAfter(entry.server, acc.server) ? entry : acc;
-    }, entries[0]);
-
-    selected.set(serviceType, {
-      workspaceId: latest.workspaceId,
-      serverId: parseServerId(latest.workspaceId, latest.server.pk),
-    });
-  }
-
-  return selected;
-}
-
 type EnvCredentialPayload = {
   generatedAt?: string;
   services: Record<
@@ -1127,6 +1027,7 @@ function loadServersFromEnv(
   if (!raw) {
     return null;
   }
+  // TEST_MCP_CREDENTIALS should come from a dedicated test account and be rotated.
 
   let parsed: EnvCredentialPayload;
   try {
@@ -1167,28 +1068,6 @@ function loadServersFromEnv(
   }
 
   return entries;
-}
-
-function hasOAuthCredentials(server: McpServerRecord): boolean {
-  if (server.authType !== "oauth") {
-    return false;
-  }
-  const config = server.config as { accessToken?: string };
-  return !!config?.accessToken;
-}
-
-function parseServerId(workspaceId: string, pk: string): string {
-  const prefix = `mcp-servers/${workspaceId}/`;
-  if (!pk.startsWith(prefix)) {
-    throw new Error(`Unexpected MCP server pk format: ${pk}`);
-  }
-  return pk.slice(prefix.length);
-}
-
-function isAfter(a: McpServerRecord, b: McpServerRecord): boolean {
-  const aTime = Date.parse(a.createdAt);
-  const bTime = Date.parse(b.createdAt);
-  return Number.isFinite(aTime) && Number.isFinite(bTime) ? aTime > bTime : false;
 }
 
 function buildContext(serviceType: McpServiceType): ProviderContext {
@@ -1278,13 +1157,21 @@ function getPerServiceTimeoutMs(): number {
   return 5 * 60 * 1000;
 }
 
-function getOverallTimeoutMs(): number {
+function getOverallTimeoutMs(
+  serviceCount: number,
+  perServiceTimeoutMs: number
+): number {
   const raw = process.env.MCP_TOOLS_TIMEOUT_MS;
   const parsed = raw ? Number.parseInt(raw, 10) : NaN;
   if (Number.isFinite(parsed) && parsed > 0) {
     return parsed;
   }
-  return 10 * 60 * 1000;
+  const defaultBase = 10 * 60 * 1000;
+  const scaled =
+    Number.isFinite(perServiceTimeoutMs) && perServiceTimeoutMs > 0
+      ? perServiceTimeoutMs * Math.max(1, serviceCount)
+      : defaultBase;
+  return Math.max(defaultBase, scaled);
 }
 
 async function withTimeout<T>(

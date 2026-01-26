@@ -242,7 +242,7 @@ export class LoginPage extends BasePage {
 
           // Check for success indicator (like "Check your email" message)
           const checkEmailText = this.page.locator(
-            "text=/check.*(email|inbox)/i"
+            "text=/check.*(your )?(email|inbox)/i"
           );
           const hasCheckEmail = await checkEmailText
             .isVisible()
@@ -265,7 +265,7 @@ export class LoginPage extends BasePage {
       // If we're not on login or error page, assume success (might have redirected elsewhere)
       // Check for success indicator as fallback
       const checkEmailText = this.page.locator(
-        "text=/check (your )?(email|inbox)/i"
+        "text=/check.*(your )?(email|inbox)/i"
       );
       const hasCheckEmail = await checkEmailText.isVisible().catch(() => false);
       if (hasCheckEmail) {
@@ -321,7 +321,7 @@ export class LoginPage extends BasePage {
    */
   async hasSuccessIndicator(): Promise<boolean> {
     const checkEmailText = this.page.locator(
-      "text=/check (your )?(email|inbox)/i"
+      "text=/check.*(your )?(email|inbox)/i"
     );
     return await this.isElementVisible(checkEmailText);
   }

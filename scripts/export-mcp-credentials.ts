@@ -119,6 +119,10 @@ async function main() {
   await mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
   await writeFile(OUTPUT_PATH, JSON.stringify(payload, null, 2), "utf8");
 
+  console.warn(
+    `⚠️  ${OUTPUT_PATH} contains sensitive OAuth credentials. ` +
+      `The tmp/ directory is gitignored, but delete this file when you're done.`
+  );
   console.log(
     `✅ Exported MCP credentials to ${OUTPUT_PATH} (${countCredentials(
       latestByService

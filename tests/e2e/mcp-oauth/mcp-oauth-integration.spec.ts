@@ -381,6 +381,14 @@ function selectToolForService(
 }
 
 function addCreditsToWorkspace(workspaceId: string, amount: string): void {
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(workspaceId)) {
+    throw new Error(
+      `[MCP OAuth] Refusing to run add-credits with unexpected workspaceId: ${workspaceId}`
+    );
+  }
+
   const result = spawnSync("pnpm", ["add-credits", workspaceId, amount], {
     stdio: "inherit",
     cwd: process.cwd(),
@@ -431,6 +439,7 @@ async function ensureProSubscription(page: Page): Promise<void> {
   }
 
   // Local-only: update the sandbox subscription directly to avoid MCP limits.
+  // This intentionally bypasses the paid-plan flow and keeps tests self-contained.
   const require = createRequire(import.meta.url);
   const { database } = require("../../../apps/backend/src/tables/database");
   const db = await database();

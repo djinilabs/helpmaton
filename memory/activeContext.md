@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR comments script pagination fix**: Updated `scripts/show-pr-comments.sh` to paginate REST/GraphQL requests and merge pages so all PR comments/threads are captured (avoids missing comments beyond the first page).
 - **CI MCP tools integration**: Added `pnpm test:mcp-tools:integration` to `.github/workflows/test.yml` with `TEST_MCP_CREDENTIALS` sourced from `secrets.TEST_MCP_CREDENTIALS`; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **MCP tools integration resiliency**: Added optional skips for provider tools that depend on missing data (Notion DB, GitHub issues/PRs/commits, HubSpot/Intercom/Linear/Slack/Zendesk follow-ups), added env-gated tools for Shopify sales report, Stripe charge search, Salesforce REST, Intercom updates, and Zendesk tickets; prefer member Slack channels and env fallback IDs.
 - **Google Calendar integration fixes**: Include start/end when updating events and allow delete calls to handle empty responses via text mode.

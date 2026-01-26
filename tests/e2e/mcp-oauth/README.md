@@ -11,11 +11,11 @@ This suite tests all OAuth-based MCP integrations end-to-end:
 - A running local environment:
   - Frontend at `http://localhost:5173`
   - Backend at `http://localhost:3333`
-- OAuth apps configured for all 14 tested services
+- OAuth apps configured for all 14 OAuth-tested MCP services (all MCP services except PostHog)
 - Test accounts for each service
 - Ability to complete OAuth flows in a browser (manual login, consent, 2FA)
 
-Note: PostHog is supported elsewhere in the project but is not included in these OAuth E2E tests.
+Note: There are 15 MCP services in the project; PostHog is supported elsewhere but is not included in these OAuth E2E tests.
 
 ## How It Works
 
@@ -85,7 +85,7 @@ it detects the callback URL.
 Some services require extra config before OAuth:
 
 - **Shopify**: `shopDomain`
-- **Zendesk**: `subdomain`
+- **Zendesk**: `subdomain` (client ID is the Zendesk OAuth "Unique Identifier")
 
 The test will prompt you in the terminal for these values, or you can set
 environment variables to avoid prompts:
@@ -93,28 +93,33 @@ environment variables to avoid prompts:
 ```
 MCP_OAUTH_SHOPIFY_SHOP_DOMAIN=your-shop.myshopify.com
 MCP_OAUTH_ZENDESK_SUBDOMAIN=your-zendesk-subdomain
-MCP_OAUTH_ZENDESK_CLIENT_ID=your-zendesk-client-id
+MCP_OAUTH_ZENDESK_CLIENT_ID=your-zendesk-unique-identifier
 MCP_OAUTH_ZENDESK_CLIENT_SECRET=your-zendesk-client-secret
 SHOPIFY_OAUTH_CLIENT_ID=your-shopify-client-id
 SHOPIFY_OAUTH_CLIENT_SECRET=your-shopify-client-secret
 MCP_OAUTH_SKIP_SERVICES=google-drive,gmail
 MCP_OAUTH_SKIP_GOOGLE_DRIVE=true
 MCP_OAUTH_SKIP_GMAIL=true
+E2E_ALLOW_LEGACY_TOKENS=true
 ```
 
-For best results, put these in `tests/e2e/.env` so they are loaded before
-the test starts.
+Set `E2E_ALLOW_LEGACY_TOKENS=true` only if your localStorage still uses older
+auth token keys (`access_token`/`auth_token`).
+
+`MCP_OAUTH_*` values are prompted for server config fields. The Shopify client
+ID/secret are required for the OAuth app itself (backend config), so keep those
+in `tests/e2e/.env` too.
 
 ## MCP Tool Integration Test
 
 There is a separate Vitest integration test that invokes every MCP tool for
-each provider using real services. It queries the local DynamoDB sandbox
-directly and fails if it cannot find credentials for a provider.
+each provider using real services. It uses the `TEST_MCP_CREDENTIALS` payload
+instead of querying the local DynamoDB sandbox.
 
 From the repo root:
 
 ```
-RUN_MCP_TOOLS_INTEGRATION=true pnpm test:mcp-tools:integration
+RUN_MCP_TOOLS_INTEGRATION=true TEST_MCP_CREDENTIALS='{"services":{...}}' pnpm test:mcp-tools:integration
 ```
 
 To limit providers:
@@ -128,6 +133,9 @@ You can also pass a comma-separated list directly:
 ```
 RUN_MCP_TOOLS_INTEGRATION=true pnpm test:mcp-tools:integration github,slack
 ```
+
+Use a dedicated test account for `TEST_MCP_CREDENTIALS` and rotate credentials
+regularly since the payload contains sensitive OAuth data.
 
 Google Drive note:
 
@@ -149,7 +157,7 @@ Example failure output:
 ```
 [zendesk] Redirect URI mismatch
 Details: The redirect URI in the OAuth app configuration does not match the callback URL
-Action: Update OAuth app redirect URI to match: http://localhost:3333/api/mcp-oauth/zendesk/callback
+Action: Update OAuth app redirect URI to match: http://localhost:5173/api/mcp-oauth/zendesk/callback
 Screenshot: test-results/mcp-oauth-zendesk-oauth-1700000000000.png
 ```
 

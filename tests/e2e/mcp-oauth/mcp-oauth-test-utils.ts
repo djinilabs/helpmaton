@@ -424,7 +424,7 @@ export class McpServerPage extends BasePage {
   /**
    * Prompt the user for a config value
    */
-  async promptForConfigValue(
+  promptForConfigValue(
     serviceType: McpServiceType,
     fieldName: string,
   ): Promise<string> {
@@ -432,7 +432,7 @@ export class McpServerPage extends BasePage {
     const envValue = process.env[envKey];
     if (envValue && envValue.trim()) {
       console.log(`[MCP OAuth] Using ${envKey} from environment.`);
-      return envValue.trim();
+      return Promise.resolve(envValue.trim());
     }
 
     return new Promise((resolve, reject) => {
@@ -460,7 +460,7 @@ export class McpServerPage extends BasePage {
   /**
    * Prompt the user for tool args in JSON format
    */
-  async promptForToolArgs(toolName: string): Promise<Record<string, unknown>> {
+  promptForToolArgs(toolName: string): Promise<Record<string, unknown>> {
     return new Promise((resolve) => {
       const rl = readline.createInterface({
         input: process.stdin,
@@ -538,12 +538,7 @@ export class McpServerPage extends BasePage {
     const token =
       tokenEntry?.value ||
       (await this.page.evaluate(() => {
-        // Fallback to older storage keys used in past auth flows.
-        return (
-          localStorage.getItem("helpmaton_access_token") ||
-          localStorage.getItem("access_token") ||
-          localStorage.getItem("auth_token")
-        );
+        return localStorage.getItem("helpmaton_access_token");
       }));
     if (token) {
       return token;
@@ -553,11 +548,7 @@ export class McpServerPage extends BasePage {
     try {
       await tokenPage.goto(baseOrigin, { waitUntil: "domcontentloaded" });
       const tokenFromOrigin = await tokenPage.evaluate(() => {
-        return (
-          localStorage.getItem("helpmaton_access_token") ||
-          localStorage.getItem("access_token") ||
-          localStorage.getItem("auth_token")
-        );
+        return localStorage.getItem("helpmaton_access_token");
       });
       if (tokenFromOrigin) {
         return tokenFromOrigin;
@@ -565,12 +556,24 @@ export class McpServerPage extends BasePage {
     } finally {
       await tokenPage.close();
     }
+    // Legacy keys are only allowed when explicitly enabled for test runs.
+    if (isTruthyEnv(process.env.E2E_ALLOW_LEGACY_TOKENS)) {
+      const legacyToken = await this.page.evaluate(() => {
+        return (
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("auth_token")
+        );
+      });
+      if (legacyToken) {
+        return legacyToken;
+      }
+    }
     throw new Error("No auth token found in localStorage.");
   }
 
   private getBaseUrl(): string {
     const explicitBaseUrl =
-      process.env.OAUTH_REDIRECT_BASE_URL || process.env.API_BASE_URL;
+      process.env.OAUTH_REDIRECT_BASE_URL || process.env.FRONTEND_URL;
     if (explicitBaseUrl) {
       return explicitBaseUrl.replace(/\/+$/, "");
     }
@@ -583,7 +586,7 @@ export class McpServerPage extends BasePage {
     try {
       return new URL(currentUrl).origin;
     } catch {
-      return "http://localhost:3333";
+      return "http://localhost:5173";
     }
   }
 
@@ -690,11 +693,21 @@ export class McpServerPage extends BasePage {
   }
 
   private getCallbackUrl(serviceType: McpServiceType): string {
-    const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    return `${baseUrl}/api/mcp-oauth/${serviceType}/callback`;
+    const baseUrl =
+      process.env.OAUTH_REDIRECT_BASE_URL ||
+      process.env.FRONTEND_URL ||
+      "http://localhost:5173";
+    return `${baseUrl.replace(/\/+$/, "")}/api/mcp-oauth/${serviceType}/callback`;
   }
 }
 
 function toEnvKey(fieldName: string): string {
   return fieldName.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase();
+}
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+  return ["1", "true", "yes", "y"].includes(value.toLowerCase());
 }

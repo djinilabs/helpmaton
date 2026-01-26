@@ -4,6 +4,13 @@ import dotenv from "dotenv";
 const args = process.argv.slice(2);
 dotenv.config({ path: "tests/e2e/.env" });
 
+if (args.includes("--help") || args.includes("-h")) {
+  console.log(
+    "Usage: pnpm test:mcp-tools:integration [--services=service1,service2]"
+  );
+  process.exit(0);
+}
+
 function normalizeServiceArg(raw) {
   if (!raw) {
     return "";
