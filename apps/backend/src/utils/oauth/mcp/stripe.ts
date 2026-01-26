@@ -8,6 +8,8 @@ const STRIPE_TOKEN_URL = "https://connect.stripe.com/oauth/token";
 // Using read_write to support required Stripe operations in this integration.
 const STRIPE_SCOPES = "read_write";
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const STRIPE_LOCAL_CALLBACK_URL =
+  "https://redirectmeto.com/http://localhost:5173/api/mcp/oauth/stripe/callback";
 
 export interface StripeTokenResponse {
   access_token: string;
@@ -17,6 +19,14 @@ export interface StripeTokenResponse {
   livemode?: boolean;
   stripe_user_id?: string;
   expires_in?: number;
+}
+
+function resolveStripeRedirectUri(): string {
+  if (process.env.ARC_ENV === "testing") {
+    return STRIPE_LOCAL_CALLBACK_URL;
+  }
+
+  return buildMcpOAuthCallbackUrl("stripe");
 }
 
 /**
@@ -31,7 +41,7 @@ export function generateStripeAuthUrl(
     process.env.STRIPE_OAUTH_CLIENT_ID,
     "STRIPE_OAUTH_CLIENT_ID is not set",
   );
-  const redirectUri = buildMcpOAuthCallbackUrl("stripe");
+  const redirectUri = resolveStripeRedirectUri();
   const stateToken = state || generateMcpOAuthStateToken(workspaceId, serverId);
 
   const params = new URLSearchParams({
@@ -59,7 +69,7 @@ export async function exchangeStripeCode(
     process.env.STRIPE_OAUTH_CLIENT_SECRET,
     "STRIPE_OAUTH_CLIENT_SECRET is not set",
   );
-  const redirectUri = buildMcpOAuthCallbackUrl("stripe");
+  const redirectUri = resolveStripeRedirectUri();
 
   const response = await fetch(STRIPE_TOKEN_URL, {
     method: "POST",

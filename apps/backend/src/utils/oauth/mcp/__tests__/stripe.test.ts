@@ -54,6 +54,15 @@ describe("Stripe OAuth Utilities", () => {
         generateStripeAuthUrl("workspace-1", "server-1");
       }).toThrow("STRIPE_OAUTH_CLIENT_ID is not set");
     });
+
+    it("should use redirectmeto callback in local dev", () => {
+      process.env.ARC_ENV = "testing";
+      const authUrl = generateStripeAuthUrl("workspace-1", "server-1");
+
+      expect(authUrl).toContain(
+        "redirect_uri=https%3A%2F%2Fredirectmeto.com%2Fhttp%3A%2F%2Flocalhost%3A5173%2Fapi%2Fmcp%2Foauth%2Fstripe%2Fcallback"
+      );
+    });
   });
 
   describe("exchangeStripeCode", () => {
@@ -122,6 +131,31 @@ describe("Stripe OAuth Utilities", () => {
 
       await expect(exchangeStripeCode("bad-code")).rejects.toThrow(
         "Failed to exchange Stripe code"
+      );
+    });
+
+    it("should use redirectmeto callback in local dev", async () => {
+      process.env.ARC_ENV = "testing";
+      const mockTokenResponse = {
+        access_token: "stripe-access-token",
+        refresh_token: "stripe-refresh-token",
+        token_type: "bearer",
+        scope: "read_only",
+        expires_in: 3600,
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(mockTokenResponse),
+      } as Partial<Response> as Response);
+
+      await exchangeStripeCode("auth-code-123");
+
+      const callArgs = vi.mocked(fetch).mock.calls[0];
+      const body = callArgs[1]?.body as URLSearchParams;
+      expect(body.toString()).toContain(
+        "redirect_uri=https%3A%2F%2Fredirectmeto.com%2Fhttp%3A%2F%2Flocalhost%3A5173%2Fapi%2Fmcp%2Foauth%2Fstripe%2Fcallback"
       );
     });
   });
