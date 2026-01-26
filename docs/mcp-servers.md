@@ -865,8 +865,8 @@ Once connected, agents can use the following Todoist tools:
    - Enable the scopes:
      - `tickets:read`
      - `tickets:write`
-     - `help_center:read`
-   - Copy the client ID and client secret
+    - `hc:read`
+   - Copy the **Unique identifier** (not the numeric client ID) and client secret
 
 2. Configure the MCP Server:
    - Provide your Zendesk subdomain and OAuth client credentials in the MCP server form

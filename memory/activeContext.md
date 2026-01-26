@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Zendesk OAuth client identifier copy**: Clarified UI/doc copy that Zendesk expects the OAuth client **Unique identifier** (not numeric client ID) and reran `pnpm typecheck` + `pnpm lint --fix`.
+- **Zendesk OAuth scope fix**: Switched Help Center scope to `hc:read` (Zendesk resource scope), updated UI/docs copy and Zendesk OAuth unit test; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Todoist OAuth authorize host**: Switched Todoist OAuth authorize URL to `https://app.todoist.com/oauth/authorize` (per API v1 docs) after `api.todoist.com` login flow returned a 404.
 - **Todoist OAuth scope fix**: Updated Todoist OAuth scopes to `data:read_write` and switched auth/token endpoints to `api.todoist.com` to resolve `invalid_scope` errors; updated unit test expectations.
 - **Stripe OAuth scope**: Switched Stripe OAuth scope to `read_write` to satisfy Stripe Connect requirements; ran `pnpm typecheck` and `pnpm lint --fix`.

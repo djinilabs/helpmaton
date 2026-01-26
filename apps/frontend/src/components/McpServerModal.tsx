@@ -1057,7 +1057,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                   required={!isEditing}
                 />
               </FormField>
-              <FormField label="OAuth Client ID *" htmlFor="zendeskClientId">
+              <FormField label="OAuth Client Identifier *" htmlFor="zendeskClientId">
                 <input
                   id="zendeskClientId"
                   type="text"
@@ -1079,9 +1079,10 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                 htmlFor="zendeskClientSecret"
                 hint={
                   <>
-                    Create a Zendesk OAuth client with scopes{" "}
-                    &quot;tickets:read&quot;, &quot;tickets:write&quot;, and
-                    &quot;help_center:read&quot;.
+                    Use the Zendesk OAuth client&apos;s{" "}
+                    <strong>Unique identifier</strong> (not the numeric client
+                    ID) and enable scopes &quot;tickets:read&quot;,
+                    &quot;tickets:write&quot;, and &quot;hc:read&quot;.
                   </>
                 }
               >
