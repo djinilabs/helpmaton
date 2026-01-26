@@ -58,6 +58,7 @@ describe("Zendesk OAuth Utilities", () => {
       expect(authUrl).toContain("client_id=zendesk-client-id");
       expect(authUrl).toContain("response_type=code");
       expect(authUrl).toContain("scope=tickets%3Aread");
+      expect(authUrl).toContain("hc%3Aread");
       expect(authUrl).toContain("state=");
     });
 

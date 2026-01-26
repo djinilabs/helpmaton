@@ -268,26 +268,31 @@ display_comment() {
 
 # Fetch review comments (comments on code) - these can be dismissed
 print_status "Fetching review comments (code comments)..."
-REVIEW_COMMENTS_JSON=$(gh api "repos/$REPO_NAME/pulls/$PR_NUMBER/comments" 2>/dev/null || echo "[]")
+REVIEW_COMMENTS_JSON=$(gh api --paginate "repos/$REPO_NAME/pulls/$PR_NUMBER/comments?per_page=100" 2>/dev/null | jq -s 'add' || echo "[]")
 
 # Fetch issue comments (general PR comments) - these cannot be dismissed
 print_status "Fetching issue comments (general comments)..."
-ISSUE_COMMENTS_JSON=$(gh api "repos/$REPO_NAME/issues/$PR_NUMBER/comments" 2>/dev/null || echo "[]")
+ISSUE_COMMENTS_JSON=$(gh api --paginate "repos/$REPO_NAME/issues/$PR_NUMBER/comments?per_page=100" 2>/dev/null | jq -s 'add' || echo "[]")
 
 # Fetch reviews to check for dismissed reviews
 # Comments that belong to dismissed reviews should also be excluded
 print_status "Fetching reviews to check for dismissed reviews..."
-REVIEWS_JSON=$(gh api "repos/$REPO_NAME/pulls/$PR_NUMBER/reviews" 2>/dev/null || echo "[]")
+REVIEWS_JSON=$(gh api --paginate "repos/$REPO_NAME/pulls/$PR_NUMBER/reviews?per_page=100" 2>/dev/null | jq -s 'add' || echo "[]")
 
 # Also fetch review threads via GraphQL to check for resolved/outdated threads
 # This is important because REST API doesn't expose thread resolution status
 REPO_OWNER=$(echo "$REPO_NAME" | cut -d'/' -f1)
 REPO_NAME_ONLY=$(echo "$REPO_NAME" | cut -d'/' -f2)
 
-REVIEW_THREADS_JSON=$(gh api graphql -f query="query {
-  repository(owner: \"$REPO_OWNER\", name: \"$REPO_NAME_ONLY\") {
-    pullRequest(number: $PR_NUMBER) {
-      reviewThreads(first: 100) {
+REVIEW_THREADS_JSON=$(gh api graphql --paginate \
+  -f query="query(\$owner: String!, \$name: String!, \$number: Int!, \$endCursor: String) {
+  repository(owner: \$owner, name: \$name) {
+    pullRequest(number: \$number) {
+      reviewThreads(first: 100, after: \$endCursor) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
         nodes {
           id
           isResolved
@@ -295,7 +300,7 @@ REVIEW_THREADS_JSON=$(gh api graphql -f query="query {
           resolvedBy {
             login
           }
-          comments(first: 10) {
+          comments(first: 100) {
             nodes {
               id
               databaseId
@@ -305,7 +310,11 @@ REVIEW_THREADS_JSON=$(gh api graphql -f query="query {
       }
     }
   }
-}" 2>/dev/null | jq -r '.data.repository.pullRequest.reviewThreads.nodes // []' || echo "[]")
+}" \
+  -F owner="$REPO_OWNER" \
+  -F name="$REPO_NAME_ONLY" \
+  -F number="$PR_NUMBER" \
+  2>/dev/null | jq -s '[.[].data.repository.pullRequest.reviewThreads.nodes[]] // []' || echo "[]")
 
 # Process and combine all comments, filtering out dismissed ones
 # Review comments can belong to a dismissed review or be part of resolved/outdated threads

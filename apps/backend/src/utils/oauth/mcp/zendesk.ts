@@ -6,11 +6,7 @@ import {
 } from "./common";
 import type { McpOAuthTokenInfo } from "./types";
 
-const ZENDESK_SCOPES = [
-  "tickets:read",
-  "tickets:write",
-  "help_center:read",
-].join(" ");
+const ZENDESK_SCOPES = ["tickets:read", "tickets:write", "hc:read"].join(" ");
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 interface ZendeskTokenResponse {

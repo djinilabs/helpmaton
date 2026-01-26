@@ -66,6 +66,7 @@ export default defineConfig({
             "--disable-renderer-backgrounding",
             "--disable-features=TranslateUI",
             "--disable-ipc-flooding-protection",
+            "--disable-blink-features=AutomationControlled",
           ],
         },
       },

@@ -59,10 +59,14 @@ export function validateAndExtractMcpOAuthStateToken(
  * Normalizes the URL by removing trailing slashes
  */
 export function getOAuthRedirectBaseUrl(): string {
-  const baseUrl = getDefined(
-    process.env.OAUTH_REDIRECT_BASE_URL,
-    "OAUTH_REDIRECT_BASE_URL is not set"
-  );
+  const baseUrl =
+    process.env.FRONTEND_URL ||
+    getDefined(
+      process.env.OAUTH_REDIRECT_BASE_URL,
+      "Either FRONTEND_URL or OAUTH_REDIRECT_BASE_URL must be set"
+    );
+  // MCP OAuth callbacks are served under the app origin that fronts the API.
+  // Use FRONTEND_URL when the frontend proxies /api/* to the backend.
   // Remove trailing slash if present to avoid double slashes
   return baseUrl.replace(/\/+$/, "");
 }

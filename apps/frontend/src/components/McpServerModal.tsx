@@ -1057,7 +1057,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                   required={!isEditing}
                 />
               </FormField>
-              <FormField label="OAuth Client ID *" htmlFor="zendeskClientId">
+              <FormField label="OAuth Client Identifier *" htmlFor="zendeskClientId">
                 <input
                   id="zendeskClientId"
                   type="text"
@@ -1079,9 +1079,10 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                 htmlFor="zendeskClientSecret"
                 hint={
                   <>
-                    Create a Zendesk OAuth client with scopes{" "}
-                    &quot;tickets:read&quot;, &quot;tickets:write&quot;, and
-                    &quot;help_center:read&quot;.
+                    Use the Zendesk OAuth client&apos;s{" "}
+                    <strong>Unique identifier</strong> (not the numeric client
+                    ID) and enable scopes &quot;tickets:read&quot;,
+                    &quot;tickets:write&quot;, and &quot;hc:read&quot;.
                   </>
                 }
               >
@@ -1101,6 +1102,76 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                   required={!isEditing}
                 />
               </FormField>
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                <p className="font-semibold text-neutral-900 dark:text-neutral-100">
+                  How to Connect Your Zendesk Account
+                </p>
+                <p className="mt-1 text-neutral-600 dark:text-neutral-300">
+                  To allow your Helpmaton instance to access your helpdesk,
+                  create an OAuth client in your Zendesk Admin Center.
+                </p>
+                <ol className="mt-3 list-decimal space-y-3 pl-5 text-neutral-700 dark:text-neutral-200">
+                  <li>
+                    <span className="font-medium">Open the Zendesk Admin Center</span>
+                    <div className="mt-1 text-neutral-600 dark:text-neutral-300">
+                      Log in to your Zendesk dashboard, click the Products icon
+                      (four squares) in the top-right, and select Admin Center.
+                    </div>
+                  </li>
+                  <li>
+                    <span className="font-medium">Navigate to OAuth Clients</span>
+                    <div className="mt-1 text-neutral-600 dark:text-neutral-300">
+                      In the left sidebar, open Apps and integrations, click
+                      APIs, then Zendesk API. If you see a menu list, select
+                      OAuth Clients. If you see tabs, open the OAuth Clients
+                      tab.
+                    </div>
+                  </li>
+                  <li>
+                    <span className="font-medium">Create the client</span>
+                    <div className="mt-1 text-neutral-600 dark:text-neutral-300">
+                      Click <span className="font-medium">Add OAuth client</span>{" "}
+                      and fill in the fields below using values that match your
+                      deployment (examples shown):
+                      <div className="mt-2 space-y-1 text-neutral-600 dark:text-neutral-300">
+                        <div>
+                          Client Name:{" "}
+                          <span className="font-mono">Helpmaton Agent</span>
+                        </div>
+                        <div>
+                          Description:{" "}
+                          <span className="font-mono">AI Agent Integration</span>
+                        </div>
+                        <div>
+                          Company: <span className="font-mono">Helpmaton</span>
+                        </div>
+                        <div>
+                          Unique Identifier:{" "}
+                          <span className="font-mono">helpmaton_agent</span>{" "}
+                          (no spaces or special characters)
+                        </div>
+                        <div>
+                          Redirect URLs:{" "}
+                          <span className="font-mono">
+                            https://your-app-domain.com/api/mcp/oauth/zendesk/callback
+                          </span>
+                        </div>
+                        <div>Logo: Optional (leave blank)</div>
+                      </div>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="font-medium">Copy your credentials</span>
+                    <div className="mt-1 text-neutral-600 dark:text-neutral-300">
+                      Click Save. A popup shows your Secret. Copy it immediately
+                      into the <span className="font-medium">Client Secret</span>{" "}
+                      field here. Copy the Unique Identifier into the{" "}
+                      <span className="font-medium">Client ID</span> field here,
+                      then click Save again in Zendesk to finish.
+                    </div>
+                  </li>
+                </ol>
+              </div>
             </>
           )}
 

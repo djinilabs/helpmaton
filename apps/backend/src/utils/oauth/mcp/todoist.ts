@@ -6,11 +6,11 @@ import {
 } from "./common";
 import type { McpOAuthTokenInfo } from "./types";
 
-const TODOIST_AUTH_URL = "https://todoist.com/oauth/authorize";
-const TODOIST_TOKEN_URL = "https://todoist.com/oauth/access_token";
+const TODOIST_AUTH_URL = "https://app.todoist.com/oauth/authorize";
+const TODOIST_TOKEN_URL = "https://api.todoist.com/oauth/access_token";
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
-const TODOIST_SCOPES = ["tasks:read", "tasks:write", "projects:read"].join(" ");
+const TODOIST_SCOPES = "data:read_write";
 
 interface TodoistTokenResponse {
   access_token?: string;

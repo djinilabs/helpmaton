@@ -6,6 +6,50 @@
 
 **Latest Work**:
 
+- **PR comments script pagination fix**: Updated `scripts/show-pr-comments.sh` to paginate REST/GraphQL requests and merge pages so all PR comments/threads are captured (avoids missing comments beyond the first page).
+- **CI MCP tools integration**: Added `pnpm test:mcp-tools:integration` to `.github/workflows/test.yml` with `TEST_MCP_CREDENTIALS` sourced from `secrets.TEST_MCP_CREDENTIALS`; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **MCP tools integration DB mocking**: Integration test now mocks `database()` with an in-memory `mcp-server` store seeded from `TEST_MCP_CREDENTIALS`, avoiding Architect sandbox/SSM dependency.
+- **MCP tools integration CI env**: Added OAuth client ID/secret envs for all MCP services (Google, GitHub, Slack, Salesforce, Todoist, Shopify, Linear, Intercom, HubSpot, Notion, Stripe) in `test.yml` so refresh flows work in CI; ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm test:mcp-tools:integration`.
+- **MCP tools integration resiliency**: Added optional skips for provider tools that depend on missing data (Notion DB, GitHub issues/PRs/commits, HubSpot/Intercom/Linear/Slack/Zendesk follow-ups), added env-gated tools for Shopify sales report, Stripe charge search, Salesforce REST, Intercom updates, and Zendesk tickets; prefer member Slack channels and env fallback IDs.
+- **Google Calendar integration fixes**: Include start/end when updating events and allow delete calls to handle empty responses via text mode.
+- **MCP tools plan mapping**: Match tool names by longest prefix to avoid collisions (`notion_create` vs `notion_create_database_page`).
+- **Validation runs**: `pnpm test:mcp-tools:integration`, `pnpm typecheck`, `pnpm lint --fix`.
+
+- **Zendesk OAuth client identifier copy**: Clarified UI/doc copy that Zendesk expects the OAuth client **Unique identifier** (not numeric client ID) and reran `pnpm typecheck` + `pnpm lint --fix`.
+- **Zendesk OAuth scope fix**: Switched Help Center scope to `hc:read` (Zendesk resource scope), updated UI/docs copy and Zendesk OAuth unit test; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Todoist OAuth authorize host**: Switched Todoist OAuth authorize URL to `https://app.todoist.com/oauth/authorize` (per API v1 docs) after `api.todoist.com` login flow returned a 404.
+- **Todoist OAuth scope fix**: Updated Todoist OAuth scopes to `data:read_write` and switched auth/token endpoints to `api.todoist.com` to resolve `invalid_scope` errors; updated unit test expectations.
+- **Stripe OAuth scope**: Switched Stripe OAuth scope to `read_write` to satisfy Stripe Connect requirements; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **MCP tools integration test**: Added a Vitest integration test that queries the local sandbox DB to find latest OAuth MCP servers per provider and invokes every tool with chained args; added `MCP_OAUTH_PRESERVE` to keep OAuth E2E credentials, plus a root script + docs for running the tool integration test with optional provider filters.
+- **MCP tool integration args**: Added support for comma-separated provider lists passed directly on the CLI (alongside `--services=...`) when running `pnpm test:mcp-tools:integration`.
+- **Google Drive integration fallback**: Added Google Drive file/query env fallbacks (`MCP_GOOGLE_DRIVE_FILE_ID`, `MCP_GOOGLE_DRIVE_QUERY`) and search-based fileId extraction to keep Google Drive tool tests passing.
+- **MCP tools integration runner**: Added `scripts/run-mcp-tools-integration.mjs` so `pnpm test:mcp-tools:integration <services>` passes a provider list without Vitest running unrelated tests.
+- **MCP tool call logging**: Integration test now logs each tool call args and raw return value.
+- **MCP tools env loading**: Runner now loads `tests/e2e/.env` before executing integration tests.
+- **MCP credentials export**: Added `scripts/export-mcp-credentials.ts` to export latest valid MCP credentials per service from local DB into `tmp/mcp-credentials.json`.
+- **Slack MCP OAuth dev redirect**: Use redirectmeto localhost callback for Slack OAuth when `ARC_ENV=testing`; added coverage for auth URL and token exchange redirect handling. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Salesforce MCP OAuth dev redirect**: Use redirectmeto localhost callback for Salesforce OAuth when `ARC_ENV=testing`; added coverage for auth URL and token exchange redirect handling. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **MCP tools env credentials**: Integration test now uses `TEST_MCP_CREDENTIALS` JSON (same format as export) to select servers instead of querying latest from DB.
+- **Webhook conversation conflict investigation**: Found `startConversation` uses conditional DynamoDB create for `agent-conversations`. Webhook queue uses a fixed `conversationId` from enqueue without SQS dedup IDs. When a webhook SQS message is delivered/retried, `startConversation` throws `Item already exists` on the second attempt. Recommend idempotent create or SQS dedup/group IDs to prevent duplicate processing.
+- **Git checkout cleanup note**: Verified `apps/backend/.env` is not tracked and no repo/global hooks are configured; likely removed by an external clean operation (e.g., `git clean -fdx`) triggered by a tool/IDE during branch switches.
+- **MCP OAuth redirect base**: Forced `OAUTH_REDIRECT_BASE_URL` to `http://localhost:3333` in E2E global setup and documented it in `.env.example`.
+- **MCP OAuth skip list**: Added `MCP_OAUTH_SKIP_SERVICES` env var to skip specific services during MCP OAuth E2E runs.
+- **Zendesk OAuth UI instructions**: Added step-by-step Zendesk client ID/secret setup guidance in the MCP server modal.
+- **MCP OAuth credits**: MCP OAuth E2E now adds credits after workspace creation via `pnpm add-credits` (default 50, override with `E2E_ADD_CREDITS_AMOUNT`).
+- **MCP OAuth server cleanup**: Test now disables/deletes MCP servers after each service to avoid free-plan limit, and added Zendesk client ID/secret env requirements.
+- **Playwright anti-detection flag**: Added `--disable-blink-features=AutomationControlled` to Playwright launch args.
+- **MCP OAuth Chrome channel**: MCP OAuth E2E suite now runs with `channel: "chrome"` to avoid Google OAuth blocking Playwright Chromium.
+- **MCP OAuth auth token**: Updated MCP OAuth E2E API calls to use `helpmaton_access_token` from localStorage for Bearer auth.
+- **MCP OAuth Shopify env guard**: Added Shopify OAuth client ID/secret checks to MCP OAuth E2E env gating and documented in `.env.example`/README.
+- **MCP OAuth env gating**: Moved MCP OAuth config prompts to global setup and require `MCP_OAUTH_SHOP_DOMAIN`/`MCP_OAUTH_SUBDOMAIN` before tests; test now fails fast if missing.
+- **Login confirmation alignment**: Centered the "Check your inbox" title when the email confirmation screen is shown. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **E2E env prompt**: `validateEnvironment` now prompts for missing vars in interactive runs (non-CI) and global setup awaits it before starting tests.
+- **MCP OAuth prompts**: Added env var fallback for MCP OAuth config prompts (`MCP_OAUTH_SHOP_DOMAIN`, `MCP_OAUTH_SUBDOMAIN`) and extended MCP OAuth test timeout for manual flows.
+- **Login confirmation screen**: Added branded sign-in email confirmation state with theme-aware styling and spam-folder reminder. Kept confirmation in-app via `redirect: false`. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **MCP OAuth headed flag**: Added `--headed` to the MCP OAuth Playwright script so the browser always opens.
+- **MCP OAuth headed run**: Forced `HEADLESS=false` in `pnpm test:e2e:mcp-oauth` and documented headless override for manual OAuth flows.
+- **MCP OAuth test guard**: Added `RUN_MCP_OAUTH_E2E` gate and `pnpm test:e2e:mcp-oauth` script so the MCP OAuth E2E suite only runs when explicitly invoked.
+- **MCP OAuth E2E suite**: Added Playwright-based MCP OAuth integration tests with manual OAuth pause support, service config prompts (Shopify/Zendesk), tool call validation via agent chat, and documentation under `tests/e2e/mcp-oauth/`.
 - **Conversation sequence preservation**: Updated `expandMessagesWithToolCalls` to emit assistant/tool messages in observed event order, avoiding tool-call/result/text aggregation; added sequence-order tests and ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run conversationLogger`.
 - **MCP server tools viewer**: Added per-server MCP tools endpoint + tests, and a Connected tools “View tools” dialog/button with tool parameters/availability. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Conversation logger tests**: Updated mocks/expectations to use `upsert` for `agent-conversations` in unit tests and reran `pnpm --filter backend test --run conversationLogger`.
@@ -3159,6 +3203,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 **Follow-up**:
 
 - Fixed Stripe MCP tool metadata generation by adding `stripe` to the OAuth service type list
+- Updated Stripe OAuth test to expect `read_write` scope
 - Test suite passing (`pnpm test`) ✅
 
 ## Next Steps

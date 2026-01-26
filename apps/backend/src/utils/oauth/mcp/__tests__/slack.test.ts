@@ -47,6 +47,16 @@ describe("Slack OAuth Utilities", () => {
       expect(authUrl).toContain("state=custom-state-token");
     });
 
+    it("should use redirectmeto callback in local dev", () => {
+      process.env.ARC_ENV = "testing";
+
+      const authUrl = generateSlackAuthUrl("workspace-1", "server-1");
+
+      expect(authUrl).toContain(
+        "redirect_uri=https%3A%2F%2Fredirectmeto.com%2Fhttp%3A%2F%2Flocalhost%3A5173%2Fapi%2Fmcp%2Foauth%2Fslack%2Fcallback"
+      );
+    });
+
     it("should throw error if SLACK_OAUTH_CLIENT_ID is not set", () => {
       delete process.env.SLACK_OAUTH_CLIENT_ID;
 
@@ -92,6 +102,29 @@ describe("Slack OAuth Utilities", () => {
       expect(result.accessToken).toBe("slack-access-token");
       expect(result.refreshToken).toBe("slack-refresh-token");
       expect(result.expiresAt).toBeDefined();
+    });
+
+    it("should use redirectmeto callback in local dev", async () => {
+      process.env.ARC_ENV = "testing";
+
+      const mockTokenResponse = {
+        ok: true,
+        access_token: "slack-access-token",
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(mockTokenResponse),
+      } as Partial<Response> as Response);
+
+      await exchangeSlackCode("auth-code-123");
+
+      const callArgs = vi.mocked(fetch).mock.calls[0];
+      const body = callArgs[1]?.body as URLSearchParams;
+      expect(body.toString()).toContain(
+        "redirect_uri=https%3A%2F%2Fredirectmeto.com%2Fhttp%3A%2F%2Flocalhost%3A5173%2Fapi%2Fmcp%2Foauth%2Fslack%2Fcallback"
+      );
     });
 
     it("should handle missing refresh token by falling back to access token", async () => {

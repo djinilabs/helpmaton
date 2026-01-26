@@ -22,7 +22,7 @@ const processInfoPath = join(process.cwd(), ".test-processes.json");
 async function checkServiceReady(
   url: string,
   maxAttempts: number = 60,
-  intervalMs: number = 1000
+  intervalMs: number = 1000,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -33,7 +33,7 @@ async function checkServiceReady(
       // If we get a non-5xx response, the service is ready (even 404 is fine, means handlers are compiled)
       if (response.status < 500) {
         console.log(
-          `✅ Service at ${url} is ready (status: ${response.status})`
+          `✅ Service at ${url} is ready (status: ${response.status})`,
         );
         return true;
       }
@@ -79,7 +79,8 @@ async function killProcessesOnPort(port: number): Promise<void> {
 async function globalSetup(config: FullConfig) {
   // Validate environment variables before starting tests
   console.log("Validating environment configuration...");
-  validateEnvironment();
+  await validateEnvironment({ promptIfMissing: true });
+  await ensureMcpOauthEnv();
 
   const { baseURL } = config.projects[0].use;
   console.log("Setting up test environment...");
@@ -88,7 +89,7 @@ async function globalSetup(config: FullConfig) {
   // Only start local services if testing against localhost
   if (!baseURL || !baseURL.startsWith("http://localhost")) {
     console.log(
-      "Testing against remote environment, skipping local service startup"
+      "Testing against remote environment, skipping local service startup",
     );
     console.log("✅ Test environment setup completed");
     return;
@@ -111,7 +112,7 @@ async function globalSetup(config: FullConfig) {
     const authSecret = (() => {
       if (process.env.CI && !process.env.AUTH_SECRET) {
         throw new Error(
-          "AUTH_SECRET environment variable is required in CI environment"
+          "AUTH_SECRET environment variable is required in CI environment",
         );
       }
       // Only allow fallback in local development
@@ -133,6 +134,14 @@ async function globalSetup(config: FullConfig) {
       config.projects[0]?.use?.baseURL ||
       process.env.BASE_URL ||
       "http://localhost:5173";
+    const oauthRedirectBaseUrl =
+      process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:5173";
+    if (oauthRedirectBaseUrl.includes("localhost:3333")) {
+      console.warn(
+        `⚠️  OAUTH_REDIRECT_BASE_URL contains "localhost:3333" (${oauthRedirectBaseUrl}) - overriding to "http://localhost:5173" for E2E tests.`
+      );
+      process.env.OAUTH_REDIRECT_BASE_URL = "http://localhost:5173";
+    }
 
     // Prepare environment variables for the backend process
     // We need to explicitly set all required variables to ensure they're available
@@ -150,6 +159,9 @@ async function globalSetup(config: FullConfig) {
       AUTH_SECRET: authSecret,
       // FRONTEND_URL is critical for auth redirects
       FRONTEND_URL: frontendUrl,
+      // OAuth redirect base URL for MCP OAuth callbacks
+      OAUTH_REDIRECT_BASE_URL:
+        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:5173",
       // E2E test overrides - allow team invitations in tests
       E2E_OVERRIDE_MAX_USERS: process.env.E2E_OVERRIDE_MAX_USERS || "10",
       // Bypass auth gate in E2E environment
@@ -162,10 +174,10 @@ async function globalSetup(config: FullConfig) {
     console.log(`  - MAILGUN_DOMAIN: ${backendEnv.MAILGUN_DOMAIN}`);
     console.log(`  - FRONTEND_URL: ${frontendUrl}`);
     console.log(
-      `  - ARC_DB_PATH: ${backendEnv.ARC_DB_PATH} (relative to apps/backend)`
+      `  - ARC_DB_PATH: ${backendEnv.ARC_DB_PATH} (relative to apps/backend)`,
     );
     console.log(
-      `  - E2E_OVERRIDE_MAX_USERS: ${backendEnv.E2E_OVERRIDE_MAX_USERS} (allows team invitations in tests)`
+      `  - E2E_OVERRIDE_MAX_USERS: ${backendEnv.E2E_OVERRIDE_MAX_USERS} (allows team invitations in tests)`,
     );
 
     // Create .env file in apps/backend directory for Architect sandbox
@@ -187,6 +199,8 @@ async function globalSetup(config: FullConfig) {
       NODE_ENV: "test",
       ARC_ENV: "testing", // Explicitly set to "testing" to skip API Gateway operations
       FRONTEND_URL: frontendUrl,
+      OAUTH_REDIRECT_BASE_URL:
+        process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:5173",
       // TESTMAIL variables (for test code that might need them)
       TESTMAIL_NAMESPACE: testmailNamespace,
       TESTMAIL_API_KEY: testmailApiKey,
@@ -215,6 +229,10 @@ async function globalSetup(config: FullConfig) {
       "CLOUDFLARE_TURNSTILE_SECRET_KEY",
       "CLOUDFLARE_TURNSTILE_SITE_KEY",
       "DISABLE_TRIAL_PERIOD_CHECK",
+      "STRIPE_OAUTH_CLIENT_ID",
+      "STRIPE_OAUTH_CLIENT_SECRET",
+      "TODOIST_OAUTH_CLIENT_ID",
+      "TODOIST_OAUTH_CLIENT_SECRET",
       // Note: E2E_OVERRIDE_MAX_USERS is handled explicitly above with a default value
     ];
 
@@ -249,7 +267,7 @@ async function globalSetup(config: FullConfig) {
     writeFileSync(envFilePath, envFileContent, "utf-8");
     console.log(`Created .env file at ${envFilePath}`);
     console.log(
-      `  Included ${Object.keys(envVars).length} environment variables`
+      `  Included ${Object.keys(envVars).length} environment variables`,
     );
     console.log(`  FRONTEND_URL: ${frontendUrl}`);
 
@@ -346,16 +364,13 @@ async function globalSetup(config: FullConfig) {
     // Verify backend is actually ready (handlers compiled and responding)
     // We check for a non-5xx response to ensure TypeScript compilation is complete
     console.log(
-      "Waiting for backend compilation to complete and handlers to be ready..."
+      "Waiting for backend compilation to complete and handlers to be ready...",
     );
-    const backendReady = await checkServiceReady(
-      "http://localhost:3333",
-      90,
-      1000
-    );
+    const backendUrl = `http://localhost:${backendPort}`;
+    const backendReady = await checkServiceReady(backendUrl, 90, 1000);
     if (!backendReady) {
       throw new Error(
-        "Backend did not become ready within 90 seconds. Check logs above for compilation errors."
+        "Backend did not become ready within 90 seconds. Check logs above for compilation errors.",
       );
     }
     console.log("✅ Backend sandbox is ready and handlers are compiled");
@@ -444,7 +459,7 @@ async function globalSetup(config: FullConfig) {
         frontendPid,
         timestamp: Date.now(),
       }),
-      "utf-8"
+      "utf-8",
     );
   } catch (error) {
     console.warn("Failed to save process info:", error);
@@ -453,12 +468,69 @@ async function globalSetup(config: FullConfig) {
   // Wait a bit more for the frontend to fully initialize
   // Then wait additional time to ensure both servers are fully ready before tests start
   console.log(
-    "Waiting for servers to fully stabilize before starting tests..."
+    "Waiting for servers to fully stabilize before starting tests...",
   );
   await new Promise((resolve) => setTimeout(resolve, 8000)); // 8 seconds total (5 + 3 extra)
 
   console.log("✅ Test environment setup completed");
   console.log("✅ Servers are ready - tests can now run");
+}
+
+async function ensureMcpOauthEnv(): Promise<void> {
+  if (process.env.RUN_MCP_OAUTH_E2E !== "true") {
+    return;
+  }
+
+  const requiredConfig = [
+    "MCP_OAUTH_SHOPIFY_SHOP_DOMAIN",
+    "MCP_OAUTH_ZENDESK_SUBDOMAIN",
+    // Zendesk "client id" refers to the OAuth Unique Identifier field.
+    "MCP_OAUTH_ZENDESK_CLIENT_ID",
+    "MCP_OAUTH_ZENDESK_CLIENT_SECRET",
+    "SHOPIFY_OAUTH_CLIENT_ID",
+    "SHOPIFY_OAUTH_CLIENT_SECRET",
+  ];
+  const missing = requiredConfig.filter((key) => !process.env[key]);
+
+  if (missing.length === 0) {
+    return;
+  }
+
+  if (process.stdin.isTTY && !process.env.CI) {
+    const readline = await import("readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    const shouldBell = process.env.E2E_BELL !== "false";
+    if (shouldBell) {
+      process.stdout.write("\x07");
+    }
+
+    for (const key of missing) {
+      const value = await new Promise<string>((resolve) => {
+        rl.question(`Enter value for ${key}: `, (answer) => {
+          resolve(answer.trim());
+        });
+      });
+
+      if (value) {
+        process.env[key] = value;
+      } else {
+        console.warn(`No value provided for ${key}.`);
+      }
+    }
+
+    rl.close();
+  }
+
+  const stillMissing = requiredConfig.filter((key) => !process.env[key]);
+  if (stillMissing.length > 0) {
+    throw new Error(
+      `Missing required MCP OAuth environment variables: ${stillMissing.join(", ")}\n` +
+        "Set them in tests/e2e/.env or export them before running the tests.",
+    );
+  }
 }
 
 export default globalSetup;

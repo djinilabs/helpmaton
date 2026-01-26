@@ -49,7 +49,9 @@ export const e2eConfig = {
 };
 
 // Validate required environment variables
-export function validateEnvironment(): void {
+export async function validateEnvironment(options?: {
+  promptIfMissing?: boolean;
+}): Promise<void> {
   const requiredVars = [
     "TESTMAIL_NAMESPACE",
     "TESTMAIL_API_KEY",
@@ -57,13 +59,50 @@ export function validateEnvironment(): void {
   ];
   const missingVars = requiredVars.filter((varName) => !process.env[varName]);
 
-  if (missingVars.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missingVars.join(", ")}\n` +
-        `Please create a .env file in the tests/e2e directory with these variables.\n` +
-        `See .env.example for reference.`
-    );
+  if (missingVars.length === 0) {
+    return;
   }
+
+  if (options?.promptIfMissing && !process.env.CI) {
+    const readline = await import("readline");
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    const shouldBell = process.env.E2E_BELL !== "false";
+    if (shouldBell) {
+      process.stdout.write("\x07");
+    }
+
+    for (const varName of missingVars) {
+      const value = await new Promise<string>((resolve) => {
+        rl.question(`Enter value for ${varName}: `, (answer) => {
+          resolve(answer.trim());
+        });
+      });
+
+      if (value) {
+        process.env[varName] = value;
+      } else {
+        console.warn(`No value provided for ${varName}.`);
+      }
+    }
+
+    rl.close();
+
+    const stillMissing = requiredVars.filter(
+      (varName) => !process.env[varName]
+    );
+    if (stillMissing.length === 0) {
+      return;
+    }
+  }
+
+  throw new Error(
+    `Missing required environment variables: ${missingVars.join(", ")}\n` +
+      `Please create a .env file in the tests/e2e directory with these variables.\n` +
+      `See .env.example for reference.`
+  );
 }
 
 // Export individual configs for convenience
