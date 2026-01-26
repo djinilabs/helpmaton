@@ -435,9 +435,26 @@ export class McpServerPage extends BasePage {
       return envValue.trim();
     }
 
-    throw new Error(
-      `Missing ${envKey}. Set it in tests/e2e/.env or export it before running the tests.`,
-    );
+    return new Promise((resolve, reject) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      process.stdout.write("\x07");
+      rl.question(`Enter value for ${envKey}: `, (answer) => {
+        rl.close();
+        const trimmed = answer.trim();
+        if (trimmed) {
+          resolve(trimmed);
+          return;
+        }
+        reject(
+          new Error(
+            `Missing ${envKey}. Set it in tests/e2e/.env or export it before running the tests.`,
+          ),
+        );
+      });
+    });
   }
 
   /**
@@ -521,6 +538,7 @@ export class McpServerPage extends BasePage {
     const token =
       tokenEntry?.value ||
       (await this.page.evaluate(() => {
+        // Fallback to older storage keys used in past auth flows.
         return (
           localStorage.getItem("helpmaton_access_token") ||
           localStorage.getItem("access_token") ||
@@ -547,22 +565,26 @@ export class McpServerPage extends BasePage {
     } finally {
       await tokenPage.close();
     }
-    if (!token) {
-      throw new Error("No auth token found in localStorage.");
-    }
-    return token;
+    throw new Error("No auth token found in localStorage.");
   }
 
   private getBaseUrl(): string {
+    const explicitBaseUrl =
+      process.env.OAUTH_REDIRECT_BASE_URL || process.env.API_BASE_URL;
+    if (explicitBaseUrl) {
+      return explicitBaseUrl.replace(/\/+$/, "");
+    }
+
     const currentUrl = this.page.url();
     if (currentUrl.includes("/workspaces")) {
-      const base = currentUrl.split("/workspaces")[0];
-      if (base.includes("localhost:5173")) {
-        return "http://localhost:3333";
-      }
-      return base;
+      return currentUrl.split("/workspaces")[0];
     }
-    return "http://localhost:3333";
+
+    try {
+      return new URL(currentUrl).origin;
+    } catch {
+      return "http://localhost:3333";
+    }
   }
 
   private async detectManualInterventionNeeded(): Promise<boolean> {

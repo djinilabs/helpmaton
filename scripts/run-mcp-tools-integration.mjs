@@ -9,7 +9,11 @@ function normalizeServiceArg(raw) {
     return "";
   }
   if (raw.startsWith("--services=")) {
-    return raw.slice("--services=".length);
+    const value = raw.slice("--services=".length);
+    if (!value) {
+      throw new Error("The --services flag requires a non-empty value.");
+    }
+    return value;
   }
   if (raw.startsWith("-")) {
     return "";
@@ -28,7 +32,22 @@ const env = {
 };
 
 if (serviceArg) {
-  env.MCP_TOOL_SERVICES = serviceArg;
+  const services = serviceArg
+    .split(",")
+    .map((service) => service.trim())
+    .filter(Boolean);
+  if (services.length === 0) {
+    throw new Error("No valid services were provided.");
+  }
+  const invalidServices = services.filter(
+    (name) => !/^[A-Za-z0-9:_-]+$/.test(name)
+  );
+  if (invalidServices.length > 0) {
+    throw new Error(
+      `Invalid MCP service name(s): ${invalidServices.join(", ")}`
+    );
+  }
+  env.MCP_TOOL_SERVICES = services.join(",");
 }
 
 const result = spawnSync(
@@ -47,5 +66,6 @@ const result = spawnSync(
 );
 
 if (result.status !== 0) {
-  process.exit(result.status ?? 1);
+  const exitCode = result.status == null ? 1 : result.status;
+  process.exit(exitCode);
 }

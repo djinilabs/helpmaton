@@ -10,6 +10,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      TEST_MCP_CREDENTIALS: ${{ secrets.TEST_MCP_CREDENTIALS }}
 
     steps:
       - name: Checkout code
@@ -54,6 +56,5 @@ jobs:
         run: pnpm test
 
       - name: Run MCP tools integration tests
-        env:
-          TEST_MCP_CREDENTIALS: ${{ secrets.TEST_MCP_CREDENTIALS }}
+        if: ${{ env.TEST_MCP_CREDENTIALS != '' }}
         run: pnpm test:mcp-tools:integration

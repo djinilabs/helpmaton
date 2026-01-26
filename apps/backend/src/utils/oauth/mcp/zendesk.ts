@@ -9,6 +9,7 @@ import type { McpOAuthTokenInfo } from "./types";
 const ZENDESK_SCOPES = [
   "tickets:read",
   "tickets:write",
+  "help_center:read",
   "hc:read",
 ].join(" ");
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;

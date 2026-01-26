@@ -65,6 +65,8 @@ export function getOAuthRedirectBaseUrl(): string {
       process.env.OAUTH_REDIRECT_BASE_URL,
       "FRONTEND_URL or OAUTH_REDIRECT_BASE_URL is not set"
     );
+  // MCP OAuth callbacks are served under the app origin that fronts the API.
+  // Use FRONTEND_URL when the frontend proxies /api/* to the backend.
   // Remove trailing slash if present to avoid double slashes
   return baseUrl.replace(/\/+$/, "");
 }

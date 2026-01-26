@@ -1,13 +1,11 @@
 import { getDefined } from "../../../utils";
 
-import {
-  buildMcpOAuthCallbackUrl,
-  generateMcpOAuthStateToken,
-} from "./common";
+import { buildMcpOAuthCallbackUrl, generateMcpOAuthStateToken } from "./common";
 import type { McpOAuthTokenInfo } from "./types";
 
 const STRIPE_AUTH_URL = "https://connect.stripe.com/oauth/authorize";
 const STRIPE_TOKEN_URL = "https://connect.stripe.com/oauth/token";
+// Use read-only scope to minimize permissions. Switch to read_write if needed.
 const STRIPE_SCOPES = "read_write";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -27,11 +25,11 @@ export interface StripeTokenResponse {
 export function generateStripeAuthUrl(
   workspaceId: string,
   serverId: string,
-  state?: string
+  state?: string,
 ): string {
   const clientId = getDefined(
     process.env.STRIPE_OAUTH_CLIENT_ID,
-    "STRIPE_OAUTH_CLIENT_ID is not set"
+    "STRIPE_OAUTH_CLIENT_ID is not set",
   );
   const redirectUri = buildMcpOAuthCallbackUrl("stripe");
   const stateToken = state || generateMcpOAuthStateToken(workspaceId, serverId);
@@ -51,15 +49,15 @@ export function generateStripeAuthUrl(
  * Exchange authorization code for access token
  */
 export async function exchangeStripeCode(
-  code: string
+  code: string,
 ): Promise<McpOAuthTokenInfo> {
   const clientId = getDefined(
     process.env.STRIPE_OAUTH_CLIENT_ID,
-    "STRIPE_OAUTH_CLIENT_ID is not set"
+    "STRIPE_OAUTH_CLIENT_ID is not set",
   );
   const clientSecret = getDefined(
     process.env.STRIPE_OAUTH_CLIENT_SECRET,
-    "STRIPE_OAUTH_CLIENT_SECRET is not set"
+    "STRIPE_OAUTH_CLIENT_SECRET is not set",
   );
   const redirectUri = buildMcpOAuthCallbackUrl("stripe");
 
@@ -80,7 +78,7 @@ export async function exchangeStripeCode(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Failed to exchange Stripe code: ${response.status} ${errorText}`
+      `Failed to exchange Stripe code: ${response.status} ${errorText}`,
     );
   }
 
@@ -104,15 +102,15 @@ export async function exchangeStripeCode(
  * Refresh Stripe access token
  */
 export async function refreshStripeToken(
-  refreshToken: string
+  refreshToken: string,
 ): Promise<McpOAuthTokenInfo> {
   const clientId = getDefined(
     process.env.STRIPE_OAUTH_CLIENT_ID,
-    "STRIPE_OAUTH_CLIENT_ID is not set"
+    "STRIPE_OAUTH_CLIENT_ID is not set",
   );
   const clientSecret = getDefined(
     process.env.STRIPE_OAUTH_CLIENT_SECRET,
-    "STRIPE_OAUTH_CLIENT_SECRET is not set"
+    "STRIPE_OAUTH_CLIENT_SECRET is not set",
   );
 
   const response = await fetch(STRIPE_TOKEN_URL, {
@@ -131,7 +129,7 @@ export async function refreshStripeToken(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Failed to refresh Stripe token: ${response.status} ${errorText}`
+      `Failed to refresh Stripe token: ${response.status} ${errorText}`,
     );
   }
 

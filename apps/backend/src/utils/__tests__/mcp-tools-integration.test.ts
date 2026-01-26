@@ -889,6 +889,7 @@ mcpDescribe("MCP tools integration (real services)", () => {
     "invokes all MCP tools for configured providers",
     async () => {
       const serviceFilter = parseServiceFilter();
+      const perServiceTimeoutMs = getPerServiceTimeoutMs();
       const serversFromEnv = loadServersFromEnv(serviceFilter);
       const serversByService =
         serversFromEnv ?? (await fetchLatestServersFromDb(serviceFilter));
@@ -903,53 +904,59 @@ mcpDescribe("MCP tools integration (real services)", () => {
       }
 
       for (const serviceType of serviceFilter) {
-        const target = serversByService.get(serviceType);
-        if (!target) {
-          throw new Error(`Missing MCP server for ${serviceType}`);
-        }
+        await withTimeout(
+          async () => {
+            const target = serversByService.get(serviceType);
+            if (!target) {
+              throw new Error(`Missing MCP server for ${serviceType}`);
+            }
 
-        const { workspaceId, serverId } = target;
-        const tools = await createMcpServerTools(workspaceId, [serverId]);
-        const toolEntries =
-          Object.entries(tools) as unknown as Array<[string, ToolExecutor]>;
+            const { workspaceId, serverId } = target;
+            const tools = await createMcpServerTools(workspaceId, [serverId]);
+            const toolEntries =
+              Object.entries(tools) as unknown as Array<[string, ToolExecutor]>;
 
-        expect(toolEntries.length).toBeGreaterThan(0);
+            expect(toolEntries.length).toBeGreaterThan(0);
 
-        const plan = mcpPlans[serviceType];
-        const context = buildContext(serviceType);
-        const toolMap = mapToolsToPlan(toolEntries, plan);
+            const plan = mcpPlans[serviceType];
+            const context = buildContext(serviceType);
+            const toolMap = mapToolsToPlan(toolEntries, plan);
 
-        for (const toolBaseName of plan.order) {
-          const entry = toolMap.get(toolBaseName);
-          if (!entry) {
-            throw new Error(
-              `Missing tool ${toolBaseName} for ${serviceType} server ${serverId}`
-            );
-          }
+            for (const toolBaseName of plan.order) {
+              const entry = toolMap.get(toolBaseName);
+              if (!entry) {
+                throw new Error(
+                  `Missing tool ${toolBaseName} for ${serviceType} server ${serverId}`
+                );
+              }
 
-          const args = plan.resolveArgs[toolBaseName](context);
-          if (!args) {
-            console.log(
-              `[MCP Tools] ${serviceType}: ${toolBaseName} skipped (missing prerequisites)`
-            );
-            continue;
-          }
-          const result = await executeTool(
-            serviceType,
-            entry.name,
-            entry.tool,
-            args
-          );
-          context.results[toolBaseName] = result.parsed;
+              const args = plan.resolveArgs[toolBaseName](context);
+              if (!args) {
+                console.log(
+                  `[MCP Tools] ${serviceType}: ${toolBaseName} skipped (missing prerequisites)`
+                );
+                continue;
+              }
+              const result = await executeTool(
+                serviceType,
+                entry.name,
+                entry.tool,
+                args
+              );
+              context.results[toolBaseName] = result.parsed;
 
-          const extractor = plan.extract[toolBaseName];
-          if (extractor) {
-            extractor(context, result.parsed);
-          }
-        }
+              const extractor = plan.extract[toolBaseName];
+              if (extractor) {
+                extractor(context, result.parsed);
+              }
+            }
+          },
+          perServiceTimeoutMs,
+          serviceType
+        );
       }
     },
-    30 * 60 * 1000
+    getOverallTimeoutMs()
   );
 });
 
@@ -1218,13 +1225,30 @@ async function executeTool(
   tool: { execute: (args: unknown) => Promise<unknown> },
   args: Record<string, unknown>
 ): Promise<{ raw: string; parsed: unknown }> {
+  let argsPreview: string;
+  try {
+    const serializedArgs = JSON.stringify(args);
+    const maxArgsLength = 500;
+    argsPreview =
+      serializedArgs.length > maxArgsLength
+        ? `${serializedArgs.slice(0, maxArgsLength)}... [truncated]`
+        : serializedArgs;
+  } catch {
+    argsPreview = "[unserializable args]";
+  }
   console.log(`[MCP Tools] ${serviceType}: ${toolName}`, {
-    args,
+    argsPreview,
   });
   const rawResult = await tool.execute(args);
   const raw = typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult);
+  const maxRawLength = 1000;
+  const rawPreview =
+    raw.length > maxRawLength
+      ? `${raw.slice(0, maxRawLength)}... [truncated]`
+      : raw;
   console.log(`[MCP Tools] ${serviceType}: ${toolName} result`, {
-    raw,
+    rawPreview,
+    rawLength: raw.length,
   });
 
   if (raw.startsWith("Error")) {
@@ -1240,6 +1264,47 @@ async function executeTool(
 
   expect(raw).toBeTruthy();
   return { raw, parsed };
+}
+
+function getPerServiceTimeoutMs(): number {
+  const raw = process.env.MCP_TOOLS_SERVICE_TIMEOUT_MS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return 5 * 60 * 1000;
+}
+
+function getOverallTimeoutMs(): number {
+  const raw = process.env.MCP_TOOLS_TIMEOUT_MS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return 10 * 60 * 1000;
+}
+
+async function withTimeout<T>(
+  fn: () => Promise<T>,
+  timeoutMs: number,
+  serviceType: McpServiceType
+): Promise<T> {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return fn();
+  }
+  let timeoutId: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`MCP service ${serviceType} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([fn(), timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 function setValue(

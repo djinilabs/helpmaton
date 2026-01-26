@@ -11,9 +11,11 @@ This suite tests all OAuth-based MCP integrations end-to-end:
 - A running local environment:
   - Frontend at `http://localhost:5173`
   - Backend at `http://localhost:3333`
-- OAuth apps configured for all 14 services
+- OAuth apps configured for all 14 tested services
 - Test accounts for each service
 - Ability to complete OAuth flows in a browser (manual login, consent, 2FA)
+
+Note: PostHog is supported elsewhere in the project but is not included in these OAuth E2E tests.
 
 ## How It Works
 

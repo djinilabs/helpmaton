@@ -100,7 +100,7 @@ mcpDescribe("MCP OAuth Integrations - Full Integration", () => {
   testWithUserManagement(
     "4. Test OAuth integrations (all services)",
     async ({ page }) => {
-      testWithUserManagement.setTimeout(1800000);
+      testWithUserManagement.setTimeout(getMcpOauthTimeoutMs());
       if (!state.workspace || !state.agent) {
         throw new Error("Workspace or agent not found in state.");
       }
@@ -138,7 +138,6 @@ mcpDescribe("MCP OAuth Integrations - Full Integration", () => {
         }
 
         let serverId: string;
-        let serverCreated = false;
         let serverEnabled = false;
         try {
           const server = await mcpPage.createMcpServerViaApi(
@@ -151,7 +150,6 @@ mcpDescribe("MCP OAuth Integrations - Full Integration", () => {
             },
           );
           serverId = server.id;
-          serverCreated = true;
           console.log(`Created MCP server ${serverName} (${serverId})`);
         } catch (error) {
           failures.push({
@@ -262,7 +260,7 @@ mcpDescribe("MCP OAuth Integrations - Full Integration", () => {
             console.log(
               `[MCP OAuth] Preserving MCP server ${serverId} for ${serviceType}`
             );
-          } else if (serverCreated) {
+          } else {
             try {
               if (serverEnabled) {
                 await mcpPage.disableMcpServerOnAgent(
@@ -284,6 +282,16 @@ mcpDescribe("MCP OAuth Integrations - Full Integration", () => {
                     : String(cleanupError)
                 }`,
               );
+              failures.push({
+                serviceType,
+                error: `Failed to cleanup MCP server ${serverId}`,
+                details:
+                  cleanupError instanceof Error
+                    ? cleanupError.message
+                    : String(cleanupError),
+                action:
+                  "Manually delete this MCP server to avoid hitting plan limits.",
+              });
             }
           }
         }
@@ -334,6 +342,15 @@ function isTruthyEnv(value: string | undefined): boolean {
     return false;
   }
   return ["1", "true", "yes", "y"].includes(value.toLowerCase());
+}
+
+function getMcpOauthTimeoutMs(): number {
+  const raw = process.env.MCP_OAUTH_TIMEOUT_MS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return 30 * 60 * 1000;
 }
 
 function selectToolForService(
@@ -413,6 +430,7 @@ async function ensureProSubscription(page: Page): Promise<void> {
     return;
   }
 
+  // Local-only: update the sandbox subscription directly to avoid MCP limits.
   const require = createRequire(import.meta.url);
   const { database } = require("../../../apps/backend/src/tables/database");
   const db = await database();

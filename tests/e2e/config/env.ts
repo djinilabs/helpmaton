@@ -69,7 +69,10 @@ export async function validateEnvironment(options?: {
       input: process.stdin,
       output: process.stdout,
     });
-    process.stdout.write("\x07");
+    const shouldBell = process.env.E2E_BELL !== "false";
+    if (shouldBell) {
+      process.stdout.write("\x07");
+    }
 
     for (const varName of missingVars) {
       const value = await new Promise<string>((resolve) => {
@@ -80,6 +83,8 @@ export async function validateEnvironment(options?: {
 
       if (value) {
         process.env[varName] = value;
+      } else {
+        console.warn(`No value provided for ${varName}.`);
       }
     }
 

@@ -19,8 +19,7 @@ type McpServiceType =
   | "salesforce"
   | "intercom"
   | "todoist"
-  | "zendesk"
-  | "posthog";
+  | "zendesk";
 
 type McpServerRecord = {
   pk: string;
@@ -49,7 +48,6 @@ const MCP_SERVICES: McpServiceType[] = [
   "intercom",
   "todoist",
   "zendesk",
-  "posthog",
 ];
 
 const OUTPUT_PATH = path.join("tmp", "mcp-credentials.json");
@@ -159,13 +157,25 @@ async function fetchWorkspaceIds(
 }
 
 function hasValidCredentials(server: McpServerRecord): boolean {
-  if (server.serviceType === "posthog") {
-    const config = server.config as { apiKey?: string };
-    return !!config.apiKey && !!server.url;
-  }
   if (server.authType === "oauth") {
-    const config = server.config as { accessToken?: string };
-    return !!config.accessToken;
+    const config = server.config as {
+      accessToken?: string;
+      expiresAt?: string | number;
+    };
+    if (!config.accessToken) {
+      return false;
+    }
+    if (config.expiresAt === undefined) {
+      return true;
+    }
+    const expiryTime =
+      typeof config.expiresAt === "number"
+        ? config.expiresAt
+        : Date.parse(config.expiresAt);
+    if (!Number.isFinite(expiryTime)) {
+      return true;
+    }
+    return expiryTime > Date.now();
   }
   return false;
 }

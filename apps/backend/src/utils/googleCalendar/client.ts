@@ -175,10 +175,10 @@ export async function deleteEvent(
   serverId: string,
   calendarId: string,
   eventId: string
-): Promise<void> {
+): Promise<string> {
   const url = `${GOOGLE_CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
   
-  await makeGoogleApiRequest<string>({
+  const response = await makeGoogleApiRequest<string>({
     workspaceId,
     serverId,
     url,
@@ -188,4 +188,5 @@ export async function deleteEvent(
     responseType: "text",
     refreshTokenFn: refreshGoogleCalendarToken,
   });
+  return response;
 }

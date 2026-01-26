@@ -501,7 +501,10 @@ async function ensureMcpOauthEnv(): Promise<void> {
       input: process.stdin,
       output: process.stdout,
     });
-    process.stdout.write("\x07");
+    const shouldBell = process.env.E2E_BELL !== "false";
+    if (shouldBell) {
+      process.stdout.write("\x07");
+    }
 
     for (const key of missing) {
       const value = await new Promise<string>((resolve) => {

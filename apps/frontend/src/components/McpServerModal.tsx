@@ -1107,8 +1107,8 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                   How to Connect Your Zendesk Account
                 </p>
                 <p className="mt-1 text-neutral-600 dark:text-neutral-300">
-                  To allow Helpmaton to access your helpdesk, create an OAuth
-                  client in your Zendesk Admin Center.
+                  To allow your Helpmaton instance to access your helpdesk,
+                  create an OAuth client in your Zendesk Admin Center.
                 </p>
                 <ol className="mt-3 list-decimal space-y-3 pl-5 text-neutral-700 dark:text-neutral-200">
                   <li>
@@ -1131,13 +1131,16 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                     <span className="font-medium">Create the client</span>
                     <div className="mt-1 text-neutral-600 dark:text-neutral-300">
                       Click <span className="font-medium">Add OAuth client</span>{" "}
-                      and fill in:
+                      and fill in the fields below using values that match your
+                      deployment (examples shown):
                       <div className="mt-2 space-y-1 text-neutral-600 dark:text-neutral-300">
                         <div>
-                          Client Name: <span className="font-mono">Helpmaton Agent</span>
+                          Client Name:{" "}
+                          <span className="font-mono">Helpmaton Agent</span>
                         </div>
                         <div>
-                          Description: <span className="font-mono">AI Agent Integration</span>
+                          Description:{" "}
+                          <span className="font-mono">AI Agent Integration</span>
                         </div>
                         <div>
                           Company: <span className="font-mono">Helpmaton</span>
@@ -1150,7 +1153,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                         <div>
                           Redirect URLs:{" "}
                           <span className="font-mono">
-                            https://app.helpmaton.com/api/mcp/oauth/zendesk/callback
+                            https://your-app-domain.com/api/mcp/oauth/zendesk/callback
                           </span>
                         </div>
                         <div>Logo: Optional (leave blank)</div>

@@ -242,7 +242,7 @@ export class LoginPage extends BasePage {
 
           // Check for success indicator (like "Check your email" message)
           const checkEmailText = this.page.locator(
-            "text=/check (your )?(email|inbox)/i"
+            "text=/check.*(email|inbox)/i"
           );
           const hasCheckEmail = await checkEmailText
             .isVisible()
