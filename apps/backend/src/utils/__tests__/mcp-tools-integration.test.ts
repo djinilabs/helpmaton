@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { createMcpServerTools } from "../../http/utils/mcpUtils";
 type McpServiceType =
@@ -33,6 +33,71 @@ const ALL_MCP_SERVICES: McpServiceType[] = [
   "todoist",
   "zendesk",
 ];
+
+type StoredMcpServerRecord = {
+  pk: string;
+  sk: "server";
+  workspaceId: string;
+  serverId: string;
+  name: string;
+  authType: "none" | "header" | "basic" | "oauth";
+  serviceType?: string;
+  url?: string;
+  config: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+const mcpServerStore = new Map<string, StoredMcpServerRecord>();
+
+const seedMcpServerStore = (
+  serversByService: Map<McpServiceType, StoredMcpServerRecord>
+) => {
+  mcpServerStore.clear();
+  for (const record of serversByService.values()) {
+    mcpServerStore.set(record.pk, record);
+  }
+};
+
+vi.mock("../../tables", () => ({
+  database: async () => ({
+    "mcp-server": {
+      get: async (pk: string, sk?: string) => {
+        const record = mcpServerStore.get(pk);
+        if (!record) {
+          return null;
+        }
+        if (sk && record.sk !== sk) {
+          return null;
+        }
+        return record;
+      },
+      update: async (input: {
+        pk: string;
+        sk?: string;
+        config?: Record<string, unknown>;
+        updatedAt?: string;
+      }) => {
+        const record = mcpServerStore.get(input.pk);
+        if (!record) {
+          throw new Error(`Mock MCP server ${input.pk} not found`);
+        }
+        if (input.sk && record.sk !== input.sk) {
+          throw new Error(
+            `Mock MCP server ${input.pk} has mismatched sk ${input.sk}`
+          );
+        }
+        if (input.config) {
+          record.config = input.config;
+        }
+        if (input.updatedAt) {
+          record.updatedAt = input.updatedAt;
+        }
+        return record;
+      },
+    },
+  }),
+}));
 
 const shouldRun = process.env.RUN_MCP_TOOLS_INTEGRATION === "true";
 const mcpDescribe = shouldRun ? describe : describe.skip;
@@ -904,6 +969,8 @@ mcpDescribe("MCP tools integration (real services)", () => {
         );
       }
 
+      seedMcpServerStore(serversByService);
+
       for (const serviceType of serviceFilter) {
         await withTimeout(
           async () => {
@@ -1022,7 +1089,7 @@ type EnvCredentialPayload = {
 
 function loadServersFromEnv(
   services: McpServiceType[]
-): Map<McpServiceType, { workspaceId: string; serverId: string }> | null {
+): Map<McpServiceType, StoredMcpServerRecord> | null {
   const raw = process.env.TEST_MCP_CREDENTIALS;
   if (!raw) {
     return null;
@@ -1044,7 +1111,7 @@ function loadServersFromEnv(
     throw new Error("TEST_MCP_CREDENTIALS is missing a services map.");
   }
 
-  const entries = new Map<McpServiceType, { workspaceId: string; serverId: string }>();
+  const entries = new Map<McpServiceType, StoredMcpServerRecord>();
 
   for (const serviceType of services) {
     const record = parsed.services[serviceType];
@@ -1061,9 +1128,40 @@ function loadServersFromEnv(
         `TEST_MCP_CREDENTIALS entry mismatch for ${serviceType} (serviceType=${record.serviceType}).`
       );
     }
+    if (!record.authType) {
+      throw new Error(
+        `TEST_MCP_CREDENTIALS entry for ${serviceType} is missing authType.`
+      );
+    }
+    const config = record.config ?? {};
+    if (!config || typeof config !== "object") {
+      throw new Error(
+        `TEST_MCP_CREDENTIALS entry for ${serviceType} is missing config.`
+      );
+    }
+    if (record.authType === "oauth") {
+      const oauthConfig = config as {
+        accessToken?: string;
+        refreshToken?: string;
+      };
+      if (!oauthConfig.accessToken || !oauthConfig.refreshToken) {
+        throw new Error(
+          `TEST_MCP_CREDENTIALS entry for ${serviceType} is missing OAuth tokens.`
+        );
+      }
+    }
+    const pk = `mcp-servers/${record.workspaceId}/${record.serverId}`;
     entries.set(serviceType, {
+      pk,
+      sk: "server",
       workspaceId: record.workspaceId,
       serverId: record.serverId,
+      name: record.name ?? `${serviceType} MCP`,
+      authType: record.authType as StoredMcpServerRecord["authType"],
+      serviceType: record.serviceType ?? serviceType,
+      url: record.url,
+      config: config as Record<string, unknown>,
+      createdAt: record.createdAt,
     });
   }
 

@@ -366,7 +366,8 @@ async function globalSetup(config: FullConfig) {
     console.log(
       "Waiting for backend compilation to complete and handlers to be ready...",
     );
-    const backendReady = await checkServiceReady(frontendUrl, 90, 1000);
+    const backendUrl = `http://localhost:${backendPort}`;
+    const backendReady = await checkServiceReady(backendUrl, 90, 1000);
     if (!backendReady) {
       throw new Error(
         "Backend did not become ready within 90 seconds. Check logs above for compilation errors.",
