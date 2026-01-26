@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **CI MCP tools integration**: Added `pnpm test:mcp-tools:integration` to `.github/workflows/test.yml` with `TEST_MCP_CREDENTIALS` sourced from `secrets.TEST_MCP_CREDENTIALS`; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **MCP tools integration resiliency**: Added optional skips for provider tools that depend on missing data (Notion DB, GitHub issues/PRs/commits, HubSpot/Intercom/Linear/Slack/Zendesk follow-ups), added env-gated tools for Shopify sales report, Stripe charge search, Salesforce REST, Intercom updates, and Zendesk tickets; prefer member Slack channels and env fallback IDs.
 - **Google Calendar integration fixes**: Include start/end when updating events and allow delete calls to handle empty responses via text mode.
 - **MCP tools plan mapping**: Match tool names by longest prefix to avoid collisions (`notion_create` vs `notion_create_database_page`).
