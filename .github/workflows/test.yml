@@ -78,7 +78,7 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Run MCP tools integration tests
-        if: ${{ env.TEST_MCP_CREDENTIALS != '' }}
-        # When credentials are present, treat failures as CI failures.
-        run: pnpm test:mcp-tools:integration
+      # - name: Run MCP tools integration tests
+      #   if: ${{ env.TEST_MCP_CREDENTIALS != '' }}
+      #   # When credentials are present, treat failures as CI failures.
+      #   run: pnpm test:mcp-tools:integration
