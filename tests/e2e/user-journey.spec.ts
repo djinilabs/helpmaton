@@ -511,7 +511,7 @@ testWithUserManagement.describe.serial(
         await workspaceDetailPage.goto(state.workspace.id);
         await workspaceDetailPage.waitForWorkspaceDetailPage();
 
-        // Set a daily spending limit (e.g., $10.00 = 10000000 millionths)
+        // Set a daily spending limit (e.g., $10.00 = 10_000_000_000 nano-dollars)
         // For display purposes, we'll use 10.00 USD
         const dailyLimitAmount = 10.0;
         await workspaceDetailPage.addSpendingLimit("daily", dailyLimitAmount);

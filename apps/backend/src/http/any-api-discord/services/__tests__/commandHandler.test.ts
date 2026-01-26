@@ -28,7 +28,7 @@ describe("handleDiscordCommand credit notifications", () => {
       pk: "workspaces/ws-123",
       sk: "workspace",
       name: "Acme Workspace",
-      creditBalance: 1_000_000,
+      creditBalance: 1_000_000_000,
       currency: "usd",
     };
 
@@ -42,7 +42,7 @@ describe("handleDiscordCommand credit notifications", () => {
 
     const creditResult =
       {
-        creditBalance: 3_000_000,
+        creditBalance: 3_000_000_000,
         currency: "usd",
       } as unknown as Awaited<ReturnType<typeof creditCredits>>;
 
@@ -65,9 +65,9 @@ describe("handleDiscordCommand credit notifications", () => {
     expect(body.data.content).not.toContain("Admin email notification failed");
     expect(sendWorkspaceCreditNotifications).toHaveBeenCalledWith({
       workspace,
-      amountInMillionths: 2_000_000,
-      oldBalance: 1_000_000,
-      newBalance: 3_000_000,
+      amountInNanoDollars: 2_000_000_000,
+      oldBalance: 1_000_000_000,
+      newBalance: 3_000_000_000,
       currency: "usd",
       trialRequestId: undefined,
     });
@@ -78,7 +78,7 @@ describe("handleDiscordCommand credit notifications", () => {
       pk: "workspaces/ws-456",
       sk: "workspace",
       name: "Beta Workspace",
-      creditBalance: 500_000,
+      creditBalance: 500_000_000,
       currency: "usd",
     };
 
@@ -92,7 +92,7 @@ describe("handleDiscordCommand credit notifications", () => {
 
     const creditResult =
       {
-        creditBalance: 1_500_000,
+        creditBalance: 1_500_000_000,
         currency: "usd",
       } as unknown as Awaited<ReturnType<typeof creditCredits>>;
 

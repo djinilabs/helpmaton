@@ -1,26 +1,26 @@
 import { boomify } from "@hapi/boom";
 
-import { fromMillionths } from "./creditConversions";
+import { fromNanoDollars } from "./creditConversions";
 
 /**
  * Error thrown when credit balance is insufficient for a transaction
- * All amounts are stored in millionths (integers)
+ * All amounts are stored in nano-dollars (integers)
  */
 export class InsufficientCreditsError extends Error {
   public readonly statusCode = 402;
   public readonly workspaceId: string;
-  public readonly required: number; // millionths
-  public readonly available: number; // millionths
+  public readonly required: number; // nano-dollars
+  public readonly available: number; // nano-dollars
   public readonly currency: string;
 
   constructor(
     workspaceId: string,
-    required: number, // millionths
-    available: number, // millionths
+    required: number, // nano-dollars
+    available: number, // nano-dollars
     currency: string
   ) {
-    const requiredDisplay = fromMillionths(required);
-    const availableDisplay = fromMillionths(available);
+    const requiredDisplay = fromNanoDollars(required);
+    const availableDisplay = fromNanoDollars(available);
     super(
       `Insufficient credits: required ${requiredDisplay} ${currency.toUpperCase()}, available ${availableDisplay} ${currency.toUpperCase()}`
     );
@@ -44,8 +44,8 @@ export class InsufficientCreditsError extends Error {
       body: JSON.stringify({
         error: this.message,
         workspaceId: this.workspaceId,
-        required: this.required, // Return millionths in API response
-        available: this.available, // Return millionths in API response
+        required: this.required, // Return nano-dollars in API response
+        available: this.available, // Return nano-dollars in API response
         currency: this.currency,
       }),
     };
@@ -54,28 +54,28 @@ export class InsufficientCreditsError extends Error {
 
 /**
  * Error thrown when a spending limit is exceeded
- * All amounts are stored in millionths (integers)
+ * All amounts are stored in nano-dollars (integers)
  */
 export class SpendingLimitExceededError extends Error {
   public readonly statusCode = 402;
   public readonly failedLimits: Array<{
     scope: "workspace" | "agent";
     timeFrame: string;
-    limit: number; // millionths
-    current: number; // millionths
+    limit: number; // nano-dollars
+    current: number; // nano-dollars
   }>;
 
   constructor(
     failedLimits: Array<{
       scope: "workspace" | "agent";
       timeFrame: string;
-      limit: number; // millionths
-      current: number; // millionths
+      limit: number; // nano-dollars
+      current: number; // nano-dollars
     }>
   ) {
     const limitMessages = failedLimits.map(
       (limit) =>
-        `${limit.scope} ${limit.timeFrame} limit: ${fromMillionths(limit.current)}/${fromMillionths(limit.limit)}`
+        `${limit.scope} ${limit.timeFrame} limit: ${fromNanoDollars(limit.current)}/${fromNanoDollars(limit.limit)}`
     );
     super(`Spending limits exceeded: ${limitMessages.join(", ")}`);
     this.name = "SpendingLimitExceededError";
@@ -94,7 +94,7 @@ export class SpendingLimitExceededError extends Error {
       },
       body: JSON.stringify({
         error: this.message,
-        failedLimits: this.failedLimits, // Return millionths in API response
+        failedLimits: this.failedLimits, // Return nano-dollars in API response
       }),
     };
   }

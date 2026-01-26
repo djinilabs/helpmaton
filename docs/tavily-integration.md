@@ -55,13 +55,13 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 
 ## Pricing
 
-- **Cost per call**: $0.008 USD (8,000 millionths)
+- **Cost per call**: $0.008 USD (8,000,000 nano-dollars)
 - **Billing**: Pay-as-you-go based on actual credits consumed
 - **Credit System**: Uses the same credit system as LLM calls
 
 ### Credit Reservation Flow
 
-1. **Reservation**: Credits are reserved before the API call (estimate: 1 Tavily API call ≈ 8,000 millionths = $0.008)
+1. **Reservation**: Credits are reserved before the API call (estimate: 1 Tavily API call ≈ 8,000,000 nano-dollars = $0.008)
 2. **API Call**: Tavily API is called and returns usage information
 3. **Adjustment**: Credits are adjusted based on actual usage from API response
    - If actual usage < estimate: Difference is refunded

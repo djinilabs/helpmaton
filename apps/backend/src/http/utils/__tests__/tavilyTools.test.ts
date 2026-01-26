@@ -100,9 +100,9 @@ describe("tavilyTools", () => {
       addWorkspaceCreditTransaction: vi.fn(),
     } as unknown as AugmentedContext;
 
-    // Default mock for calculateTavilyCost: 1 credit = 8000 millionths ($0.008)
+    // Default mock for calculateTavilyCost: 1 credit = 8,000,000 nano-dollars ($0.008)
     mockCalculateTavilyCost.mockImplementation((creditsUsed: number = 1) => {
-      return creditsUsed * 8000;
+      return creditsUsed * 8_000_000;
     });
   });
 
@@ -159,7 +159,7 @@ describe("tavilyTools", () => {
         supplier: "tavily",
         tool_call: "search_web",
         description: "Tavily API call: search_web - actual cost (free tier)",
-        amountMillionthUsd: -8000, // 1 credit * 8000 = 8000, negative for debit
+        amountNanoUsd: -8_000_000, // 1 credit * 8,000,000 = 8,000,000, negative for debit
       });
       expect(result).toContain("Found 1 search result");
       expect(result).toContain("Test Result");
@@ -189,10 +189,10 @@ describe("tavilyTools", () => {
       });
       mockReserveTavilyCredits.mockResolvedValue({
         reservationId: "test-reservation-id",
-        reservedAmount: 8_000,
+        reservedAmount: 8_000_000,
         workspace: {
           pk: "workspaces/test-workspace",
-          creditBalance: 100_000_000,
+          creditBalance: 100_000_000_000,
         },
       });
       mockTavilySearch.mockResolvedValue(searchResponse);
@@ -267,10 +267,10 @@ describe("tavilyTools", () => {
       });
       mockReserveTavilyCredits.mockResolvedValue({
         reservationId: "test-reservation-id",
-        reservedAmount: 8_000,
+        reservedAmount: 8_000_000,
         workspace: {
           pk: "workspaces/test-workspace",
-          creditBalance: 100_000_000,
+          creditBalance: 100_000_000_000,
         },
       });
       mockTavilySearch.mockRejectedValue(apiError);
@@ -443,7 +443,7 @@ describe("tavilyTools", () => {
         supplier: "tavily",
         tool_call: "fetch_url",
         description: "Tavily API call: fetch_url - actual cost (free tier)",
-        amountMillionthUsd: -8000, // 1 credit * 8000 = 8000, negative for debit
+        amountNanoUsd: -8_000_000, // 1 credit * 8,000,000 = 8,000,000, negative for debit
       });
       expect(result).toContain("Test Page");
       expect(result).toContain("This is the extracted content");
@@ -467,10 +467,10 @@ describe("tavilyTools", () => {
       });
       mockReserveTavilyCredits.mockResolvedValue({
         reservationId: "test-reservation-id",
-        reservedAmount: 8_000,
+        reservedAmount: 8_000_000,
         workspace: {
           pk: "workspaces/test-workspace",
-          creditBalance: 100_000_000,
+          creditBalance: 100_000_000_000,
         },
       });
       mockTavilyExtract.mockResolvedValue(extractResponse);
@@ -543,10 +543,10 @@ describe("tavilyTools", () => {
       });
       mockReserveTavilyCredits.mockResolvedValue({
         reservationId: "test-reservation-id",
-        reservedAmount: 8_000,
+        reservedAmount: 8_000_000,
         workspace: {
           pk: "workspaces/test-workspace",
-          creditBalance: 100_000_000,
+          creditBalance: 100_000_000_000,
         },
       });
       mockTavilyExtract.mockRejectedValue(apiError);

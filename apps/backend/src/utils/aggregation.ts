@@ -28,8 +28,8 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   costUsd: number;
-  rerankingCostUsd: number; // Reranking costs in millionths
-  evalCostUsd: number; // Eval judge costs in millionths
+  rerankingCostUsd: number; // Reranking costs in nano-dollars
+  evalCostUsd: number; // Eval judge costs in nano-dollars
   conversationCount: number;
   messagesIn: number; // Number of user messages
   messagesOut: number; // Number of assistant messages
@@ -715,7 +715,7 @@ async function aggregateTransactionsStream(
     // Transaction amounts are stored as negative for debits, positive for credits
     // For cost reporting, we want positive costs, so take absolute value of debits
     // (negative amounts become positive, positive amounts stay positive or are excluded)
-    const rawAmount = txn.amountMillionthUsd || 0;
+    const rawAmount = txn.amountNanoUsd || 0;
     const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
 
     // Debug: Log all transactions to see what we're processing
@@ -744,7 +744,7 @@ async function aggregateTransactionsStream(
         normalizedModelName: modelName,
         costUsd,
         source: txn.source,
-        amountMillionthUsd: rawAmount,
+        amountNanoUsd: rawAmount,
       });
     }
 
@@ -850,7 +850,7 @@ async function aggregateToolTransactionsStream(
 
     // Transaction amounts are stored as negative for debits, positive for credits
     // For cost reporting, we want positive costs, so take absolute value of debits
-    const rawAmount = txn.amountMillionthUsd || 0;
+    const rawAmount = txn.amountNanoUsd || 0;
     const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
     const toolCall = txn.tool_call || "unknown";
     const supplier = txn.supplier || "unknown";

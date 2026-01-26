@@ -2,7 +2,7 @@ import type { ModelMessage } from "ai";
 
 import type { DatabaseSchema } from "../tables/schema";
 
-import { fromMillionths, toMillionths } from "./creditConversions";
+import { fromNanoDollars, toNanoDollars } from "./creditConversions";
 import { InsufficientCreditsError } from "./creditErrors";
 import { searchDocuments, type SearchResult } from "./documentSearch";
 import { rerankSnippets } from "./knowledgeReranking";
@@ -92,29 +92,29 @@ const buildRerankingRequestMessage = (params: {
   };
 };
 
-const resolveRerankingCostMillionths = (params: {
+const resolveRerankingCostNanoDollars = (params: {
   model: string;
   costUsd?: number;
 }): number => {
   if (params.costUsd !== undefined && params.costUsd >= 0) {
-    return toMillionths(params.costUsd);
+    return toNanoDollars(params.costUsd);
   }
 
   const modelPricing = getModelPricing("openrouter", params.model);
   if (modelPricing?.usd?.request !== undefined) {
     const baseCost = modelPricing.usd.request;
     const costWithMarkup = baseCost * 1.055;
-    const costInMillionths = toMillionths(costWithMarkup);
+    const costInNanoDollars = toNanoDollars(costWithMarkup);
     console.log(
       "[knowledgeInjection] Cost not in reranking result, calculated from pricing config:",
       {
         model: params.model,
         requestPrice: modelPricing.usd.request,
         costWithMarkup,
-        costInMillionths,
+        costInNanoDollars,
       }
     );
-    return costInMillionths;
+    return costInNanoDollars;
   }
 
   const message =
@@ -137,13 +137,13 @@ const buildRerankingResultMessage = (params: {
     generationId?: string;
   };
   executionTimeMs: number;
-  costMillionths: number;
+  costNanoDollars: number;
 }): UIMessage => {
   const rerankingResultContent: RerankingResultContent = {
     type: "reranking-result",
     model: params.model,
     documentCount: params.rerankingResult.snippets.length,
-    costUsd: params.costMillionths,
+    costUsd: params.costNanoDollars,
     ...(params.rerankingResult.generationId && {
       generationId: params.rerankingResult.generationId,
     }),
@@ -154,7 +154,7 @@ const buildRerankingResultMessage = (params: {
     })),
   };
 
-  const costDisplay = `$${fromMillionths(params.costMillionths).toFixed(6)}`;
+  const costDisplay = `$${fromNanoDollars(params.costNanoDollars).toFixed(9)}`;
   const resultText = `**Re-ranking Result**\n\n- **Model:** ${params.model}\n- **Cost:** ${costDisplay}\n- **Documents Re-ranked:** ${params.rerankingResult.snippets.length} document${params.rerankingResult.snippets.length !== 1 ? "s" : ""}`;
 
   return {
@@ -184,7 +184,7 @@ const buildRerankingErrorMessage = (params: {
     error: errorMessage,
   };
 
-  const errorText = `**Re-ranking Result (Failed)**\n\n- **Model:** ${params.model}\n- **Cost:** $0.000000\n- **Error:** ${errorMessage}\n- **Action:** Using original document order`;
+  const errorText = `**Re-ranking Result (Failed)**\n\n- **Model:** ${params.model}\n- **Cost:** $0.000000000\n- **Error:** ${errorMessage}\n- **Action:** Using original document order`;
 
   return {
     role: "system",
@@ -451,7 +451,7 @@ const performReranking = async (params: {
       params.workspaceId
     );
     const executionTimeMs = Date.now() - rerankingStartTime;
-    const costMillionths = resolveRerankingCostMillionths({
+    const costNanoDollars = resolveRerankingCostNanoDollars({
       model,
       costUsd: rerankingResult.costUsd,
     });
@@ -460,7 +460,7 @@ const performReranking = async (params: {
       model,
       rerankingResult,
       executionTimeMs,
-      costMillionths,
+      costNanoDollars,
     });
 
     await adjustRerankingCreditsIfNeeded({

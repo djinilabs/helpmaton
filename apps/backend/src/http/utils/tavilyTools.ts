@@ -175,7 +175,7 @@ export function createTavilySearchTool(
             supplier: "tavily",
             tool_call: "search_web",
             description: `Tavily API call: search_web - actual cost (free tier)`,
-            amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+            amountNanoUsd: -actualCost, // Negative for debit (deducting from workspace)
           });
           console.log("[search_web] Created transaction for free tier:", {
             workspaceId,
@@ -441,7 +441,7 @@ export function createTavilyFetchTool(
             supplier: "tavily",
             tool_call: "fetch_url",
             description: `Tavily API call: fetch_url - actual cost (free tier)`,
-            amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+            amountNanoUsd: -actualCost, // Negative for debit (deducting from workspace)
           });
           console.log("[fetch_url] Created transaction for free tier:", {
             workspaceId,
@@ -951,11 +951,11 @@ export function createScrapeFetchTool(
         let resultText = `**Content scraped from ${url}:**\n\n`;
         resultText += `**AOM (Accessibility Object Model) XML:**\n\`\`\`xml\n${xmlContent}\n\`\`\`\n`;
 
-        // Add cost marker (0.005 USD = 5000 millionths) for tracking/display only
+        // Add cost marker (0.005 USD = 5_000_000 nano-dollars) for tracking/display only
         // IMPORTANT: The scrape endpoint already charges credits directly via reserveCredits(),
         // so this marker is ONLY for cost tracking/display in the test endpoint UI.
         // It does NOT cause additional credit deduction - credits are charged once at the endpoint level.
-        resultText += `\n\n__HM_TOOL_COST__:5000`;
+        resultText += `\n\n__HM_TOOL_COST__:5000000`;
 
         // Log tool result
         console.log("[Tool Result] fetch_url (Scrape)", {

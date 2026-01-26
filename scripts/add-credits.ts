@@ -15,7 +15,7 @@ const { database } = await import("../apps/backend/src/tables/index.ts");
 const { creditCredits } = await import(
   "../apps/backend/src/utils/creditManagement.ts"
 );
-const { toMillionths } = await import(
+const { toNanoDollars } = await import(
   "../apps/backend/src/utils/creditConversions.ts"
 );
 
@@ -72,21 +72,21 @@ Examples:
     }
 
     console.log(
-      `📊 Current balance: ${(workspace.creditBalance / 1_000_000).toFixed(
+      `📊 Current balance: ${(workspace.creditBalance / 1_000_000_000).toFixed(
         2
       )} USD`
     );
     console.log(`   Currency: USD\n`);
 
-    // Convert amount from dollars to millionths before passing to creditCredits
-    const amountInMillionths = toMillionths(amount);
+    // Convert amount from dollars to nano-dollars before passing to creditCredits
+    const amountInNanoDollars = toNanoDollars(amount);
 
-    // Add credits (creditCredits expects amount in millionths)
-    const updated = await creditCredits(db, workspaceId, amountInMillionths);
+    // Add credits (creditCredits expects amount in nano-dollars)
+    const updated = await creditCredits(db, workspaceId, amountInNanoDollars);
 
     console.log(`✅ Successfully added ${amount.toFixed(2)} USD credits`);
     console.log(
-      `📊 New balance: ${(updated.creditBalance / 1_000_000).toFixed(2)} USD\n`
+      `📊 New balance: ${(updated.creditBalance / 1_000_000_000).toFixed(2)} USD\n`
     );
   } catch (error) {
     console.error(

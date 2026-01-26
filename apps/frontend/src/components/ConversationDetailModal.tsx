@@ -504,7 +504,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     for (const message of conversationDetail.messages) {
       const messageCost = getMessageCost(message);
       if (messageCost?.costUsd !== undefined) {
-        // costUsd is already in millionths
+        // costUsd is already in nano-dollars
         totalCostMillionths += messageCost.costUsd;
         if (messageCost.isFinal === true) {
           hasFinalCost = true;
@@ -560,13 +560,13 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
       }
     }
     if (conversationDetail?.costUsd !== undefined) {
-      // costUsd is in millionths - assume final if it exists (it's the backend total)
+      // costUsd is in nano-dollars - assume final if it exists (it's the backend total)
       totalMillionths += conversationDetail.costUsd;
       hasAnyCost = true;
       hasFinalCost = true; // Backend total is typically final
     }
     if (conversationDetail?.rerankingCostUsd !== undefined) {
-      // rerankingCostUsd is in millionths - assume final (reranking costs are typically final)
+      // rerankingCostUsd is in nano-dollars - assume final (reranking costs are typically final)
       totalMillionths += conversationDetail.rerankingCostUsd;
       hasAnyCost = true;
       hasFinalCost = true;
@@ -775,11 +775,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   </div>
                   <span
                     className={`inline-flex items-center gap-1 rounded-lg border-2 px-3 py-1 text-sm font-bold ${getCostColor(
-                      totalCost.cost / 1_000_000
+                      totalCost.cost / 1_000_000_000
                     )}`}
                   >
                     <CurrencyDollarIcon className="size-4" />
-                    {formatCurrency(totalCost.cost, "usd", 10)}
+                    {formatCurrency(totalCost.cost, "usd", 12)}
                     {totalCost.isFinal === true && (
                       <span className="ml-1 text-xs">✓</span>
                     )}
@@ -798,11 +798,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     </div>
                     <span
                       className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                        tokenBasedCost.cost / 1_000_000
+                        tokenBasedCost.cost / 1_000_000_000
                       )}`}
                     >
                       <CurrencyDollarIcon className="size-3" />
-                      {formatCurrency(tokenBasedCost.cost, "usd", 10)}
+                      {formatCurrency(tokenBasedCost.cost, "usd", 12)}
                       {tokenBasedCost.isFinal === true && (
                         <span className="ml-1 text-[10px]">✓</span>
                       )}
@@ -820,11 +820,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     </div>
                     <span
                       className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                        conversationDetail.costUsd / 1_000_000
+                        conversationDetail.costUsd / 1_000_000_000
                       )}`}
                     >
                       <CurrencyDollarIcon className="size-3" />
-                      {formatCurrency(conversationDetail.costUsd, "usd", 10)}
+                      {formatCurrency(conversationDetail.costUsd, "usd", 12)}
                       <span className="ml-1 text-[10px]">✓</span>
                     </span>
                   </div>
@@ -838,14 +838,14 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                       </div>
                       <span
                         className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                          conversationDetail.rerankingCostUsd / 1_000_000
+                          conversationDetail.rerankingCostUsd / 1_000_000_000
                         )}`}
                       >
                         <CurrencyDollarIcon className="size-3" />
                         {formatCurrency(
                           conversationDetail.rerankingCostUsd,
                           "usd",
-                          10
+                          12
                         )}
                         <span className="ml-1 text-[10px]">✓</span>
                       </span>

@@ -60,12 +60,12 @@ describe("knowledgeRerankingCredits", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock workspace (creditBalance in millionths)
+    // Setup mock workspace (creditBalance in nano-dollars)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
       name: "Test Workspace",
-      creditBalance: 100_000_000, // 100.0 USD in millionths
+      creditBalance: 100_000_000_000, // 100.0 USD in nano-dollars
       currency: "usd",
       version: 1,
       createdAt: new Date().toISOString(),
@@ -112,7 +112,7 @@ describe("knowledgeRerankingCredits", () => {
     it("should reserve credits with default estimate when no pricing found", async () => {
       const reservation = {
         reservationId: "test-reservation-id",
-        reservedAmount: 10_550, // $0.01 * 1.055 = 10,550 millionths
+        reservedAmount: 10_550_000, // $0.01 * 1.055 = 10,550,000 nano-dollars
         workspace: mockWorkspace,
       };
 
@@ -134,7 +134,7 @@ describe("knowledgeRerankingCredits", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        10_550, // estimatedCost (0.01 * 1_000_000 * 1.055)
+        10_550_000, // estimatedCost (0.01 * 1_000_000_000 * 1.055)
         3, // maxRetries
         false, // usesByok
         mockContext, // context
@@ -154,7 +154,7 @@ describe("knowledgeRerankingCredits", () => {
 
       const reservation = {
         reservationId: "test-reservation-id",
-        reservedAmount: 21_100, // $0.02 * 1.055 = 21,100 millionths
+        reservedAmount: 21_100_000, // $0.02 * 1.055 = 21,100,000 nano-dollars
         workspace: mockWorkspace,
       };
 
@@ -173,7 +173,7 @@ describe("knowledgeRerankingCredits", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        21_100, // estimatedCost (0.02 * 1_000_000 * 1.055)
+        21_100_000, // estimatedCost (0.02 * 1_000_000_000 * 1.055)
         3, // maxRetries
         false, // usesByok
         mockContext, // context
@@ -193,7 +193,7 @@ describe("knowledgeRerankingCredits", () => {
 
       const reservation = {
         reservationId: "test-reservation-id",
-        reservedAmount: 10_550, // Math.max(0.01, 10 * 0.001) * 1.055 = 10,550 millionths
+        reservedAmount: 10_550_000, // Math.max(0.01, 10 * 0.001) * 1.055 = 10,550,000 nano-dollars
         workspace: mockWorkspace,
       };
 
@@ -213,7 +213,7 @@ describe("knowledgeRerankingCredits", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        10_550, // estimatedCost
+        10_550_000, // estimatedCost
         3, // maxRetries
         false, // usesByok
         mockContext, // context
@@ -272,8 +272,8 @@ describe("knowledgeRerankingCredits", () => {
     const mockReservation: CreditReservationRecord = {
       pk: "credit-reservations/test-reservation-id",
       workspaceId: "test-workspace",
-      reservedAmount: 10_550, // $0.01 * 1.055
-      estimatedCost: 10_550,
+      reservedAmount: 10_550_000, // $0.01 * 1.055
+      estimatedCost: 10_550_000,
       currency: "usd",
       expires: Math.floor(Date.now() / 1000) + 15 * 60,
       expiresHour: Math.floor(Date.now() / 1000 / 3600) * 3600,
@@ -287,7 +287,7 @@ describe("knowledgeRerankingCredits", () => {
 
     it("should adjust credits when provisional cost is higher than reserved", async () => {
       const provisionalCostUsd = 0.015; // $0.015
-      const provisionalCost = Math.ceil(0.015 * 1_000_000 * 1.055); // 15,825 millionths
+      const provisionalCost = Math.ceil(0.015 * 1_000_000_000 * 1.055); // 15,825,000 nano-dollars
       const difference = provisionalCost - mockReservation.reservedAmount; // 5,275
 
       await adjustRerankingCreditReservation(
@@ -310,7 +310,7 @@ describe("knowledgeRerankingCredits", () => {
           source: "tool-execution",
           supplier: "openrouter",
           tool_call: "rerank",
-          amountMillionthUsd: -difference, // Negative for additional charge
+          amountNanoUsd: -difference, // Negative for additional charge
         })
       );
 
@@ -323,7 +323,7 @@ describe("knowledgeRerankingCredits", () => {
 
     it("should adjust credits when provisional cost is lower than reserved (refund)", async () => {
       const provisionalCostUsd = 0.005; // $0.005
-      const provisionalCost = Math.ceil(0.005 * 1_000_000 * 1.055); // 5,275 millionths
+      const provisionalCost = Math.ceil(0.005 * 1_000_000_000 * 1.055); // 5,275,000 nano-dollars
       const difference = provisionalCost - mockReservation.reservedAmount; // -5,275
 
       await adjustRerankingCreditReservation(
@@ -338,7 +338,7 @@ describe("knowledgeRerankingCredits", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -difference, // Positive for refund
+          amountNanoUsd: -difference, // Positive for refund
         })
       );
 
@@ -359,7 +359,7 @@ describe("knowledgeRerankingCredits", () => {
 
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
-          amountMillionthUsd: 0, // No adjustment
+          amountNanoUsd: 0, // No adjustment
         })
       );
     });
@@ -393,7 +393,7 @@ describe("knowledgeRerankingCredits", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: expect.any(Number),
+          amountNanoUsd: expect.any(Number),
         })
       );
     });
@@ -410,7 +410,7 @@ describe("knowledgeRerankingCredits", () => {
 
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
-          amountMillionthUsd: 0, // No difference
+          amountNanoUsd: 0, // No difference
         })
       );
     });
@@ -483,8 +483,8 @@ describe("knowledgeRerankingCredits", () => {
     const mockReservation: CreditReservationRecord = {
       pk: "credit-reservations/test-reservation-id",
       workspaceId: "test-workspace",
-      reservedAmount: 10_550,
-      estimatedCost: 10_550,
+      reservedAmount: 10_550_000,
+      estimatedCost: 10_550_000,
       currency: "usd",
       expires: Math.floor(Date.now() / 1000) + 15 * 60,
       expiresHour: Math.floor(Date.now() / 1000 / 3600) * 3600,
@@ -516,7 +516,7 @@ describe("knowledgeRerankingCredits", () => {
           supplier: "openrouter",
           tool_call: "rerank",
           description: "Re-ranking API call refund (error occurred)",
-          amountMillionthUsd: 10_550, // Positive for refund
+          amountNanoUsd: 10_550_000, // Positive for refund
         })
       );
 

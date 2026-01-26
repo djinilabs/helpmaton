@@ -2,12 +2,12 @@ import { sendEmail } from "../send-email";
 import { database } from "../tables";
 import { PERMISSION_LEVELS, type WorkspaceRecord } from "../tables/schema";
 
-import { fromMillionths } from "./creditConversions";
+import { fromNanoDollars } from "./creditConversions";
 import { getUserEmailById } from "./subscriptionUtils";
 
-function formatAmount(millionths: number): string {
-  return fromMillionths(millionths)
-    .toFixed(10)
+function formatAmount(nanoDollars: number): string {
+  return fromNanoDollars(nanoDollars)
+    .toFixed(12)
     .replace(/\.?0+$/, "");
 }
 
@@ -36,14 +36,14 @@ export async function getWorkspaceOwnerEmails(
 
 export async function sendWorkspaceCreditNotifications({
   workspace,
-  amountInMillionths,
+  amountInNanoDollars,
   oldBalance,
   newBalance,
   currency,
   trialRequestId,
 }: {
   workspace: WorkspaceRecord;
-  amountInMillionths: number;
+  amountInNanoDollars: number;
   oldBalance: number;
   newBalance: number;
   currency: string;
@@ -60,7 +60,7 @@ export async function sendWorkspaceCreditNotifications({
     return;
   }
 
-  const amountDisplay = formatAmount(amountInMillionths);
+  const amountDisplay = formatAmount(amountInNanoDollars);
   const oldBalanceDisplay = formatAmount(oldBalance);
   const newBalanceDisplay = formatAmount(newBalance);
   const currencyDisplay = currency.toUpperCase();

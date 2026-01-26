@@ -5,7 +5,7 @@ import type { ConversationDetail } from "./api";
  */
 export interface MessageCostResult {
   /**
-   * For assistant messages: The best available cost in millionths
+   * For assistant messages: The best available cost in nano-dollars
    * For tool messages: undefined (use toolCosts array instead)
    */
   costUsd?: number;

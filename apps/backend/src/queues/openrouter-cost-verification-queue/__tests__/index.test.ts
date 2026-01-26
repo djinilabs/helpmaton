@@ -146,7 +146,7 @@ describe("openrouter-cost-verification-queue", () => {
       startedAt: new Date().toISOString(),
       lastMessageAt: new Date().toISOString(),
       expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-      costUsd: 1000, // Initial cost in millionths
+      costUsd: 1_000_000, // Initial cost in nano-dollars
     };
 
     // Setup mock database
@@ -180,8 +180,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 1, // Will default to 1 if not set
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -247,11 +247,11 @@ describe("openrouter-cost-verification-queue", () => {
         })
       );
 
-      // Verify finalizeCreditReservation was called with correct cost (0.001 * 1_000_000 * 1.055 = 1055 millionths)
+      // Verify finalizeCreditReservation was called with correct cost (0.001 * 1_000_000_000 * 1.055 = 1_055_000 nano-dollars)
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "res-1",
-        1055, // Math.ceil(0.001 * 1_000_000 * 1.055) = 1055
+        1_055_000, // Math.ceil(0.001 * 1_000_000_000 * 1.055) = 1_055_000
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
@@ -274,8 +274,8 @@ describe("openrouter-cost-verification-queue", () => {
       );
 
       expect(assistantMessage).toBeDefined();
-      expect(assistantMessage).toHaveProperty("finalCostUsd", 1055);
-      expect(updated.costUsd).toBe(1055); // Conversation cost should be updated
+      expect(assistantMessage).toHaveProperty("finalCostUsd", 1_055_000);
+      expect(updated.costUsd).toBe(1_055_000); // Conversation cost should be updated
     });
 
     it("should apply 5.5% markup to OpenRouter cost", async () => {
@@ -287,8 +287,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 1, // Will default to 1 if not set
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -339,11 +339,11 @@ describe("openrouter-cost-verification-queue", () => {
 
       await handler({ Records: [record] });
 
-      // Verify markup was applied: 0.01 * 1_000_000 * 1.055 = 10,550 millionths
+      // Verify markup was applied: 0.01 * 1_000_000_000 * 1.055 = 10,550,000 nano-dollars
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "res-1",
-        10550,
+        10_550_000,
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
@@ -472,8 +472,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 1, // Will default to 1 if not set
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -708,7 +708,7 @@ describe("openrouter-cost-verification-queue", () => {
             modelName: "openrouter/auto",
             provider: "openrouter",
             openrouterGenerationId: "gen-11111",
-            finalCostUsd: 2000, // Already has finalCostUsd
+            finalCostUsd: 2_000_000, // Already has finalCostUsd
           },
           {
             role: "assistant",
@@ -731,7 +731,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: true,
         json: async () => ({
           data: {
-            total_cost: 0.001, // Will become 1055 millionths with markup
+            total_cost: 0.001, // Will become 1_055_000 nano-dollars with markup
           },
         }),
       });
@@ -765,7 +765,7 @@ describe("openrouter-cost-verification-queue", () => {
       const updaterCall = mockAtomicUpdate.mock.calls[0][2];
       const updated = await updaterCall(conversationWithMultipleMessages);
 
-      expect(updated.costUsd).toBe(3055); // 2000 + 1055
+      expect(updated.costUsd).toBe(3_055_000); // 2_000_000 + 1_055_000
     });
 
     it("should update tool-result cost when generation ID matches", async () => {
@@ -801,8 +801,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 1,
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGet.mockResolvedValueOnce(conversationWithToolResult);
@@ -823,7 +823,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: true,
         json: async () => ({
           data: {
-            total_cost: 0.001, // Will become 1055 millionths with markup
+            total_cost: 0.001, // Will become 1_055_000 nano-dollars with markup
           },
         }),
       });
@@ -864,14 +864,14 @@ describe("openrouter-cost-verification-queue", () => {
           )
         : undefined;
 
-      expect(toolResult && "costUsd" in toolResult ? toolResult.costUsd : undefined).toBe(1055);
-      expect(updated.costUsd).toBe(1055);
+      expect(toolResult && "costUsd" in toolResult ? toolResult.costUsd : undefined).toBe(1_055_000);
+      expect(updated.costUsd).toBe(1_055_000);
     });
 
     it("should use actual cost from OpenRouter API, not transaction/refund amount", async () => {
       // This test verifies that finalCostUsd uses the actual cost, not the transaction amount
-      // Scenario: OpenRouter cost is 1000, token usage cost is 1200
-      // The transaction amount would be 200 (refund), but finalCostUsd should be 1000 (actual cost)
+      // Scenario: OpenRouter cost is 1_000_000, token usage cost is 1_200_000
+      // The transaction amount would be 200_000 (refund), but finalCostUsd should be 1_000_000 (actual cost)
       
       const mockReservation = {
         pk: "credit-reservations/res-1",
@@ -880,8 +880,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 1,
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 1200, // Token usage cost is higher than OpenRouter cost
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 1_200_000_000, // Token usage cost is higher than OpenRouter cost
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -897,12 +897,12 @@ describe("openrouter-cost-verification-queue", () => {
         }
       );
 
-      // Mock OpenRouter API to return cost of 0.001 (1000 millionths with markup = 1055)
+      // Mock OpenRouter API to return cost of 0.001 (1_000_000 nano-dollars with markup = 1_055_000)
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           data: {
-            total_cost: 0.001, // $0.001 USD = 1000 millionths base, 1055 with markup
+            total_cost: 0.001, // $0.001 USD = 1_000_000 nano-dollars base, 1_055_000 with markup
           },
         }),
       });
@@ -951,11 +951,11 @@ describe("openrouter-cost-verification-queue", () => {
 
       await handler({ Records: [record] });
 
-      // Verify finalizeCreditReservation was called with actual cost (1055), not transaction amount
+      // Verify finalizeCreditReservation was called with actual cost (1_055_000), not transaction amount
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         expect.anything(),
         "res-1",
-        1055, // Actual cost from OpenRouter API (with markup), NOT the transaction amount
+        1_055_000, // Actual cost from OpenRouter API (with markup), NOT the transaction amount
         expect.anything(),
         3
       );
@@ -970,11 +970,11 @@ describe("openrouter-cost-verification-queue", () => {
       );
 
       expect(assistantMessage).toBeDefined();
-      // finalCostUsd should be the actual cost (1055), NOT the transaction amount (200 refund)
-      // Transaction amount would be: -(1055 - 1200) = 145 (refund)
-      // But finalCostUsd must be the actual cost: 1055
-      expect(assistantMessage).toHaveProperty("finalCostUsd", 1055);
-      expect(updated.costUsd).toBe(1055);
+      // finalCostUsd should be the actual cost (1_055_000), NOT the transaction amount (200,000 refund)
+      // Transaction amount would be: -(1_055_000 - 1_200_000) = 145_000 (refund)
+      // But finalCostUsd must be the actual cost: 1_055_000
+      expect(assistantMessage).toHaveProperty("finalCostUsd", 1_055_000);
+      expect(updated.costUsd).toBe(1_055_000);
     });
 
     it("should handle backward compatibility with old API format (top-level cost)", async () => {
@@ -986,8 +986,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 1, // Will default to 1 if not set
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -1034,12 +1034,12 @@ describe("openrouter-cost-verification-queue", () => {
 
       await handler({ Records: [record] });
 
-      // Verify finalizeCreditReservation was called with correct cost (0.002 * 1_000_000 * 1.055 = 2110 millionths)
+      // Verify finalizeCreditReservation was called with correct cost (0.002 * 1_000_000_000 * 1.055 = 2_110_000 nano-dollars)
       // With transaction system, context is now required
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "res-1",
-        2110, // Math.ceil(0.002 * 1_000_000 * 1.055) = 2110
+        2_110_000, // Math.ceil(0.002 * 1_000_000_000 * 1.055) = 2_110_000
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
@@ -1087,8 +1087,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 3,
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -1190,14 +1190,14 @@ describe("openrouter-cost-verification-queue", () => {
 
       // Now all should be verified and finalized
       // Total cost: Each cost has markup applied individually, then summed:
-      // Cost 1: Math.ceil(0.001 * 1_000_000 * 1.055) = 1,055
-      // Cost 2: Math.ceil(0.002 * 1_000_000 * 1.055) = 2,110
-      // Cost 3: Math.ceil(0.0015 * 1_000_000 * 1.055) = 1,583
-      // Total: 1,055 + 2,110 + 1,583 = 4,748
+      // Cost 1: Math.ceil(0.001 * 1_000_000_000 * 1.055) = 1_055_000
+      // Cost 2: Math.ceil(0.002 * 1_000_000_000 * 1.055) = 2_110_000
+      // Cost 3: Math.ceil(0.0015 * 1_000_000_000 * 1.055) = 1_582_500
+      // Total: 1_055_000 + 2_110_000 + 1_582_500 = 4_747_500
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "res-1",
-        4748, // Sum of individually marked-up costs
+        4_747_500, // Sum of individually marked-up costs
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
@@ -1212,9 +1212,9 @@ describe("openrouter-cost-verification-queue", () => {
         openrouterGenerationIds: ["gen-12345", "gen-67890"],
         expectedGenerationCount: 2,
         verifiedGenerationIds: ["gen-12345"], // Already verified
-        verifiedCosts: [1055], // Already has cost
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        verifiedCosts: [1_055_000], // Already has cost
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -1262,7 +1262,7 @@ describe("openrouter-cost-verification-queue", () => {
       const updaterCall = mockAtomicUpdateReservation.mock.calls[0][2];
       const updated = await updaterCall(mockReservation);
       expect(updated.verifiedGenerationIds).toEqual(["gen-12345"]); // Unchanged
-      expect(updated.verifiedCosts).toEqual([1055]); // Unchanged
+      expect(updated.verifiedCosts).toEqual([1_055_000]); // Unchanged
     });
 
     it("should handle out-of-order generation verification", async () => {
@@ -1273,8 +1273,8 @@ describe("openrouter-cost-verification-queue", () => {
         expectedGenerationCount: 3,
         verifiedGenerationIds: [],
         verifiedCosts: [],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -1365,14 +1365,14 @@ describe("openrouter-cost-verification-queue", () => {
 
       // Now all should be verified and finalized
       // Total cost: Each cost has markup applied individually, then summed:
-      // Cost 1 (gen-1): Math.ceil(0.0008 * 1_000_000 * 1.055) = 844
-      // Cost 2 (gen-2): Math.ceil(0.001 * 1_000_000 * 1.055) = 1,055
-      // Cost 3 (gen-3): Math.ceil(0.0015 * 1_000_000 * 1.055) = 1,583
-      // Total: 844 + 1,055 + 1,583 = 3,482
+      // Cost 1 (gen-1): Math.ceil(0.0008 * 1_000_000_000 * 1.055) = 844_000
+      // Cost 2 (gen-2): Math.ceil(0.001 * 1_000_000_000 * 1.055) = 1_055_000
+      // Cost 3 (gen-3): Math.ceil(0.0015 * 1_000_000_000 * 1.055) = 1_582_500
+      // Total: 844_000 + 1_055_000 + 1_582_500 = 3_481_500
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "res-1",
-        3482, // Sum of individually marked-up costs
+        3_481_500, // Sum of individually marked-up costs
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
@@ -1387,9 +1387,9 @@ describe("openrouter-cost-verification-queue", () => {
         openrouterGenerationIds: ["gen-1", "gen-2", "gen-3"],
         expectedGenerationCount: 3,
         verifiedGenerationIds: ["gen-1", "gen-2"], // Only 2 verified
-        verifiedCosts: [1055, 1055],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        verifiedCosts: [1_055_000, 1_055_000],
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
@@ -1441,9 +1441,9 @@ describe("openrouter-cost-verification-queue", () => {
         openrouterGenerationIds: ["gen-1", "gen-2"],
         expectedGenerationCount: 2,
         verifiedGenerationIds: ["gen-1"], // Only one verified so far
-        verifiedCosts: [1055],
-        reservedAmount: 5000,
-        tokenUsageBasedCost: 4000,
+        verifiedCosts: [1_055_000],
+        reservedAmount: 5_000_000_000,
+        tokenUsageBasedCost: 4_000_000_000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);

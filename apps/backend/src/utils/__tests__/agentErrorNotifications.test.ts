@@ -105,8 +105,8 @@ describe("sendAgentErrorNotification", () => {
     it("should send email for credit error when no previous email sent", async () => {
       const error = new InsufficientCreditsError(
         workspaceId,
-        1000000, // 1 USD in millionths
-        500000, // 0.5 USD in millionths
+        1_000_000_000, // 1 USD in nano-dollars
+        500_000_000, // 0.5 USD in nano-dollars
         "usd"
       );
 

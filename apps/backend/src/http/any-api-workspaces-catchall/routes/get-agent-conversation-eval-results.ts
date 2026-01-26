@@ -185,7 +185,7 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
               errorDetails: result.errorDetails,
               costUsd:
                 typeof result.costUsd === "number"
-                  ? result.costUsd / 1_000_000
+                  ? result.costUsd / 1_000_000_000
                   : null,
               evaluatedAt: result.evaluatedAt,
             };

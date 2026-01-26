@@ -5,7 +5,7 @@ import { queues } from "@architect/functions";
 import type { DatabaseSchema, WorkspaceRecord } from "../tables/schema";
 
 import type { TokenUsage } from "./conversationLogger";
-import { formatCurrencyMillionths } from "./creditConversions";
+import { formatCurrencyNanoDollars } from "./creditConversions";
 import { CreditDeductionError, InsufficientCreditsError } from "./creditErrors";
 import { calculateTokenCost } from "./pricing";
 import { Sentry, ensureError } from "./sentry";
@@ -240,7 +240,7 @@ export async function reserveCredits(
           );
         }
 
-        // Calculate new balance (all values in millionths, so simple subtraction)
+        // Calculate new balance (all values in nano-dollars, so simple subtraction)
         const newBalance = current.creditBalance - estimatedCost;
 
         console.log("[reserveCredits] Reserving credits:", {
@@ -311,7 +311,7 @@ export async function reserveCredits(
           effectiveProvider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
         model: effectiveModel,
         description: "Initial credit reservation (Step 1)",
-        amountMillionthUsd: -estimatedCost, // Negative for debit (deducting from workspace)
+        amountNanoUsd: -estimatedCost, // Negative for debit (deducting from workspace)
       });
     } else if (context && provider === "tavily") {
       console.log(
@@ -500,13 +500,13 @@ export async function adjustCreditReservation(
   const effectiveConversationId = conversationId || reservation.conversationId;
 
   // Format costs for description
-  const calculatedCostFormatted = formatCurrencyMillionths(
+  const calculatedCostFormatted = formatCurrencyNanoDollars(
     validatedTokenUsageCost
   );
-  const reservedAmountFormatted = formatCurrencyMillionths(
+  const reservedAmountFormatted = formatCurrencyNanoDollars(
     reservation.reservedAmount
   );
-  const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
+  const differenceFormatted = formatCurrencyNanoDollars(Math.abs(difference));
   const action = difference > 0 ? "additional charge" : "refund";
 
   // Create transaction in memory
@@ -518,7 +518,7 @@ export async function adjustCreditReservation(
     supplier: provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
     model: modelName,
     description: `Adjust credit reservation (Step 2): calculated cost ${calculatedCostFormatted}, reserved ${reservedAmountFormatted}, ${action} ${differenceFormatted} based on token usage`,
-    amountMillionthUsd: transactionAmount,
+    amountNanoUsd: transactionAmount,
   });
 
   try {
@@ -707,7 +707,7 @@ export async function refundReservation(
 
   const formatAmount = (amount: number | undefined) =>
     amount !== undefined
-      ? `${formatCurrencyMillionths(amount)} (${amount})`
+      ? `${formatCurrencyNanoDollars(amount)} (${amount})`
       : "unknown";
 
   const descriptionParts = [
@@ -737,7 +737,7 @@ export async function refundReservation(
       reservation.provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter
     model: reservation.modelName,
     description: `Refund reserved credits: ${descriptionParts.join(", ")}`,
-    amountMillionthUsd: transactionAmount,
+    amountNanoUsd: transactionAmount,
   });
 
   try {
@@ -853,7 +853,7 @@ export async function debitCredits(
         });
 
         // Update credit balance (negative balances are allowed)
-        // All values in millionths, so simple subtraction
+        // All values in nano-dollars, so simple subtraction
         const newBalance = current.creditBalance - validatedActualCost;
 
         console.log("[debitCredits] Deducting credits:", {
@@ -905,7 +905,7 @@ export async function debitCredits(
  *
  * @param db - Database instance
  * @param reservationId - Reservation ID
- * @param openrouterCost - Cost from OpenRouter API in millionths
+ * @param openrouterCost - Cost from OpenRouter API in nano-dollars
  * @param context - Augmented Lambda context for transaction creation
  * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
  * @returns Updated workspace record (fetched after transaction creation)
@@ -989,10 +989,10 @@ export async function finalizeCreditReservation(
     );
 
     // Format costs for description
-    const openrouterCostFormatted = formatCurrencyMillionths(
+    const openrouterCostFormatted = formatCurrencyNanoDollars(
       validatedOpenrouterCost
     );
-    const differenceFormatted = formatCurrencyMillionths(
+    const differenceFormatted = formatCurrencyNanoDollars(
       Math.abs(rawDifferenceNoToken)
     );
     const action = rawDifferenceNoToken > 0 ? "additional charge" : "refund";
@@ -1004,7 +1004,7 @@ export async function finalizeCreditReservation(
       supplier: "openrouter",
       model: reservation.modelName,
       description: `Finalize credit reservation (Step 3): OpenRouter cost ${openrouterCostFormatted}, ${action} ${differenceFormatted} (no token usage cost)`,
-      amountMillionthUsd: transactionAmount,
+      amountNanoUsd: transactionAmount,
     });
 
     await db["credit-reservations"].delete(reservationPk);
@@ -1050,11 +1050,11 @@ export async function finalizeCreditReservation(
   );
 
   // Format costs for description
-  const openrouterCostFormatted = formatCurrencyMillionths(
+  const openrouterCostFormatted = formatCurrencyNanoDollars(
     validatedOpenrouterCost
   );
-  const tokenUsageCostFormatted = formatCurrencyMillionths(tokenUsageBasedCost);
-  const differenceFormatted = formatCurrencyMillionths(Math.abs(rawDifference));
+  const tokenUsageCostFormatted = formatCurrencyNanoDollars(tokenUsageBasedCost);
+  const differenceFormatted = formatCurrencyNanoDollars(Math.abs(rawDifference));
   const action = rawDifference > 0 ? "additional charge" : "refund";
 
   // Create transaction in memory
@@ -1066,7 +1066,7 @@ export async function finalizeCreditReservation(
     supplier: "openrouter",
     model: reservation.modelName,
     description: `Finalize credit reservation (Step 3): OpenRouter cost ${openrouterCostFormatted}, token usage cost ${tokenUsageCostFormatted}, ${action} ${differenceFormatted}`,
-    amountMillionthUsd: transactionAmount,
+    amountNanoUsd: transactionAmount,
   });
 
   try {
@@ -1145,7 +1145,7 @@ export async function creditCredits(
         throw new Error(`Workspace ${workspaceId} not found`);
       }
 
-      // Update credit balance (all values in millionths, so simple addition)
+      // Update credit balance (all values in nano-dollars, so simple addition)
       const newBalance = current.creditBalance + amount;
 
       console.log("[creditCredits] Adding credits:", {

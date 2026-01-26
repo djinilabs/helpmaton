@@ -125,11 +125,11 @@ Reasoning tokens are handled specially:
 
 ### Rounding
 
-All costs are rounded to **6 decimal places** to avoid floating point precision issues:
+All costs are rounded to **9 decimal places** to avoid floating point precision issues:
 
 ```typescript
 totalCost =
-  Math.round((inputCost + outputCost + reasoningCost) * 1_000_000) / 1_000_000;
+  Math.round((inputCost + outputCost + reasoningCost) * 1_000_000_000) / 1_000_000_000;
 ```
 
 ## Currency Support

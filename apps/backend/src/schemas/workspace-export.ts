@@ -118,7 +118,7 @@ const referenceString = z
  * ```json
  * {
  *   "timeFrame": "daily",
- *   "amount": 1000000  // $1.00 USD (1,000,000 millionths)
+ *   "amount": 1000000000  // $1.00 USD (1,000,000,000 nano-dollars)
  * }
  * ```
  */
@@ -130,7 +130,7 @@ const spendingLimitSchema = z
     amount: z
       .number()
       .int()
-      .describe("Spending limit amount in millionths of USD (e.g., 1000000 = $1.00)"),
+      .describe("Spending limit amount in nano-dollars of USD (e.g., 1000000000 = $1.00)"),
   })
   .describe("Spending limit configuration");
 

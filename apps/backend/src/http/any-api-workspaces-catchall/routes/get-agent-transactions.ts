@@ -78,11 +78,11 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *                         nullable: true
  *                       description:
  *                         type: string
- *                       amountMillionthUsd:
+ *                       amountNanoUsd:
  *                         type: integer
- *                       workspaceCreditsBeforeMillionthUsd:
+ *                       workspaceCreditsBeforeNanoUsd:
  *                         type: integer
- *                       workspaceCreditsAfterMillionthUsd:
+ *                       workspaceCreditsAfterNanoUsd:
  *                         type: integer
  *                       createdAt:
  *                         type: string
@@ -174,10 +174,10 @@ export const registerGetAgentTransactions = (app: express.Application) => {
           model: t.model || null,
           tool_call: t.tool_call || null,
           description: t.description,
-          amountMillionthUsd: t.amountMillionthUsd,
-          workspaceCreditsBeforeMillionthUsd:
-            t.workspaceCreditsBeforeMillionthUsd,
-          workspaceCreditsAfterMillionthUsd: t.workspaceCreditsAfterMillionthUsd,
+          amountNanoUsd: t.amountNanoUsd,
+          workspaceCreditsBeforeNanoUsd:
+            t.workspaceCreditsBeforeNanoUsd,
+          workspaceCreditsAfterNanoUsd: t.workspaceCreditsAfterNanoUsd,
           createdAt: t.createdAt,
         };
       });

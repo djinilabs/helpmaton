@@ -109,9 +109,9 @@ describe("Complex Billing Scenarios", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    workspaceBalance = 1_000_000_000; // 1000.0 USD in millionths
+    workspaceBalance = 1_000_000_000_000; // 1000.0 USD in nano-dollars
 
-    // Setup mock workspace (creditBalance in millionths)
+    // Setup mock workspace (creditBalance in nano-dollars)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
@@ -187,25 +187,25 @@ describe("Complex Billing Scenarios", () => {
 
     mockDatabase.mockResolvedValue(mockDb);
 
-    // Setup default pricing mock (returns millionths)
-    mockCalculateTokenCost.mockReturnValue(10_000); // 0.01 USD in millionths
+    // Setup default pricing mock (returns nano-dollars)
+    mockCalculateTokenCost.mockReturnValue(10_000_000); // 0.01 USD in nano-dollars
 
     // Setup tool credit mocks
     mockReserveExaCredits.mockResolvedValue({
       reservationId: "exa-res-1",
-      reservedAmount: 10_000, // $0.01
+      reservedAmount: 10_000_000, // $0.01
       workspace: mockWorkspace,
     });
 
     mockReserveTavilyCredits.mockResolvedValue({
       reservationId: "tavily-res-1",
-      reservedAmount: 8_000, // $0.008
+      reservedAmount: 8_000_000, // $0.008
       workspace: mockWorkspace,
     });
 
     mockReserveRerankingCredits.mockResolvedValue({
       reservationId: "reranking-res-1",
-      reservedAmount: 5_000, // $0.005
+      reservedAmount: 5_000_000, // $0.005
       workspace: mockWorkspace,
     });
   });
@@ -217,7 +217,7 @@ describe("Complex Billing Scenarios", () => {
       const conversationId = "test-conversation";
 
       // Step 1: Reserve credits for LLM call (multiple generations expected)
-      const llmEstimatedCost = 50_000; // $0.05
+      const llmEstimatedCost = 50_000_000; // $0.05
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -232,7 +232,7 @@ describe("Complex Billing Scenarios", () => {
       );
 
       expect(llmReservation.reservationId).toBeDefined();
-      expect(workspaceBalance).toBe(1_000_000_000 - llmEstimatedCost);
+      expect(workspaceBalance).toBe(1_000_000_000_000 - llmEstimatedCost);
 
       // Step 2: Reserve credits for Exa tool call
       // Note: mockReserveExaCredits is a mocked function that doesn't call mockAtomicUpdate,
@@ -267,7 +267,7 @@ describe("Complex Billing Scenarios", () => {
       workspaceBalance -= tavilyReservation.reservedAmount;
 
       // Step 4: Reserve credits for Scraper tool call (uses reserveCredits directly)
-      const scraperCost = 5_000; // $0.005
+      const scraperCost = 5_000_000; // $0.005
       const scraperReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -305,7 +305,7 @@ describe("Complex Billing Scenarios", () => {
         totalTokens: 1500,
       };
 
-      mockCalculateTokenCost.mockReturnValue(45_000); // Actual cost: $0.045
+      mockCalculateTokenCost.mockReturnValue(45_000_000); // Actual cost: $0.045
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const llmReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${llmReservation.reservationId}`,
@@ -341,11 +341,11 @@ describe("Complex Billing Scenarios", () => {
         conversationId
       );
 
-      // Should refund difference: 50_000 - 45_000 = 5_000
-      // Balance should increase by 5_000
+      // Should refund difference: 50_000_000 - 45_000_000 = 5_000_000
+      // Balance should increase by 5_000_000
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
-          amountMillionthUsd: 5_000, // Positive = refund
+          amountNanoUsd: 5_000_000, // Positive = refund
         })
       );
 
@@ -409,7 +409,7 @@ describe("Complex Billing Scenarios", () => {
       const conversationId = "test-conversation";
 
       // Create LLM reservation with multiple generations
-      const llmEstimatedCost = 50_000;
+      const llmEstimatedCost = 50_000_000;
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -423,14 +423,14 @@ describe("Complex Billing Scenarios", () => {
         conversationId
       );
 
-      mockCalculateTokenCost.mockReturnValue(45_000);
+      mockCalculateTokenCost.mockReturnValue(45_000_000);
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const llmReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${llmReservation.reservationId}`,
         workspaceId,
         reservedAmount: llmEstimatedCost,
         estimatedCost: llmEstimatedCost,
-        tokenUsageBasedCost: 45_000,
+        tokenUsageBasedCost: 45_000_000,
         currency: "usd",
         expires,
         expiresHour: Math.floor(expires / 3600) * 3600,
@@ -450,7 +450,7 @@ describe("Complex Billing Scenarios", () => {
 
       // Finalize with OpenRouter costs (Step 3)
       // Costs: $0.022 for first generation, $0.023 for second generation
-      const totalOpenrouterCost = 47_500; // $0.0475 total (with markup)
+      const totalOpenrouterCost = 47_500_000; // $0.0475 total (with markup)
 
       // Simulate finalization after both generations verified
       const finalReservation: CreditReservationRecord = {
@@ -471,10 +471,10 @@ describe("Complex Billing Scenarios", () => {
         3
       );
 
-      // Should adjust: 47_500 (OpenRouter) - 45_000 (token-based) = 2_500 additional charge
+      // Should adjust: 47_500_000 (OpenRouter) - 45_000_000 (token-based) = 2_500_000 additional charge
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
-          amountMillionthUsd: -2_500, // Negative = additional charge
+          amountNanoUsd: -2_500_000, // Negative = additional charge
         })
       );
     });
@@ -488,10 +488,10 @@ describe("Complex Billing Scenarios", () => {
 
       // Simulate concurrent tool calls
       const toolCalls = [
-        { type: "exa", cost: 10_000 },
-        { type: "tavily", cost: 8_000 },
-        { type: "scraper", cost: 5_000 },
-        { type: "exa", cost: 10_000 }, // Second Exa call
+        { type: "exa", cost: 10_000_000 },
+        { type: "tavily", cost: 8_000_000 },
+        { type: "scraper", cost: 5_000_000 },
+        { type: "exa", cost: 10_000_000 }, // Second Exa call
       ];
 
       const reservations: string[] = [];
@@ -621,7 +621,7 @@ describe("Complex Billing Scenarios", () => {
       );
 
       // Turn 2: LLM call + Tavily tool + Reranking
-      const turn2LLMCost = 40_000;
+      const turn2LLMCost = 40_000_000;
       const turn2LLMReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -654,7 +654,7 @@ describe("Complex Billing Scenarios", () => {
       );
 
       // Turn 3: LLM call only
-      const turn3LLMCost = 25_000;
+      const turn3LLMCost = 25_000_000;
       const turn3LLMReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -691,7 +691,7 @@ describe("Complex Billing Scenarios", () => {
       const conversationId = "test-conversation";
 
       // Reserve credits for LLM call
-      const llmCost = 50_000;
+      const llmCost = 50_000_000;
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -741,7 +741,7 @@ describe("Complex Billing Scenarios", () => {
         totalTokens: 1500,
       };
 
-      mockCalculateTokenCost.mockReturnValue(45_000);
+      mockCalculateTokenCost.mockReturnValue(45_000_000);
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const llmReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${llmReservation.reservationId}`,
@@ -791,10 +791,10 @@ describe("Complex Billing Scenarios", () => {
       );
 
       // Verify final balance: initial - llmCost - tavilyCost + exaRefund
-      // LLM: 50_000 reserved, 45_000 actual = 5_000 refund
-      // Exa: 10_000 reserved, fully refunded
-      // Tavily: 8_000 reserved, 8_000 actual = no change
-      // Expected final balance: initialBalance - 45_000 - 8_000 (only successful operations charged)
+      // LLM: 50_000_000 reserved, 45_000_000 actual = 5_000_000 refund
+      // Exa: 10_000_000 reserved, fully refunded
+      // Tavily: 8_000_000 reserved, 8_000_000 actual = no change
+      // Expected final balance: initialBalance - 45_000_000 - 8_000_000 (only successful operations charged)
 
       // Note: The actual balance tracking in this test is simplified
       // In real implementation, transactions are committed atomically
@@ -807,7 +807,7 @@ describe("Complex Billing Scenarios", () => {
       const conversationId = "test-conversation";
 
       // Reserve credits for LLM call
-      const llmCost = 50_000;
+      const llmCost = 50_000_000;
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -912,14 +912,14 @@ describe("Complex Billing Scenarios", () => {
         totalTokens: 2250,
       };
 
-      mockCalculateTokenCost.mockReturnValue(55_000);
+      mockCalculateTokenCost.mockReturnValue(55_000_000);
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const llmReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${llmReservation.reservationId}`,
         workspaceId,
         reservedAmount: llmCost,
         estimatedCost: llmCost,
-        tokenUsageBasedCost: 55_000,
+        tokenUsageBasedCost: 55_000_000,
         currency: "usd",
         expires,
         expiresHour: Math.floor(expires / 3600) * 3600,
@@ -972,7 +972,7 @@ describe("Complex Billing Scenarios", () => {
       const conversationId = "test-conversation";
 
       // Create reservation expecting 2 generations
-      const llmCost = 40_000;
+      const llmCost = 40_000_000;
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -993,14 +993,14 @@ describe("Complex Billing Scenarios", () => {
         totalTokens: 1500,
       };
 
-      mockCalculateTokenCost.mockReturnValue(35_000);
+      mockCalculateTokenCost.mockReturnValue(35_000_000);
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const llmReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${llmReservation.reservationId}`,
         workspaceId,
         reservedAmount: llmCost,
         estimatedCost: llmCost,
-        tokenUsageBasedCost: 35_000,
+        tokenUsageBasedCost: 35_000_000,
         currency: "usd",
         expires,
         expiresHour: Math.floor(expires / 3600) * 3600,
@@ -1048,7 +1048,7 @@ describe("Complex Billing Scenarios", () => {
       const initialBalance = workspaceBalance;
 
       // Scraper uses reserveCredits directly with fixed cost
-      const scraperCost = 5_000; // $0.005
+      const scraperCost = 5_000_000; // $0.005
       const scraperReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -1104,7 +1104,7 @@ describe("Complex Billing Scenarios", () => {
       const conversationId = "test-conversation";
 
       // Reserve credits for scraper
-      const scraperCost = 5_000;
+      const scraperCost = 5_000_000;
       const scraperReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -1150,7 +1150,7 @@ describe("Complex Billing Scenarios", () => {
       );
       expect(mockContext.addWorkspaceCreditTransaction).not.toHaveBeenCalledWith(
         expect.objectContaining({
-          amountMillionthUsd: scraperCost,
+          amountNanoUsd: scraperCost,
         })
       );
     });
@@ -1165,12 +1165,12 @@ describe("Complex Billing Scenarios", () => {
       const trackingContext: AugmentedContext = {
         ...mockContext,
         addWorkspaceCreditTransaction: vi.fn((transaction) => {
-          workspaceBalance += transaction.amountMillionthUsd;
+          workspaceBalance += transaction.amountNanoUsd;
         }),
       } as unknown as AugmentedContext;
 
       // LLM reservation
-      const llmEstimatedCost = 50_000;
+      const llmEstimatedCost = 50_000_000;
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -1185,7 +1185,7 @@ describe("Complex Billing Scenarios", () => {
       );
 
       // Scraper reservation
-      const scraperCost = 5_000;
+      const scraperCost = 5_000_000;
       await reserveCredits(
         mockDb,
         workspaceId,
@@ -1217,7 +1217,7 @@ describe("Complex Billing Scenarios", () => {
         completionTokens: 500,
         totalTokens: 1500,
       };
-      mockCalculateTokenCost.mockReturnValue(45_000);
+      mockCalculateTokenCost.mockReturnValue(45_000_000);
 
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       mockReservationGet.mockResolvedValue({
@@ -1256,7 +1256,7 @@ describe("Complex Billing Scenarios", () => {
       // Scraper success: no adjustment for fixed cost
 
       const expectedBalance =
-        1_000_000_000 - llmEstimatedCost - scraperCost - exaReservation.reservedAmount + 5_000;
+        1_000_000_000_000 - llmEstimatedCost - scraperCost - exaReservation.reservedAmount + 5_000_000;
       expect(workspaceBalance).toBe(expectedBalance);
     });
   });

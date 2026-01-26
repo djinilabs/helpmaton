@@ -44,7 +44,7 @@ export const openApiSchemas = {
       },
       creditBalance: {
         type: "integer",
-        description: "Current credit balance in millionths",
+        description: "Current credit balance in nano-dollars",
       },
       currency: {
         type: "string",
@@ -393,7 +393,7 @@ export const openApiSchemas = {
     properties: {
       amount: {
         type: "integer",
-        description: "Limit amount in millionths",
+        description: "Limit amount in nano-dollars",
       },
       currency: {
         type: "string",
@@ -450,15 +450,15 @@ export const openApiSchemas = {
           },
           cost: {
             type: "integer",
-            description: "Total cost in specified currency (millionths)",
+            description: "Total cost in specified currency (nano-dollars)",
           },
           rerankingCostUsd: {
             type: "integer",
-            description: "Reranking costs in USD (millionths)",
+            description: "Reranking costs in USD (nano-dollars)",
           },
           evalCostUsd: {
             type: "integer",
-            description: "Eval judge costs in USD (millionths)",
+            description: "Eval judge costs in USD (nano-dollars)",
           },
           byModel: {
             type: "array",

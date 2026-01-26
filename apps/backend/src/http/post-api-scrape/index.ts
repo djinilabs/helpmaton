@@ -129,12 +129,12 @@ export function createApp(): express.Application {
       const { url } = body;
 
       // --- 2. Credit Reservation ---
-      const scrapeCostMillionthUsd = 5000;
+      const scrapeCostNanoUsd = 5_000_000;
       const db = await database();
       reservation = await reserveCredits(
         db,
         workspaceId,
-        scrapeCostMillionthUsd,
+        scrapeCostNanoUsd,
         3,
         false,
         context,

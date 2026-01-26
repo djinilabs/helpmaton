@@ -598,7 +598,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
         expect.objectContaining({
           workspaceId: "ws-123",
           source: "credit-purchase",
-          amountMillionthUsd: 50000000, // 50.00 USD in millionths (5000 cents * 10_000)
+          amountNanoUsd: 50_000_000_000, // 50.00 USD in nano-dollars (5000 cents * 10_000_000)
           supplier: "openrouter",
           description: expect.stringContaining("Credit purchase from Lemon Squeezy order"),
         })

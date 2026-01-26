@@ -28,7 +28,7 @@ export type WorkspaceCreditTransaction = {
   model?: string; // the model that was used when originated this charge, if any
   tool_call?: string; // the tool call that was used when originating this charge, if any
   description: string;
-  amountMillionthUsd: number; // should be integer
+  amountNanoUsd: number; // should be integer
 };
 
 /**
@@ -54,7 +54,7 @@ export function addTransactionToBuffer(
   transaction: WorkspaceCreditTransaction
 ): void {
   // Discard transactions with zero amount, EXCEPT for tool-execution (we want to track usage even if cost is 0)
-  if (transaction.amountMillionthUsd === 0 && transaction.source !== "tool-execution") {
+  if (transaction.amountNanoUsd === 0 && transaction.source !== "tool-execution") {
     return;
   }
 
@@ -141,7 +141,7 @@ export async function commitTransactions(
   }>();
 
   for (const [workspaceId, transactions] of buffer.entries()) {
-    const totalAmount = transactions.reduce((sum, t) => sum + t.amountMillionthUsd, 0);
+    const totalAmount = transactions.reduce((sum, t) => sum + t.amountNanoUsd, 0);
     workspaceTransactions.set(workspaceId, {
       totalAmount,
       transactions,
@@ -273,7 +273,7 @@ export async function commitTransactions(
         const balanceBefore = runningBalance;
         
         // Apply transaction amount to get balance after
-        const balanceAfter = runningBalance + transaction.amountMillionthUsd;
+        const balanceAfter = runningBalance + transaction.amountNanoUsd;
         
         // Update running balance for next transaction
         runningBalance = balanceAfter;
@@ -290,9 +290,9 @@ export async function commitTransactions(
           model: transaction.model,
           tool_call: transaction.tool_call,
           description: transaction.description,
-          amountMillionthUsd: transaction.amountMillionthUsd,
-          workspaceCreditsBeforeMillionthUsd: balanceBefore,
-          workspaceCreditsAfterMillionthUsd: balanceAfter,
+          amountNanoUsd: transaction.amountNanoUsd,
+          workspaceCreditsBeforeNanoUsd: balanceBefore,
+          workspaceCreditsAfterNanoUsd: balanceAfter,
           version: 1,
           createdAt: new Date().toISOString(),
           expires: calculateTransactionTTL(),

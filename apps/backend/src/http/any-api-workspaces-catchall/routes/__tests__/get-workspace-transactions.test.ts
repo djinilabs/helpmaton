@@ -77,9 +77,9 @@ describe("GET /api/workspaces/:workspaceId/transactions", () => {
         model?: string;
         tool_call?: string;
         description: string;
-        amountMillionthUsd: number;
-        workspaceCreditsBeforeMillionthUsd: number;
-        workspaceCreditsAfterMillionthUsd: number;
+        amountNanoUsd: number;
+        workspaceCreditsBeforeNanoUsd: number;
+        workspaceCreditsAfterNanoUsd: number;
         createdAt: string;
       }) => {
         // Extract transaction ID from sk (format: `${timestamp}-${uuid}`)
@@ -96,10 +96,9 @@ describe("GET /api/workspaces/:workspaceId/transactions", () => {
           model: t.model || null,
           tool_call: t.tool_call || null,
           description: t.description,
-          amountMillionthUsd: t.amountMillionthUsd,
-          workspaceCreditsBeforeMillionthUsd:
-            t.workspaceCreditsBeforeMillionthUsd,
-          workspaceCreditsAfterMillionthUsd: t.workspaceCreditsAfterMillionthUsd,
+          amountNanoUsd: t.amountNanoUsd,
+          workspaceCreditsBeforeNanoUsd: t.workspaceCreditsBeforeNanoUsd,
+          workspaceCreditsAfterNanoUsd: t.workspaceCreditsAfterNanoUsd,
           createdAt: t.createdAt,
         };
       });
@@ -164,9 +163,9 @@ describe("GET /api/workspaces/:workspaceId/transactions", () => {
         supplier: "openrouter" as const,
         model: "gpt-4",
         description: "Test transaction 1",
-        amountMillionthUsd: 1000000,
-        workspaceCreditsBeforeMillionthUsd: 10000000,
-        workspaceCreditsAfterMillionthUsd: 9000000,
+        amountNanoUsd: 1_000_000_000,
+        workspaceCreditsBeforeNanoUsd: 10_000_000_000,
+        workspaceCreditsAfterNanoUsd: 9_000_000_000,
         createdAt: new Date().toISOString(),
       },
       {
@@ -177,9 +176,9 @@ describe("GET /api/workspaces/:workspaceId/transactions", () => {
         source: "embedding-generation" as const,
         supplier: "openrouter" as const,
         description: "Test transaction 2",
-        amountMillionthUsd: 500000,
-        workspaceCreditsBeforeMillionthUsd: 9000000,
-        workspaceCreditsAfterMillionthUsd: 8500000,
+        amountNanoUsd: 500_000_000,
+        workspaceCreditsBeforeNanoUsd: 9_000_000_000,
+        workspaceCreditsAfterNanoUsd: 8_500_000_000,
         createdAt: new Date().toISOString(),
       },
     ];
@@ -234,9 +233,9 @@ describe("GET /api/workspaces/:workspaceId/transactions", () => {
       source: "text-generation" as const,
       supplier: "openrouter" as const,
       description: `Transaction ${i}`,
-      amountMillionthUsd: 1000000,
-      workspaceCreditsBeforeMillionthUsd: 10000000,
-      workspaceCreditsAfterMillionthUsd: 9000000,
+      amountNanoUsd: 1_000_000_000,
+      workspaceCreditsBeforeNanoUsd: 10_000_000_000,
+      workspaceCreditsAfterNanoUsd: 9_000_000_000,
       createdAt: new Date().toISOString(),
     }));
 

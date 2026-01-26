@@ -5,18 +5,18 @@ import { formatCurrency } from "../utils/currency";
 
 interface CreditBalanceProps {
   workspaceId: string;
-  balance: number; // in millionths
+  balance: number; // in nano-dollars
   canEdit: boolean;
 }
 
 export const CreditBalance: FC<CreditBalanceProps> = ({ balance }) => {
   // Ensure balance is a number
-  // Balance is in millionths, convert to currency units for display
+  // Balance is in nano-dollars, convert to currency units for display
   const numericBalance = Number(balance) || 0;
 
-  // Format balance for display (convert from millionths to currency units)
+  // Format balance for display (convert from nano-dollars to currency units)
   // Always use USD
-  const formattedBalance = formatCurrency(numericBalance, "usd", 10);
+  const formattedBalance = formatCurrency(numericBalance, "usd", 12);
 
   // Get color classes based on balance level
   const balanceColorClasses = getBalanceColor(numericBalance);

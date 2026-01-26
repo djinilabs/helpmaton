@@ -59,12 +59,12 @@ describe("creditManagement", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock workspace (creditBalance in millionths)
+    // Setup mock workspace (creditBalance in nano-dollars)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
       name: "Test Workspace",
-      creditBalance: 100_000_000, // 100.0 USD in millionths
+      creditBalance: 100_000_000_000, // 100.0 USD in nano-dollars
       currency: "usd",
       version: 1,
       createdAt: new Date().toISOString(),
@@ -121,16 +121,16 @@ describe("creditManagement", () => {
 
     mockDatabase.mockResolvedValue(mockDb);
 
-    // Setup default pricing mock (returns millionths)
-    mockCalculateTokenCost.mockReturnValue(10_000); // 0.01 USD in millionths
+    // Setup default pricing mock (returns nano-dollars)
+    mockCalculateTokenCost.mockReturnValue(10_000_000); // 0.01 USD in nano-dollars
   });
 
   describe("reserveCredits", () => {
     it("should successfully reserve credits when balance is sufficient", async () => {
-      const estimatedCost = 10_000_000; // 10.0 USD in millionths
+      const estimatedCost = 10_000_000_000; // 10.0 USD in nano-dollars
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 90_000_000, // 100 - 10 in millionths
+        creditBalance: 90_000_000_000, // 100 - 10 in nano-dollars
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -166,7 +166,7 @@ describe("creditManagement", () => {
     });
 
     it("should throw InsufficientCreditsError when balance is insufficient", async () => {
-      const estimatedCost = 150_000_000; // 150.0 USD in millionths (more than available 100.0)
+      const estimatedCost = 150_000_000_000; // 150.0 USD in nano-dollars (more than available 100.0)
 
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         const current = { ...mockWorkspace };
@@ -187,7 +187,7 @@ describe("creditManagement", () => {
       const result = await reserveCredits(
         mockDb,
         "test-workspace",
-        10_000_000, // 10.0 USD in millionths
+        10_000_000_000, // 10.0 USD in nano-dollars
         3,
         true // usesByok
       );
@@ -209,12 +209,12 @@ describe("creditManagement", () => {
       mockGet.mockResolvedValue(undefined);
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", 10_000_000, 3, true)
+        reserveCredits(mockDb, "test-workspace", 10_000_000_000, 3, true)
       ).rejects.toThrow("Workspace test-workspace not found");
     });
 
     it("should handle version conflicts - throws error after max retries", async () => {
-      const estimatedCost = 10_000_000; // 10.0 USD in millionths
+      const estimatedCost = 10_000_000_000; // 10.0 USD in nano-dollars
 
       // Simulate version conflict that persists after retries
       mockAtomicUpdate.mockRejectedValue(
@@ -227,7 +227,7 @@ describe("creditManagement", () => {
     });
 
     it("should throw error after max retries on version conflicts", async () => {
-      const estimatedCost = 10_000_000; // 10.0 USD in millionths
+      const estimatedCost = 10_000_000_000; // 10.0 USD in nano-dollars
 
       mockAtomicUpdate.mockRejectedValue(
         new Error("Conditional request failed")
@@ -239,7 +239,7 @@ describe("creditManagement", () => {
     });
 
     it("should handle exact balance match", async () => {
-      const estimatedCost = 100_000_000; // 100.0 USD in millionths (exactly the balance)
+      const estimatedCost = 100_000_000_000; // 100.0 USD in nano-dollars (exactly the balance)
       const updatedWorkspace = {
         ...mockWorkspace,
         creditBalance: 0,
@@ -258,10 +258,10 @@ describe("creditManagement", () => {
     });
 
     it("should handle precise amounts without rounding", async () => {
-      const estimatedCost = 10_123_456; // 10.123456 USD in millionths
+      const estimatedCost = 10_123_456_000; // 10.123456 USD in nano-dollars
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 89_876_544, // 100_000_000 - 10_123_456
+        creditBalance: 89_876_544_000, // 100_000_000_000 - 10_123_456_000
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -278,7 +278,7 @@ describe("creditManagement", () => {
     });
 
     it("should handle negative estimated cost by clamping to zero and skipping reservation", async () => {
-      const negativeEstimatedCost = -10_000_000; // -10.0 USD in millionths (invalid)
+      const negativeEstimatedCost = -10_000_000_000; // -10.0 USD in nano-dollars (invalid)
 
       const result = await reserveCredits(
         mockDb,
@@ -310,8 +310,8 @@ describe("creditManagement", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 10_000_000, // 10.0 USD in millionths
-        estimatedCost: 10_000_000, // 10.0 USD in millionths
+        reservedAmount: 10_000_000_000, // 10.0 USD in nano-dollars
+        estimatedCost: 10_000_000_000, // 10.0 USD in nano-dollars
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -330,13 +330,13 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      // Actual cost will be less than reserved (10.0 USD = 10_000_000 millionths)
-      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
+      // Actual cost will be less than reserved (10.0 USD = 10_000_000_000 nano-dollars)
+      mockCalculateTokenCost.mockReturnValue(5_000_000_000); // 5.0 USD in nano-dollars
       
       // Mock workspace with balance after initial reservation (100 - 10 = 90)
       const workspaceAfterReservation = {
         ...mockWorkspace,
-        creditBalance: 90_000_000, // Balance after initial reservation
+        creditBalance: 90_000_000_000, // Balance after initial reservation
       };
       mockGet.mockResolvedValue(workspaceAfterReservation);
 
@@ -350,15 +350,15 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Difference: 5_000_000 - 10_000_000 = -5_000_000 (refund)
-      // Transaction amount: -(-5_000_000) = 5_000_000 (positive for credit)
-      // New balance: 90_000_000 + 5_000_000 = 95_000_000
-      expect(result.creditBalance).toBe(95_000_000); // 95.0 USD in millionths
+      // Difference: 5_000_000_000 - 10_000_000_000 = -5_000_000_000 (refund)
+      // Transaction amount: -(-5_000_000_000) = 5_000_000_000 (positive for credit)
+      // New balance: 90_000_000_000 + 5_000_000_000 = 95_000_000_000
+      expect(result.creditBalance).toBe(95_000_000_000); // 95.0 USD in nano-dollars
       // Verify transaction was added to buffer with positive amount (credit/refund)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 5_000_000, // Positive for credit/refund
+          amountNanoUsd: 5_000_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -374,12 +374,12 @@ describe("creditManagement", () => {
       };
 
       // Actual cost will be more than reserved (10.0)
-      mockCalculateTokenCost.mockReturnValue(15_000_000); // 15.0 USD in millionths (actual cost)
+      mockCalculateTokenCost.mockReturnValue(15_000_000_000); // 15.0 USD in nano-dollars (actual cost)
       
       // Mock workspace with balance after initial reservation (100 - 10 = 90)
       const workspaceAfterReservation = {
         ...mockWorkspace,
-        creditBalance: 90_000_000, // Balance after initial reservation
+        creditBalance: 90_000_000_000, // Balance after initial reservation
       };
       mockGet.mockResolvedValue(workspaceAfterReservation);
 
@@ -393,15 +393,15 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Difference: 15_000_000 - 10_000_000 = 5_000_000 (additional charge)
-      // Transaction amount: -5_000_000 (negative for debit)
-      // New balance: 90_000_000 + (-5_000_000) = 85_000_000
-      expect(result.creditBalance).toBe(85_000_000);
+      // Difference: 15_000_000_000 - 10_000_000_000 = 5_000_000_000 (additional charge)
+      // Transaction amount: -5_000_000_000 (negative for debit)
+      // New balance: 90_000_000_000 + (-5_000_000_000) = 85_000_000_000
+      expect(result.creditBalance).toBe(85_000_000_000);
       // Verify transaction was added to buffer with negative amount (debit)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -5_000_000, // Negative for debit/additional charge
+          amountNanoUsd: -5_000_000_000, // Negative for debit/additional charge
         })
       );
     });
@@ -413,13 +413,13 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      // Actual cost equals reserved (10.0 USD = 10_000_000 millionths)
-      mockCalculateTokenCost.mockReturnValue(10_000_000);
+      // Actual cost equals reserved (10.0 USD = 10_000_000_000 nano-dollars)
+      mockCalculateTokenCost.mockReturnValue(10_000_000_000);
       
       // Mock workspace with balance after initial reservation (100 - 10 = 90)
       const workspaceAfterReservation = {
         ...mockWorkspace,
-        creditBalance: 90_000_000, // Balance after initial reservation
+        creditBalance: 90_000_000_000, // Balance after initial reservation
       };
       mockGet.mockResolvedValue(workspaceAfterReservation);
 
@@ -433,14 +433,14 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Difference: 10_000_000 - 10_000_000 = 0 (no adjustment)
+      // Difference: 10_000_000_000 - 10_000_000_000 = 0 (no adjustment)
       // Balance should remain the same
-      expect(result.creditBalance).toBe(90_000_000);
+      expect(result.creditBalance).toBe(90_000_000_000);
       // Verify transaction was added to buffer with zero amount
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 0, // No adjustment
+          amountNanoUsd: 0, // No adjustment
         })
       );
     });
@@ -500,12 +500,12 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
+      mockCalculateTokenCost.mockReturnValue(5_000_000_000); // 5.0 USD in nano-dollars
       
       // Mock workspace with balance after initial reservation (100 - 10 = 90)
       const workspaceAfterReservation = {
         ...mockWorkspace,
-        creditBalance: 90_000_000, // Balance after initial reservation
+        creditBalance: 90_000_000_000, // Balance after initial reservation
       };
       mockGet.mockResolvedValue(workspaceAfterReservation);
 
@@ -535,10 +535,10 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      mockCalculateTokenCost.mockReturnValue(5_000_000);
+      mockCalculateTokenCost.mockReturnValue(5_000_000_000);
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 95_000_000,
+        creditBalance: 95_000_000_000,
       };
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
 
@@ -577,10 +577,10 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      mockCalculateTokenCost.mockReturnValue(5_000_000);
+      mockCalculateTokenCost.mockReturnValue(5_000_000_000);
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 95_000_000,
+        creditBalance: 95_000_000_000,
       };
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
 
@@ -618,12 +618,12 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
+      mockCalculateTokenCost.mockReturnValue(5_000_000_000); // 5.0 USD in nano-dollars
       mockDelete.mockRejectedValue(new Error("Delete failed"));
 
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 95_000_000, // in millionths
+        creditBalance: 95_000_000_000, // in nano-dollars
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -650,10 +650,10 @@ describe("creditManagement", () => {
         reasoningTokens: 25,
       };
 
-      mockCalculateTokenCost.mockReturnValue(12_000_000); // 12.0 USD in millionths
+      mockCalculateTokenCost.mockReturnValue(12_000_000_000); // 12.0 USD in nano-dollars
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 88_000_000, // in millionths
+        creditBalance: 88_000_000_000, // in nano-dollars
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -686,12 +686,12 @@ describe("creditManagement", () => {
       };
 
       // Simulate negative cost from pricing calculation (pricing info may be wrong)
-      mockCalculateTokenCost.mockReturnValue(-5_000_000); // -5.0 USD in millionths (invalid)
+      mockCalculateTokenCost.mockReturnValue(-5_000_000_000); // -5.0 USD in nano-dollars (invalid)
       
       // Mock workspace with balance after initial reservation (100 - 10 = 90)
       const workspaceAfterReservation = {
           ...mockWorkspace,
-          creditBalance: 90_000_000, // Balance after initial reservation
+          creditBalance: 90_000_000_000, // Balance after initial reservation
         };
       mockGet.mockResolvedValue(workspaceAfterReservation);
 
@@ -705,14 +705,14 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Cost should be clamped to 0, so difference = 0 - 10_000_000 = -10_000_000 (refund)
-      // New balance: 90_000_000 - (-10_000_000) = 100_000_000
-      expect(result.creditBalance).toBe(100_000_000);
+      // Cost should be clamped to 0, so difference = 0 - 10_000_000_000 = -10_000_000_000 (refund)
+      // New balance: 90_000_000_000 - (-10_000_000_000) = 100_000_000_000
+      expect(result.creditBalance).toBe(100_000_000_000);
       // Verify transaction was added to buffer with negative amount (refund)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 10_000_000, // Positive for credit/refund (full reserved amount)
+          amountNanoUsd: 10_000_000_000, // Positive for credit/refund (full reserved amount)
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -730,8 +730,8 @@ describe("creditManagement", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 10_000_000, // 10.0 USD in millionths
-        estimatedCost: 10_000_000, // 10.0 USD in millionths
+        reservedAmount: 10_000_000_000, // 10.0 USD in nano-dollars
+        estimatedCost: 10_000_000_000, // 10.0 USD in nano-dollars
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -749,14 +749,14 @@ describe("creditManagement", () => {
       await refundReservation(mockDb, reservationId, mockContext);
 
       // With transaction system, verify transaction was added to buffer
-      // Transaction amount: 10_000_000 (positive for credit/refund)
-      // New balance: 100_000_000 + 10_000_000 = 110_000_000
+      // Transaction amount: 10_000_000_000 (positive for credit/refund)
+      // New balance: 100_000_000_000 + 10_000_000_000 = 110_000_000_000
       const addTransaction =
         mockContext.addWorkspaceCreditTransaction as ReturnType<typeof vi.fn>;
       const refundTransaction = addTransaction.mock.calls[0]?.[0];
       expect(refundTransaction).toMatchObject({
         workspaceId: "test-workspace",
-        amountMillionthUsd: 10_000_000,
+        amountNanoUsd: 10_000_000_000,
       });
       expect(refundTransaction.description).toEqual(
         expect.stringContaining("workspaceId=test-workspace")
@@ -878,7 +878,7 @@ describe("creditManagement", () => {
     it("should handle precise refund amounts without rounding", async () => {
       const reservationWithPreciseAmount = {
         ...mockReservation,
-        reservedAmount: 10_123_456, // 10.123456 USD in millionths
+        reservedAmount: 10_123_456_000, // 10.123456 USD in nano-dollars
       };
 
       (
@@ -887,7 +887,7 @@ describe("creditManagement", () => {
 
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 110_123_456, // 100_000_000 + 10_123_456 in millionths
+        creditBalance: 110_123_456_000, // 100_000_000_000 + 10_123_456_000 in nano-dollars
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -898,7 +898,7 @@ describe("creditManagement", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 10_123_456, // Positive for credit/refund
+          amountNanoUsd: 10_123_456_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -909,8 +909,8 @@ describe("creditManagement", () => {
 
   describe("concurrent reservation scenarios", () => {
     it("should verify atomic check prevents overspending", async () => {
-      const estimatedCost = 60_000_000; // 60.0 USD in millionths
-      const initialBalance = 100_000_000; // 100.0 USD in millionths
+      const estimatedCost = 60_000_000_000; // 60.0 USD in nano-dollars
+      const initialBalance = 100_000_000_000; // 100.0 USD in nano-dollars
 
       // Test that the updater function correctly checks balance atomically
       // This verifies the logic that prevents race conditions
@@ -934,12 +934,12 @@ describe("creditManagement", () => {
       );
       expect(result1.reservationId).toBeDefined();
 
-      // Second reservation should fail (40_000_000 < 60_000_000)
+      // Second reservation should fail (40_000_000_000 < 60_000_000_000)
       // Update mock to reflect new balance
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         const current = {
           ...mockWorkspace,
-          creditBalance: 40_000_000, // After first reservation (in millionths)
+          creditBalance: 40_000_000_000, // After first reservation (in nano-dollars)
         };
         const result = await updater(current);
         return result as WorkspaceRecord;
@@ -954,8 +954,8 @@ describe("creditManagement", () => {
     });
 
     it("should handle sequential reservations correctly", async () => {
-      const estimatedCost = 30_000_000; // 30.0 USD in millionths
-      let currentBalance = 100_000_000; // 100.0 USD in millionths
+      const estimatedCost = 30_000_000_000; // 30.0 USD in nano-dollars
+      let currentBalance = 100_000_000_000; // 100.0 USD in nano-dollars
 
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         const current = {
@@ -967,37 +967,37 @@ describe("creditManagement", () => {
         return result as WorkspaceRecord;
       });
 
-      // First reservation: 100_000_000 - 30_000_000 = 70_000_000
+      // First reservation: 100_000_000_000 - 30_000_000_000 = 70_000_000_000
       const result1 = await reserveCredits(
         mockDb,
         "test-workspace",
         estimatedCost,
       );
-      expect(result1.workspace.creditBalance).toBe(70_000_000);
+      expect(result1.workspace.creditBalance).toBe(70_000_000_000);
 
-      // Second reservation: 70_000_000 - 30_000_000 = 40_000_000
+      // Second reservation: 70_000_000_000 - 30_000_000_000 = 40_000_000_000
       const result2 = await reserveCredits(
         mockDb,
         "test-workspace",
         estimatedCost,
       );
-      expect(result2.workspace.creditBalance).toBe(40_000_000);
+      expect(result2.workspace.creditBalance).toBe(40_000_000_000);
 
-      // Third reservation: 40_000_000 - 30_000_000 = 10_000_000
+      // Third reservation: 40_000_000_000 - 30_000_000_000 = 10_000_000_000
       const result3 = await reserveCredits(
         mockDb,
         "test-workspace",
         estimatedCost,
       );
-      expect(result3.workspace.creditBalance).toBe(10_000_000);
+      expect(result3.workspace.creditBalance).toBe(10_000_000_000);
 
-      // Fourth reservation should fail: 10_000_000 < 30_000_000
+      // Fourth reservation should fail: 10_000_000_000 < 30_000_000_000
       await expect(
         reserveCredits(mockDb, "test-workspace", estimatedCost)
       ).rejects.toThrow(InsufficientCreditsError);
 
       // Verify final balance is correct
-      expect(currentBalance).toBe(10_000_000);
+      expect(currentBalance).toBe(10_000_000_000);
     });
   });
 
@@ -1008,12 +1008,12 @@ describe("creditManagement", () => {
       mockReservation = {
         pk: "credit-reservations/test-reservation",
         workspaceId: "test-workspace",
-        reservedAmount: 50_000_000, // 50.0 USD in millionths
-        estimatedCost: 50_000_000,
+        reservedAmount: 50_000_000_000, // 50.0 USD in nano-dollars
+        estimatedCost: 50_000_000_000,
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 900, // 15 minutes from now
         expiresHour: Math.floor(Date.now() / 3600) * 3600,
-        tokenUsageBasedCost: 45_000_000, // 45.0 USD (step 2 cost)
+        tokenUsageBasedCost: 45_000_000_000, // 45.0 USD (step 2 cost)
         openrouterGenerationId: "gen-12345",
         provider: "openrouter",
         modelName: "google/gemini-2.5-flash",
@@ -1026,7 +1026,7 @@ describe("creditManagement", () => {
     });
 
     it("should make final adjustment when OpenRouter cost differs from token usage cost", async () => {
-      const openrouterCost = 47_000_000; // 47.0 USD (higher than token usage cost)
+      const openrouterCost = 47_000_000_000; // 47.0 USD (higher than token usage cost)
 
       const result = await finalizeCreditReservation(
         mockDb,
@@ -1035,22 +1035,22 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Difference: 47_000_000 - 45_000_000 = 2_000_000 (additional charge)
-      // Transaction amount: -2_000_000 (negative for debit)
-      // New balance: 100_000_000 + (-2_000_000) = 98_000_000
-      expect(result.creditBalance).toBe(98_000_000);
+      // Difference: 47_000_000_000 - 45_000_000_000 = 2_000_000_000 (additional charge)
+      // Transaction amount: -2_000_000_000 (negative for debit)
+      // New balance: 100_000_000_000 + (-2_000_000_000) = 98_000_000_000
+      expect(result.creditBalance).toBe(98_000_000_000);
       // Verify transaction was added to buffer
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -2_000_000, // Negative for debit/additional charge
+          amountNanoUsd: -2_000_000_000, // Negative for debit/additional charge
         })
       );
       expect(mockDelete).toHaveBeenCalledWith("credit-reservations/test-reservation");
     });
 
     it("should refund difference when OpenRouter cost is less than token usage cost", async () => {
-      const openrouterCost = 43_000_000; // 43.0 USD (lower than token usage cost)
+      const openrouterCost = 43_000_000_000; // 43.0 USD (lower than token usage cost)
 
       const result = await finalizeCreditReservation(
         mockDb,
@@ -1059,21 +1059,21 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Difference: 43_000_000 - 45_000_000 = -2_000_000 (refund)
-      // Transaction amount: -(-2_000_000) = 2_000_000 (positive for credit)
-      // New balance: 100_000_000 + 2_000_000 = 102_000_000
-      expect(result.creditBalance).toBe(102_000_000);
+      // Difference: 43_000_000_000 - 45_000_000_000 = -2_000_000_000 (refund)
+      // Transaction amount: -(-2_000_000_000) = 2_000_000_000 (positive for credit)
+      // New balance: 100_000_000_000 + 2_000_000_000 = 102_000_000_000
+      expect(result.creditBalance).toBe(102_000_000_000);
       // Verify transaction was added to buffer with positive amount (credit/refund)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 2_000_000, // Positive for credit/refund
+          amountNanoUsd: 2_000_000_000, // Positive for credit/refund
         })
       );
     });
 
     it("should handle exact match (no adjustment needed)", async () => {
-      const openrouterCost = 45_000_000; // Same as token usage cost
+      const openrouterCost = 45_000_000_000; // Same as token usage cost
 
       const result = await finalizeCreditReservation(
         mockDb,
@@ -1082,14 +1082,14 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Difference: 45_000_000 - 45_000_000 = 0
-      // New balance: 100_000_000 - 0 = 100_000_000
-      expect(result.creditBalance).toBe(100_000_000);
+      // Difference: 45_000_000_000 - 45_000_000_000 = 0
+      // New balance: 100_000_000_000 - 0 = 100_000_000_000
+      expect(result.creditBalance).toBe(100_000_000_000);
       // Verify transaction was added to buffer with zero amount
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 0, // No adjustment
+          amountNanoUsd: 0, // No adjustment
         })
       );
     });
@@ -1101,8 +1101,8 @@ describe("creditManagement", () => {
       };
       mockReservationGet.mockResolvedValue(reservationWithoutTokenCost);
 
-      const openrouterCost = 47_000_000;
-      let currentBalance = 100_000_000;
+      const openrouterCost = 47_000_000_000;
+      let currentBalance = 100_000_000_000;
 
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         const current = {
@@ -1122,21 +1122,21 @@ describe("creditManagement", () => {
       );
 
       // Should adjust based on OpenRouter cost vs reserved amount
-      // Difference: 47_000_000 - 50_000_000 = -3_000_000 (refund)
-      // New balance: 100_000_000 - (-3_000_000) = 103_000_000
-      expect(result.creditBalance).toBe(103_000_000);
+      // Difference: 47_000_000_000 - 50_000_000_000 = -3_000_000_000 (refund)
+      // New balance: 100_000_000_000 - (-3_000_000_000) = 103_000_000_000
+      expect(result.creditBalance).toBe(103_000_000_000);
     });
 
     it("should throw error when reservation is not found", async () => {
       mockReservationGet.mockResolvedValue(null);
 
       await expect(
-        finalizeCreditReservation(mockDb, "non-existent", 50_000_000, mockContext)
+        finalizeCreditReservation(mockDb, "non-existent", 50_000_000_000, mockContext)
       ).rejects.toThrow("Reservation non-existent not found");
     });
 
     it("should handle version conflicts with retries", async () => {
-      const openrouterCost = 47_000_000;
+      const openrouterCost = 47_000_000_000;
 
       // Simulate atomicUpdate's retry behavior: it will retry internally up to maxRetries times
       // Since we're mocking atomicUpdate, we simulate it succeeding after retries
@@ -1146,7 +1146,7 @@ describe("creditManagement", () => {
         // The actual retry logic is tested in atomicUpdate's own tests
         const current = {
           ...mockWorkspace,
-          creditBalance: 100_000_000,
+          creditBalance: 100_000_000_000,
         };
         const updated = await updater(current);
         return {
@@ -1167,18 +1167,18 @@ describe("creditManagement", () => {
       );
 
       expect(result).toBeDefined();
-      expect(result.creditBalance).toBe(98_000_000); // 100 - (47 - 45) = 98
+      expect(result.creditBalance).toBe(98_000_000_000); // 100 - (47 - 45) = 98
       // Verify transaction was added to buffer
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -2_000_000, // 47 - 45 = 2, negated = -2 (negative for debit/additional charge)
+          amountNanoUsd: -2_000_000_000, // 47 - 45 = 2, negated = -2 (negative for debit/additional charge)
         })
       );
     });
 
     it("should handle negative OpenRouter cost by clamping to zero", async () => {
-      const negativeOpenrouterCost = -3_000_000; // -3.0 USD in millionths (invalid)
+      const negativeOpenrouterCost = -3_000_000_000; // -3.0 USD in nano-dollars (invalid)
 
       const result = await finalizeCreditReservation(
         mockDb,
@@ -1187,15 +1187,15 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Cost should be clamped to 0, so difference = 0 - 45_000_000 = -45_000_000 (refund)
-      // Transaction amount: -(-45_000_000) = 45_000_000 (positive for credit)
-      // New balance: 100_000_000 + 45_000_000 = 145_000_000
-      expect(result.creditBalance).toBe(145_000_000);
+      // Cost should be clamped to 0, so difference = 0 - 45_000_000_000 = -45_000_000_000 (refund)
+      // Transaction amount: -(-45_000_000_000) = 45_000_000_000 (positive for credit)
+      // New balance: 100_000_000_000 + 45_000_000_000 = 145_000_000_000
+      expect(result.creditBalance).toBe(145_000_000_000);
       // Verify transaction was added to buffer with positive amount (credit/refund)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 45_000_000, // Positive for credit/refund
+          amountNanoUsd: 45_000_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith("credit-reservations/test-reservation");
@@ -1210,7 +1210,7 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
+      mockCalculateTokenCost.mockReturnValue(5_000_000_000); // 5.0 USD in nano-dollars
       
       // Mock atomicUpdate to actually call the updater function
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
@@ -1227,7 +1227,7 @@ describe("creditManagement", () => {
         tokenUsage
       );
 
-      expect(result.creditBalance).toBe(95_000_000);
+      expect(result.creditBalance).toBe(95_000_000_000);
       expect(mockCalculateTokenCost).toHaveBeenCalledWith(
         "google",
         "gemini-2.5-flash",
@@ -1246,10 +1246,10 @@ describe("creditManagement", () => {
       };
 
       // Simulate negative cost from pricing calculation (pricing info may be wrong)
-      mockCalculateTokenCost.mockReturnValue(-5_000_000); // -5.0 USD in millionths (invalid)
+      mockCalculateTokenCost.mockReturnValue(-5_000_000_000); // -5.0 USD in nano-dollars (invalid)
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 100_000_000, // Should remain unchanged (0 cost deducted)
+        creditBalance: 100_000_000_000, // Should remain unchanged (0 cost deducted)
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -1263,7 +1263,7 @@ describe("creditManagement", () => {
       );
 
       // Cost should be clamped to 0, so balance should remain unchanged
-      expect(result.creditBalance).toBe(100_000_000);
+      expect(result.creditBalance).toBe(100_000_000_000);
     });
 
     it("should skip deduction for BYOK requests", async () => {
@@ -1379,7 +1379,7 @@ describe("creditManagement", () => {
       const conversationId = "test-conversation";
 
       // Reserve credits for LLM call with multiple generations
-      const llmEstimatedCost = 50_000; // $0.05
+      const llmEstimatedCost = 50_000_000; // $0.05
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -1402,7 +1402,7 @@ describe("creditManagement", () => {
         totalTokens: 1500,
       };
 
-      mockCalculateTokenCost.mockReturnValue(45_000); // Actual cost: $0.045
+      mockCalculateTokenCost.mockReturnValue(45_000_000); // Actual cost: $0.045
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const llmReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${llmReservation.reservationId}`,
@@ -1455,7 +1455,7 @@ describe("creditManagement", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId,
-          amountMillionthUsd: 5_000, // Positive = refund (50_000 - 45_000)
+          amountNanoUsd: 5_000_000, // Positive = refund (50_000_000 - 45_000_000)
         })
       );
     });
@@ -1471,7 +1471,7 @@ describe("creditManagement", () => {
       // 3. All costs should be tracked separately
 
       // Reserve LLM credits
-      const llmCost = 40_000;
+      const llmCost = 40_000_000;
       const llmReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -1486,7 +1486,7 @@ describe("creditManagement", () => {
       );
 
       // Reserve Scraper credits (tool called during LLM processing)
-      const scraperCost = 5_000;
+      const scraperCost = 5_000_000;
       const scraperReservation = await reserveCredits(
         mockDb,
         workspaceId,
@@ -1507,7 +1507,7 @@ describe("creditManagement", () => {
         totalTokens: 1200,
       };
 
-      mockCalculateTokenCost.mockReturnValue(35_000);
+      mockCalculateTokenCost.mockReturnValue(35_000_000);
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
       const llmReservationRecord: CreditReservationRecord = {
         pk: `credit-reservations/${llmReservation.reservationId}`,

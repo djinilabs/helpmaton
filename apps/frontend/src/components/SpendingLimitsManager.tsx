@@ -12,7 +12,7 @@ import {
 import { useUpdateWorkspace } from "../hooks/useWorkspaces";
 import type { SpendingLimit } from "../utils/api";
 import { getTimeFrameColor } from "../utils/colorUtils";
-import { formatCurrency, fromMillionths, toMillionths } from "../utils/currency";
+import { formatCurrency, fromNanoDollars, toNanoDollars } from "../utils/currency";
 
 import { Slider } from "./Slider";
 
@@ -83,10 +83,10 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
     if (isNaN(amount) || amount <= 0) return;
 
     try {
-      // Convert from currency units to millionths for API
+      // Convert from currency units to nano-dollars for API
       await addLimit.mutateAsync({
         timeFrame: newLimit.timeFrame as "daily" | "weekly" | "monthly",
-        amount: toMillionths(amount),
+        amount: toNanoDollars(amount),
       });
       setNewLimit({ timeFrame: "", amount: "" });
       setIsAdding(false);
@@ -100,8 +100,8 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
     if (isNaN(amount) || amount <= 0) return;
 
     try {
-      // Convert from currency units to millionths for API
-      await updateLimit.mutateAsync({ timeFrame, amount: toMillionths(amount) });
+      // Convert from currency units to nano-dollars for API
+      await updateLimit.mutateAsync({ timeFrame, amount: toNanoDollars(amount) });
       setEditingLimit(null);
       setEditAmount("");
     } catch {
@@ -127,8 +127,8 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
 
   const startEdit = (limit: SpendingLimit) => {
     setEditingLimit(limit.timeFrame);
-    // Convert from millionths to currency units for editing
-    setEditAmount(fromMillionths(limit.amount).toString());
+    // Convert from nano-dollars to currency units for editing
+    setEditAmount(fromNanoDollars(limit.amount).toString());
   };
 
   const cancelEdit = () => {

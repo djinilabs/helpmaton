@@ -40,12 +40,12 @@ describe("exaCredits", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock workspace (creditBalance in millionths)
+    // Setup mock workspace (creditBalance in nano-dollars)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
       name: "Test Workspace",
-      creditBalance: 100_000_000, // 100.0 USD in millionths
+      creditBalance: 100_000_000_000, // 100.0 USD in nano-dollars
       currency: "usd",
       version: 1,
       createdAt: new Date().toISOString(),
@@ -81,7 +81,7 @@ describe("exaCredits", () => {
     it("should reserve credits for Exa API call with default estimate", async () => {
       const reservation = {
         reservationId: "test-reservation-id",
-        reservedAmount: 10_000, // $0.01 = 10,000 millionths
+        reservedAmount: 10_000_000, // $0.01 = 10,000,000 nano-dollars
         workspace: mockWorkspace,
       };
 
@@ -99,7 +99,7 @@ describe("exaCredits", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        10_000, // estimatedCost (0.01 * 1_000_000)
+        10_000_000, // estimatedCost (0.01 * 1_000_000_000)
         3, // maxRetries
         false, // usesByok
         mockContext, // context
@@ -113,7 +113,7 @@ describe("exaCredits", () => {
     it("should reserve credits with custom estimate", async () => {
       const reservation = {
         reservationId: "test-reservation-id",
-        reservedAmount: 50_000, // $0.05 = 50,000 millionths
+        reservedAmount: 50_000_000, // $0.05 = 50,000,000 nano-dollars
         workspace: mockWorkspace,
       };
 
@@ -129,7 +129,7 @@ describe("exaCredits", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        50_000, // estimatedCost (0.05 * 1_000_000)
+        50_000_000, // estimatedCost (0.05 * 1_000_000_000)
         3, // maxRetries (default)
         false, // usesByok
         undefined, // context (optional)
@@ -160,7 +160,7 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "exa-api",
-          amountMillionthUsd: 0,
+          amountNanoUsd: 0,
         })
       );
     });
@@ -175,8 +175,8 @@ describe("exaCredits", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 10_000, // $0.01 = 10,000 millionths
-        estimatedCost: 10_000,
+        reservedAmount: 10_000_000, // $0.01 = 10,000,000 nano-dollars
+        estimatedCost: 10_000_000,
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -203,7 +203,7 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "search",
-          amountMillionthUsd: 0, // difference is 0 (actual = reserved)
+          amountNanoUsd: 0, // difference is 0 (actual = reserved)
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -228,11 +228,11 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "search",
-          amountMillionthUsd: 5_000, // difference is negative (refund), negated = positive (credit)
+          amountNanoUsd: 5_000_000, // difference is negative (refund), negated = positive (credit)
         })
       );
 
-      // actualCost = 0.005 * 1_000_000 = 5_000, reservedAmount = 10_000, difference = -5_000
+      // actualCost = 0.005 * 1_000_000_000 = 5_000_000, reservedAmount = 10_000_000, difference = -5_000_000
       // Transaction should record positive amount for refund
     });
 
@@ -253,11 +253,11 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "search",
-          amountMillionthUsd: -10_000, // difference is positive (additional charge), negated = negative (debit)
+          amountNanoUsd: -10_000_000, // difference is positive (additional charge), negated = negative (debit)
         })
       );
 
-      // actualCost = 0.02 * 1_000_000 = 20_000, reservedAmount = 10_000, difference = 10_000
+      // actualCost = 0.02 * 1_000_000_000 = 20_000_000, reservedAmount = 10_000_000, difference = 10_000_000
       // Transaction should record negative amount for additional charge
     });
 
@@ -266,7 +266,7 @@ describe("exaCredits", () => {
       mockGet.mockResolvedValue({
         pk: "workspaces/test-workspace",
         sk: "workspace",
-        creditBalance: 100_000_000,
+        creditBalance: 100_000_000_000,
         currency: "usd",
       });
 
@@ -289,7 +289,7 @@ describe("exaCredits", () => {
         supplier: "exa",
         tool_call: "search",
         description: "Exa API call: search - reservation not found, using actual cost",
-        amountMillionthUsd: -10_000, // actualCost = 0.01 * 1_000_000 = 10_000, negative for debit
+        amountNanoUsd: -10_000_000, // actualCost = 0.01 * 1_000_000_000 = 10_000_000, negative for debit
       });
       expect(mockDelete).not.toHaveBeenCalled();
     });
@@ -346,7 +346,7 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "search",
-          amountMillionthUsd: 0, // No charge when deduction is disabled
+          amountNanoUsd: 0, // No charge when deduction is disabled
         })
       );
       expect(mockDelete).not.toHaveBeenCalled();
@@ -369,7 +369,7 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "search",
-          amountMillionthUsd: 10_000, // Refund full reserved amount
+          amountNanoUsd: 10_000_000, // Refund full reserved amount
         })
       );
     });
@@ -384,8 +384,8 @@ describe("exaCredits", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 10_000, // $0.01 = 10,000 millionths
-        estimatedCost: 10_000,
+        reservedAmount: 10_000_000, // $0.01 = 10,000,000 nano-dollars
+        estimatedCost: 10_000_000,
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -411,7 +411,7 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "search",
-          amountMillionthUsd: 10_000, // Positive for credit/refund
+          amountNanoUsd: 10_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -466,7 +466,7 @@ describe("exaCredits", () => {
           source: "tool-execution",
           supplier: "exa",
           tool_call: "search",
-          amountMillionthUsd: 10_000, // Positive for credit/refund
+          amountNanoUsd: 10_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(

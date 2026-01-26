@@ -141,8 +141,8 @@ describe("pricing", () => {
         500000 // 0.5M output tokens
       );
 
-      // 1M * $1.0 + 0.5M * $2.0 = $1.0 + $1.0 = $2.0 = 2_000_000 millionths
-      expect(cost).toBe(2_000_000);
+      // 1M * $1.0 + 0.5M * $2.0 = $1.0 + $1.0 = $2.0 = 2_000_000_000 nano-dollars
+      expect(cost).toBe(2_000_000_000);
     });
 
     it("should calculate cost in different currencies", () => {
@@ -152,7 +152,7 @@ describe("pricing", () => {
         1000000,
         500000
       );
-      expect(usdCost).toBe(2_000_000); // 2.0 USD in millionths
+      expect(usdCost).toBe(2_000_000_000); // 2.0 USD in nano-dollars
     });
 
     it("should return 0 for zero tokens", () => {
@@ -168,9 +168,9 @@ describe("pricing", () => {
         500 // 0.0005M tokens
       );
 
-      // 0.001 * $1.0 + 0.0005 * $2.0 = $0.001 + $0.001 = $0.002 = 2_000 millionths
-      // With Math.ceil: 1000 * 1.0 = 1_000, 500 * 2.0 = 1_000, total = 2_000
-      expect(cost).toBe(2_000);
+      // 0.001 * $1.0 + 0.0005 * $2.0 = $0.001 + $0.001 = $0.002 = 2_000_000 nano-dollars
+      // With Math.ceil: 1000 * 1.0 * 1000 = 1_000_000, 500 * 2.0 * 1000 = 1_000_000, total = 2_000_000
+      expect(cost).toBe(2_000_000);
     });
   });
 
@@ -183,9 +183,9 @@ describe("pricing", () => {
         50000 // 50k tokens
       );
 
-      // 150k * $1.25 + 50k * $5.0 = 0.15 * $1.25 + 0.05 * $5.0 = $0.1875 + $0.25 = $0.4375 = 437_500 millionths
-      // With Math.ceil: 150000 * 1.25 = 187_500, 50000 * 5.0 = 250_000, total = 437_500
-      expect(cost).toBe(437_500);
+      // 150k * $1.25 + 50k * $5.0 = 0.15 * $1.25 + 0.05 * $5.0 = $0.1875 + $0.25 = $0.4375 = 437_500_000 nano-dollars
+      // With Math.ceil: 150000 * 1.25 * 1000 = 187_500_000, 50000 * 5.0 * 1000 = 250_000_000, total = 437_500_000
+      expect(cost).toBe(437_500_000);
     });
 
     it("should calculate cost for tokens above threshold", () => {
@@ -196,11 +196,11 @@ describe("pricing", () => {
         100000 // 100k tokens
       );
 
-      // Input: 200k * $1.25 + 50k * $2.5 = 0.2 * $1.25 + 0.05 * $2.5 = $0.25 + $0.125 = $0.375 = 375_000 millionths
-      // Output: 100k * $5.0 = 0.1 * $5.0 = $0.5 = 500_000 millionths
-      // Total: $0.375 + $0.5 = $0.875 = 875_000 millionths
-      // With Math.ceil: 200000 * 1.25 = 250_000, 50000 * 2.5 = 125_000, 100000 * 5.0 = 500_000, total = 875_000
-      expect(cost).toBe(875_000);
+      // Input: 200k * $1.25 + 50k * $2.5 = 0.2 * $1.25 + 0.05 * $2.5 = $0.25 + $0.125 = $0.375 = 375_000_000 nano-dollars
+      // Output: 100k * $5.0 = 0.1 * $5.0 = $0.5 = 500_000_000 nano-dollars
+      // Total: $0.375 + $0.5 = $0.875 = 875_000_000 nano-dollars
+      // With Math.ceil: 200000 * 1.25 * 1000 = 250_000_000, 50000 * 2.5 * 1000 = 125_000_000, 100000 * 5.0 * 1000 = 500_000_000, total = 875_000_000
+      expect(cost).toBe(875_000_000);
     });
 
     it("should calculate cost for tokens exactly at threshold", () => {
@@ -211,10 +211,10 @@ describe("pricing", () => {
         200000
       );
 
-      // Input: 200k * $1.25 = 0.2 * $1.25 = $0.25 = 250_000 millionths
-      // Output: 200k * $5.0 = 0.2 * $5.0 = $1.0 = 1_000_000 millionths
-      // Total: $0.25 + $1.0 = $1.25 = 1_250_000 millionths
-      expect(cost).toBe(1_250_000);
+      // Input: 200k * $1.25 = 0.2 * $1.25 = $0.25 = 250_000_000 nano-dollars
+      // Output: 200k * $5.0 = 0.2 * $5.0 = $1.0 = 1_000_000_000 nano-dollars
+      // Total: $0.25 + $1.0 = $1.25 = 1_250_000_000 nano-dollars
+      expect(cost).toBe(1_250_000_000);
     });
 
     it("should handle very large token counts with tiered pricing", () => {
@@ -225,10 +225,10 @@ describe("pricing", () => {
         300000 // 300k tokens
       );
 
-      // Input: 200k * $1.25 + 300k * $2.5 = 0.2 * $1.25 + 0.3 * $2.5 = $0.25 + $0.75 = $1.0 = 1_000_000 millionths
-      // Output: 200k * $5.0 + 100k * $10.0 = 0.2 * $5.0 + 0.1 * $10.0 = $1.0 + $1.0 = $2.0 = 2_000_000 millionths
-      // Total: $1.0 + $2.0 = $3.0 = 3_000_000 millionths
-      expect(cost).toBe(3_000_000);
+      // Input: 200k * $1.25 + 300k * $2.5 = 0.2 * $1.25 + 0.3 * $2.5 = $0.25 + $0.75 = $1.0 = 1_000_000_000 nano-dollars
+      // Output: 200k * $5.0 + 100k * $10.0 = 0.2 * $5.0 + 0.1 * $10.0 = $1.0 + $1.0 = $2.0 = 2_000_000_000 nano-dollars
+      // Total: $1.0 + $2.0 = $3.0 = 3_000_000_000 nano-dollars
+      expect(cost).toBe(3_000_000_000);
     });
   });
 
@@ -242,11 +242,11 @@ describe("pricing", () => {
         200000 // 0.2M reasoning
       );
 
-      // Input: 1M * $1.0 = $1.0 = 1_000_000 millionths
-      // Output: 0.5M * $2.0 = $1.0 = 1_000_000 millionths
-      // Reasoning: 0.2M * $3.5 = $0.7 = 700_000 millionths
-      // Total: $1.0 + $1.0 + $0.7 = $2.7 = 2_700_000 millionths
-      expect(cost).toBe(2_700_000);
+      // Input: 1M * $1.0 = $1.0 = 1_000_000_000 nano-dollars
+      // Output: 0.5M * $2.0 = $1.0 = 1_000_000_000 nano-dollars
+      // Reasoning: 0.2M * $3.5 = $0.7 = 700_000_000 nano-dollars
+      // Total: $1.0 + $1.0 + $0.7 = $2.7 = 2_700_000_000 nano-dollars
+      expect(cost).toBe(2_700_000_000);
     });
 
     it("should calculate cost with reasoning tokens (tiered pricing)", () => {
@@ -258,11 +258,11 @@ describe("pricing", () => {
         100000 // 100k reasoning
       );
 
-      // Input: 150k * $1.25 = 0.15 * $1.25 = $0.1875 = 187_500 millionths
-      // Output: 50k * $5.0 = 0.05 * $5.0 = $0.25 = 250_000 millionths
-      // Reasoning: 100k * $10.0 = 0.1 * $10.0 = $1.0 = 1_000_000 millionths
-      // Total: $0.1875 + $0.25 + $1.0 = $1.4375 = 1_437_500 millionths
-      expect(cost).toBe(1_437_500);
+      // Input: 150k * $1.25 = 0.15 * $1.25 = $0.1875 = 187_500_000 nano-dollars
+      // Output: 50k * $5.0 = 0.05 * $5.0 = $0.25 = 250_000_000 nano-dollars
+      // Reasoning: 100k * $10.0 = 0.1 * $10.0 = $1.0 = 1_000_000_000 nano-dollars
+      // Total: $0.1875 + $0.25 + $1.0 = $1.4375 = 1_437_500_000 nano-dollars
+      expect(cost).toBe(1_437_500_000);
     });
 
     it("should handle reasoning tokens above threshold", () => {
@@ -274,11 +274,11 @@ describe("pricing", () => {
         250000 // 250k reasoning (50k above threshold)
       );
 
-      // Input: 200k * $1.25 + 50k * $2.5 = 0.2 * $1.25 + 0.05 * $2.5 = $0.25 + $0.125 = $0.375 = 375_000 millionths
-      // Output: 100k * $5.0 = 0.1 * $5.0 = $0.5 = 500_000 millionths
-      // Reasoning: 200k * $10.0 + 50k * $15.0 = 0.2 * $10.0 + 0.05 * $15.0 = $2.0 + $0.75 = $2.75 = 2_750_000 millionths
-      // Total: $0.375 + $0.5 + $2.75 = $3.625 = 3_625_000 millionths
-      expect(cost).toBe(3_625_000);
+      // Input: 200k * $1.25 + 50k * $2.5 = 0.2 * $1.25 + 0.05 * $2.5 = $0.25 + $0.125 = $0.375 = 375_000_000 nano-dollars
+      // Output: 100k * $5.0 = 0.1 * $5.0 = $0.5 = 500_000_000 nano-dollars
+      // Reasoning: 200k * $10.0 + 50k * $15.0 = 0.2 * $10.0 + 0.05 * $15.0 = $2.0 + $0.75 = $2.75 = 2_750_000_000 nano-dollars
+      // Total: $0.375 + $0.5 + $2.75 = $3.625 = 3_625_000_000 nano-dollars
+      expect(cost).toBe(3_625_000_000);
     });
 
     it("should return 0 cost when reasoning tokens are 0", () => {
@@ -299,7 +299,7 @@ describe("pricing", () => {
       );
 
       expect(costWithReasoning).toBeGreaterThan(costWithoutReasoning);
-      expect(costWithoutReasoning).toBe(2_000_000); // Just input + output (2.0 USD in millionths)
+      expect(costWithoutReasoning).toBe(2_000_000_000); // Just input + output (2.0 USD in nano-dollars)
     });
   });
 
@@ -312,7 +312,7 @@ describe("pricing", () => {
         500000
       );
 
-      expect(costs.usd).toBe(2_000_000); // 2.0 USD in millionths
+      expect(costs.usd).toBe(2_000_000_000); // 2.0 USD in nano-dollars
     });
 
     it("should calculate costs with reasoning tokens for all currencies", () => {
@@ -324,7 +324,7 @@ describe("pricing", () => {
         200000
       );
 
-      expect(costs.usd).toBe(2_700_000); // 2.7 USD in millionths
+      expect(costs.usd).toBe(2_700_000_000); // 2.7 USD in nano-dollars
     });
   });
 
@@ -355,7 +355,7 @@ describe("pricing", () => {
       expect(typeof cost).toBe("number");
     });
 
-    it("should return integer millionths (no decimal places)", () => {
+    it("should return integer nano-dollars (no decimal places)", () => {
       const cost = calculateTokenCost(
         "google",
         "test-flat-model",
@@ -365,9 +365,9 @@ describe("pricing", () => {
 
       // 0.333333 * $1.0 + 0.666666 * $2.0 = $0.333333 + $1.333332 = $1.666665
       // With Math.ceil: 333333 * 1.0 = 333_333, 666666 * 2.0 = 1_333_332, total = 1_666_665
-      // Should be an integer (millionths)
+      // Should be an integer (nano-dollars)
       expect(Number.isInteger(cost)).toBe(true);
-      expect(cost).toBe(1_666_665);
+      expect(cost).toBe(1_666_665_000);
     });
   });
 
@@ -382,8 +382,8 @@ describe("pricing", () => {
         200000 // 0.2M cached tokens
       );
 
-      // 1M * $1.0 (input) + 0.2M * $0.1 (cached) + 0.5M * $2.0 (output) = $1.0 + $0.02 + $1.0 = $2.02 = 2_020_000 millionths
-      expect(cost).toBe(2_020_000);
+      // 1M * $1.0 (input) + 0.2M * $0.1 (cached) + 0.5M * $2.0 (output) = $1.0 + $0.02 + $1.0 = $2.02 = 2_020_000_000 nano-dollars
+      expect(cost).toBe(2_020_000_000);
     });
 
     it("should handle cached tokens without cached pricing (fallback to input)", () => {
@@ -397,8 +397,8 @@ describe("pricing", () => {
         200000 // 0.2M cached tokens (will use input pricing as fallback)
       );
 
-      // 1M * $1.0 (input) + 0.2M * $1.0 (cached, fallback to input) + 0.5M * $2.0 (output) = $1.0 + $0.2 + $1.0 = $2.2 = 2_200_000 millionths
-      expect(cost).toBe(2_200_000);
+      // 1M * $1.0 (input) + 0.2M * $1.0 (cached, fallback to input) + 0.5M * $2.0 (output) = $1.0 + $0.2 + $1.0 = $2.2 = 2_200_000_000 nano-dollars
+      expect(cost).toBe(2_200_000_000);
     });
 
     it("should return 0 cost when only cached tokens are present", () => {
@@ -411,8 +411,8 @@ describe("pricing", () => {
         200000 // 0.2M cached tokens
       );
 
-      // 0.2M * $0.1 (cached) = $0.02 = 20_000 millionths
-      expect(cost).toBe(20_000);
+      // 0.2M * $0.1 (cached) = $0.02 = 20_000_000 nano-dollars
+      expect(cost).toBe(20_000_000);
     });
 
     it("should calculate cached token cost", () => {
@@ -425,7 +425,7 @@ describe("pricing", () => {
         200000
       );
 
-      expect(usdCost).toBe(2_020_000); // 2.02 USD in millionths (1.0 + 0.02 + 1.0)
+      expect(usdCost).toBe(2_020_000_000); // 2.02 USD in nano-dollars (1.0 + 0.02 + 1.0)
     });
 
     it("should handle cached tokens with reasoning tokens", () => {
@@ -439,8 +439,8 @@ describe("pricing", () => {
       );
 
       // 1M * $1.0 (input) + 0.2M * $1.0 (cached, fallback) + 0.5M * $2.0 (output) + 0.1M * $3.5 (reasoning)
-      // = $1.0 + $0.2 + $1.0 + $0.35 = $2.55 = 2_550_000 millionths
-      expect(cost).toBe(2_550_000);
+      // = $1.0 + $0.2 + $1.0 + $0.35 = $2.55 = 2_550_000_000 nano-dollars
+      expect(cost).toBe(2_550_000_000);
     });
 
     it("should handle zero cached tokens", () => {
@@ -462,7 +462,7 @@ describe("pricing", () => {
       );
 
       expect(cost).toBe(costWithoutCached);
-      expect(cost).toBe(2_000_000); // 2.0 USD in millionths
+      expect(cost).toBe(2_000_000_000); // 2.0 USD in nano-dollars
     });
   });
 });

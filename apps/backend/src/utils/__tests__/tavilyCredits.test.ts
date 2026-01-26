@@ -37,12 +37,12 @@ describe("tavilyCredits", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock workspace (creditBalance in millionths)
+    // Setup mock workspace (creditBalance in nano-dollars)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
       name: "Test Workspace",
-      creditBalance: 100_000_000, // 100.0 USD in millionths
+      creditBalance: 100_000_000_000, // 100.0 USD in nano-dollars
       currency: "usd",
       version: 1,
       createdAt: new Date().toISOString(),
@@ -81,12 +81,12 @@ describe("tavilyCredits", () => {
   describe("calculateTavilyCost", () => {
     it("should calculate cost for 1 credit (default)", () => {
       const result = calculateTavilyCost();
-      expect(result).toBe(8_000); // $0.008 = 8,000 millionths
+      expect(result).toBe(8_000_000); // $0.008 = 8,000,000 nano-dollars
     });
 
     it("should calculate cost for multiple credits", () => {
       const result = calculateTavilyCost(3);
-      expect(result).toBe(24_000); // 3 * $0.008 = 24,000 millionths
+      expect(result).toBe(24_000_000); // 3 * $0.008 = 24,000,000 nano-dollars
     });
 
     it("should handle zero credits", () => {
@@ -99,7 +99,7 @@ describe("tavilyCredits", () => {
     it("should reserve credits for Tavily API call", async () => {
       const reservation = {
         reservationId: "test-reservation-id",
-        reservedAmount: 8_000,
+        reservedAmount: 8_000_000,
         workspace: mockWorkspace,
       };
 
@@ -116,7 +116,7 @@ describe("tavilyCredits", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        8_000, // estimatedCost (1 * 8,000)
+        8_000_000, // estimatedCost (1 * 8,000,000)
         3, // maxRetries
         false, // usesByok
         undefined, // context (optional)
@@ -130,7 +130,7 @@ describe("tavilyCredits", () => {
     it("should handle multiple credits", async () => {
       const reservation = {
         reservationId: "test-reservation-id",
-        reservedAmount: 16_000,
+        reservedAmount: 16_000_000,
         workspace: mockWorkspace,
       };
 
@@ -146,7 +146,7 @@ describe("tavilyCredits", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        16_000, // estimatedCost (2 * 8,000)
+        16_000_000, // estimatedCost (2 * 8,000,000)
         3, // maxRetries (default)
         false, // usesByok
         undefined, // context (optional)
@@ -167,8 +167,8 @@ describe("tavilyCredits", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 8_000, // $0.008 in millionths
-        estimatedCost: 8_000,
+        reservedAmount: 8_000_000, // $0.008 in nano-dollars
+        estimatedCost: 8_000_000,
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -181,7 +181,7 @@ describe("tavilyCredits", () => {
     it("should adjust credits when actual equals reserved", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 99_992_000, // 100_000_000 - 8_000 (no change since actual = reserved)
+        creditBalance: 99_992_000_000, // 100_000_000_000 - 8_000_000 (no change since actual = reserved)
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -202,7 +202,7 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: 0, // difference is 0 (actual = reserved)
+          amountNanoUsd: 0, // difference is 0 (actual = reserved)
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -215,7 +215,7 @@ describe("tavilyCredits", () => {
     it("should refund difference when actual is less than reserved", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 100_004_000, // Refunded 4,000 (reserved 8,000, actual 4,000)
+        creditBalance: 100_004_000_000, // Refunded 4,000,000 (reserved 8,000,000, actual 4,000,000)
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -236,18 +236,18 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: 4_000, // difference is negative (refund), negated = positive (credit)
+          amountNanoUsd: 4_000_000, // difference is negative (refund), negated = positive (credit)
         })
       );
 
-      // actualCost = 0.5 * 8_000 = 4_000, reservedAmount = 8_000, difference = -4_000
+      // actualCost = 0.5 * 8_000_000 = 4_000_000, reservedAmount = 8_000_000, difference = -4_000_000
       // Transaction should record negative amount for refund
     });
 
     it("should charge additional when actual is more than reserved", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 99_992_000, // Charged additional 8,000 (reserved 8,000, actual 16,000)
+        creditBalance: 99_992_000_000, // Charged additional 8,000,000 (reserved 8,000,000, actual 16,000,000)
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -268,11 +268,11 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: -8_000, // difference is positive (additional charge), negated = negative (debit)
+          amountNanoUsd: -8_000_000, // difference is positive (additional charge), negated = negative (debit)
         })
       );
 
-      // actualCost = 2 * 8_000 = 16_000, reservedAmount = 8_000, difference = 8_000
+      // actualCost = 2 * 8_000_000 = 16_000_000, reservedAmount = 8_000_000, difference = 8_000_000
       // Transaction should record positive amount for additional charge
     });
 
@@ -281,7 +281,7 @@ describe("tavilyCredits", () => {
       mockGet.mockResolvedValue({
         pk: "workspaces/test-workspace",
         sk: "workspace",
-        creditBalance: 100_000_000,
+        creditBalance: 100_000_000_000,
         currency: "usd",
       });
 
@@ -304,7 +304,7 @@ describe("tavilyCredits", () => {
         supplier: "tavily",
         tool_call: "search_web",
         description: "Tavily API call: search_web - reservation not found, using actual cost",
-        amountMillionthUsd: -8_000, // actualCost = calculateTavilyCost(1) = 8_000, negative for debit
+        amountNanoUsd: -8_000_000, // actualCost = calculateTavilyCost(1) = 8_000_000, negative for debit
       });
       expect(mockDelete).not.toHaveBeenCalled();
     });
@@ -328,7 +328,7 @@ describe("tavilyCredits", () => {
     it("should delete reservation after adjustment", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 99_992_000,
+        creditBalance: 99_992_000_000,
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -358,8 +358,8 @@ describe("tavilyCredits", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 8_000, // $0.008 in millionths
-        estimatedCost: 8_000,
+        reservedAmount: 8_000_000, // $0.008 in nano-dollars
+        estimatedCost: 8_000_000,
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -372,7 +372,7 @@ describe("tavilyCredits", () => {
     it("should refund reserved credits", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 100_008_000, // Refunded 8,000
+        creditBalance: 100_008_000_000, // Refunded 8,000,000
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -392,7 +392,7 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: 8_000, // Positive for credit/refund
+          amountNanoUsd: 8_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -436,7 +436,7 @@ describe("tavilyCredits", () => {
     it("should delete reservation after refund", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 100_008_000,
+        creditBalance: 100_008_000_000,
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -456,7 +456,7 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: 8_000, // Positive for credit/refund
+          amountNanoUsd: 8_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(

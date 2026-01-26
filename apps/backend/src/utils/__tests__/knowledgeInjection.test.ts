@@ -388,7 +388,7 @@ describe("knowledgeInjection", () => {
       mockReserveRerankingCredits.mockResolvedValue({
         reservationId: "res-123",
         reservedAmount: 1000,
-        workspace: { creditBalance: 100_000_000 },
+        workspace: { creditBalance: 100_000_000_000 },
       });
       mockRerankSnippets.mockResolvedValue({
         snippets: rerankedResults,
@@ -477,7 +477,7 @@ describe("knowledgeInjection", () => {
         ) {
           expect(resultContent.model).toBe("cohere/rerank-v3");
           expect(resultContent.documentCount).toBe(2);
-          expect(resultContent.costUsd).toBe(1000); // 0.001 USD = 1000 millionths
+          expect(resultContent.costUsd).toBe(1_000_000); // 0.001 USD = 1_000_000 nano-dollars
           expect(resultContent.generationId).toBe("gen-123");
           expect(resultContent.rerankedDocuments).toHaveLength(2);
         }
@@ -504,7 +504,7 @@ describe("knowledgeInjection", () => {
       mockReserveRerankingCredits.mockResolvedValue({
         reservationId: "res-123",
         reservedAmount: 1000,
-        workspace: { creditBalance: 100_000_000 },
+        workspace: { creditBalance: 100_000_000_000 },
       });
       mockRerankSnippets.mockRejectedValue(new Error("Re-ranking failed"));
 
@@ -780,7 +780,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockResolvedValue({
           reservationId: "res-123",
           reservedAmount: 10_550,
-          workspace: { creditBalance: 100_000_000 },
+          workspace: { creditBalance: 100_000_000_000 },
         });
         mockRerankSnippets.mockResolvedValue({
           snippets: mockSearchResults,
@@ -829,7 +829,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockResolvedValue({
           reservationId: "res-123",
           reservedAmount: 10_550,
-          workspace: { creditBalance: 100_000_000 },
+          workspace: { creditBalance: 100_000_000_000 },
         });
         mockRerankSnippets.mockResolvedValue({
           snippets: mockSearchResults,
@@ -877,7 +877,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockResolvedValue({
           reservationId: "res-123",
           reservedAmount: 10_550,
-          workspace: { creditBalance: 100_000_000 },
+          workspace: { creditBalance: 100_000_000_000 },
         });
         mockRerankSnippets.mockResolvedValue({
           snippets: mockSearchResults,
@@ -921,7 +921,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockResolvedValue({
           reservationId: "res-123",
           reservedAmount: 10_550,
-          workspace: { creditBalance: 100_000_000 },
+          workspace: { creditBalance: 100_000_000_000 },
         });
         mockRerankSnippets.mockResolvedValue({
           snippets: mockSearchResults,
@@ -1021,7 +1021,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockResolvedValue({
           reservationId: "res-123",
           reservedAmount: 10_550,
-          workspace: { creditBalance: 100_000_000 },
+          workspace: { creditBalance: 100_000_000_000 },
         });
         mockRerankSnippets.mockRejectedValue(new Error("Re-ranking failed"));
         mockRefundRerankingCredits.mockResolvedValue(undefined);
@@ -1103,7 +1103,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockResolvedValue({
           reservationId: "res-123",
           reservedAmount: 10_550,
-          workspace: { creditBalance: 100_000_000 },
+          workspace: { creditBalance: 100_000_000_000 },
         });
         mockRerankSnippets.mockResolvedValue({
           snippets: mockSearchResults,
@@ -1142,7 +1142,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockResolvedValue({
           reservationId: "res-123",
           reservedAmount: 10_550,
-          workspace: { creditBalance: 100_000_000 },
+          workspace: { creditBalance: 100_000_000_000 },
         });
         mockRerankSnippets.mockRejectedValue(new Error("Re-ranking failed"));
         mockRefundRerankingCredits.mockRejectedValue(

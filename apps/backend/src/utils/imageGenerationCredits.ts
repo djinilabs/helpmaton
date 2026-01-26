@@ -10,7 +10,7 @@ type ImageCostEstimateParams = {
 };
 
 /**
- * Estimate image generation cost in millionths.
+ * Estimate image generation cost in nano-dollars.
  * Prefers request-based pricing when available, otherwise falls back to token estimation.
  */
 export function estimateImageGenerationCost({
