@@ -890,9 +890,12 @@ mcpDescribe("MCP tools integration (real services)", () => {
     async () => {
       const serviceFilter = parseServiceFilter();
       const perServiceTimeoutMs = getPerServiceTimeoutMs();
-      const serversFromEnv = loadServersFromEnv(serviceFilter);
-      const serversByService =
-        serversFromEnv ?? (await fetchLatestServersFromDb(serviceFilter));
+      const serversByService = loadServersFromEnv(serviceFilter);
+      if (!serversByService) {
+        throw new Error(
+          "TEST_MCP_CREDENTIALS must be set; database lookups are disabled for this test."
+        );
+      }
 
       const missingServices = serviceFilter.filter(
         (serviceType) => !serversByService.has(serviceType)
