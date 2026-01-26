@@ -47,6 +47,7 @@
 - **MCP OAuth headed run**: Forced `HEADLESS=false` in `pnpm test:e2e:mcp-oauth` and documented headless override for manual OAuth flows.
 - **MCP OAuth test guard**: Added `RUN_MCP_OAUTH_E2E` gate and `pnpm test:e2e:mcp-oauth` script so the MCP OAuth E2E suite only runs when explicitly invoked.
 - **MCP OAuth E2E suite**: Added Playwright-based MCP OAuth integration tests with manual OAuth pause support, service config prompts (Shopify/Zendesk), tool call validation via agent chat, and documentation under `tests/e2e/mcp-oauth/`.
+- **Conversation sequence preservation**: Updated `expandMessagesWithToolCalls` to emit assistant/tool messages in observed event order, avoiding tool-call/result/text aggregation; added sequence-order tests and ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run conversationLogger`.
 - **MCP server tools viewer**: Added per-server MCP tools endpoint + tests, and a Connected tools “View tools” dialog/button with tool parameters/availability. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Conversation logger tests**: Updated mocks/expectations to use `upsert` for `agent-conversations` in unit tests and reran `pnpm --filter backend test --run conversationLogger`.
 - **Webhook logging idempotency**: Switched conversation logging to `upsert` with retry/backoff on version conflicts to tolerate duplicate webhook deliveries; added `createdAt` to upserted records. Ran `pnpm typecheck` and `pnpm lint --fix`.
