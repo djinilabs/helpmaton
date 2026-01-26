@@ -350,7 +350,7 @@ function getMcpOauthTimeoutMs(): number {
   if (Number.isFinite(parsed) && parsed > 0) {
     return parsed;
   }
-  return 30 * 60 * 1000;
+  return 60 * 60 * 1000; // 60 minutes for human-assisted OAuth flows
 }
 
 function selectToolForService(

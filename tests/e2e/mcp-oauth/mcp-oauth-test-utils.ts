@@ -198,7 +198,7 @@ export class McpServerPage extends BasePage {
 
     if (successParam === "true") {
       await this.page.waitForURL(new RegExp(`/workspaces/${workspaceId}`), {
-        timeout: 10000,
+        timeout: 600000, // 10 minutes for human-assisted OAuth redirects
       });
       return { success: true };
     }
