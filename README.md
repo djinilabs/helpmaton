@@ -29,6 +29,10 @@ Create workspaces to organize your AI agents and their knowledge bases. Each age
 - **News Monitoring**: Create agents that monitor news, track industry developments, and provide real-time updates
 - **Content Analysis**: Deploy agents that extract and summarize content from web pages, articles, and online resources
 - **Google Workspace Automation**: Connect agents to Gmail, Google Calendar, and Google Drive for email management, calendar scheduling, and document analysis workflows
+- **Scheduled Automation**: Create agents that run automatically on schedules for daily reports, weekly summaries, proactive monitoring, and routine operational tasks
+- **CRM & Sales Automation**: Integrate agents with HubSpot, Salesforce, or Zendesk for automated customer support, lead management, and sales workflows
+- **E-commerce Operations**: Connect agents to Shopify for automated order processing, inventory management, and sales analytics
+- **Project Management**: Use agents with Linear, Notion, or Todoist for automated task management, project tracking, and team coordination
 - **Specialized Workflows**: Build domain-specific agents for technical documentation, legal research, or any specialized field
 - **API Integration**: Embed AI capabilities into your applications via webhook endpoints
 
@@ -60,7 +64,7 @@ Tailor memory summaries with per-agent, per-grain prompts (daily, weekly, monthl
 
 ### Agent Schedules
 
-Automate agent runs on a schedule with cron-based prompts. Perfect for recurring reports, proactive monitoring, and routine operational tasks.
+Automate agent runs on a schedule with cron-based prompts. Create multiple schedules per agent, each with its own cron expression and custom prompt. Schedules can be enabled or disabled individually, and agents automatically execute scheduled runs at the specified times. Perfect for recurring reports, proactive monitoring, routine operational tasks, and automated workflows that need to run on a regular cadence.
 
 ### Web Search & Content Extraction
 
@@ -70,15 +74,28 @@ Give your agents access to real-time, up-to-date information beyond their traini
 
 **Content Extraction** (`fetch_url`): Extract and summarize content from any web page URL. Agents can read and understand specific web pages, analyze articles, extract key information, and provide insights from any online content.
 
+**Available Providers**:
+- **Tavily**: $0.008 per call (first 10 calls/day free for paid tiers)
+- **Jina.ai**: Free (no credits charged, rate limits may apply)
+
+**Exa.ai Search** (`search`): Perform category-specific searches across 9 specialized categories: company information, research papers, news articles, PDF documents, GitHub repositories, tweets, personal sites, people, and financial reports. Variable pricing based on result count ($5-$25 per 1,000 requests).
+
 **Key Advantages**:
 
 - **Real-Time Information**: Access current information that isn't in training data
 - **Always Current**: Answer questions about recent events, news, and developments
-- **Cost-Effective**: Free daily allowance (10 calls/day) with transparent pay-as-you-go pricing ($0.008 per additional call)
+- **Cost-Effective**: Free daily allowance (10 calls/day with Tavily) with transparent pay-as-you-go pricing
+- **Multiple Providers**: Choose between Tavily (paid) or Jina.ai (free) for web search
+- **Specialized Search**: Use Exa.ai for category-specific searches across research papers, companies, and more
 - **Easy Integration**: Enable per-agent with simple toggle switches
 - **Intelligent Extraction**: Automatically extracts main content, titles, and metadata from web pages
 
-**Pricing**: Free tier includes 10 calls per 24 hours. Paid tiers get 10 free calls per day, then $0.008 per additional call. Perfect for research assistants, news monitoring, and content analysis workflows.
+**Pricing**: 
+- **Tavily**: Free tier includes 10 calls per 24 hours. Paid tiers get 10 free calls per day, then $0.008 per additional call.
+- **Jina.ai**: Free (no credits charged, rate limits may apply)
+- **Exa.ai**: Pay-as-you-go pricing - all requests require credits (no free tier)
+
+Perfect for research assistants, news monitoring, content analysis workflows, and specialized information discovery.
 
 ### Tool Integration & Extensibility
 
@@ -92,7 +109,7 @@ Agents come with a comprehensive set of built-in tools and can be extended with 
 - **Web Fetch**: Extract and summarize content from any web page URL
 - **Email Sending**: Send emails using workspace email connections
 - **Notification Sending**: Send notifications to Discord channels (with API support for Slack)
-- **Agent Delegation**: Agents can delegate tasks to other agents in the workspace, with support for async delegation, query-based matching, and delegation tracking
+- **Agent Delegation**: Agents can delegate tasks to other agents in the workspace, with support for async delegation, query-based matching, and delegation tracking. Configure which agents can receive delegations and let your agents collaborate to handle complex workflows
 
 **Extensibility**: Configure MCP servers with custom authentication and enable them per-agent to give your AI assistants access to databases, business logic, weather APIs, and any other external services you need.
 
@@ -114,7 +131,12 @@ All Google Workspace integrations use secure OAuth 2.0 authentication, ensuring 
 - **HubSpot**: Read CRM contacts, companies, deals, and owners
 - **PostHog**: Access projects, events, feature flags, insights, and persons
 - **Salesforce**: Discover objects, inspect fields, and run queries
-- **Notion**: Read pages and databases with shared workspace access
+- **Notion**: Read, search, create, and update pages and databases with shared workspace access
+- **Shopify**: Look up orders, check product inventory, and summarize sales for date ranges
+- **Intercom**: Read and reply to conversations, and manage contacts as an admin
+- **Todoist**: Create, list, and complete tasks with natural language due dates
+- **Zendesk**: Search tickets, read ticket threads, draft private replies, and search Help Center articles
+- **Stripe**: Read-only access to Stripe balance, refunds, and charge search via Stripe's query language
 
 See the [MCP Servers](./docs/mcp-servers.md) guide for setup and full tool coverage.
 
@@ -237,13 +259,19 @@ Complete API documentation available in OpenAPI format. Generate client librarie
 
 - **Chat Platform Bots**: Deploy agents as Slack or Discord bots for team collaboration and community engagement
 - **Web Applications**: Embed AI responses in web applications with real-time streaming
-- **Automated Workflows**: Build automated workflows that leverage AI capabilities
-- **Research Assistants**: Create research assistants that search the web for current information
-- **News Monitoring**: Deploy news monitoring agents that track industry developments
+- **Automated Workflows**: Build automated workflows that leverage AI capabilities, including scheduled agent runs
+- **Research Assistants**: Create research assistants that search the web for current information using Tavily, Jina.ai, or Exa.ai
+- **News Monitoring**: Deploy news monitoring agents that track industry developments with scheduled runs
 - **Content Analysis**: Build content analysis tools that extract insights from web pages
 - **Google Workspace Automation**: Connect agents to Gmail for email management, Google Calendar for scheduling, and Google Drive for document analysis
+- **CRM Integration**: Connect agents to HubSpot, Salesforce, or Zendesk for customer support and sales workflows
+- **E-commerce Automation**: Integrate with Shopify for order management, inventory tracking, and sales reporting
+- **Project Management**: Connect agents to Linear, Notion, or Todoist for task management and project tracking
+- **Payment Processing**: Integrate with Stripe for payment analytics and charge management
+- **Customer Support**: Use Intercom or Zendesk integrations for automated customer support workflows
 - **Custom Interfaces**: Create custom interfaces for agent interactions
 - **MCP Extensions**: Extend agents with MCP servers for database access, external APIs, and custom business logic
+- **Scheduled Automation**: Create agents that run automatically on cron schedules for reports, monitoring, and routine tasks
 
 See the [API Reference](./docs/api-reference.md) for complete endpoint documentation and [MCP Servers](./docs/mcp-servers.md) for tool integration guide.
 
@@ -305,7 +333,7 @@ The platform is designed for reliability, scalability, and performance, handling
 
 - [Slack Bot Integration](./docs/slack-integration.md) - Deploy your agents as Slack bots for team collaboration
 - [Discord Bot Integration](./docs/discord-integration.md) - Deploy your agents as Discord bots for community engagement
-- [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers (GitHub, Slack, Linear, HubSpot, PostHog, Salesforce, Zendesk, Notion, Google Workspace)
+- [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers (GitHub, Slack, Linear, HubSpot, PostHog, Salesforce, Zendesk, Notion, Google Workspace, Shopify, Intercom, Todoist, Stripe)
 - [Tavily Integration](./docs/tavily-integration.md) - Web search and content extraction with Tavily API
 - [Discord Setup](./docs/discord-setup.md) - Configure Discord notification channels for your agents
 - [Email Setup](./docs/email-setup.md) - Configure email authentication and notifications
