@@ -3199,6 +3199,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 **Follow-up**:
 
 - Fixed Stripe MCP tool metadata generation by adding `stripe` to the OAuth service type list
+- Updated Stripe OAuth test to expect `read_write` scope
 - Test suite passing (`pnpm test`) ✅
 
 ## Next Steps

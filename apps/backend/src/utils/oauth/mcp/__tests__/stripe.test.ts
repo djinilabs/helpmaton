@@ -32,7 +32,7 @@ describe("Stripe OAuth Utilities", () => {
       expect(authUrl).toContain("https://connect.stripe.com/oauth/authorize");
       expect(authUrl).toContain("client_id=stripe-client-id-123");
       expect(authUrl).toContain("response_type=code");
-      expect(authUrl).toContain("scope=read_only");
+      expect(authUrl).toContain("scope=read_write");
       expect(authUrl).toContain("redirect_uri=");
       expect(authUrl).toContain("state=");
     });
