@@ -9,36 +9,6 @@ import { getUserSubscription, getUserByEmail } from "./utils/subscriptionUtils";
 // Initialize Sentry when this module is loaded
 initSentry();
 
-// Function to check if user is allowed to sign in
-async function isUserAllowedToSignIn(email: string): Promise<boolean> {
-  if (!email) return false;
-
-  const normalizedEmail = email.toLowerCase();
-
-  // Always allow specific email addresses
-  const alwaysAllowedEmails = ["i@pgte.me", "pedro.teixeira@gmail.com"];
-  if (alwaysAllowedEmails.includes(normalizedEmail)) {
-    return true;
-  }
-
-  // Allow testmail emails for testing
-  const emailDomain = normalizedEmail.split("@")[1];
-  if (emailDomain && emailDomain.endsWith("inbox.testmail.app")) {
-    return true;
-  }
-
-  // Check if there's a whitelist in environment variable
-  const allowedEmails =
-    process.env.ALLOWED_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
-    [];
-  if (allowedEmails.includes(normalizedEmail)) {
-    return true;
-  }
-
-  // If no whitelist is configured, deny all emails
-  return false;
-}
-
 export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
   // Get the DynamoDB adapter using the shared utility
   const databaseAdapter = await getDynamoDBAdapter();
@@ -144,13 +114,6 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
     adapter: databaseAdapter,
     callbacks: {
       async signIn({ user, account }) {
-        // Check if user is allowed to sign in
-        const isEmailAllowed = await isUserAllowedToSignIn(user.email ?? "");
-        if (!isEmailAllowed) {
-          console.log("Email not allowed to sign in:", user.email);
-          return false;
-        }
-
         // For email authentication
         if (account?.type === "email") {
           // Ensure user has a subscription (create free subscription if needed)

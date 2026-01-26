@@ -58,16 +58,6 @@ This document describes the environment variables required for the helpmaton bac
   - This is only used in local development (sandbox mode)
   - The database directory should be added to `.gitignore` to avoid committing local data
 
-### `ALLOWED_EMAILS`
-
-- **Description**: Comma-separated list of email addresses allowed to sign in
-- **Required**: No
-- **Example**: `user1@example.com,user2@example.com`
-- **Note**:
-  - If not set, all emails are allowed to sign in
-  - If set, only emails in this list can sign in
-  - Testmail emails (ending with `@inbox.testmail.app`) are always allowed
-
 ### `GEMINI_API_KEY`
 
 - **Description**: Google Gemini API key for AI agent functionality and memory system
@@ -1029,13 +1019,12 @@ pnpm arc deploy --production --no-hydrate --verbose
 1. **Never commit secrets to version control**: Always use environment variables or secure secret management systems
 2. **Use different secrets per environment**: Use different `AUTH_SECRET` values for development, staging, and production
 3. **Rotate secrets regularly**: Periodically rotate your `AUTH_SECRET`, `MAILGUN_KEY`, S3 credentials, and Lemon Squeezy API keys
-4. **Restrict email access**: In production, consider setting `ALLOWED_EMAILS` to restrict who can sign in
-5. **S3 credentials security**:
+4. **S3 credentials security**:
    - Never commit `HELPMATON_S3_ACCESS_KEY_ID` or `HELPMATON_S3_SECRET_ACCESS_KEY` to version control
    - Use IAM roles when possible instead of access keys
    - Grant S3 credentials only the minimum permissions needed (read/write to the specific bucket)
    - Rotate S3 credentials regularly
-6. **Lemon Squeezy security**:
+5. **Lemon Squeezy security**:
    - Never commit `LEMON_SQUEEZY_API_KEY` or `LEMON_SQUEEZY_WEBHOOK_SECRET` to version control
    - Use test mode keys for development and staging
    - Rotate API keys regularly

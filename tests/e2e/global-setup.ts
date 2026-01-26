@@ -215,7 +215,6 @@ async function globalSetup(config: FullConfig) {
     const optionalVars = [
       "GEMINI_API_KEY",
       "SENTRY_DSN",
-      "ALLOWED_EMAILS",
       "HELPMATON_S3_BUCKET",
       "HELPMATON_S3_ENDPOINT",
       "HELPMATON_S3_DATA_DIR",

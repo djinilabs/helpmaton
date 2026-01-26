@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Open signup**: Removed allow-list gate from NextAuth sign-in flow, and removed `ALLOWED_EMAILS` references from env docs/examples/test setup. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Transaction field migration script**: Added `scripts/migrate-transaction-fields.ts` to resolve DynamoDB table names from a stack, confirm them, and migrate legacy millionth transaction fields to nano fields (x1000). Added progress logs for workspace scans, transaction queries, and updates. Documented usage in `scripts/README.md`. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Prod deploy gating**: Updated `deploy-prod.yml` to only run after successful E2E workflow runs on `main` and require explicit `skip_e2e` for manual dispatch; refreshed `docs/deployment.md` to reflect E2E gating. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Nano-dollar pricing conversion**: Updated remaining backend/frontend tests, OpenAPI JSON artifacts, and E2E comments to use nano-dollars; renamed transaction fields in tests; scaled test values; ran `pnpm typecheck` and `pnpm lint --fix`.
