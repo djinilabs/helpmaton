@@ -6,6 +6,11 @@
 
 **Latest Work**:
 
+- **MCP tools integration resiliency**: Added optional skips for provider tools that depend on missing data (Notion DB, GitHub issues/PRs/commits, HubSpot/Intercom/Linear/Slack/Zendesk follow-ups), added env-gated tools for Shopify sales report, Stripe charge search, Salesforce REST, Intercom updates, and Zendesk tickets; prefer member Slack channels and env fallback IDs.
+- **Google Calendar integration fixes**: Include start/end when updating events and allow delete calls to handle empty responses via text mode.
+- **MCP tools plan mapping**: Match tool names by longest prefix to avoid collisions (`notion_create` vs `notion_create_database_page`).
+- **Validation runs**: `pnpm test:mcp-tools:integration`, `pnpm typecheck`, `pnpm lint --fix`.
+
 - **Zendesk OAuth client identifier copy**: Clarified UI/doc copy that Zendesk expects the OAuth client **Unique identifier** (not numeric client ID) and reran `pnpm typecheck` + `pnpm lint --fix`.
 - **Zendesk OAuth scope fix**: Switched Help Center scope to `hc:read` (Zendesk resource scope), updated UI/docs copy and Zendesk OAuth unit test; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Todoist OAuth authorize host**: Switched Todoist OAuth authorize URL to `https://app.todoist.com/oauth/authorize` (per API v1 docs) after `api.todoist.com` login flow returned a 404.

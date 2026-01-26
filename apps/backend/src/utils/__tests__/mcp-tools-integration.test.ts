@@ -51,7 +51,7 @@ type ProviderPlan = {
   order: string[];
   resolveArgs: Record<
     string,
-    (context: ProviderContext) => Record<string, unknown>
+    (context: ProviderContext) => Record<string, unknown> | null
   >;
   extract: Record<
     string,
@@ -149,6 +149,8 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
         calendarId: "primary",
         eventId: getCalendarEventId(context),
         summary: "MCP Integration Test (Updated)",
+        start: { dateTime: context.nowIso },
+        end: { dateTime: context.laterIso },
       }),
       google_calendar_delete: (context) => ({
         calendarId: "primary",
@@ -220,22 +222,39 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
           },
         ],
       }),
-      notion_query_database: (context) => ({
-        databaseId: getRequired(context, "databaseId", "notion_search"),
-        pageSize: 1,
-      }),
-      notion_create_database_page: (context) => ({
-        databaseId: getRequired(context, "databaseId", "notion_search"),
-        properties: buildNotionDatabaseProperties(context),
-      }),
-      notion_update_database_page: (context) => ({
-        pageId: getRequired(
-          context,
-          "createdDatabasePageId",
-          "notion_create_database_page"
-        ),
-        properties: buildNotionDatabaseProperties(context),
-      }),
+      notion_query_database: (context) => {
+        const databaseId = resolveNotionDatabaseId(context);
+        if (!databaseId) {
+          return null;
+        }
+        return {
+          databaseId,
+          pageSize: 1,
+        };
+      },
+      notion_create_database_page: (context) => {
+        const databaseId = resolveNotionDatabaseId(context);
+        if (!databaseId || !context.values.databasePageSample) {
+          return null;
+        }
+        return {
+          databaseId,
+          properties: buildNotionDatabaseProperties(context),
+        };
+      },
+      notion_update_database_page: (context) => {
+        const pageId = context.values.createdDatabasePageId;
+        if (typeof pageId !== "string" || pageId.trim().length === 0) {
+          return null;
+        }
+        if (!context.values.databasePageSample) {
+          return null;
+        }
+        return {
+          pageId,
+          properties: buildNotionDatabaseProperties(context),
+        };
+      },
     },
     extract: {
       notion_search: (context, parsed) => {
@@ -287,47 +306,97 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
     ],
     resolveArgs: {
       github_list_repos: () => ({ per_page: 5 }),
-      github_get_repo: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-      }),
-      github_list_issues: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-        state: "all",
-        per_page: 5,
-      }),
-      github_get_issue: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-        issueNumber: getRequired(context, "issueNumber", "github_list_issues"),
-      }),
-      github_list_prs: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-        state: "all",
-        per_page: 5,
-      }),
-      github_get_pr: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-        prNumber: getRequired(context, "prNumber", "github_list_prs"),
-      }),
-      github_read_file: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-        path: "README.md",
-      }),
-      github_list_commits: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-        per_page: 5,
-      }),
-      github_get_commit: (context) => ({
-        owner: getRequired(context, "owner", "github_list_repos"),
-        repo: getRequired(context, "repo", "github_list_repos"),
-        sha: getRequired(context, "commitSha", "github_list_commits"),
-      }),
+      github_get_repo: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        return repo;
+      },
+      github_list_issues: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        return {
+          ...repo,
+          state: "all",
+          per_page: 5,
+        };
+      },
+      github_get_issue: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        const issueNumber = context.values.issueNumber;
+        if (typeof issueNumber !== "number" && typeof issueNumber !== "string") {
+          return null;
+        }
+        return {
+          ...repo,
+          issueNumber,
+        };
+      },
+      github_list_prs: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        return {
+          ...repo,
+          state: "all",
+          per_page: 5,
+        };
+      },
+      github_get_pr: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        const prNumber = context.values.prNumber;
+        if (typeof prNumber !== "number" && typeof prNumber !== "string") {
+          return null;
+        }
+        return {
+          ...repo,
+          prNumber,
+        };
+      },
+      github_read_file: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        return {
+          ...repo,
+          path: "README.md",
+        };
+      },
+      github_list_commits: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        return {
+          ...repo,
+          per_page: 5,
+        };
+      },
+      github_get_commit: (context) => {
+        const repo = resolveGithubRepo(context);
+        if (!repo) {
+          return null;
+        }
+        const sha = context.values.commitSha;
+        if (typeof sha !== "string" || sha.trim().length === 0) {
+          return null;
+        }
+        return {
+          ...repo,
+          sha,
+        };
+      },
     },
     extract: {
       github_list_repos: (context, parsed) => {
@@ -378,9 +447,13 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
       linear_list_teams: () => ({}),
       linear_list_projects: () => ({ first: 5 }),
       linear_list_issues: () => ({ first: 5 }),
-      linear_get_issue: (context) => ({
-        issueId: getRequired(context, "issueId", "linear_list_issues"),
-      }),
+      linear_get_issue: (context) => {
+        const issueId = context.values.issueId;
+        if (typeof issueId !== "string" || issueId.trim().length === 0) {
+          return null;
+        }
+        return { issueId };
+      },
       linear_search_issues: () => ({ query: "test", first: 5 }),
     },
     extract: {
@@ -423,24 +496,40 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
     ],
     resolveArgs: {
       hubspot_list_contacts: () => ({ limit: 5 }),
-      hubspot_get_contact: (context) => ({
-        contactId: getRequired(context, "contactId", "hubspot_list_contacts"),
-      }),
+      hubspot_get_contact: (context) => {
+        const contactId = context.values.contactId;
+        if (typeof contactId !== "string" || contactId.trim().length === 0) {
+          return null;
+        }
+        return { contactId };
+      },
       hubspot_search_contacts: () => ({ query: "test", limit: 5 }),
       hubspot_list_companies: () => ({ limit: 5 }),
-      hubspot_get_company: (context) => ({
-        companyId: getRequired(context, "companyId", "hubspot_list_companies"),
-      }),
+      hubspot_get_company: (context) => {
+        const companyId = context.values.companyId;
+        if (typeof companyId !== "string" || companyId.trim().length === 0) {
+          return null;
+        }
+        return { companyId };
+      },
       hubspot_search_companies: () => ({ query: "test", limit: 5 }),
       hubspot_list_deals: () => ({ limit: 5 }),
-      hubspot_get_deal: (context) => ({
-        dealId: getRequired(context, "dealId", "hubspot_list_deals"),
-      }),
+      hubspot_get_deal: (context) => {
+        const dealId = context.values.dealId;
+        if (typeof dealId !== "string" || dealId.trim().length === 0) {
+          return null;
+        }
+        return { dealId };
+      },
       hubspot_search_deals: () => ({ query: "test", limit: 5 }),
       hubspot_list_owners: () => ({ limit: 5 }),
-      hubspot_get_owner: (context) => ({
-        ownerId: getRequired(context, "ownerId", "hubspot_list_owners"),
-      }),
+      hubspot_get_owner: (context) => {
+        const ownerId = context.values.ownerId;
+        if (typeof ownerId !== "string" || ownerId.trim().length === 0) {
+          return null;
+        }
+        return { ownerId };
+      },
       hubspot_search_owners: () => ({ query: "test", limit: 5 }),
     },
     extract: {
@@ -482,14 +571,27 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
     order: ["shopify_search_products", "shopify_sales_report", "shopify_get_order"],
     resolveArgs: {
       shopify_search_products: () => ({ query: "test" }),
-      shopify_sales_report: (context) => ({
-        startDate: context.nowIso,
-        endDate: context.laterIso,
-        limit: 50,
-      }),
-      shopify_get_order: () => ({
-        orderNumber: "1001",
-      }),
+      shopify_sales_report: (context) => {
+        const allowSalesReport =
+          process.env.MCP_SHOPIFY_SALES_REPORT === "true" ||
+          process.env.SHOPIFY_SALES_REPORT === "true";
+        if (!allowSalesReport) {
+          return null;
+        }
+        return {
+          startDate: context.nowIso,
+          endDate: context.laterIso,
+          limit: 50,
+        };
+      },
+      shopify_get_order: () => {
+        const orderNumber =
+          process.env.MCP_SHOPIFY_ORDER_NUMBER || process.env.SHOPIFY_ORDER_NUMBER;
+        if (!orderNumber || orderNumber.trim().length === 0) {
+          return null;
+        }
+        return { orderNumber };
+      },
     },
     extract: {},
   },
@@ -497,22 +599,43 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
     order: ["slack_list_channels", "slack_get_channel_history", "slack_post_message"],
     resolveArgs: {
       slack_list_channels: () => ({ limit: 5 }),
-      slack_get_channel_history: (context) => ({
-        channelId: getRequired(context, "channelId", "slack_list_channels"),
-        limit: 5,
-      }),
-      slack_post_message: (context) => ({
-        channelId: getRequired(context, "channelId", "slack_list_channels"),
-        text: "MCP tool integration test message",
-      }),
+      slack_get_channel_history: (context) => {
+        const channelId = resolveSlackChannelId(context);
+        if (!channelId) {
+          return null;
+        }
+        return { channelId, limit: 5 };
+      },
+      slack_post_message: (context) => {
+        const channelId = resolveSlackChannelId(context);
+        if (!channelId) {
+          return null;
+        }
+        return {
+          channelId,
+          text: "MCP tool integration test message",
+        };
+      },
     },
     extract: {
       slack_list_channels: (context, parsed) => {
-        const channel = pickFirstArrayItem(parsed, "channels");
+        const channels = getValueByPath(parsed, ["channels"]);
+        if (!Array.isArray(channels)) {
+          return;
+        }
+        const memberChannel = channels.find(
+          (entry) =>
+            entry &&
+            typeof entry === "object" &&
+            (entry as { is_member?: boolean }).is_member
+        );
+        if (!memberChannel) {
+          return;
+        }
         setValue(
           context,
           "channelId",
-          (channel as { id?: string } | undefined)?.id
+          (memberChannel as { id?: string } | undefined)?.id
         );
       },
     },
@@ -520,7 +643,15 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
   stripe: {
     order: ["stripe_search_charges", "stripe_get_metrics"],
     resolveArgs: {
-      stripe_search_charges: () => ({ query: "status:'succeeded'" }),
+      stripe_search_charges: () => {
+        const allowSearch =
+          process.env.MCP_STRIPE_SEARCH_CHARGES === "true" ||
+          process.env.STRIPE_SEARCH_CHARGES === "true";
+        if (!allowSearch) {
+          return null;
+        }
+        return { query: "status:'succeeded'" };
+      },
       stripe_get_metrics: (context) => ({
         startDate: context.nowIso,
         endDate: context.laterIso,
@@ -532,17 +663,29 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
   salesforce: {
     order: ["salesforce_list_objects", "salesforce_describe_object", "salesforce_query"],
     resolveArgs: {
-      salesforce_list_objects: () => ({}),
-      salesforce_describe_object: (context) => ({
-        objectName: getRequired(context, "objectName", "salesforce_list_objects"),
-      }),
-      salesforce_query: (context) => ({
-        query: `SELECT Id FROM ${getRequired(
-          context,
-          "objectName",
-          "salesforce_list_objects"
-        )} LIMIT 1`,
-      }),
+      salesforce_list_objects: () => {
+        const allowSalesforce =
+          process.env.MCP_SALESFORCE_REST === "true" ||
+          process.env.SALESFORCE_REST === "true";
+        if (!allowSalesforce) {
+          return null;
+        }
+        return {};
+      },
+      salesforce_describe_object: (context) => {
+        const objectName = context.values.objectName;
+        if (typeof objectName !== "string" || objectName.trim().length === 0) {
+          return null;
+        }
+        return { objectName };
+      },
+      salesforce_query: (context) => {
+        const objectName = context.values.objectName;
+        if (typeof objectName !== "string" || objectName.trim().length === 0) {
+          return null;
+        }
+        return { query: `SELECT Id FROM ${objectName} LIMIT 1` };
+      },
     },
     extract: {
       salesforce_list_objects: (context, parsed) => {
@@ -574,9 +717,13 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
     ],
     resolveArgs: {
       intercom_list_contacts: () => ({ perPage: 5 }),
-      intercom_get_contact: (context) => ({
-        contactId: getRequired(context, "contactId", "intercom_list_contacts"),
-      }),
+      intercom_get_contact: (context) => {
+        const contactId = context.values.contactId;
+        if (typeof contactId !== "string" || contactId.trim().length === 0) {
+          return null;
+        }
+        return { contactId };
+      },
       intercom_search_contacts: () => ({
         query: {
           operator: "AND",
@@ -589,22 +736,34 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
           ],
         },
       }),
-      intercom_update_contact: (context) => ({
-        contactId: getRequired(context, "contactId", "intercom_list_contacts"),
-        updates: {
-          custom_attributes: {
-            mcp_integration_test: "true",
+      intercom_update_contact: (context) => {
+        const contactId = context.values.contactId;
+        if (typeof contactId !== "string" || contactId.trim().length === 0) {
+          return null;
+        }
+        const allowUpdate =
+          process.env.MCP_INTERCOM_UPDATE_CONTACT === "true" ||
+          process.env.INTERCOM_UPDATE_CONTACT === "true";
+        if (!allowUpdate) {
+          return null;
+        }
+        return {
+          contactId,
+          updates: {
+            custom_attributes: {
+              mcp_integration_test: "true",
+            },
           },
-        },
-      }),
+        };
+      },
       intercom_list_conversations: () => ({ perPage: 5 }),
-      intercom_get_conversation: (context) => ({
-        conversationId: getRequired(
-          context,
-          "conversationId",
-          "intercom_list_conversations"
-        ),
-      }),
+      intercom_get_conversation: (context) => {
+        const conversationId = context.values.conversationId;
+        if (typeof conversationId !== "string" || conversationId.trim().length === 0) {
+          return null;
+        }
+        return { conversationId };
+      },
       intercom_search_conversations: () => ({
         query: {
           operator: "AND",
@@ -617,15 +776,17 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
           ],
         },
       }),
-      intercom_reply_conversation: (context) => ({
-        conversationId: getRequired(
-          context,
-          "conversationId",
-          "intercom_list_conversations"
-        ),
-        messageType: "comment",
-        body: "MCP tool integration test reply",
-      }),
+      intercom_reply_conversation: (context) => {
+        const conversationId = context.values.conversationId;
+        if (typeof conversationId !== "string" || conversationId.trim().length === 0) {
+          return null;
+        }
+        return {
+          conversationId,
+          messageType: "comment",
+          body: "MCP tool integration test reply",
+        };
+      },
     },
     extract: {
       intercom_list_contacts: (context, parsed) => {
@@ -676,14 +837,38 @@ const mcpPlans: Record<McpServiceType, ProviderPlan> = {
       "zendesk_search_help_center",
     ],
     resolveArgs: {
-      zendesk_search_tickets: () => ({ query: "type:ticket" }),
-      zendesk_get_ticket_details: (context) => ({
-        ticketId: getRequired(context, "ticketId", "zendesk_search_tickets"),
-      }),
-      zendesk_draft_comment: (context) => ({
-        ticketId: getRequired(context, "ticketId", "zendesk_search_tickets"),
-        body: "MCP tool integration test draft reply",
-      }),
+      zendesk_search_tickets: () => {
+        const allowTickets =
+          process.env.MCP_ZENDESK_TICKETS === "true" ||
+          process.env.ZENDESK_TICKETS === "true";
+        if (!allowTickets) {
+          return null;
+        }
+        return { query: "type:ticket" };
+      },
+      zendesk_get_ticket_details: (context) => {
+        const ticketId = context.values.ticketId;
+        if (
+          (typeof ticketId !== "string" && typeof ticketId !== "number") ||
+          String(ticketId).trim().length === 0
+        ) {
+          return null;
+        }
+        return { ticketId };
+      },
+      zendesk_draft_comment: (context) => {
+        const ticketId = context.values.ticketId;
+        if (
+          (typeof ticketId !== "string" && typeof ticketId !== "number") ||
+          String(ticketId).trim().length === 0
+        ) {
+          return null;
+        }
+        return {
+          ticketId,
+          body: "MCP tool integration test draft reply",
+        };
+      },
       zendesk_search_help_center: () => ({ query: "account" }),
     },
     extract: {
@@ -743,6 +928,12 @@ mcpDescribe("MCP tools integration (real services)", () => {
           }
 
           const args = plan.resolveArgs[toolBaseName](context);
+          if (!args) {
+            console.log(
+              `[MCP Tools] ${serviceType}: ${toolBaseName} skipped (missing prerequisites)`
+            );
+            continue;
+          }
           const result = await executeTool(
             serviceType,
             entry.name,
@@ -1006,12 +1197,13 @@ function mapToolsToPlan(
   toolEntries: Array<[string, ToolExecutor]>,
   plan: ProviderPlan
 ): Map<string, { name: string; tool: ToolExecutor }> {
+  const candidates = [...plan.order].sort((a, b) => b.length - a.length);
   const map = new Map<
     string,
     { name: string; tool: ToolExecutor }
   >();
   for (const [name, tool] of toolEntries) {
-    const baseName = plan.order.find((candidate) => name.startsWith(candidate));
+    const baseName = candidates.find((candidate) => name.startsWith(candidate));
     if (!baseName) {
       throw new Error(`Unrecognized MCP tool: ${name}`);
     }
@@ -1147,4 +1339,64 @@ function buildNotionDatabaseProperties(
     }
   }
   return updated;
+}
+
+function resolveNotionDatabaseId(context: ProviderContext): string | null {
+  const existing = context.values.databaseId;
+  if (typeof existing === "string" && existing.trim().length > 0) {
+    return existing;
+  }
+  if (typeof existing === "number") {
+    return String(existing);
+  }
+  const fallback =
+    process.env.MCP_NOTION_DATABASE_ID || process.env.NOTION_DATABASE_ID;
+  if (fallback && fallback.trim().length > 0) {
+    const normalized = fallback.trim();
+    setValue(context, "databaseId", normalized);
+    return normalized;
+  }
+  return null;
+}
+
+function resolveGithubRepo(
+  context: ProviderContext
+): { owner: string; repo: string } | null {
+  const ownerValue = context.values.owner;
+  const repoValue = context.values.repo;
+  const fallbackOwner =
+    process.env.MCP_GITHUB_OWNER || process.env.GITHUB_OWNER;
+  const fallbackRepo = process.env.MCP_GITHUB_REPO || process.env.GITHUB_REPO;
+
+  const owner =
+    typeof ownerValue === "string" && ownerValue.trim().length > 0
+      ? ownerValue
+      : fallbackOwner?.trim();
+  const repo =
+    typeof repoValue === "string" && repoValue.trim().length > 0
+      ? repoValue
+      : fallbackRepo?.trim();
+
+  if (!owner || !repo) {
+    return null;
+  }
+
+  setValue(context, "owner", owner);
+  setValue(context, "repo", repo);
+  return { owner, repo };
+}
+
+function resolveSlackChannelId(context: ProviderContext): string | null {
+  const channelValue = context.values.channelId;
+  if (typeof channelValue === "string" && channelValue.trim().length > 0) {
+    return channelValue;
+  }
+  const fallback =
+    process.env.MCP_SLACK_CHANNEL_ID || process.env.SLACK_CHANNEL_ID;
+  if (fallback && fallback.trim().length > 0) {
+    const normalized = fallback.trim();
+    setValue(context, "channelId", normalized);
+    return normalized;
+  }
+  return null;
 }
