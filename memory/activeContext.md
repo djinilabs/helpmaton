@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Conversation sequence preservation**: Updated `expandMessagesWithToolCalls` to emit assistant/tool messages in observed event order, avoiding tool-call/result/text aggregation; added sequence-order tests and ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run conversationLogger`.
 - **MCP server tools viewer**: Added per-server MCP tools endpoint + tests, and a Connected tools “View tools” dialog/button with tool parameters/availability. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Conversation logger tests**: Updated mocks/expectations to use `upsert` for `agent-conversations` in unit tests and reran `pnpm --filter backend test --run conversationLogger`.
 - **Webhook logging idempotency**: Switched conversation logging to `upsert` with retry/backoff on version conflicts to tolerate duplicate webhook deliveries; added `createdAt` to upserted records. Ran `pnpm typecheck` and `pnpm lint --fix`.
