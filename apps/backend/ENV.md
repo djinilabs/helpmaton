@@ -358,7 +358,7 @@ These environment variables are used by the frontend application and must be pre
 
 ## Email OAuth Configuration
 
-### `GMAIL_CLIENT_ID`
+### `GOOGLE_OAUTH_CLIENT_ID`
 
 - **Description**: Google OAuth 2.0 client ID for Gmail email connections
 - **Required**: No (required only if using Gmail OAuth)
@@ -373,12 +373,12 @@ These environment variables are used by the frontend application and must be pre
   7. Add authorized redirect URIs: `{OAUTH_REDIRECT_BASE_URL}/api/email/oauth/gmail/callback`
   8. Copy the Client ID
 
-### `GMAIL_CLIENT_SECRET`
+### `GOOGLE_OAUTH_CLIENT_SECRET`
 
 - **Description**: Google OAuth 2.0 client secret for Gmail email connections
 - **Required**: No (required only if using Gmail OAuth)
 - **Example**: `GOCSPX-abcdefghijklmnopqrstuvwxyz`
-- **How to obtain**: Created together with `GMAIL_CLIENT_ID` (see above)
+- **How to obtain**: Created together with `GOOGLE_OAUTH_CLIENT_ID` (see above)
 - **Note**: Keep this secret secure and never commit it to version control
 
 ### `OUTLOOK_CLIENT_ID`

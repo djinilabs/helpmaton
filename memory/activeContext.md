@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Google OAuth env rename**: Replaced `GMAIL_CLIENT_ID/SECRET` with `GOOGLE_OAUTH_CLIENT_ID/SECRET` across Gmail OAuth code, docs, env examples, and deploy workflows; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent accordion preference scoping**: Scoped agent detail accordion local preference keys by agent ID so new assistant pages don't inherit previously opened sections.
 - **Agent detail top scroll**: When no accordion section is expanded on entry, the agent detail page scrolls to top.
 - **Auth gate error styling**: Fixed dark-mode error styles using valid `error-900` classes so signup gate verification errors remain readable.

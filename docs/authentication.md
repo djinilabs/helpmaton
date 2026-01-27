@@ -286,7 +286,7 @@ https://app.helpmaton.com/api/auth/callback/email?token=secure_token_123
 
 1. Create OAuth client in Google Cloud Console
 2. Set redirect URI: `{BASE_URL}/api/auth/callback/google`
-3. Configure `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`
+3. Configure `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
 
 **Flow**:
 

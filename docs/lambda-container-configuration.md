@@ -123,8 +123,8 @@ The function has the following environment variables configured:
 - `AUTH_SECRET`: Authentication secret
 - `SENTRY_DSN`: Sentry error tracking DSN
 - `GEMINI_API_KEY`: Google Gemini API key
-- `GMAIL_CLIENT_ID`: Gmail OAuth client ID
-- `GMAIL_CLIENT_SECRET`: Gmail OAuth client secret
+- `GOOGLE_OAUTH_CLIENT_ID`: Google OAuth client ID
+- `GOOGLE_OAUTH_CLIENT_SECRET`: Google OAuth client secret
 - `OUTLOOK_CLIENT_ID`: Outlook OAuth client ID
 - `OUTLOOK_CLIENT_SECRET`: Outlook OAuth client secret
 - `OAUTH_REDIRECT_BASE_URL`: OAuth redirect base URL

@@ -73,8 +73,8 @@ Gmail OAuth2 is the recommended method for Gmail users as it's more secure and d
 6. Click **"Create"**
 7. Copy the **Client ID** and **Client secret**
 8. Add these to your environment variables:
-   - `GMAIL_CLIENT_ID` = Your Client ID
-   - `GMAIL_CLIENT_SECRET` = Your Client secret
+   - `GOOGLE_OAUTH_CLIENT_ID` = Your Client ID
+   - `GOOGLE_OAUTH_CLIENT_SECRET` = Your Client secret
    - `OAUTH_REDIRECT_BASE_URL` = Your base URL where OAuth will redirect to:
      - For production: `https://your-domain.com`
      - For local development with frontend proxy: `http://localhost:5173` (or your frontend port)
@@ -334,7 +334,7 @@ The `send_email` tool accepts the following parameters:
      - Exact path match (`/api/email/oauth/gmail/callback`)
    - If the URI is there but still failing:
      - Remove it, save, then add it back and save again
-     - Make sure you're editing the correct OAuth client (check the Client ID matches your `GMAIL_CLIENT_ID` env var)
+     - Make sure you're editing the correct OAuth client (check the Client ID matches your `GOOGLE_OAUTH_CLIENT_ID` env var)
      - Wait a few minutes for Google's systems to update
 
 3. **Verify environment variable**:

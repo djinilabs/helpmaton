@@ -28,8 +28,8 @@ export function generateGmailAuthUrl(
   state?: string
 ): string {
   const clientId = getDefined(
-    process.env.GMAIL_CLIENT_ID,
-    "GMAIL_CLIENT_ID is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    "GOOGLE_OAUTH_CLIENT_ID is not set"
   );
   const redirectUri = buildCallbackUrl("gmail");
   const stateToken = state || generateStateToken(workspaceId);
@@ -58,12 +58,12 @@ export async function exchangeGmailCode(
   code: string
 ): Promise<GmailTokenInfo> {
   const clientId = getDefined(
-    process.env.GMAIL_CLIENT_ID,
-    "GMAIL_CLIENT_ID is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    "GOOGLE_OAUTH_CLIENT_ID is not set"
   );
   const clientSecret = getDefined(
-    process.env.GMAIL_CLIENT_SECRET,
-    "GMAIL_CLIENT_SECRET is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    "GOOGLE_OAUTH_CLIENT_SECRET is not set"
   );
   const redirectUri = buildCallbackUrl("gmail");
 
@@ -129,12 +129,12 @@ export async function refreshGmailToken(
   refreshToken: string
 ): Promise<GmailTokenInfo> {
   const clientId = getDefined(
-    process.env.GMAIL_CLIENT_ID,
-    "GMAIL_CLIENT_ID is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    "GOOGLE_OAUTH_CLIENT_ID is not set"
   );
   const clientSecret = getDefined(
-    process.env.GMAIL_CLIENT_SECRET,
-    "GMAIL_CLIENT_SECRET is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    "GOOGLE_OAUTH_CLIENT_SECRET is not set"
   );
 
   const response = await fetch(GMAIL_TOKEN_URL, {
