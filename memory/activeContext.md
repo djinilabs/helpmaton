@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Agent accordion preference scoping**: Scoped agent detail accordion local preference keys by agent ID so new assistant pages don't inherit previously opened sections.
+- **Agent detail top scroll**: When no accordion section is expanded on entry, the agent detail page scrolls to top.
 - **Auth gate error styling**: Fixed dark-mode error styles using valid `error-900` classes so signup gate verification errors remain readable.
 - **SQS timeout reporting**: Added timeout-specific Sentry error capture in `handlingSQSErrors` including handler name, queue element, and processing duration; passed handler names to queue handlers and added unit test coverage. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Dev sandbox crash investigation**: Confirmed `dev-wrapper` only kills after backend sandbox exits; sandbox crash originates from `@architect/sandbox` `tree-kill` with `spawn EBADF` under Node 24.9.0. Recommend running sandbox with Node 20.x plus `ARC_DEBUG=1` and `NODE_OPTIONS=--trace-uncaught --trace-warnings` to capture root cause.

@@ -596,10 +596,24 @@ function useAgentDetailState({
   } | null>(null);
   const systemPromptRef = useRef<HTMLDivElement>(null);
 
-  const { expandedSection, toggleSection } = useAccordion("agent-detail");
+  const { expandedSection, toggleSection } = useAccordion(
+    `agent-detail-${agentId}`
+  );
+  const lastScrolledAgentIdRef = useRef<string | null>(null);
   const [chatClearKey, setChatClearKey] = useState(0);
   const toast = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (lastScrolledAgentIdRef.current === agentId) {
+      return;
+    }
+
+    lastScrolledAgentIdRef.current = agentId;
+    if (!expandedSection) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [agentId, expandedSection]);
 
   // Fetch integrations for this agent
   const { data: allIntegrations } = useQuery({
