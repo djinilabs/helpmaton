@@ -40,12 +40,21 @@ describe("configureMethodAuthorizers", () => {
       "ApiAuthorizer"
     );
 
-    const emailMethod =
-      updated.Resources.EmailOauthMethod.Properties;
-    const mcpMethod =
-      updated.Resources.McpOauthMethod.Properties;
-    const workspacesMethod =
-      updated.Resources.WorkspacesMethod.Properties;
+    const emailMethod = updated.Resources.EmailOauthMethod
+      .Properties as {
+      AuthorizationType?: string;
+      AuthorizerId?: unknown;
+    };
+    const mcpMethod = updated.Resources.McpOauthMethod
+      .Properties as {
+      AuthorizationType?: string;
+      AuthorizerId?: unknown;
+    };
+    const workspacesMethod = updated.Resources.WorkspacesMethod
+      .Properties as {
+      AuthorizationType?: string;
+      AuthorizerId?: unknown;
+    };
 
     expect(emailMethod.AuthorizationType).toBeUndefined();
     expect(emailMethod.AuthorizerId).toBeUndefined();

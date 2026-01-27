@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Typecheck/lint fixes for api-throttling test**: Added `methods.d.ts` typings and tightened test casts to satisfy TypeScript; reran `pnpm typecheck` and `pnpm lint --fix`.
 - **Email/MCP OAuth authorizer skip**: Exempted `/api/email/oauth/*` and `/api/mcp/oauth/*` from API Gateway authorizer in `api-throttling` plugin; added unit test and ran `pnpm --filter backend test --run api-throttling`, `pnpm typecheck`, `pnpm lint --fix`.
 - **Prod Gmail OAuth "Not Authorized"**: Found API Gateway authorizer applied to `/api/email/oauth/:provider/callback` because `api-throttling` plugin skip list doesn't include email OAuth. Gateway returns "Not Authorized" before Lambda, so no CloudWatch logs for the callback function in production.
 - **Queue timeout tagging fix**: Use reportable error for timeout tagging to avoid AbortError wrapping non-timeout causes being tagged as timeouts; reran `pnpm test`.
