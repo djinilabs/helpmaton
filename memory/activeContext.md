@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Agent system prompt textarea height**: Reduced the default rows in the agent system prompt textarea to avoid dialog scrolling while keeping it comfortable.
 - **DynamoDB GetItem tracing**: Logged GetItem args/table details on tableApi.get errors and added a unit test to assert logging; ran `pnpm --filter backend test --run tableApi`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Open signup**: Removed allow-list gate from NextAuth sign-in flow, and removed `ALLOWED_EMAILS` references from env docs/examples/test setup. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Transaction field migration script**: Added `scripts/migrate-transaction-fields.ts` to resolve DynamoDB table names from a stack, confirm them, and migrate legacy millionth transaction fields to nano fields (x1000). Added progress logs for workspace scans, transaction queries, and updates. Documented usage in `scripts/README.md`. Ran `pnpm typecheck` and `pnpm lint --fix`.

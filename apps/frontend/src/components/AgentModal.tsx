@@ -132,7 +132,7 @@ const AgentModalContent: FC<{
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}
           className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-          rows={12}
+          rows={8}
           required
         />
         <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
