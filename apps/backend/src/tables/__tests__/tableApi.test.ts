@@ -509,6 +509,45 @@ describe("tableApi", () => {
 
       expect(result).toBeUndefined();
     });
+
+    it("should log GetItem arguments when get fails", async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const failure = new Error("Get failed");
+
+      try {
+        const tableWithLogging = tableApi(
+          "workspace",
+          mockLowLevelTable as unknown as Parameters<typeof tableApi>[1],
+          mockLowLevelClient as unknown as Parameters<typeof tableApi>[2],
+          "workspace-table",
+          tableSchemas.workspace
+        );
+
+        mockLowLevelTable.get.mockRejectedValue(failure);
+
+        await expect(
+          tableWithLogging.get("workspaces/workspace-123", "workspace")
+        ).rejects.toThrow("Get failed");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("[workspace]"),
+          "Error getting item",
+          expect.objectContaining({
+            operation: "GetItem",
+            tableName: "workspace",
+            table: "workspace-table",
+            key: { pk: "workspaces/workspace-123", sk: "workspace" },
+            version: undefined,
+          }),
+          failure
+        );
+      } finally {
+        errorSpy.mockRestore();
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
   });
 
   describe("create", () => {

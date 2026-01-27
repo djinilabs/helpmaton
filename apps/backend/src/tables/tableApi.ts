@@ -286,14 +286,25 @@ export const tableApi = <
      */
     get: async (pk: string, sk?: string, version?: string | null) => {
       // console.info("get", { pk, sk, version });
+      let keyArgs: { pk: string; sk?: string } | undefined;
       try {
-        const args = keySubset({ pk, sk });
-        const item = schema.optional().parse(await lowLevelTable.get(args));
+        keyArgs = keySubset({ pk, sk });
+        const item = schema.optional().parse(await lowLevelTable.get(keyArgs));
         return getVersion(item, version).item as
           | z.output<typeof schema>
           | undefined;
       } catch (err) {
-        console.error("Error getting item", tableName, pk, sk, err);
+        console.error(
+          "Error getting item",
+          {
+            operation: "GetItem",
+            tableName,
+            table: lowLevelTableName,
+            key: keyArgs ?? { pk, sk },
+            version,
+          },
+          err
+        );
         throw err;
       }
     },
