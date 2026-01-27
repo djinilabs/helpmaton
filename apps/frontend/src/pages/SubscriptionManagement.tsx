@@ -679,7 +679,7 @@ const SubscriptionManagement: FC = () => {
                     {canRemoveManager && (
                       <button
                         onClick={() => handleRemoveManager(manager.userId)}
-                        className="dark:hover:bg-error-950 rounded-xl border border-error-200 px-4 py-2 font-semibold text-error-600 transition-all duration-200 hover:bg-error-50 dark:border-error-800 dark:text-error-400"
+                        className="rounded-xl border border-error-200 px-4 py-2 font-semibold text-error-600 transition-all duration-200 hover:bg-error-50 dark:border-error-800 dark:text-error-400 dark:hover:bg-error-900"
                         disabled={removeManagerMutation.isPending}
                       >
                         {removeManagerMutation.isPending

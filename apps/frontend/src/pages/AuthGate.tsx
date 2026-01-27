@@ -195,7 +195,7 @@ const AuthGate: FC = () => {
         </p>
 
         {error && (
-          <div className="text-error-950 dark:bg-error-950 mb-6 rounded-xl border border-error-300 bg-error-100 p-3 text-sm dark:border-error-600 dark:text-error-100">
+          <div className="mb-6 rounded-xl border border-error-300 bg-error-100 p-3 text-sm text-error-900 dark:border-error-600 dark:bg-error-900 dark:text-error-100">
             {error}
           </div>
         )}

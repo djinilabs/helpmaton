@@ -218,7 +218,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                       }
                     }}
                     disabled={cancelInvite.isPending}
-                    className="dark:hover:bg-error-950 rounded-lg px-4 py-2 text-sm font-semibold text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-error-400"
+                    className="rounded-lg px-4 py-2 text-sm font-semibold text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-error-400 dark:hover:bg-error-900"
                   >
                     {cancelInvite.isPending ? "Cancelling..." : "Cancel"}
                   </button>
@@ -276,7 +276,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                       }
                     }}
                     disabled={removeMember.isPending}
-                    className="dark:hover:bg-error-950 rounded-lg px-4 py-2 text-sm font-semibold text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-error-400"
+                    className="rounded-lg px-4 py-2 text-sm font-semibold text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-error-400 dark:hover:bg-error-900"
                   >
                     {removeMember.isPending ? "Removing..." : "Remove"}
                   </button>

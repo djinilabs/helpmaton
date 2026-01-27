@@ -45,7 +45,7 @@ export const CreditBalance: FC<CreditBalanceProps> = ({ balance }) => {
         </span>
       </div>
       {numericBalance < 0 && (
-        <div className="dark:bg-error-950 mt-4 rounded-lg border border-error-200 bg-error-50 p-3 dark:border-error-800">
+        <div className="mt-4 rounded-lg border border-error-200 bg-error-50 p-3 dark:border-error-800 dark:bg-error-900">
           <p className="text-sm font-semibold text-error-800 dark:text-error-200">
             Warning: Negative Balance
           </p>
