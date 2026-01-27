@@ -2,7 +2,7 @@ name: Auto Merge
 
 on:
   workflow_run:
-    workflows: ["Tests", "Deploy PR", "E2E Tests"]
+    workflows: ["Deploy PR", "E2E Tests"]
     types:
       - completed
     branches:
