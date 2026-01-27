@@ -1,6 +1,8 @@
 import { boomify } from "@hapi/boom";
 import type { Context, SQSBatchResponse, SQSEvent } from "aws-lambda";
 
+import { isTimeoutError } from "../http/utils/requestTimeout";
+
 import { flushPostHog } from "./posthog";
 import { flushSentry, ensureError, Sentry } from "./sentry";
 import {
@@ -38,13 +40,15 @@ function extractQueueName(eventSourceARN: string | undefined): string {
  * Transactions are committed after successful processing of each record.
  */
 export const handlingSQSErrors = (
-  userHandler: (event: SQSEvent) => Promise<string[]>
+  userHandler: (event: SQSEvent) => Promise<string[]>,
+  options?: { handlerName?: string }
 ): ((event: SQSEvent) => Promise<SQSBatchResponse>) => {
   return async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const queueNames = event.Records.map((record) =>
       extractQueueName(record.eventSourceARN)
     );
     const uniqueQueueNames = [...new Set(queueNames)];
+    const handlerName = options?.handlerName || userHandler.name || "unknown";
     const transactionName =
       uniqueQueueNames.length === 1
         ? `SQS ${uniqueQueueNames[0]}`
@@ -61,12 +65,14 @@ export const handlingSQSErrors = (
       },
       async () => {
         Sentry.setTag("handler", "SQSFunction");
+        Sentry.setTag("sqs.handler_name", handlerName);
         if (uniqueQueueNames.length > 0) {
           Sentry.setTag("sqs.queue_names", uniqueQueueNames.join(","));
         }
         Sentry.setContext("sqs", {
           queueNames: uniqueQueueNames,
           recordCount: event.Records.length,
+          handlerName,
         });
 
         try {
@@ -99,6 +105,7 @@ export const handlingSQSErrors = (
                     },
                   },
                   async () => {
+                    const recordStartTime = Date.now();
                     // Create a new context for this record
                     const recordContext = {
                       awsRequestId: messageId,
@@ -179,6 +186,17 @@ export const handlingSQSErrors = (
                     } catch (error) {
                       failedMessageIds.add(messageId);
 
+                      const processingDurationMs = Date.now() - recordStartTime;
+                      const timeoutContext = {
+                        handlerName,
+                        queueName,
+                        messageId,
+                        queueElement: record.body,
+                        processingDurationMs,
+                        startedAt: new Date(recordStartTime).toISOString(),
+                        finishedAt: new Date().toISOString(),
+                      };
+
                       // Log error for this specific record with queue name and message body
                       const boomed = boomify(ensureError(error));
                       console.error(
@@ -199,13 +217,35 @@ export const handlingSQSErrors = (
                       );
 
                       // Report to Sentry
-                      if (boomed.isServer) {
+                      if (isTimeoutError(error)) {
                         Sentry.captureException(ensureError(error), {
                           tags: {
                             handler: "SQSFunction",
                             statusCode: boomed.output.statusCode,
                             messageId,
                             queueName,
+                            queueHandler: handlerName,
+                            timeout: "true",
+                          },
+                          contexts: {
+                            event: {
+                              messageId,
+                              queueName,
+                              eventSource: record.eventSource,
+                              awsRegion: record.awsRegion,
+                              messageBody: record.body,
+                            },
+                            timeout: timeoutContext,
+                          },
+                        });
+                      } else if (boomed.isServer) {
+                        Sentry.captureException(ensureError(error), {
+                          tags: {
+                            handler: "SQSFunction",
+                            statusCode: boomed.output.statusCode,
+                            messageId,
+                            queueName,
+                            queueHandler: handlerName,
                           },
                           contexts: {
                             event: {

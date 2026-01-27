@@ -272,12 +272,15 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
 /**
  * Lambda handler for the agent schedule queue
  */
-export const handler = handlingSQSErrors(async (event) => {
-  const record = event.Records[0];
-  if (!record) {
-    throw new Error("No records in event");
-  }
+export const handler = handlingSQSErrors(
+  async (event) => {
+    const record = event.Records[0];
+    if (!record) {
+      throw new Error("No records in event");
+    }
 
-  await processScheduleExecution(record);
-  return [];
-});
+    await processScheduleExecution(record);
+    return [];
+  },
+  { handlerName: "agent-schedule-queue" }
+);

@@ -605,5 +605,6 @@ export const handler = handlingSQSErrors(
     );
 
     return failedMessageIds;
-  }
+  },
+  { handlerName: "agent-temporal-grain-queue" }
 );

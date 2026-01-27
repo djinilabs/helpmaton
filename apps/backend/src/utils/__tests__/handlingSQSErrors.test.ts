@@ -240,6 +240,41 @@ describe("handlingSQSErrors", () => {
   });
 
   describe("error handling", () => {
+    it("should report timeout errors with handler and timing context", async () => {
+      const { Sentry } = await import("../sentry");
+      const timeoutError = new Error("The operation was aborted");
+      timeoutError.name = "AbortError";
+      const handler = vi.fn().mockRejectedValue(timeoutError);
+      const wrappedHandler = handlingSQSErrors(handler, {
+        handlerName: "test-timeout-handler",
+      });
+      const singleEvent: SQSEvent = {
+        Records: [mockEvent.Records[0]],
+      };
+
+      await wrappedHandler(singleEvent);
+
+      expect(Sentry.captureException).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            handler: "SQSFunction",
+            messageId: "msg-1",
+            queueName: "queue",
+            queueHandler: "test-timeout-handler",
+            timeout: "true",
+          }),
+          contexts: expect.objectContaining({
+            timeout: expect.objectContaining({
+              handlerName: "test-timeout-handler",
+              queueElement: '{"test":"data"}',
+              processingDurationMs: expect.any(Number),
+            }),
+          }),
+        })
+      );
+    });
+
     it("should log and report commit errors without failing the batch", async () => {
       const { Sentry } = await import("../sentry");
       const commitError = new Error("Commit failed");

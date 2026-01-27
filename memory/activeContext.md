@@ -6,6 +6,9 @@
 
 **Latest Work**:
 
+- **SQS timeout reporting**: Added timeout-specific Sentry error capture in `handlingSQSErrors` including handler name, queue element, and processing duration; passed handler names to queue handlers and added unit test coverage. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Dev sandbox crash investigation**: Confirmed `dev-wrapper` only kills after backend sandbox exits; sandbox crash originates from `@architect/sandbox` `tree-kill` with `spawn EBADF` under Node 24.9.0. Recommend running sandbox with Node 20.x plus `ARC_DEBUG=1` and `NODE_OPTIONS=--trace-uncaught --trace-warnings` to capture root cause.
+- **Sandbox wrapper diagnostics**: Added startup and exit/close logging (node version, PIDs, exit codes/signals) to `scripts/sandbox-wrapper.mjs`; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent system prompt textarea height**: Reduced the default rows in the agent system prompt textarea to avoid dialog scrolling while keeping it comfortable.
 - **DynamoDB GetItem tracing**: Logged GetItem args/table details on tableApi.get errors and added a unit test to assert logging; ran `pnpm --filter backend test --run tableApi`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Open signup**: Removed allow-list gate from NextAuth sign-in flow, and removed `ALLOWED_EMAILS` references from env docs/examples/test setup. Ran `pnpm typecheck` and `pnpm lint --fix`.

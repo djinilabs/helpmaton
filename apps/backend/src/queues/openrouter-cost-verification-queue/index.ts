@@ -797,5 +797,6 @@ export const handler = handlingSQSErrors(
     );
 
     return failedMessageIds;
-  }
+  },
+  { handlerName: "openrouter-cost-verification-queue" }
 );

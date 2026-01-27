@@ -86,17 +86,20 @@ async function processEvalTask(record: SQSRecord): Promise<void> {
  * once per record with a single-record event. Errors should be allowed to propagate
  * so handlingSQSErrors can catch them, report to Sentry, and track failed message IDs.
  */
-export const handler = handlingSQSErrors(async (event) => {
-  // handlingSQSErrors calls this handler once per record with a single-record event
-  // Process the single record - if it throws, handlingSQSErrors will catch it and report to Sentry
-  const record = event.Records[0];
-  if (!record) {
-    throw new Error("No records in event");
-  }
+export const handler = handlingSQSErrors(
+  async (event) => {
+    // handlingSQSErrors calls this handler once per record with a single-record event
+    // Process the single record - if it throws, handlingSQSErrors will catch it and report to Sentry
+    const record = event.Records[0];
+    if (!record) {
+      throw new Error("No records in event");
+    }
 
-  await processEvalTask(record);
+    await processEvalTask(record);
 
-  // Return empty array - if processing succeeded, no failed message IDs
-  // If processing failed, handlingSQSErrors will catch the error and track the message ID
-  return [];
-});
+    // Return empty array - if processing succeeded, no failed message IDs
+    // If processing failed, handlingSQSErrors will catch the error and track the message ID
+    return [];
+  },
+  { handlerName: "agent-eval-queue" }
+);

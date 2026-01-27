@@ -491,5 +491,6 @@ export const handler = handlingSQSErrors(
     }
 
     return failedMessageIds;
-  }
+  },
+  { handlerName: "agent-delegation-queue" }
 );

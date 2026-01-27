@@ -74,5 +74,6 @@ export const handler = handlingSQSErrors(
     }
 
     return failedMessageIds;
-  }
+  },
+  { handlerName: "bot-webhook-queue" }
 );
