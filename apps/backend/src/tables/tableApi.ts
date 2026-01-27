@@ -25,6 +25,12 @@ const clean = (item: Record<string, unknown>): Record<string, unknown> => {
   );
 };
 
+const TABLES_WITHOUT_SORT_KEY = new Set<TableName>([
+  "request-buckets",
+  "agent-conversations",
+  "credit-reservations",
+]);
+
 /**
  * Creates a parser function that validates and cleans items using Zod schemas
  * @param schema - The Zod schema to validate against
@@ -176,6 +182,14 @@ export const tableApi = <
 ): TableAPI<TTableName> => {
   const console = logger(tableName);
   const parseItem = parsingItem(schema, tableName);
+  const hasSortKey = !TABLES_WITHOUT_SORT_KEY.has(tableName);
+
+  const normalizeGetKey = (pk: string, sk?: string) => {
+    if (!hasSortKey) {
+      return { pk };
+    }
+    return keySubset({ pk, sk });
+  };
 
   const self = {
     /**
@@ -288,7 +302,7 @@ export const tableApi = <
       // console.info("get", { pk, sk, version });
       let keyArgs: { pk: string; sk?: string } | undefined;
       try {
-        keyArgs = keySubset({ pk, sk });
+        keyArgs = normalizeGetKey(pk, sk);
         const item = schema.optional().parse(await lowLevelTable.get(keyArgs));
         return getVersion(item, version).item as
           | z.output<typeof schema>

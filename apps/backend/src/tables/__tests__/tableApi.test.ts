@@ -548,6 +548,39 @@ describe("tableApi", () => {
         process.env.NODE_ENV = originalEnv;
       }
     });
+
+    it("should ignore sort key for tables without one", async () => {
+      const conversationPk =
+        "conversations/workspace-123/agent-456/conversation-789";
+      const item = {
+        pk: conversationPk,
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "webhook",
+        messages: [],
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: 1735689600,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockLowLevelTable.get.mockResolvedValue(item);
+
+      const conversationsTable = tableApi(
+        "agent-conversations",
+        mockLowLevelTable as unknown as Parameters<typeof tableApi>[1],
+        mockLowLevelClient as unknown as Parameters<typeof tableApi>[2],
+        "agent-conversations-table",
+        tableSchemas["agent-conversations"]
+      );
+
+      const result = await conversationsTable.get(conversationPk, "conversation");
+
+      expect(result?.pk).toBe(conversationPk);
+      expect(mockLowLevelTable.get).toHaveBeenCalledWith({ pk: conversationPk });
+    });
   });
 
   describe("create", () => {
