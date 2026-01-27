@@ -23,6 +23,7 @@
 - **Discord credit notification test**: Fixed nano-dollar `newBalance`/credit balance expectations in `commandHandler` tests.
 - **Scrape tool cost marker**: Corrected `__HM_TOOL_COST__` marker to `5_000_000` nano-dollars for scrape tool results.
 - **Sentry sourcemap mapping**: Injected `SENTRY_RELEASE`/`SENTRY_DIST` into backend esbuild env and aligned backend sourcemap upload `--url-prefix` with Lambda `/var/task`; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Sentry release injection**: Set `SENTRY_RELEASE`/`SENTRY_DIST` in backend build steps for prod and PR deploy workflows so runtime has matching release/dist for sourcemap lookups; ran `pnpm typecheck` and `pnpm lint --fix`.
 
 - **PR comments script pagination fix**: Updated `scripts/show-pr-comments.sh` to paginate REST/GraphQL requests and merge pages so all PR comments/threads are captured (avoids missing comments beyond the first page).
 - **CI MCP tools integration**: Added `pnpm test:mcp-tools:integration` to `.github/workflows/test.yml` with `TEST_MCP_CREDENTIALS` sourced from `secrets.TEST_MCP_CREDENTIALS`; ran `pnpm typecheck` and `pnpm lint --fix`.

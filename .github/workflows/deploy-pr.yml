@@ -109,6 +109,8 @@ jobs:
           HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_DIST: "backend"
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}

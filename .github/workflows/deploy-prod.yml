@@ -196,6 +196,8 @@ jobs:
           HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_DIST: "backend"
           SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
