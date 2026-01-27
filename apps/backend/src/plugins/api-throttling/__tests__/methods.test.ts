@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+
+const createResource = (pathPart: string, parentId: string) => ({
+  Type: "AWS::ApiGateway::Resource",
+  Properties: {
+    PathPart: pathPart,
+    ParentId: parentId,
+  },
+});
+
+const createMethod = (resourceId: string) => ({
+  Type: "AWS::ApiGateway::Method",
+  Properties: {
+    ResourceId: { Ref: resourceId },
+  },
+});
+
+describe("configureMethodAuthorizers", () => {
+  it("skips OAuth callback routes for email and MCP", async () => {
+    const { configureMethodAuthorizers } = await import("../methods");
+    const resources = {
+      ApiResource: createResource("api", "RootResource"),
+      EmailResource: createResource("email", "ApiResource"),
+      EmailOauthResource: createResource("oauth", "EmailResource"),
+      EmailOauthCallbackResource: createResource(
+        "callback",
+        "EmailOauthResource"
+      ),
+      McpResource: createResource("mcp", "ApiResource"),
+      McpOauthResource: createResource("oauth", "McpResource"),
+      McpOauthCallbackResource: createResource("callback", "McpOauthResource"),
+      WorkspacesResource: createResource("workspaces", "ApiResource"),
+      EmailOauthMethod: createMethod("EmailOauthCallbackResource"),
+      McpOauthMethod: createMethod("McpOauthCallbackResource"),
+      WorkspacesMethod: createMethod("WorkspacesResource"),
+    };
+
+    const updated = configureMethodAuthorizers(
+      { Resources: { ...resources } },
+      "ApiAuthorizer"
+    );
+
+    const emailMethod =
+      updated.Resources.EmailOauthMethod.Properties;
+    const mcpMethod =
+      updated.Resources.McpOauthMethod.Properties;
+    const workspacesMethod =
+      updated.Resources.WorkspacesMethod.Properties;
+
+    expect(emailMethod.AuthorizationType).toBeUndefined();
+    expect(emailMethod.AuthorizerId).toBeUndefined();
+    expect(mcpMethod.AuthorizationType).toBeUndefined();
+    expect(mcpMethod.AuthorizerId).toBeUndefined();
+
+    expect(workspacesMethod.AuthorizationType).toBe("CUSTOM");
+    expect(workspacesMethod.AuthorizerId).toEqual({
+      Ref: "ApiAuthorizer",
+    });
+  });
+});
