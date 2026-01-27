@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Prod OAuth env injection**: Ensured `GOOGLE_OAUTH_*` and `STRIPE_OAUTH_*` secrets are present in build envs and injected via esbuild (added Stripe to `esbuild-config.cjs`) for deploy-prod/deploy-pr; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Google OAuth env rename**: Replaced `GMAIL_CLIENT_ID/SECRET` with `GOOGLE_OAUTH_CLIENT_ID/SECRET` across Gmail OAuth code, docs, env examples, and deploy workflows; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent accordion preference scoping**: Scoped agent detail accordion local preference keys by agent ID so new assistant pages don't inherit previously opened sections.
 - **Agent detail top scroll**: When no accordion section is expanded on entry, the agent detail page scrolls to top.
@@ -77,6 +78,7 @@
 - **Conversation record reasoning order**: Split reasoning into separate assistant messages in `buildConversationMessagesFromObserver`, preserved assistant content order during expansion, and added tests for reasoning/message ordering. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent delegation LLM breadcrumbs**: Added Sentry breadcrumbs before/after `executeGenerateTextWithTimeout` in `callAgentInternal` capturing provider/model, duration, and success/failure. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **AbortError root-cause analysis**: Investigated production Sentry report for webhook queue AbortError; traced to `callAgentInternal` abort timer (`requestTimeout` 14-minute AbortController) and confirmed timeout abort is the source of the stack (`Timeout._onTimeout`). CloudWatch log groups searched in `eu-west-2` for the request/message IDs but no matching logs found.
+- **Prod AbortError log search**: Queried CloudWatch log groups for webhook queue, workspaces HTTP, and agent delegation around 2026-01-27 12:37:56; latest streams stop at 2026-01-23 and no matching logs or SQS message IDs were found in `eu-west-2`.
 
 - **Eval retry + failure records**: Kept the 3-attempt retry loop for judge parse errors, stored failed eval records with status/error details and nullable scores, updated eval result APIs/UI to show failed entries and exclude them from aggregates/charts, and updated tests. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Eval token usage marshalling fix**: Prevented undefined optional token fields when merging eval token usage so DynamoDB marshalling succeeds; added unit coverage and ran `pnpm lint --fix` + `pnpm typecheck`.
