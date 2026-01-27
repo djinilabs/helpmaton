@@ -6,6 +6,9 @@
 
 **Latest Work**:
 
+- **Queue timeout tagging fix**: Use reportable error for timeout tagging to avoid AbortError wrapping non-timeout causes being tagged as timeouts; reran `pnpm test`.
+- **Timeout cause handling**: Restored `isTimeoutError` to check the error itself before `cause` so abort wrappers still trigger timeout handling; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Queue AbortError unmasking**: Unwrapped abort errors in `handlingSQSErrors` to report underlying causes, adjusted timeout detection to respect causes, and added tests; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Prod OAuth env injection**: Ensured `GOOGLE_OAUTH_*` and `STRIPE_OAUTH_*` secrets are present in build envs and injected via esbuild (added Stripe to `esbuild-config.cjs`) for deploy-prod/deploy-pr; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent-conversations GetItem guard**: `tableApi.get` now ignores sort keys for pk-only tables (including `agent-conversations`) to prevent DynamoDB key schema errors; added unit coverage and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Prod AbortError log root cause**: Queried `/aws/lambda/HelpmatonProduction-PostApiWebhookWorkspaceIdAgent-a9Q5K16LP1pZ` around 2026-01-27 12:37:56Z; found `callAgentInternal` AbortError in `postToApi2` followed by `agent-conversations` GetItem ValidationException (“provided key element does not match the schema”) during webhook conversation logging for SQS message `7b68f1f8-2af7-4fe6-838b-90c4f6f09dd8`.

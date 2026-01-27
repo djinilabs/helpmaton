@@ -26,6 +26,30 @@ function extractQueueName(eventSourceARN: string | undefined): string {
   return parts[parts.length - 1] || "unknown";
 }
 
+function isAbortLikeError(error: Error): boolean {
+  const name = error.name?.toLowerCase() || "";
+  const message = error.message?.toLowerCase() || "";
+  return (
+    name === "aborterror" ||
+    name === "abort" ||
+    message.includes("aborted") ||
+    message.includes("operation was aborted")
+  );
+}
+
+function resolveReportableError(error: Error): Error {
+  if (!isAbortLikeError(error)) {
+    return error;
+  }
+  if (error.cause) {
+    const causeError = ensureError(error.cause);
+    if (!isTimeoutError(causeError)) {
+      return causeError;
+    }
+  }
+  return error;
+}
+
 /**
  * Wrapper for SQS Lambda functions with support for partial batch failures
  * Handles errors uniformly and reports server errors to Sentry
@@ -198,13 +222,29 @@ export const handlingSQSErrors = (
                       };
 
                       // Log error for this specific record with queue name and message body
-                      const boomed = boomify(ensureError(error));
+                      const ensuredError = ensureError(error);
+                      const reportableError = resolveReportableError(ensuredError);
+                      const boomed = boomify(reportableError);
+                      const timeoutError = isTimeoutError(reportableError);
+                      const shouldIncludeOriginalError =
+                        reportableError !== ensuredError;
                       console.error(
                         `[SQS Handler] Error processing message ${messageId} in queue ${queueName}:`,
                         {
                           error:
-                            error instanceof Error ? error.message : String(error),
-                          stack: error instanceof Error ? error.stack : undefined,
+                            reportableError instanceof Error
+                              ? reportableError.message
+                              : String(reportableError),
+                          stack:
+                            reportableError instanceof Error
+                              ? reportableError.stack
+                              : undefined,
+                          originalError: shouldIncludeOriginalError
+                            ? {
+                                name: ensuredError.name,
+                                message: ensuredError.message,
+                              }
+                            : undefined,
                           queueName,
                           messageId,
                           messageBody: record.body,
@@ -217,8 +257,8 @@ export const handlingSQSErrors = (
                       );
 
                       // Report to Sentry
-                      if (isTimeoutError(error)) {
-                        Sentry.captureException(ensureError(error), {
+                      if (timeoutError) {
+                        Sentry.captureException(reportableError, {
                           tags: {
                             handler: "SQSFunction",
                             statusCode: boomed.output.statusCode,
@@ -239,7 +279,7 @@ export const handlingSQSErrors = (
                           },
                         });
                       } else if (boomed.isServer) {
-                        Sentry.captureException(ensureError(error), {
+                        Sentry.captureException(reportableError, {
                           tags: {
                             handler: "SQSFunction",
                             statusCode: boomed.output.statusCode,
@@ -308,12 +348,27 @@ export const handlingSQSErrors = (
           };
         } catch (error) {
           // Unexpected error - treat all messages as failed
-          const boomed = boomify(ensureError(error));
+          const ensuredError = ensureError(error);
+          const reportableError = resolveReportableError(ensuredError);
+          const boomed = boomify(reportableError);
+          const shouldIncludeOriginalError = reportableError !== ensuredError;
 
           // Always log the full error details with queue names and message bodies
           console.error("SQS function error:", {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
+            error:
+              reportableError instanceof Error
+                ? reportableError.message
+                : String(reportableError),
+            stack:
+              reportableError instanceof Error
+                ? reportableError.stack
+                : undefined,
+            originalError: shouldIncludeOriginalError
+              ? {
+                  name: ensuredError.name,
+                  message: ensuredError.message,
+                }
+              : undefined,
             boom: {
               statusCode: boomed.output.statusCode,
               message: boomed.message,
@@ -334,7 +389,7 @@ export const handlingSQSErrors = (
           // SQS functions don't have user errors - all errors are server errors
           // Report all errors to Sentry
           console.error("SQS function server error details:", boomed);
-          Sentry.captureException(ensureError(error), {
+          Sentry.captureException(reportableError, {
             tags: {
               handler: "SQSFunction",
               statusCode: boomed.output.statusCode,

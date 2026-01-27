@@ -60,10 +60,11 @@ export function isTimeoutError(error: unknown): boolean {
       return true;
     }
 
-    // Check error.cause recursively
     if (error.cause) {
       return isTimeoutError(error.cause);
     }
+
+    return false;
   }
 
   // Check if it's an object with abort-related properties
@@ -77,6 +78,7 @@ export function isTimeoutError(error: unknown): boolean {
     if ("cause" in obj && obj.cause) {
       return isTimeoutError(obj.cause);
     }
+    return false;
   }
 
   return false;

@@ -275,6 +275,30 @@ describe("handlingSQSErrors", () => {
       );
     });
 
+    it("should prefer underlying error when AbortError wraps a non-timeout cause", async () => {
+      const { Sentry } = await import("../sentry");
+      const underlyingError = new Error("Real failure");
+      const abortError = new Error("The operation was aborted");
+      abortError.name = "AbortError";
+      (abortError as Error & { cause?: unknown }).cause = underlyingError;
+      const handler = vi.fn().mockRejectedValue(abortError);
+      const wrappedHandler = handlingSQSErrors(handler, {
+        handlerName: "test-unwrapped-handler",
+      });
+      const singleEvent: SQSEvent = {
+        Records: [mockEvent.Records[0]],
+      };
+
+      await wrappedHandler(singleEvent);
+
+      const captureCall = (Sentry.captureException as unknown as {
+        mock: { calls: unknown[][] };
+      }).mock.calls[0];
+      expect(captureCall?.[0]).toBe(underlyingError);
+      const captureContext = captureCall?.[1] as { tags?: Record<string, string> };
+      expect(captureContext?.tags?.timeout).toBeUndefined();
+    });
+
     it("should log and report commit errors without failing the batch", async () => {
       const { Sentry } = await import("../sentry");
       const commitError = new Error("Commit failed");
