@@ -11210,9 +11210,9 @@
         },
         "meta-llama/llama-3-70b-instruct": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.04
+            "input": 0.51,
+            "output": 0.74,
+            "cachedInput": 0.051000000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -12154,9 +12154,112 @@
             "structured_output": false,
             "image": false
           }
+        },
+        "arcee-ai/trinity-large-preview:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "moonshotai/kimi-k2.5": {
+          "usd": {
+            "input": 0.6,
+            "output": 3,
+            "cachedInput": 0.06
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "upstage/solar-pro-3:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
         }
       }
     }
   },
-  "lastUpdated": "2026-01-25T00:17:12.711Z"
+  "lastUpdated": "2026-01-28T00:16:09.616Z"
 }
