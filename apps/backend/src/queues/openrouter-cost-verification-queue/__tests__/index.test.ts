@@ -72,7 +72,12 @@ vi.mock("../../../utils/sentry", () => ({
     startSpan: vi.fn(async (_config, callback) => callback?.()),
     setTag: vi.fn(),
     setContext: vi.fn(),
-    withScope: (callback: (scope: { setTag: () => void; setContext: () => void }) => Promise<unknown>) =>
+    withScope: (
+      callback: (scope: {
+        setTag: () => void;
+        setContext: () => void;
+      }) => Promise<unknown>,
+    ) =>
       callback({
         setTag: vi.fn(),
         setContext: vi.fn(),
@@ -194,7 +199,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       // Mock OpenRouter API response (nested structure: data.data.total_cost)
@@ -244,7 +249,7 @@ describe("openrouter-cost-verification-queue", () => {
           headers: expect.objectContaining({
             Authorization: expect.stringContaining("Bearer"),
           }),
-        })
+        }),
       );
 
       // Verify finalizeCreditReservation was called with correct cost (0.001 * 1_000_000_000 * 1.055 = 1_055_000 nano-dollars)
@@ -255,12 +260,12 @@ describe("openrouter-cost-verification-queue", () => {
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
-        3
+        3,
       );
 
       // Verify conversation was updated
       expect(mockGet).toHaveBeenCalledWith(
-        "conversations/workspace-1/agent-1/conv-1"
+        "conversations/workspace-1/agent-1/conv-1",
       );
       expect(mockAtomicUpdate).toHaveBeenCalled();
 
@@ -270,7 +275,7 @@ describe("openrouter-cost-verification-queue", () => {
 
       const updatedMessages = updated.messages as UIMessage[];
       const assistantMessage = updatedMessages.find(
-        (msg) => msg.role === "assistant"
+        (msg) => msg.role === "assistant",
       );
 
       expect(assistantMessage).toBeDefined();
@@ -301,7 +306,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       // Mock OpenRouter API response with cost 0.01 USD (nested structure)
@@ -347,7 +352,7 @@ describe("openrouter-cost-verification-queue", () => {
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
-        3
+        3,
       );
     });
 
@@ -394,7 +399,7 @@ describe("openrouter-cost-verification-queue", () => {
 
       // Should not call atomicUpdate since conversation doesn't exist after all retries
       expect(mockAtomicUpdate).not.toHaveBeenCalled();
-      
+
       // Should have called get multiple times due to retries (1 initial + 3 retries = 4 calls)
       expect(mockGet).toHaveBeenCalledTimes(4);
     });
@@ -458,7 +463,7 @@ describe("openrouter-cost-verification-queue", () => {
 
       // Message should not have finalCostUsd
       const assistantMessage = (updated.messages as UIMessage[]).find(
-        (msg) => msg.role === "assistant"
+        (msg) => msg.role === "assistant",
       );
       expect(assistantMessage).not.toHaveProperty("finalCostUsd");
     });
@@ -486,7 +491,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -567,7 +572,7 @@ describe("openrouter-cost-verification-queue", () => {
       expect(mockAtomicUpdate).not.toHaveBeenCalled();
     });
 
-    it("should throw error when generation not found (404)", async () => {
+    it("should log errors but not request retries when generation not found (404)", async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -598,7 +603,6 @@ describe("openrouter-cost-verification-queue", () => {
         awsRegion: "",
       };
 
-      // Error should be thrown and message should be in failed batch
       const response = await handler({ Records: [record] });
 
       // Should not finalize credit reservation
@@ -608,12 +612,10 @@ describe("openrouter-cost-verification-queue", () => {
       expect(mockGet).not.toHaveBeenCalled();
       expect(mockAtomicUpdate).not.toHaveBeenCalled();
 
-      // Message should be marked as failed
-      expect(response.batchItemFailures).toHaveLength(1);
-      expect(response.batchItemFailures[0].itemIdentifier).toBe("msg-1");
+      expect(response.batchItemFailures).toHaveLength(0);
     });
 
-    it("should throw error when cost field is missing from OpenRouter response", async () => {
+    it("should log errors but not request retries when cost field is missing", async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -644,20 +646,17 @@ describe("openrouter-cost-verification-queue", () => {
         awsRegion: "",
       };
 
-      // Error should be thrown and message should be in failed batch
       const response = await handler({ Records: [record] });
 
       // Should not finalize credit reservation
       expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
 
-      // Message should be marked as failed
-      expect(response.batchItemFailures).toHaveLength(1);
-      expect(response.batchItemFailures[0].itemIdentifier).toBe("msg-1");
+      expect(response.batchItemFailures).toHaveLength(0);
     });
 
-    it("should handle OpenRouter API error", async () => {
+    it("should handle OpenRouter API error without retries", async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        new Error("Network error")
+        new Error("Network error"),
       );
 
       const record: SQSRecord = {
@@ -685,11 +684,9 @@ describe("openrouter-cost-verification-queue", () => {
 
       const event: SQSEvent = { Records: [record] };
 
-      // Should return failed message ID (handlingSQSErrors wraps and returns SQSBatchResponse)
       const response = await handler(event);
 
-      expect(response.batchItemFailures).toHaveLength(1);
-      expect(response.batchItemFailures[0].itemIdentifier).toBe("msg-1");
+      expect(response.batchItemFailures).toHaveLength(0);
       expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
     });
 
@@ -816,7 +813,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -856,15 +853,21 @@ describe("openrouter-cost-verification-queue", () => {
       const updaterCall = mockAtomicUpdate.mock.calls[0][2];
       const updated = await updaterCall(conversationWithToolResult);
       const toolMessage = (updated.messages as UIMessage[]).find(
-        (msg) => msg.role === "tool"
+        (msg) => msg.role === "tool",
       );
       const toolResult = Array.isArray(toolMessage?.content)
         ? toolMessage?.content.find(
-            (item) => typeof item === "object" && item !== null && "type" in item && item.type === "tool-result"
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-result",
           )
         : undefined;
 
-      expect(toolResult && "costUsd" in toolResult ? toolResult.costUsd : undefined).toBe(1_055_000);
+      expect(
+        toolResult && "costUsd" in toolResult ? toolResult.costUsd : undefined,
+      ).toBe(1_055_000);
       expect(updated.costUsd).toBe(1_055_000);
     });
 
@@ -872,7 +875,7 @@ describe("openrouter-cost-verification-queue", () => {
       // This test verifies that finalCostUsd uses the actual cost, not the transaction amount
       // Scenario: OpenRouter cost is 1_000_000, token usage cost is 1_200_000
       // The transaction amount would be 200_000 (refund), but finalCostUsd should be 1_000_000 (actual cost)
-      
+
       const mockReservation = {
         pk: "credit-reservations/res-1",
         workspaceId: "workspace-1",
@@ -894,7 +897,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       // Mock OpenRouter API to return cost of 0.001 (1_000_000 nano-dollars with markup = 1_055_000)
@@ -957,7 +960,7 @@ describe("openrouter-cost-verification-queue", () => {
         "res-1",
         1_055_000, // Actual cost from OpenRouter API (with markup), NOT the transaction amount
         expect.anything(),
-        3
+        3,
       );
 
       // Verify the message was updated with actual cost, not transaction amount
@@ -966,7 +969,7 @@ describe("openrouter-cost-verification-queue", () => {
 
       const updatedMessages = updated.messages as UIMessage[];
       const assistantMessage = updatedMessages.find(
-        (msg) => msg.role === "assistant"
+        (msg) => msg.role === "assistant",
       );
 
       expect(assistantMessage).toBeDefined();
@@ -1000,7 +1003,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       // Mock OpenRouter API response with old format (top-level cost)
@@ -1043,11 +1046,11 @@ describe("openrouter-cost-verification-queue", () => {
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
-        3
+        3,
       );
     });
 
-    it("should handle invalid message schema", async () => {
+    it("should handle invalid message schema without retries", async () => {
       const record: SQSRecord = {
         messageId: "msg-1",
         receiptHandle: "receipt-1",
@@ -1070,11 +1073,9 @@ describe("openrouter-cost-verification-queue", () => {
 
       const event: SQSEvent = { Records: [record] };
 
-      // Should return failed message ID (handlingSQSErrors wraps and returns SQSBatchResponse)
       const response = await handler(event);
 
-      expect(response.batchItemFailures).toHaveLength(1);
-      expect(response.batchItemFailures[0].itemIdentifier).toBe("msg-1");
+      expect(response.batchItemFailures).toHaveLength(0);
       expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
     });
 
@@ -1102,7 +1103,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       // Mock OpenRouter API responses for each generation
@@ -1155,7 +1156,7 @@ describe("openrouter-cost-verification-queue", () => {
       expect(mockAtomicUpdateReservation).toHaveBeenCalledWith(
         "credit-reservations/res-1",
         undefined,
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
 
@@ -1201,7 +1202,7 @@ describe("openrouter-cost-verification-queue", () => {
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
-        3
+        3,
       );
     });
 
@@ -1222,7 +1223,7 @@ describe("openrouter-cost-verification-queue", () => {
         async (_pk, _sk, updater) => {
           const updated = await updater(mockReservation);
           return updated || mockReservation;
-        }
+        },
       );
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -1287,7 +1288,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       // Verify generations arrive out of order: gen-2, then gen-3, then gen-1
@@ -1376,7 +1377,7 @@ describe("openrouter-cost-verification-queue", () => {
         expect.objectContaining({
           addWorkspaceCreditTransaction: expect.any(Function),
         }),
-        3
+        3,
       );
     });
 
@@ -1397,7 +1398,7 @@ describe("openrouter-cost-verification-queue", () => {
         async (_pk, _sk, updater) => {
           const updated = await updater(mockReservation);
           return updated || mockReservation;
-        }
+        },
       );
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -1455,7 +1456,7 @@ describe("openrouter-cost-verification-queue", () => {
             currentReservation = updated;
           }
           return updated || currentReservation;
-        }
+        },
       );
 
       // Verify a generation ID (even if it's not in the original list)

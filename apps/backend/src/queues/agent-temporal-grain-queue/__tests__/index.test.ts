@@ -307,7 +307,7 @@ describe("agent-temporal-grain-queue handler", () => {
     });
 
     describe("error handling", () => {
-      it("should return failed message ID for invalid message format", async () => {
+      it("should not request retries for invalid message format", async () => {
         const event: SQSEvent = {
           Records: [
             {
@@ -331,13 +331,12 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const result = await handler(event);
 
-        // Message should be marked as failed
         expect(result).toEqual({
-          batchItemFailures: [{ itemIdentifier: "msg-1" }],
+          batchItemFailures: [],
         });
       });
 
-      it("should return failed message ID for missing records or rawFacts in insert", async () => {
+      it("should not request retries for missing records or rawFacts in insert", async () => {
         const message: WriteOperationMessage = {
           operation: "insert",
           agentId: "agent-123",
@@ -349,9 +348,8 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const result = await handler(event as unknown as SQSEvent);
 
-        // Message should be marked as failed
         expect(result).toEqual({
-          batchItemFailures: [{ itemIdentifier: "msg-0" }],
+          batchItemFailures: [],
         });
       });
 
@@ -425,7 +423,7 @@ describe("agent-temporal-grain-queue handler", () => {
         expect(result).toEqual({ batchItemFailures: [] });
       });
 
-      it("should return failed message ID for unknown operation", async () => {
+      it("should not request retries for unknown operation", async () => {
         const message = {
           operation: "unknown",
           agentId: "agent-123",
@@ -439,9 +437,8 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const result = await handler(event as unknown as SQSEvent);
 
-        // Message should be marked as failed
         expect(result).toEqual({
-          batchItemFailures: [{ itemIdentifier: "msg-0" }],
+          batchItemFailures: [],
         });
       });
     });
@@ -502,7 +499,7 @@ describe("agent-temporal-grain-queue handler", () => {
         expect(result).toEqual({ batchItemFailures: [] }); // No failed messages
       });
 
-      it("should return failed message IDs for partial batch failures", async () => {
+      it("should not request retries for partial batch failures", async () => {
         const { connect } = await import("@lancedb/lancedb");
         const mockConnect = vi.mocked(connect);
 
@@ -580,13 +577,12 @@ describe("agent-temporal-grain-queue handler", () => {
         // All three messages should be attempted
         expect(mockAdd).toHaveBeenCalledTimes(3);
 
-        // Only the second message should be marked as failed
         expect(result).toEqual({
-          batchItemFailures: [{ itemIdentifier: "msg-1" }],
+          batchItemFailures: [],
         });
       });
 
-      it("should return all failed message IDs when all messages fail", async () => {
+      it("should not request retries when all messages fail", async () => {
         const { connect } = await import("@lancedb/lancedb");
         const mockConnect = vi.mocked(connect);
 
@@ -641,10 +637,7 @@ describe("agent-temporal-grain-queue handler", () => {
         const result = await handler(event);
 
         expect(result).toEqual({
-          batchItemFailures: [
-            { itemIdentifier: "msg-0" },
-            { itemIdentifier: "msg-1" },
-          ],
+          batchItemFailures: [],
         });
       });
     });

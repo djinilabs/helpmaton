@@ -83,11 +83,9 @@
 - **Credit user errors**: `InsufficientCreditsError` / `SpendingLimitExceededError` are expected 402s; log at `info` and do not report to Sentry or trigger notifications.
 - **LLM Observers**: Wrap models with `llmObserver` to emit events; wrap tools for execution timing; build conversation records from observed events
 - **Embeddings**: Use OpenRouter embeddings (`thenlper/gte-base`) via `@openrouter/sdk`; embeddings use the system `OPENROUTER_API_KEY` (no workspace BYOK).
-- **SQS Queue Processing**: Use partial batch failures via `handlingSQSErrors` utility
-  - Handler returns array of failed message IDs
-  - Successful messages are deleted immediately
-  - Failed messages are retried individually
-  - Prevents reprocessing of successful messages
+- **SQS Queue Processing**: No retries on error via `handlingSQSErrors`
+  - Handler failures are logged and reported to Sentry
+  - Wrapper always returns empty `batchItemFailures` to avoid redelivery
 
 ### Naming Conventions
 
