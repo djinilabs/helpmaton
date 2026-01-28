@@ -99,6 +99,7 @@
 - **PR Deployments**: Each PR creates CloudFormation stack
 - **Infrastructure Changes**: Only via app.arc or Architect plugins
 - **No Direct AWS Changes**: All infrastructure changes through code
+- **Reserved Concurrency**: Use per-Lambda `config.arc` with `@aws concurrency <n>` when isolating handlers
 - **Environment**: Uses ARC_DB_PATH for local DynamoDB
 - **Environment Detection**: Primary check is `process.env.ARC_ENV === "testing"` for local development (Architect sandbox). For S3/AWS services, also check if credentials are available - if missing, fall back to local mocked services (s3rver). Never use `NODE_ENV` alone for environment detection. This allows tests to run without credentials while staging/production use real AWS services
 
