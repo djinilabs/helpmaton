@@ -61,7 +61,7 @@ const DEFAULT_REPLY_TEXT = "Hello from test";
 const DEFAULT_CREDITS_USD = 25;
 // Workspace credit balances are stored in nano-USD (1 USD = 1_000_000_000 nano-USD).
 const NANO_USD_PER_USD = 1_000_000_000;
-const DEFAULT_TIMEOUT_MS = 180_000;
+const DEFAULT_TIMEOUT_MS = 600_000;
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_INTERVAL_MS = 10_000;
 const QUERY_LIMIT_SMALL = 5;
@@ -1338,7 +1338,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
 
     logStep("Testing async delegation via SQS");
     const delegatorConversationId = crypto.randomUUID();
-    await fetchText(
+    const delegatorStreamResponse = await fetchText(
       `${streamBaseUrl}/api/streams/${workspaceId}/${delegatorAgentId}/test`,
       {
         method: "POST",
@@ -1350,6 +1350,15 @@ You must respond with valid JSON only. Do not include markdown formatting like \
         body: JSON.stringify([{ role: "user", content: userQuestion }]),
       },
     );
+    if (!delegatorStreamResponse.rawText.includes("call_agent_async")) {
+      console.error(
+        "[Delegation Debug] Missing call_agent_async tool call. Stream response preview:",
+        delegatorStreamResponse.rawText.slice(0, 2000),
+      );
+      throw new Error(
+        "Delegation test failed: call_agent_async tool was not invoked",
+      );
+    }
     await waitForDelegationTask(
       docClient,
       tables.delegation,

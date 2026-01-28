@@ -8,6 +8,7 @@
 - **PR 232 staging temporal queue logs (2026-01-28)**: Latest `/aws/lambda/HelpmatonStagingPR232-AgentTemporalGrainQueueQueue-DHLt9QhJQWAZ` stream shows successful embedding generation + inserts with no errors or warnings.
 - **PR 232 memory API logs (2026-01-28)**: `/aws/lambda/HelpmatonStagingPR232-PostApiWebhookWorkspaceIdAge-m6wNPNCIecIW` handles `/api/workspaces/{proxy+}`; memory search logs show S3 read success and `maxResults: 5` responses containing only conversation facts (no `staging test fact`).
 - **Staging agent test robustness (2026-01-28)**: Updated `waitForMemoryRecord` to query memory without `queryText` and use `maxResults=50` to avoid semantic search misses.
+- **Staging delegation guard (2026-01-28)**: Added fast-fail guard to the async delegation test when the stream response lacks `call_agent_async`, logging the response preview.
 
 **CI note (2026-01-28)**:
 
