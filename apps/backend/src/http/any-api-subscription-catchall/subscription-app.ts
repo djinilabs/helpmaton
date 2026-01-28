@@ -50,7 +50,7 @@ import { userRef } from "../utils/session";
 const handleError = (
   error: unknown,
   next: express.NextFunction,
-  context?: string
+  context?: string,
 ) => {
   // First, boomify the error
   const boomError = boomify(ensureError(error));
@@ -76,13 +76,13 @@ const asyncHandler = (
   fn: (
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
-  ) => Promise<void>
+    next: express.NextFunction,
+  ) => Promise<void>,
 ) => {
   return (
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) => {
     Promise.resolve(fn(req, res, next)).catch((error) => {
       handleError(error, next, `${req.method} ${req.path}`);
@@ -92,6 +92,7 @@ const asyncHandler = (
 
 export const createApp: () => express.Application = () => {
   const app = express();
+  app.set("etag", false);
   app.set("trust proxy", true);
   app.use(express.json());
 
@@ -104,7 +105,7 @@ export const createApp: () => express.Application = () => {
   const requireAuth = async (
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) => {
     try {
       // Extract Bearer token from Authorization header
@@ -151,7 +152,7 @@ export const createApp: () => express.Application = () => {
       const currentUserId = currentUserRef.replace("users/", "");
 
       console.log(
-        `[GET /api/subscription] Getting subscription for user ${currentUserId}`
+        `[GET /api/subscription] Getting subscription for user ${currentUserId}`,
       );
 
       // Get user's subscription (this will auto-create a free subscription if none exists)
@@ -159,12 +160,12 @@ export const createApp: () => express.Application = () => {
       try {
         subscription = await getUserSubscription(currentUserId);
         console.log(
-          `[GET /api/subscription] Got subscription: ${subscription?.pk}, plan: ${subscription?.plan}`
+          `[GET /api/subscription] Got subscription: ${subscription?.pk}, plan: ${subscription?.plan}`,
         );
       } catch (error) {
         console.error(
           `[GET /api/subscription] Error getting subscription for user ${currentUserId}:`,
-          error
+          error,
         );
         throw error;
       }
@@ -173,7 +174,7 @@ export const createApp: () => express.Application = () => {
         // This should never happen as getUserSubscription always returns a subscription,
         // but add defensive check just in case
         console.error(
-          `[GET /api/subscription] Subscription is null for user ${currentUserId}`
+          `[GET /api/subscription] Subscription is null for user ${currentUserId}`,
         );
         throw new Error("Failed to get or create subscription");
       }
@@ -186,7 +187,7 @@ export const createApp: () => express.Application = () => {
       try {
         const managerIds = await getSubscriptionManagers(subscriptionId);
         console.log(
-          `[GET /api/subscription] Found ${managerIds.length} managers`
+          `[GET /api/subscription] Found ${managerIds.length} managers`,
         );
 
         // Get emails for all managers
@@ -201,19 +202,19 @@ export const createApp: () => express.Application = () => {
             } catch (error) {
               console.error(
                 `[GET /api/subscription] Error getting email for user ${userId}:`,
-                error
+                error,
               );
               return {
                 userId,
                 email: null,
               };
             }
-          })
+          }),
         );
       } catch (error) {
         console.error(
           `[GET /api/subscription] Error getting managers for subscription ${subscriptionId}:`,
-          error
+          error,
         );
         // Continue with empty managers array rather than failing the whole request
         managers = [];
@@ -236,7 +237,7 @@ export const createApp: () => express.Application = () => {
             status: subscription.status,
             renewsAt: subscription.renewsAt,
             endsAt: subscription.endsAt,
-          }
+          },
         );
         const db = await database();
         subscription = await db.subscription.update({
@@ -247,7 +248,7 @@ export const createApp: () => express.Application = () => {
           gracePeriodEndsAt: undefined, // Free plans don't have grace periods
         });
         console.log(
-          `[GET /api/subscription] Cleaned up free plan subscription ${subscriptionId}`
+          `[GET /api/subscription] Cleaned up free plan subscription ${subscriptionId}`,
         );
       }
 
@@ -275,8 +276,8 @@ export const createApp: () => express.Application = () => {
             ? subscription.status === "cancelled"
               ? "cancelled"
               : !subscription.lemonSqueezySubscriptionId
-              ? "no_lemon_squeezy_id"
-              : "inactive"
+                ? "no_lemon_squeezy_id"
+                : "inactive"
             : "none",
       });
 
@@ -291,13 +292,11 @@ export const createApp: () => express.Application = () => {
       let usage;
       try {
         const workspaces = await getSubscriptionWorkspaces(subscriptionId);
-        const { documents, totalSize } = await getSubscriptionDocuments(
-          subscriptionId
-        );
+        const { documents, totalSize } =
+          await getSubscriptionDocuments(subscriptionId);
         const agents = await getSubscriptionAgents(subscriptionId);
-        const { count: uniqueUsers } = await getSubscriptionUniqueUsers(
-          subscriptionId
-        );
+        const { count: uniqueUsers } =
+          await getSubscriptionUniqueUsers(subscriptionId);
         const agentKeys = await getSubscriptionAgentKeys(subscriptionId);
         const channels = await getSubscriptionChannels(subscriptionId);
         const mcpServers = await getSubscriptionMcpServers(subscriptionId);
@@ -315,7 +314,7 @@ export const createApp: () => express.Application = () => {
       } catch (error) {
         console.error(
           `[GET /api/subscription] Error getting usage statistics for subscription ${subscriptionId}:`,
-          error
+          error,
         );
         // Continue with default usage values rather than failing the whole request
         usage = {
@@ -358,12 +357,12 @@ export const createApp: () => express.Application = () => {
 
       console.log(
         `[GET /api/subscription] Returning subscription data for user ${currentUserId}:`,
-        JSON.stringify(response)
+        JSON.stringify(response),
       );
 
       // Send the response
       res.json(response);
-    })
+    }),
   );
 
   // GET /api/users/by-email/:email - Find user by email address
@@ -382,7 +381,7 @@ export const createApp: () => express.Application = () => {
         userId: user.userId,
         email: user.email,
       });
-    })
+    }),
   );
 
   // POST /api/subscription/managers/:userId - Add manager to current user's subscription
@@ -404,11 +403,11 @@ export const createApp: () => express.Application = () => {
       // Check if current user is a manager of the subscription
       const isManager = await isSubscriptionManager(
         currentUserId,
-        subscriptionId
+        subscriptionId,
       );
       if (!isManager) {
         throw forbidden(
-          "You must be a manager of this subscription to add other managers"
+          "You must be a manager of this subscription to add other managers",
         );
       }
 
@@ -423,7 +422,7 @@ export const createApp: () => express.Application = () => {
         subscriptionId,
         userId: targetUserId,
       });
-    })
+    }),
   );
 
   // DELETE /api/subscription/managers/:userId - Remove manager from current user's subscription
@@ -445,11 +444,11 @@ export const createApp: () => express.Application = () => {
       // Check if current user is a manager of the subscription
       const isManager = await isSubscriptionManager(
         currentUserId,
-        subscriptionId
+        subscriptionId,
       );
       if (!isManager) {
         throw forbidden(
-          "You must be a manager of this subscription to remove managers"
+          "You must be a manager of this subscription to remove managers",
         );
       }
 
@@ -460,7 +459,7 @@ export const createApp: () => express.Application = () => {
       await removeSubscriptionManager(subscriptionId, targetUserId);
 
       res.status(204).send();
-    })
+    }),
   );
 
   // POST /api/subscriptions/:subscriptionId/managers/:userId - Add manager to subscription
@@ -479,11 +478,11 @@ export const createApp: () => express.Application = () => {
       // Check if current user is a manager of the subscription
       const isManager = await isSubscriptionManager(
         currentUserId,
-        subscriptionId
+        subscriptionId,
       );
       if (!isManager) {
         throw forbidden(
-          "You must be a manager of this subscription to add other managers"
+          "You must be a manager of this subscription to add other managers",
         );
       }
 
@@ -498,7 +497,7 @@ export const createApp: () => express.Application = () => {
         subscriptionId,
         userId: targetUserId,
       });
-    })
+    }),
   );
 
   // DELETE /api/subscriptions/:subscriptionId/managers/:userId - Remove manager from subscription
@@ -517,11 +516,11 @@ export const createApp: () => express.Application = () => {
       // Check if current user is a manager of the subscription
       const isManager = await isSubscriptionManager(
         currentUserId,
-        subscriptionId
+        subscriptionId,
       );
       if (!isManager) {
         throw forbidden(
-          "You must be a manager of this subscription to remove managers"
+          "You must be a manager of this subscription to remove managers",
         );
       }
 
@@ -532,7 +531,7 @@ export const createApp: () => express.Application = () => {
       await removeSubscriptionManager(subscriptionId, targetUserId);
 
       res.status(204).send();
-    })
+    }),
   );
 
   // POST /api/subscription/checkout - Create Lemon Squeezy checkout for plan upgrade
@@ -558,7 +557,7 @@ export const createApp: () => express.Application = () => {
 
       if (!variantId) {
         throw badRequest(
-          `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`
+          `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`,
         );
       }
 
@@ -570,7 +569,7 @@ export const createApp: () => express.Application = () => {
 
       // Get user's subscription to include subscription ID in checkout
       console.log(
-        `[POST /api/subscription/checkout] Getting subscription for user ${currentUserId}`
+        `[POST /api/subscription/checkout] Getting subscription for user ${currentUserId}`,
       );
       const subscription = await getUserSubscription(currentUserId);
       const subscriptionId = subscription.pk.replace("subscriptions/", "");
@@ -584,7 +583,7 @@ export const createApp: () => express.Application = () => {
           lemonSqueezySubscriptionId: subscription.lemonSqueezySubscriptionId,
           lemonSqueezyVariantId: subscription.lemonSqueezyVariantId,
           requestedPlan: plan,
-        }
+        },
       );
 
       // Check if user has a cancelled subscription with the same plan
@@ -602,27 +601,27 @@ export const createApp: () => express.Application = () => {
 
         if (!targetVariantId) {
           throw badRequest(
-            `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`
+            `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`,
           );
         }
 
         // If same plan, try to reactivate by updating the variant (this reactivates the subscription)
         if (currentVariantId === targetVariantId) {
           console.log(
-            `[POST /api/subscription/checkout] Reactivating cancelled subscription ${subscription.lemonSqueezySubscriptionId} for ${plan} plan`
+            `[POST /api/subscription/checkout] Reactivating cancelled subscription ${subscription.lemonSqueezySubscriptionId} for ${plan} plan`,
           );
 
           try {
             // Update the variant to reactivate the subscription
             await updateSubscriptionVariant(
               subscription.lemonSqueezySubscriptionId,
-              targetVariantId
+              targetVariantId,
             );
 
             // Sync the subscription to verify the variant and get updated status
             const db = await database();
             const lemonSqueezySub = await getLemonSqueezySubscription(
-              subscription.lemonSqueezySubscriptionId
+              subscription.lemonSqueezySubscriptionId,
             );
             const attributes = lemonSqueezySub.attributes;
             const actualVariantId = String(attributes.variant_id);
@@ -636,7 +635,7 @@ export const createApp: () => express.Application = () => {
                 status: attributes.status,
                 renewsAt: attributes.renews_at,
                 endsAt: attributes.ends_at,
-              }
+              },
             );
 
             // If variant didn't change, Lemon Squeezy likely requires payment confirmation
@@ -644,7 +643,7 @@ export const createApp: () => express.Application = () => {
             if (actualVariantId !== targetVariantId) {
               console.log(
                 `[POST /api/subscription/checkout] Variant did not change (${actualVariantId} !== ${targetVariantId}). ` +
-                  `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`
+                  `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`,
               );
               // Fall through to create a new checkout
             } else if (
@@ -658,7 +657,7 @@ export const createApp: () => express.Application = () => {
               console.log(
                 `[POST /api/subscription/checkout] Variant changed but status is still ${attributes.status}. ` +
                   `Lemon Squeezy requires payment confirmation to reactivate. ` +
-                  `If we update now, subscription will show as "free" due to cancelled status. Creating checkout URL.`
+                  `If we update now, subscription will show as "free" due to cancelled status. Creating checkout URL.`,
               );
               // Fall through to create a new checkout
             } else {
@@ -682,13 +681,12 @@ export const createApp: () => express.Application = () => {
               });
 
               // Update API Gateway usage plan association
-              const { associateSubscriptionWithPlan } = await import(
-                "../../utils/apiGatewayUsagePlans"
-              );
+              const { associateSubscriptionWithPlan } =
+                await import("../../utils/apiGatewayUsagePlans");
               await associateSubscriptionWithPlan(subscriptionId, plan);
 
               console.log(
-                `[POST /api/subscription/checkout] Successfully reactivated subscription for ${plan} plan`
+                `[POST /api/subscription/checkout] Successfully reactivated subscription for ${plan} plan`,
               );
 
               res.json({
@@ -701,26 +699,26 @@ export const createApp: () => express.Application = () => {
           } catch (error) {
             console.error(
               `[POST /api/subscription/checkout] Error reactivating subscription:`,
-              error
+              error,
             );
             // If reactivation fails, fall through to create a new checkout
           }
         } else {
           // Different plan - update the variant to change plan and reactivate
           console.log(
-            `[POST /api/subscription/checkout] Reactivating cancelled subscription and changing to ${plan} plan`
+            `[POST /api/subscription/checkout] Reactivating cancelled subscription and changing to ${plan} plan`,
           );
 
           try {
             await updateSubscriptionVariant(
               subscription.lemonSqueezySubscriptionId,
-              targetVariantId
+              targetVariantId,
             );
 
             // Sync the subscription to verify the variant actually changed
             const db = await database();
             const lemonSqueezySub = await getLemonSqueezySubscription(
-              subscription.lemonSqueezySubscriptionId
+              subscription.lemonSqueezySubscriptionId,
             );
             const attributes = lemonSqueezySub.attributes;
             const actualVariantId = String(attributes.variant_id);
@@ -734,7 +732,7 @@ export const createApp: () => express.Application = () => {
                 status: attributes.status,
                 renewsAt: attributes.renews_at,
                 endsAt: attributes.ends_at,
-              }
+              },
             );
 
             // If variant didn't change, Lemon Squeezy likely requires payment confirmation
@@ -742,7 +740,7 @@ export const createApp: () => express.Application = () => {
             if (actualVariantId !== targetVariantId) {
               console.log(
                 `[POST /api/subscription/checkout] Variant did not change (${actualVariantId} !== ${targetVariantId}). ` +
-                  `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`
+                  `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`,
               );
               // Fall through to create a new checkout
             } else if (
@@ -756,7 +754,7 @@ export const createApp: () => express.Application = () => {
               console.log(
                 `[POST /api/subscription/checkout] Variant changed but status is still ${attributes.status}. ` +
                   `Lemon Squeezy requires payment confirmation to reactivate. ` +
-                  `If we update now, subscription will show as "free" due to cancelled status. Creating checkout URL.`
+                  `If we update now, subscription will show as "free" due to cancelled status. Creating checkout URL.`,
               );
               // Fall through to create a new checkout
             } else {
@@ -779,13 +777,12 @@ export const createApp: () => express.Application = () => {
                 lastSyncedAt: new Date().toISOString(),
               });
 
-              const { associateSubscriptionWithPlan } = await import(
-                "../../utils/apiGatewayUsagePlans"
-              );
+              const { associateSubscriptionWithPlan } =
+                await import("../../utils/apiGatewayUsagePlans");
               await associateSubscriptionWithPlan(subscriptionId, plan);
 
               console.log(
-                `[POST /api/subscription/checkout] Successfully reactivated and changed subscription to ${plan} plan`
+                `[POST /api/subscription/checkout] Successfully reactivated and changed subscription to ${plan} plan`,
               );
 
               res.json({
@@ -798,7 +795,7 @@ export const createApp: () => express.Application = () => {
           } catch (error) {
             console.error(
               `[POST /api/subscription/checkout] Error reactivating and changing plan:`,
-              error
+              error,
             );
             // Fall through to create a new checkout
           }
@@ -816,7 +813,7 @@ export const createApp: () => express.Application = () => {
           currentPlan: subscription.plan,
           hasLemonSqueezySubscription:
             !!subscription.lemonSqueezySubscriptionId,
-        }
+        },
       );
 
       // Create checkout (for new subscriptions or if reactivation failed)
@@ -827,7 +824,7 @@ export const createApp: () => express.Application = () => {
         {
           userId: currentUserId,
           subscriptionId,
-        }
+        },
       );
 
       const checkout = await createCheckout({
@@ -853,20 +850,20 @@ export const createApp: () => express.Application = () => {
 
       if (!checkout.url) {
         console.error(
-          `[POST /api/subscription/checkout] ERROR: Checkout URL not returned from Lemon Squeezy`
+          `[POST /api/subscription/checkout] ERROR: Checkout URL not returned from Lemon Squeezy`,
         );
         throw internal("Checkout URL not returned from Lemon Squeezy");
       }
 
       console.log(
         `[POST /api/subscription/checkout] Returning checkout URL to user. ` +
-          `Subscription will be updated via webhook (subscription_created) when checkout completes.`
+          `Subscription will be updated via webhook (subscription_created) when checkout completes.`,
       );
 
       res.json({
         checkoutUrl: checkout.url,
       });
-    })
+    }),
   );
 
   // POST /api/subscription/change-plan - Change subscription plan (upgrade or downgrade)
@@ -891,7 +888,7 @@ export const createApp: () => express.Application = () => {
       if (!subscription.lemonSqueezySubscriptionId) {
         // No existing subscription, create a checkout instead
         throw badRequest(
-          "No active subscription found. Please use the checkout endpoint to create a new subscription."
+          "No active subscription found. Please use the checkout endpoint to create a new subscription.",
         );
       }
 
@@ -902,7 +899,7 @@ export const createApp: () => express.Application = () => {
         subscription.status === "expired"
       ) {
         throw badRequest(
-          "Cannot change plan for free or expired subscriptions. Please use the checkout endpoint to upgrade."
+          "Cannot change plan for free or expired subscriptions. Please use the checkout endpoint to upgrade.",
         );
       }
 
@@ -914,7 +911,7 @@ export const createApp: () => express.Application = () => {
 
       if (!variantId) {
         throw badRequest(
-          `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`
+          `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`,
         );
       }
 
@@ -924,19 +921,19 @@ export const createApp: () => express.Application = () => {
         // If subscription is cancelled, we should reactivate it instead of throwing an error
         if (subscription.status === "cancelled") {
           console.log(
-            `[POST /api/subscription/change-plan] Reactivating cancelled subscription ${subscription.lemonSqueezySubscriptionId} for ${plan} plan`
+            `[POST /api/subscription/change-plan] Reactivating cancelled subscription ${subscription.lemonSqueezySubscriptionId} for ${plan} plan`,
           );
 
           // Update the variant to reactivate the subscription
           await updateSubscriptionVariant(
             subscription.lemonSqueezySubscriptionId,
-            variantId
+            variantId,
           );
 
           // Sync the subscription to get updated status
           const db = await database();
           const lemonSqueezySub = await getLemonSqueezySubscription(
-            subscription.lemonSqueezySubscriptionId
+            subscription.lemonSqueezySubscriptionId,
           );
           const attributes = lemonSqueezySub.attributes;
 
@@ -961,13 +958,12 @@ export const createApp: () => express.Application = () => {
 
           // Update API Gateway usage plan association
           const subscriptionId = subscription.pk.replace("subscriptions/", "");
-          const { associateSubscriptionWithPlan } = await import(
-            "../../utils/apiGatewayUsagePlans"
-          );
+          const { associateSubscriptionWithPlan } =
+            await import("../../utils/apiGatewayUsagePlans");
           await associateSubscriptionWithPlan(subscriptionId, plan);
 
           console.log(
-            `[POST /api/subscription/change-plan] Successfully reactivated subscription for ${plan} plan`
+            `[POST /api/subscription/change-plan] Successfully reactivated subscription for ${plan} plan`,
           );
 
           res.json({
@@ -982,7 +978,7 @@ export const createApp: () => express.Application = () => {
       }
 
       console.log(
-        `[POST /api/subscription/change-plan] Changing plan for subscription ${subscription.lemonSqueezySubscriptionId} from variant ${currentVariantId} to ${variantId}`
+        `[POST /api/subscription/change-plan] Changing plan for subscription ${subscription.lemonSqueezySubscriptionId} from variant ${currentVariantId} to ${variantId}`,
       );
 
       // Update subscription variant in Lemon Squeezy
@@ -991,7 +987,7 @@ export const createApp: () => express.Application = () => {
       try {
         await updateSubscriptionVariant(
           subscription.lemonSqueezySubscriptionId,
-          variantId
+          variantId,
         );
 
         // The webhook will update the subscription when Lemon Squeezy processes the change
@@ -999,7 +995,7 @@ export const createApp: () => express.Application = () => {
         const db = await database();
         try {
           const lemonSqueezySub = await getLemonSqueezySubscription(
-            subscription.lemonSqueezySubscriptionId
+            subscription.lemonSqueezySubscriptionId,
           );
           const attributes = lemonSqueezySub.attributes;
 
@@ -1011,8 +1007,8 @@ export const createApp: () => express.Application = () => {
             newVariantId === starterVariantId
               ? "starter"
               : newVariantId === proVariantId
-              ? "pro"
-              : "starter"; // Default fallback
+                ? "pro"
+                : "starter"; // Default fallback
 
           // Update subscription record
           await db.subscription.update({
@@ -1037,25 +1033,24 @@ export const createApp: () => express.Application = () => {
 
           // Update API Gateway usage plan association
           const subscriptionId = subscription.pk.replace("subscriptions/", "");
-          const { associateSubscriptionWithPlan } = await import(
-            "../../utils/apiGatewayUsagePlans"
-          );
+          const { associateSubscriptionWithPlan } =
+            await import("../../utils/apiGatewayUsagePlans");
           await associateSubscriptionWithPlan(subscriptionId, newPlan);
 
           console.log(
-            `[POST /api/subscription/change-plan] Successfully changed plan to ${newPlan}`
+            `[POST /api/subscription/change-plan] Successfully changed plan to ${newPlan}`,
           );
         } catch (error) {
           console.error(
             `[POST /api/subscription/change-plan] Error syncing subscription after plan change:`,
-            error
+            error,
           );
           // Don't fail the request - the webhook will update it eventually
         }
       } catch (error) {
         console.error(
           `[POST /api/subscription/change-plan] Error updating subscription variant:`,
-          error
+          error,
         );
         // Don't fail the request - the webhook will update it eventually
         // This handles cases where payment is required or other API errors occur
@@ -1065,7 +1060,7 @@ export const createApp: () => express.Application = () => {
         success: true,
         message: `Plan changed to ${plan} successfully.`,
       });
-    })
+    }),
   );
 
   // POST /api/subscription/cancel - Cancel subscription
@@ -1088,12 +1083,12 @@ export const createApp: () => express.Application = () => {
 
       // Cancel subscription via Lemon Squeezy
       await cancelLemonSqueezySubscription(
-        subscription.lemonSqueezySubscriptionId
+        subscription.lemonSqueezySubscriptionId,
       );
 
       // Fetch updated subscription from Lemon Squeezy to get endsAt date
       const lemonSqueezySub = await getLemonSqueezySubscription(
-        subscription.lemonSqueezySubscriptionId
+        subscription.lemonSqueezySubscriptionId,
       );
 
       // Update subscription status (webhook will also update it, but update immediately)
@@ -1107,7 +1102,7 @@ export const createApp: () => express.Application = () => {
       });
 
       res.json({ success: true });
-    })
+    }),
   );
 
   // GET /api/subscription/portal - Get customer portal URL
@@ -1134,7 +1129,7 @@ export const createApp: () => express.Application = () => {
       res.json({
         portalUrl,
       });
-    })
+    }),
   );
 
   // POST /api/subscription/sync - Sync subscription from Lemon Squeezy
@@ -1150,7 +1145,7 @@ export const createApp: () => express.Application = () => {
       const currentUserId = currentUserRef.replace("users/", "");
 
       console.log(
-        `[POST /api/subscription/sync] Starting sync for user ${currentUserId}`
+        `[POST /api/subscription/sync] Starting sync for user ${currentUserId}`,
       );
 
       const subscription = await getUserSubscription(currentUserId);
@@ -1179,7 +1174,7 @@ export const createApp: () => express.Application = () => {
         }
 
         console.warn(
-          `[POST /api/subscription/sync] Unknown variant ID ${variantId}, defaulting to starter`
+          `[POST /api/subscription/sync] Unknown variant ID ${variantId}, defaulting to starter`,
         );
         return "starter";
       };
@@ -1192,32 +1187,32 @@ export const createApp: () => express.Application = () => {
         // In case 2, we should try to find the subscription by customer ID or email
         console.log(
           `[POST /api/subscription/sync] No Lemon Squeezy subscription ID found for subscription ${subscriptionId}. ` +
-            `Attempting to find subscription by customer ID or email...`
+            `Attempting to find subscription by customer ID or email...`,
         );
 
         // Try to find subscription by customer ID if we have it
         if (subscription.lemonSqueezyCustomerId) {
           console.log(
-            `[POST /api/subscription/sync] Attempting to find subscription by customer ID: ${subscription.lemonSqueezyCustomerId}`
+            `[POST /api/subscription/sync] Attempting to find subscription by customer ID: ${subscription.lemonSqueezyCustomerId}`,
           );
           try {
             const customerSubscriptions = await listSubscriptionsByCustomer(
-              subscription.lemonSqueezyCustomerId
+              subscription.lemonSqueezyCustomerId,
             );
 
             console.log(
-              `[POST /api/subscription/sync] Found ${customerSubscriptions.length} subscription(s) for customer ${subscription.lemonSqueezyCustomerId}`
+              `[POST /api/subscription/sync] Found ${customerSubscriptions.length} subscription(s) for customer ${subscription.lemonSqueezyCustomerId}`,
             );
 
             if (customerSubscriptions.length > 0) {
               // Get the most recent active subscription (not cancelled)
               const activeSubscription =
                 customerSubscriptions.find(
-                  (sub) => sub.attributes.status !== "cancelled"
+                  (sub) => sub.attributes.status !== "cancelled",
                 ) || customerSubscriptions[0];
 
               console.log(
-                `[POST /api/subscription/sync] Using subscription ${activeSubscription.id} from customer lookup`
+                `[POST /api/subscription/sync] Using subscription ${activeSubscription.id} from customer lookup`,
               );
 
               // Update subscription with the found Lemon Squeezy subscription ID
@@ -1232,7 +1227,7 @@ export const createApp: () => express.Application = () => {
                   plan,
                   variantId: attributes.variant_id,
                   status: attributes.status,
-                }
+                },
               );
 
               const updatedSubscription = await db.subscription.update({
@@ -1262,22 +1257,21 @@ export const createApp: () => express.Application = () => {
                   oldPlan: subscription.plan,
                   newPlan: updatedSubscription.plan,
                   status: updatedSubscription.status,
-                }
+                },
               );
 
               // Update API Gateway usage plan association
               try {
-                const { associateSubscriptionWithPlan } = await import(
-                  "../../utils/apiGatewayUsagePlans"
-                );
+                const { associateSubscriptionWithPlan } =
+                  await import("../../utils/apiGatewayUsagePlans");
                 await associateSubscriptionWithPlan(subscriptionId, plan);
                 console.log(
-                  `[POST /api/subscription/sync] Associated subscription ${subscriptionId} with ${plan} usage plan`
+                  `[POST /api/subscription/sync] Associated subscription ${subscriptionId} with ${plan} usage plan`,
                 );
               } catch (error) {
                 console.error(
                   `[POST /api/subscription/sync] Error associating subscription with usage plan:`,
-                  error
+                  error,
                 );
               }
 
@@ -1291,7 +1285,7 @@ export const createApp: () => express.Application = () => {
           } catch (error) {
             console.error(
               `[POST /api/subscription/sync] Error looking up subscriptions by customer ID:`,
-              error
+              error,
             );
             // Continue to fallback behavior
           }
@@ -1300,7 +1294,7 @@ export const createApp: () => express.Application = () => {
         // Fallback: Try to find by user email if we have it
         console.log(
           `[POST /api/subscription/sync] Customer ID lookup failed or no customer ID. ` +
-            `Subscription may not be associated with Lemon Squeezy yet, or webhook hasn't processed.`
+            `Subscription may not be associated with Lemon Squeezy yet, or webhook hasn't processed.`,
         );
 
         res.json({
@@ -1315,11 +1309,11 @@ export const createApp: () => express.Application = () => {
 
       try {
         console.log(
-          `[POST /api/subscription/sync] Fetching subscription from Lemon Squeezy: ${subscription.lemonSqueezySubscriptionId}`
+          `[POST /api/subscription/sync] Fetching subscription from Lemon Squeezy: ${subscription.lemonSqueezySubscriptionId}`,
         );
         // Fetch latest data from Lemon Squeezy
         const lemonSqueezySub = await getLemonSqueezySubscription(
-          subscription.lemonSqueezySubscriptionId
+          subscription.lemonSqueezySubscriptionId,
         );
         const attributes = lemonSqueezySub.attributes;
 
@@ -1330,7 +1324,7 @@ export const createApp: () => express.Application = () => {
             status: attributes.status,
             renews_at: attributes.renews_at,
             ends_at: attributes.ends_at,
-          }
+          },
         );
 
         // Map variant ID to plan
@@ -1380,20 +1374,19 @@ export const createApp: () => express.Application = () => {
 
         // Update API Gateway usage plan association
         try {
-          const { associateSubscriptionWithPlan } = await import(
-            "../../utils/apiGatewayUsagePlans"
-          );
+          const { associateSubscriptionWithPlan } =
+            await import("../../utils/apiGatewayUsagePlans");
           console.log(
-            `[POST /api/subscription/sync] Associating subscription ${subscriptionId} with ${plan} usage plan`
+            `[POST /api/subscription/sync] Associating subscription ${subscriptionId} with ${plan} usage plan`,
           );
           await associateSubscriptionWithPlan(subscriptionId, plan);
           console.log(
-            `[POST /api/subscription/sync] Successfully associated subscription ${subscriptionId} with ${plan} usage plan`
+            `[POST /api/subscription/sync] Successfully associated subscription ${subscriptionId} with ${plan} usage plan`,
           );
         } catch (error) {
           console.error(
             `[POST /api/subscription/sync] Error associating subscription ${subscriptionId} with usage plan:`,
-            error
+            error,
           );
           // Don't throw - subscription is updated, usage plan association can be retried
         }
@@ -1401,14 +1394,14 @@ export const createApp: () => express.Application = () => {
         // Check grace period if needed
         const subscriptionAfterUpdate = await db.subscription.get(
           subscription.pk,
-          subscription.sk
+          subscription.sk,
         );
         if (subscriptionAfterUpdate) {
           await checkGracePeriod(subscriptionAfterUpdate);
         }
 
         console.log(
-          `[POST /api/subscription/sync] Successfully synced subscription ${subscriptionId} from ${subscription.plan} to ${plan}`
+          `[POST /api/subscription/sync] Successfully synced subscription ${subscriptionId} from ${subscription.plan} to ${plan}`,
         );
 
         res.json({
@@ -1418,11 +1411,11 @@ export const createApp: () => express.Application = () => {
       } catch (error) {
         console.error(
           `[POST /api/subscription/sync] Error syncing subscription ${subscriptionId}:`,
-          error
+          error,
         );
         throw error;
       }
-    })
+    }),
   );
 
   // Error handler must be last

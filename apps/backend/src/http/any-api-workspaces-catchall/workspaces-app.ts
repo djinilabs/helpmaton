@@ -54,7 +54,6 @@ import { registerGetWorkspaceDocument } from "./routes/get-workspace-document";
 import { registerGetWorkspaceDocumentFolders } from "./routes/get-workspace-document-folders";
 import { registerGetWorkspaceDocuments } from "./routes/get-workspace-documents";
 import { registerGetWorkspaceDocumentsSearch } from "./routes/get-workspace-documents-search";
-import { registerGetWorkspaceEmailOauthCallback } from "./routes/get-workspace-email-oauth-callback";
 import { registerGetWorkspaceExport } from "./routes/get-workspace-export";
 import { registerGetWorkspaceIntegration } from "./routes/get-workspace-integration";
 import { registerGetWorkspaceIntegrations } from "./routes/get-workspace-integrations";
@@ -110,6 +109,7 @@ import { registerPutWorkspaceSpendingLimits } from "./routes/put-workspace-spend
 
 export const createApp: () => express.Application = () => {
   const app = express();
+  app.set("etag", false);
   app.set("trust proxy", true);
   app.use(express.json());
 
@@ -227,7 +227,6 @@ export const createApp: () => express.Application = () => {
   registerPostTestEmailConnection(app);
   registerGetEmailOauthAuthorize(app);
   registerGetEmailOauthCallback(app);
-  registerGetWorkspaceEmailOauthCallback(app);
   registerGetWorkspaceUsage(app);
   registerGetWorkspaceUsageDaily(app);
   registerGetAgentUsageDaily(app);
