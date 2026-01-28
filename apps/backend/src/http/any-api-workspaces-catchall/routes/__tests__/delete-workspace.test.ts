@@ -1,375 +1,234 @@
-import { badRequest, resourceGone } from "@hapi/boom";
 import express from "express";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
- 
+// eslint-disable-next-line import/order
 import {
+  createMockDatabase,
   createMockRequest,
   createMockResponse,
-  createMockNext,
-  createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
-// Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockDatabase } = vi.hoisted(() => {
+const {
+  mockDatabase,
+  mockRemoveAgentResources,
+  mockDeleteDocumentSnippets,
+  mockDeleteDocument,
+  mockDeleteDiscordCommand,
+} = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
+    mockRemoveAgentResources: vi.fn(),
+    mockDeleteDocumentSnippets: vi.fn(),
+    mockDeleteDocument: vi.fn(),
+    mockDeleteDiscordCommand: vi.fn(),
   };
 });
 
-// Mock the database module
 vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
+vi.mock("../../../../utils/agentCleanup", () => ({
+  removeAgentResources: mockRemoveAgentResources,
+}));
+
+vi.mock("../../../../utils/documentIndexing", () => ({
+  deleteDocumentSnippets: mockDeleteDocumentSnippets,
+}));
+
+vi.mock("../../../../utils/s3", () => ({
+  deleteDocument: mockDeleteDocument,
+}));
+
+vi.mock("../../../../utils/discordApi", () => ({
+  deleteDiscordCommand: mockDeleteDiscordCommand,
+}));
+
+vi.mock("../middleware", () => ({
+  requireAuth: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    next();
+  },
+  requirePermission:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction,
+    ) => {
+      next();
+    },
+  handleError: (error: unknown, next: express.NextFunction) => {
+    next(error);
+  },
+}));
+
+import { registerDeleteWorkspace } from "../delete-workspace";
+
+import { createTestAppWithHandlerCapture } from "./route-test-helpers";
+
+type MockDb = ReturnType<typeof createMockDatabase> &
+  Record<
+    string,
+    {
+      queryAsync?: (
+        ...args: unknown[]
+      ) => AsyncGenerator<unknown, void, unknown>;
+      delete?: (...args: unknown[]) => unknown;
+    }
+  >;
+
+type QueryAsyncTable<T extends object> = T & {
+  queryAsync: (...args: unknown[]) => AsyncGenerator<unknown, void, unknown>;
+};
+
+function withQueryAsync<T extends object>(table: T): QueryAsyncTable<T> {
+  return table as QueryAsyncTable<T>;
+}
+
+function buildAsyncGenerator<T>(items: T[]) {
+  return (async function* () {
+    for (const item of items) {
+      yield item;
+    }
+  })();
+}
+
+function ensureTable(db: MockDb, name: string): Record<string, unknown> {
+  if (!db[name]) {
+    db[name] = {};
+  }
+  return db[name];
+}
+
 describe("DELETE /api/workspaces/:workspaceId", () => {
+  let testApp: ReturnType<typeof createTestAppWithHandlerCapture>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    testApp = createTestAppWithHandlerCapture();
+    registerDeleteWorkspace(testApp.app);
   });
 
   async function callRouteHandler(
     req: Partial<express.Request>,
     res: Partial<express.Response>,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) {
-    // Extract the handler logic directly
-    const handler = async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const db = await mockDatabase();
-        const workspaceResource = (req as { workspaceResource?: string })
-          .workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-
-        const workspace = await db.workspace.get(
-          workspaceResource,
-          "workspace"
-        );
-        if (!workspace) {
-          throw resourceGone("Workspace not found");
-        }
-
-        // Delete all permissions for this workspace
-        const permissions = await db.permission.query({
-          KeyConditionExpression: "pk = :workspacePk",
-          ExpressionAttributeValues: {
-            ":workspacePk": workspaceResource,
-          },
-        });
-
-        // Delete all permission records
-        for (const permission of permissions.items) {
-          await db.permission.delete(permission.pk, permission.sk);
-        }
-
-        // Delete workspace
-        await db.workspace.delete(workspaceResource, "workspace");
-
-        res.status(204).send();
-      } catch (error) {
-        next(error);
-      }
-    };
-
+    const handler = testApp.deleteHandler("/api/workspaces/:workspaceId");
+    if (!handler) {
+      throw new Error("Route handler not found");
+    }
     await handler(req as express.Request, res as express.Response, next);
   }
 
-  it("should delete workspace and all its permissions successfully", async () => {
-    const mockDb = createMockDatabase();
+  it("removes workspace resources and agents but preserves transactions", async () => {
+    const mockDb = createMockDatabase() as MockDb;
     mockDatabase.mockResolvedValue(mockDb);
 
-    const mockWorkspace = {
-      pk: "workspaces/workspace-123",
+    const workspaceId = "workspace-123";
+    const workspaceResource = `workspaces/${workspaceId}`;
+
+    mockDb.workspace.get = vi.fn().mockResolvedValue({
+      pk: workspaceResource,
       sk: "workspace",
-      name: "Test Workspace",
-      description: "Test Description",
-      currency: "usd",
-      creditBalance: 0,
-      spendingLimits: [],
-      createdAt: "2024-01-01T00:00:00Z",
-    };
-
-    const mockPermissions = [
-      {
-        pk: "workspaces/workspace-123",
-        sk: "users/user-1",
-      },
-      {
-        pk: "workspaces/workspace-123",
-        sk: "users/user-2",
-      },
-    ];
-
-    const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.get = mockWorkspaceGet;
-
-    const mockPermissionQuery = vi.fn().mockResolvedValue({
-      items: mockPermissions,
+      name: "Workspace",
     });
-    mockDb.permission.query = mockPermissionQuery;
+    withQueryAsync(mockDb.agent).queryAsync = vi.fn().mockReturnValue(
+      buildAsyncGenerator([
+        { pk: `agents/${workspaceId}/agent-1`, sk: "agent" },
+        { pk: `agents/${workspaceId}/agent-2`, sk: "agent" },
+      ]),
+    );
+    mockRemoveAgentResources.mockResolvedValue({ cleanupErrors: [] });
 
-    const mockPermissionDelete = vi.fn().mockResolvedValue(undefined);
-    mockDb.permission.delete = mockPermissionDelete;
+    withQueryAsync(ensureTable(mockDb, "workspace-document")).queryAsync = vi
+      .fn()
+      .mockReturnValue(
+        buildAsyncGenerator([
+          {
+            pk: `workspace-documents/${workspaceId}/doc-1`,
+            sk: "document",
+            s3Key: `workspaces/${workspaceId}/documents/file.txt`,
+          },
+        ]),
+      );
 
-    const mockWorkspaceDelete = vi.fn().mockResolvedValue(undefined);
-    mockDb.workspace.delete = mockWorkspaceDelete;
+    mockDb.permission.query = vi.fn().mockResolvedValue({
+      items: [
+        { pk: workspaceResource, sk: "user-1" },
+        { pk: workspaceResource, sk: "user-2" },
+      ],
+    });
+    mockDb.permission.delete = vi.fn();
+    mockDb.workspace.delete = vi.fn();
+    ensureTable(mockDb, "workspace-credit-transactions").delete = vi.fn();
+
+    withQueryAsync(ensureTable(mockDb, "workspace-api-key")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "output_channel")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "email-connection")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "mcp-server")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "workspace-invite")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "token-usage-aggregates")).queryAsync =
+      vi.fn().mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "tool-usage-aggregates")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "credit-reservations")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "bot-integration")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    ensureTable(mockDb, "trial-credit-requests").delete = vi.fn();
 
     const req = createMockRequest({
-      userRef: "users/user-123",
-      workspaceResource: "workspaces/workspace-123",
+      workspaceResource,
       params: {
-        workspaceId: "workspace-123",
+        workspaceId,
       },
     });
     const res = createMockResponse();
-    const next = createMockNext();
+    const next = vi.fn();
 
     await callRouteHandler(req, res, next);
 
-    expect(mockWorkspaceGet).toHaveBeenCalledWith(
-      "workspaces/workspace-123",
-      "workspace"
+    expect(mockRemoveAgentResources).toHaveBeenCalledTimes(2);
+    expect(mockDeleteDocumentSnippets).toHaveBeenCalledWith(
+      workspaceId,
+      "doc-1",
     );
-    expect(mockPermissionQuery).toHaveBeenCalledWith({
-      KeyConditionExpression: "pk = :workspacePk",
-      ExpressionAttributeValues: {
-        ":workspacePk": "workspaces/workspace-123",
-      },
-    });
-    expect(mockPermissionDelete).toHaveBeenCalledTimes(2);
-    expect(mockPermissionDelete).toHaveBeenCalledWith(
-      "workspaces/workspace-123",
-      "users/user-1"
+    expect(mockDeleteDocument).toHaveBeenCalledWith(
+      workspaceId,
+      "doc-1",
+      `workspaces/${workspaceId}/documents/file.txt`,
     );
-    expect(mockPermissionDelete).toHaveBeenCalledWith(
-      "workspaces/workspace-123",
-      "users/user-2"
+    expect(mockDb["trial-credit-requests"].delete).toHaveBeenCalledWith(
+      `trial-credit-requests/${workspaceId}`,
+      "request",
     );
-    expect(mockWorkspaceDelete).toHaveBeenCalledWith(
-      "workspaces/workspace-123",
-      "workspace"
+    expect(
+      mockDb["workspace-credit-transactions"].delete,
+    ).not.toHaveBeenCalled();
+    expect(mockDb.workspace.delete).toHaveBeenCalledWith(
+      workspaceResource,
+      "workspace",
     );
     expect(res.status).toHaveBeenCalledWith(204);
     expect(res.send).toHaveBeenCalled();
-  });
-
-  it("should delete workspace even when no permissions exist", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const mockWorkspace = {
-      pk: "workspaces/workspace-123",
-      sk: "workspace",
-      name: "Test Workspace",
-      description: "Test Description",
-      currency: "usd",
-      creditBalance: 0,
-      spendingLimits: [],
-      createdAt: "2024-01-01T00:00:00Z",
-    };
-
-    const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.get = mockWorkspaceGet;
-
-    const mockPermissionQuery = vi.fn().mockResolvedValue({
-      items: [],
-    });
-    mockDb.permission.query = mockPermissionQuery;
-
-    const mockPermissionDelete = vi.fn();
-    mockDb.permission.delete = mockPermissionDelete;
-
-    const mockWorkspaceDelete = vi.fn().mockResolvedValue(undefined);
-    mockDb.workspace.delete = mockWorkspaceDelete;
-
-    const req = createMockRequest({
-      userRef: "users/user-123",
-      workspaceResource: "workspaces/workspace-123",
-      params: {
-        workspaceId: "workspace-123",
-      },
-    });
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    await callRouteHandler(req, res, next);
-
-    expect(mockPermissionQuery).toHaveBeenCalled();
-    expect(mockPermissionDelete).not.toHaveBeenCalled();
-    expect(mockWorkspaceDelete).toHaveBeenCalledWith(
-      "workspaces/workspace-123",
-      "workspace"
-    );
-    expect(res.status).toHaveBeenCalledWith(204);
-  });
-
-  it("should throw badRequest when workspace resource is missing", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const req = createMockRequest({
-      userRef: "users/user-123",
-      workspaceResource: undefined,
-      params: {
-        workspaceId: "workspace-123",
-      },
-    });
-    const res = createMockResponse();
-    const next = vi.fn();
-
-    await callRouteHandler(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    const error = next.mock.calls[0][0];
-    expect(error).toBeInstanceOf(Error);
-    expect(
-      (error as { output?: { statusCode: number } }).output?.statusCode
-    ).toBe(400);
-    expect(
-      (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
-    ).toContain("Workspace resource not found");
-  });
-
-  it("should throw resourceGone when workspace does not exist", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const mockWorkspaceGet = vi.fn().mockResolvedValue(null);
-    mockDb.workspace.get = mockWorkspaceGet;
-
-    const req = createMockRequest({
-      userRef: "users/user-123",
-      workspaceResource: "workspaces/workspace-123",
-      params: {
-        workspaceId: "workspace-123",
-      },
-    });
-    const res = createMockResponse();
-    const next = vi.fn();
-
-    await callRouteHandler(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    const error = next.mock.calls[0][0];
-    expect(error).toBeInstanceOf(Error);
-    expect(
-      (error as { output?: { statusCode: number } }).output?.statusCode
-    ).toBe(410);
-    expect(
-      (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
-    ).toContain("Workspace not found");
-    // Permission query and workspace delete should not be called when workspace doesn't exist
-    // We verify this by checking that the error was thrown before those operations
-  });
-
-  it("should handle multiple permissions deletion", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const mockWorkspace = {
-      pk: "workspaces/workspace-123",
-      sk: "workspace",
-      name: "Test Workspace",
-      description: "Test Description",
-      currency: "usd",
-      creditBalance: 0,
-      spendingLimits: [],
-      createdAt: "2024-01-01T00:00:00Z",
-    };
-
-    const mockPermissions = Array.from({ length: 5 }, (_, i) => ({
-      pk: "workspaces/workspace-123",
-      sk: `users/user-${i + 1}`,
-    }));
-
-    const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.get = mockWorkspaceGet;
-
-    const mockPermissionQuery = vi.fn().mockResolvedValue({
-      items: mockPermissions,
-    });
-    mockDb.permission.query = mockPermissionQuery;
-
-    const mockPermissionDelete = vi.fn().mockResolvedValue(undefined);
-    mockDb.permission.delete = mockPermissionDelete;
-
-    const mockWorkspaceDelete = vi.fn().mockResolvedValue(undefined);
-    mockDb.workspace.delete = mockWorkspaceDelete;
-
-    const req = createMockRequest({
-      userRef: "users/user-123",
-      workspaceResource: "workspaces/workspace-123",
-      params: {
-        workspaceId: "workspace-123",
-      },
-    });
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    await callRouteHandler(req, res, next);
-
-    expect(mockPermissionDelete).toHaveBeenCalledTimes(5);
-    expect(mockWorkspaceDelete).toHaveBeenCalledTimes(1);
-    expect(res.status).toHaveBeenCalledWith(204);
-  });
-
-  it("should handle permission deletion errors gracefully", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const mockWorkspace = {
-      pk: "workspaces/workspace-123",
-      sk: "workspace",
-      name: "Test Workspace",
-      description: "Test Description",
-      currency: "usd",
-      creditBalance: 0,
-      spendingLimits: [],
-      createdAt: "2024-01-01T00:00:00Z",
-    };
-
-    const mockPermissions = [
-      {
-        pk: "workspaces/workspace-123",
-        sk: "users/user-1",
-      },
-    ];
-
-    const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.get = mockWorkspaceGet;
-
-    const mockPermissionQuery = vi.fn().mockResolvedValue({
-      items: mockPermissions,
-    });
-    mockDb.permission.query = mockPermissionQuery;
-
-    const permissionError = new Error("Permission deletion failed");
-    const mockPermissionDelete = vi.fn().mockRejectedValue(permissionError);
-    mockDb.permission.delete = mockPermissionDelete;
-
-    const req = createMockRequest({
-      userRef: "users/user-123",
-      workspaceResource: "workspaces/workspace-123",
-      params: {
-        workspaceId: "workspace-123",
-      },
-    });
-    const res = createMockResponse();
-    const next = vi.fn();
-
-    await callRouteHandler(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    const error = next.mock.calls[0][0];
-    expect(error).toBe(permissionError);
-    // Workspace should not be deleted if permission deletion fails
-    // We verify this by checking that the error was thrown before workspace deletion
+    expect(next).not.toHaveBeenCalled();
   });
 });

@@ -15,7 +15,7 @@ const BUCKET_NAME = (
 export async function withS3Span<T>(
   operation: string,
   key: string,
-  action: () => Promise<T>
+  action: () => Promise<T>,
 ): Promise<T> {
   return Sentry.startSpan(
     {
@@ -28,7 +28,7 @@ export async function withS3Span<T>(
         "s3.key": key,
       },
     },
-    action
+    action,
   );
 }
 
@@ -62,7 +62,7 @@ export async function getS3Client() {
     config.region = "us-east-1";
 
     console.log(
-      `[getS3Client] Local mode - endpoint: ${config.endpoint}, bucket: ${BUCKET_NAME}`
+      `[getS3Client] Local mode - endpoint: ${config.endpoint}, bucket: ${BUCKET_NAME}`,
     );
   } else {
     // Production - use explicit credentials from environment variables
@@ -83,7 +83,7 @@ export async function getS3Client() {
       // Use custom endpoint if provided (for S3-compatible services like MinIO, etc.)
       config.endpoint = customEndpoint;
       console.log(
-        `[getS3Client] Production mode - custom endpoint: ${config.endpoint}, region: ${region}, bucket: ${BUCKET_NAME}`
+        `[getS3Client] Production mode - custom endpoint: ${config.endpoint}, region: ${region}, bucket: ${BUCKET_NAME}`,
       );
     } else {
       // Always use regional S3 endpoint in production - explicitly set to force path-style addressing
@@ -92,13 +92,13 @@ export async function getS3Client() {
       // Note: Bucket names with dots automatically force path-style, but we set endpoint explicitly anyway
       config.endpoint = `https://s3.${region}.amazonaws.com`;
       console.log(
-        `[getS3Client] Production mode - AWS endpoint: ${config.endpoint}, region: ${region}, bucket: ${BUCKET_NAME}`
+        `[getS3Client] Production mode - AWS endpoint: ${config.endpoint}, region: ${region}, bucket: ${BUCKET_NAME}`,
       );
 
       // Warn if custom endpoint was set but ignored
       if (customEndpoint) {
         console.warn(
-          `[getS3Client] WARNING: HELPMATON_S3_ENDPOINT was set to ${customEndpoint} but contains localhost - using AWS endpoint instead`
+          `[getS3Client] WARNING: HELPMATON_S3_ENDPOINT was set to ${customEndpoint} but contains localhost - using AWS endpoint instead`,
         );
       }
     }
@@ -116,17 +116,17 @@ export async function getS3Client() {
       console.log(
         `[getS3Client] Using explicit credentials (accessKeyId: ${
           accessKeyId ? "set" : "not set"
-        })`
+        })`,
       );
     } else {
       console.log(
-        `[getS3Client] No explicit credentials - will use IAM role if available`
+        `[getS3Client] No explicit credentials - will use IAM role if available`,
       );
     }
   }
 
   console.log(
-    `[getS3Client] Final config - endpoint: ${config.endpoint}, region: ${config.region}, isLocal: ${isLocal}`
+    `[getS3Client] Final config - endpoint: ${config.endpoint}, region: ${config.region}, isLocal: ${isLocal}`,
   );
 
   const aws = await awsLite(config);
@@ -173,7 +173,7 @@ export function normalizeFolderPath(folderPath: string): string {
 export function buildS3Key(
   workspaceId: string,
   folderPath: string,
-  filename: string
+  filename: string,
 ): string {
   const normalizedPath = normalizeFolderPath(folderPath);
   if (normalizedPath) {
@@ -186,7 +186,7 @@ export function buildS3Key(
 export async function checkFilenameExists(
   workspaceId: string,
   filename: string,
-  folderPath: string
+  folderPath: string,
 ): Promise<boolean> {
   const s3 = await getS3Client();
   const key = buildS3Key(workspaceId, folderPath, filename);
@@ -196,7 +196,7 @@ export async function checkFilenameExists(
       s3.HeadObject({
         Bucket: BUCKET_NAME,
         Key: key,
-      })
+      }),
     );
     return true;
   } catch (error: unknown) {
@@ -213,12 +213,12 @@ export async function checkFilenameExists(
 export async function generateUniqueFilename(
   workspaceId: string,
   originalFilename: string,
-  folderPath: string
+  folderPath: string,
 ): Promise<string> {
   const exists = await checkFilenameExists(
     workspaceId,
     originalFilename,
-    folderPath
+    folderPath,
   );
   if (!exists) {
     return originalFilename;
@@ -257,7 +257,7 @@ export async function uploadDocument(
   content: Buffer | string,
   filename: string,
   contentType: string,
-  folderPath: string
+  folderPath: string,
 ): Promise<string> {
   const s3 = await getS3Client();
   const normalizedPath = normalizeFolderPath(folderPath);
@@ -272,7 +272,7 @@ export async function uploadDocument(
       Key: key,
       Body: buffer,
       ContentType: contentType,
-    })
+    }),
   );
 
   return key;
@@ -282,27 +282,27 @@ export async function uploadDocument(
 export async function getDocument(
   workspaceId: string,
   documentId: string,
-  s3Key: string
+  s3Key: string,
 ): Promise<Buffer> {
   const s3 = await getS3Client();
 
   console.log(
-    `[getDocument] Fetching from S3 - Bucket: ${BUCKET_NAME}, Key: ${s3Key}`
+    `[getDocument] Fetching from S3 - Bucket: ${BUCKET_NAME}, Key: ${s3Key}`,
   );
   console.log(
-    `[getDocument] Environment - ARC_ENV: ${process.env.ARC_ENV}, NODE_ENV: ${process.env.NODE_ENV}`
+    `[getDocument] Environment - ARC_ENV: ${process.env.ARC_ENV}, NODE_ENV: ${process.env.NODE_ENV}`,
   );
   console.log(
     `[getDocument] Is local: ${
       process.env.ARC_ENV === "testing" || process.env.NODE_ENV !== "production"
-    }`
+    }`,
   );
 
   const response = await withS3Span("GetObject", s3Key, () =>
     s3.GetObject({
       Bucket: BUCKET_NAME,
       Key: s3Key,
-    })
+    }),
   );
 
   if (response.Body instanceof Buffer) {
@@ -329,7 +329,7 @@ export async function getDocument(
 export async function deleteDocument(
   workspaceId: string,
   documentId: string,
-  s3Key: string
+  s3Key: string,
 ): Promise<void> {
   const s3 = await getS3Client();
 
@@ -337,7 +337,18 @@ export async function deleteDocument(
     s3.DeleteObject({
       Bucket: BUCKET_NAME,
       Key: s3Key,
-    })
+    }),
+  );
+}
+
+export async function deleteS3Object(s3Key: string): Promise<void> {
+  const s3 = await getS3Client();
+
+  await withS3Span("DeleteObject", s3Key, () =>
+    s3.DeleteObject({
+      Bucket: BUCKET_NAME,
+      Key: s3Key,
+    }),
   );
 }
 
@@ -346,7 +357,7 @@ export async function renameDocument(
   workspaceId: string,
   oldS3Key: string,
   newFilename: string,
-  folderPath: string
+  folderPath: string,
 ): Promise<string> {
   const s3 = await getS3Client();
   const normalizedPath = normalizeFolderPath(folderPath);
@@ -358,7 +369,7 @@ export async function renameDocument(
       Bucket: BUCKET_NAME,
       CopySource: `${BUCKET_NAME}/${oldS3Key}`,
       Key: newKey,
-    })
+    }),
   );
 
   // Delete old object
@@ -366,7 +377,7 @@ export async function renameDocument(
     s3.DeleteObject({
       Bucket: BUCKET_NAME,
       Key: oldS3Key,
-    })
+    }),
   );
 
   return newKey;
@@ -399,7 +410,7 @@ function buildConversationFileKey(
   workspaceId: string,
   agentId: string,
   conversationId: string,
-  filename: string
+  filename: string,
 ): string {
   return `conversation-files/${workspaceId}/${agentId}/${conversationId}/${filename}`;
 }
@@ -407,12 +418,16 @@ function buildConversationFileKey(
 function isLocalS3(): boolean {
   const arcEnv = process.env.ARC_ENV;
   const nodeEnv = process.env.NODE_ENV;
-  return arcEnv === "testing" || (arcEnv !== "production" && nodeEnv !== "production");
+  return (
+    arcEnv === "testing" ||
+    (arcEnv !== "production" && nodeEnv !== "production")
+  );
 }
 
 function resolveConversationFileUrl(key: string): string {
   if (isLocalS3()) {
-    const endpoint = process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+    const endpoint =
+      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
     return `${endpoint}/${BUCKET_NAME}/${key}`;
   }
 
@@ -462,7 +477,7 @@ export async function uploadConversationFile(params: {
     workspaceId,
     agentId,
     conversationId,
-    generatedFilename
+    generatedFilename,
   );
   const s3 = await getS3Client();
 
@@ -472,7 +487,7 @@ export async function uploadConversationFile(params: {
       Key: key,
       Body: content,
       ContentType: contentType,
-    })
+    }),
   );
 
   return {
@@ -556,7 +571,7 @@ export async function generatePresignedPostUrl(
   contentType: string,
   fileExtension?: string,
   expiresIn: number = 300,
-  maxFileSize: number = 10 * 1024 * 1024 // 10MB
+  maxFileSize: number = 10 * 1024 * 1024, // 10MB
 ): Promise<{
   uploadUrl: string;
   fields: Record<string, string>;
@@ -569,7 +584,7 @@ export async function generatePresignedPostUrl(
     workspaceId,
     agentId,
     conversationId,
-    filename
+    filename,
   );
 
   // Get AWS SDK v3 S3 client
