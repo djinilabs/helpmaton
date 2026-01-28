@@ -119,6 +119,9 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           imageGenerationModel,
           avatar,
           summarizationPrompts,
+          memoryExtractionEnabled,
+          memoryExtractionModel,
+          memoryExtractionPrompt,
         } = body;
         const normalizedSummarizationPrompts =
           normalizeSummarizationPrompts(summarizationPrompts);
@@ -138,7 +141,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
         const userId = currentUserRef.replace("users/", "");
         const subscriptionId = await ensureWorkspaceSubscription(
           workspaceId,
-          userId
+          userId,
         );
         await checkSubscriptionLimits(subscriptionId, "agent", 1);
 
@@ -159,7 +162,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           }
           if (channel.workspaceId !== workspaceId) {
             throw badRequest(
-              "Notification channel does not belong to this workspace"
+              "Notification channel does not belong to this workspace",
             );
           }
         }
@@ -172,21 +175,46 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           const pricing = getModelPricing("openrouter", modelName.trim());
           if (!pricing) {
             throw badRequest(
-              `Model "${modelName.trim()}" is not available. Please check available models at /api/models`
+              `Model "${modelName.trim()}" is not available. Please check available models at /api/models`,
+            );
+          }
+        }
+
+        const trimmedMemoryExtractionModel =
+          typeof memoryExtractionModel === "string"
+            ? memoryExtractionModel.trim()
+            : undefined;
+        if (
+          memoryExtractionModel !== undefined &&
+          memoryExtractionModel !== null
+        ) {
+          if (!trimmedMemoryExtractionModel) {
+            throw badRequest(
+              "memoryExtractionModel must be a non-empty string or null",
+            );
+          }
+          const { getModelPricing } = await import("../../../utils/pricing");
+          const pricing = getModelPricing(
+            "openrouter",
+            trimmedMemoryExtractionModel,
+          );
+          if (!pricing) {
+            throw badRequest(
+              `Model "${trimmedMemoryExtractionModel}" is not available. Please check available models at /api/models`,
             );
           }
         }
 
         if (enableImageGeneration === true && !imageGenerationModel) {
           throw badRequest(
-            "imageGenerationModel is required when enableImageGeneration is true"
+            "imageGenerationModel is required when enableImageGeneration is true",
           );
         }
         if (imageGenerationModel) {
           const resolvedImageModel = imageGenerationModel.trim();
           if (!isImageCapableModel("openrouter", resolvedImageModel)) {
             throw badRequest(
-              `Image generation model "${resolvedImageModel}" is not image-capable. Please select a model that supports image output.`
+              `Image generation model "${resolvedImageModel}" is not image-capable. Please select a model that supports image output.`,
             );
           }
         }
@@ -196,7 +224,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
         if (avatar !== undefined && avatar !== null) {
           if (!isValidAvatar(avatar)) {
             throw badRequest(
-              `Invalid avatar path. Avatar must be one of the available logo paths.`
+              `Invalid avatar path. Avatar must be one of the available logo paths.`,
             );
           }
           avatarPath = avatar;
@@ -215,7 +243,8 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           summarizationPrompts: normalizedSummarizationPrompts,
           provider: "openrouter", // Always use openrouter (only supported provider)
           notificationChannelId:
-            notificationChannelId !== undefined && notificationChannelId !== null
+            notificationChannelId !== undefined &&
+            notificationChannelId !== null
               ? notificationChannelId
               : undefined,
           modelName:
@@ -223,8 +252,20 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
               ? modelName.trim()
               : undefined,
           clientTools: clientTools || undefined,
+          memoryExtractionEnabled:
+            memoryExtractionEnabled !== undefined
+              ? memoryExtractionEnabled
+              : undefined,
+          memoryExtractionModel: trimmedMemoryExtractionModel || undefined,
+          memoryExtractionPrompt:
+            typeof memoryExtractionPrompt === "string" &&
+            memoryExtractionPrompt.trim().length > 0
+              ? memoryExtractionPrompt.trim()
+              : undefined,
           enableImageGeneration:
-            enableImageGeneration !== undefined ? enableImageGeneration : undefined,
+            enableImageGeneration !== undefined
+              ? enableImageGeneration
+              : undefined,
           imageGenerationModel:
             typeof imageGenerationModel === "string" &&
             imageGenerationModel.trim()
@@ -244,7 +285,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
             provider: agent.provider,
             model_name: agent.modelName || undefined,
           },
-          req
+          req,
         );
 
         res.status(201).json({
@@ -252,6 +293,9 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           name: agent.name,
           systemPrompt: agent.systemPrompt,
           summarizationPrompts: agent.summarizationPrompts,
+          memoryExtractionEnabled: agent.memoryExtractionEnabled ?? false,
+          memoryExtractionModel: agent.memoryExtractionModel ?? null,
+          memoryExtractionPrompt: agent.memoryExtractionPrompt ?? null,
           provider: agent.provider,
           modelName: agent.modelName ?? null,
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
@@ -267,6 +311,6 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
       } catch (error) {
         handleError(error, next, "POST /api/workspaces/:workspaceId/agents");
       }
-    }
+    },
   );
 };

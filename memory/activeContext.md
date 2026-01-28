@@ -26,6 +26,7 @@
 
 **Latest Work**:
 
+- **Conversation memory extraction**: Added per-agent memory extraction settings (model/prompt) with UI controls, switched working memory to conversation-level update records, added LLM extraction with credit validation and graph fact writes, and updated tests. Ran `pnpm typecheck`, `pnpm lint --fix`, backend tests (`memoryExtraction`, `memorySystem.integration`, `agent-temporal-grain-queue`, `put-workspace-agent`), and full `pnpm test`.
 - **DuckPGQ graph DB**: Replaced DuckDB dependency with `@duckdb/node-api` + `@duckdb/node-bindings`, added `graphDb` wrapper for per-workspace/agent facts stored as S3 Parquet with DuckPGQ property graph initialization and CRUD/save helpers, updated tests/docs, and ran `pnpm --filter backend test --run graphDb`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Graph DB doc**: Added `docs/graph-database.md` describing DuckPGQ setup, storage layout, schema, env vars, and usage.
 - **DuckDB in lancedb image**: Added DuckDB dependency to the lancedb image and backend workspace, added `duckdbClient` helper to create in-memory DuckDB with `httpfs` + S3 settings (now dynamically imports DuckDB at call time), added allowlisted S3 settings guard, expanded unit tests (session token, custom endpoint, helpers, error paths), and updated container docs. Ran `pnpm --filter backend test --run duckdbClient`, `pnpm lint --fix`, and `pnpm typecheck`.

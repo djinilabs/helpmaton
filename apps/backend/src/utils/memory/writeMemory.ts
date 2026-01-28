@@ -1,8 +1,13 @@
-import { createHash, randomUUID } from "crypto";
+import { createHash } from "crypto";
 
 import type { UIMessage } from "../../utils/messageTypes";
 import { sendWriteOperation } from "../vectordb/queueClient";
 import type { FactRecord, TemporalGrain } from "../vectordb/types";
+
+import {
+  applyMemoryOperationsToGraph,
+  extractConversationMemory,
+} from "./memoryExtraction";
 
 /**
  * Generate a hash for a fact to use as cache key
@@ -50,38 +55,27 @@ function extractTextFromMessage(message: UIMessage): string {
   return "";
 }
 
-/**
- * Extract facts from conversation messages
- * Creates fact records for each meaningful message (user and assistant messages)
- */
-function extractFactsFromMessages(
-  messages: UIMessage[]
-): Array<{ text: string; timestamp: string }> {
-  const facts: Array<{ text: string; timestamp: string }> = [];
-  const now = new Date().toISOString();
-
+function formatConversationText(messages: UIMessage[]): string {
+  const lines: string[] = [];
   for (const message of messages) {
-    // Only extract facts from user and assistant messages
     if (message.role !== "user" && message.role !== "assistant") {
       continue;
     }
-
     const text = extractTextFromMessage(message);
     if (text.trim().length === 0) {
       continue;
     }
-
-    // Create a fact record for this message
-    facts.push({
-      text: `${
-        message.role === "user" ? "User said" : "Assistant said"
-      }: ${text}`,
-      timestamp: now,
-    });
+    const roleLabel = message.role === "user" ? "User" : "Agent";
+    lines.push(`${roleLabel}: ${text}`);
   }
-
-  return facts;
+  return lines.join("\n");
 }
+
+export type MemoryExtractionConfig = {
+  enabled?: boolean;
+  modelName?: string | null;
+  prompt?: string | null;
+};
 
 /**
  * Write conversation messages to working memory
@@ -91,25 +85,26 @@ export async function writeToWorkingMemory(
   agentId: string,
   workspaceId: string,
   conversationId: string,
-  messages: UIMessage[]
+  messages: UIMessage[],
+  memoryExtractionConfig?: MemoryExtractionConfig,
 ): Promise<void> {
   console.log(
-    `[Memory Write] Starting write to working memory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${messages.length} messages`
+    `[Memory Write] Starting write to working memory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${messages.length} messages`,
   );
   console.log(
-    `[Memory Write] Parameter values - agentId: "${agentId}" (type: ${typeof agentId}), workspaceId: "${workspaceId}" (type: ${typeof workspaceId}), conversationId: "${conversationId}" (type: ${typeof conversationId})`
+    `[Memory Write] Parameter values - agentId: "${agentId}" (type: ${typeof agentId}), workspaceId: "${workspaceId}" (type: ${typeof workspaceId}), conversationId: "${conversationId}" (type: ${typeof conversationId})`,
   );
 
   // Validate parameters to catch null/undefined values early
   if (!agentId || agentId === "null" || agentId === "undefined") {
     console.error(
-      `[Memory Write] ERROR: agentId is invalid: "${agentId}" (type: ${typeof agentId})`
+      `[Memory Write] ERROR: agentId is invalid: "${agentId}" (type: ${typeof agentId})`,
     );
     throw new Error(`Invalid agentId: ${agentId}`);
   }
   if (!workspaceId || workspaceId === "null" || workspaceId === "undefined") {
     console.error(
-      `[Memory Write] ERROR: workspaceId is invalid: "${workspaceId}" (type: ${typeof workspaceId})`
+      `[Memory Write] ERROR: workspaceId is invalid: "${workspaceId}" (type: ${typeof workspaceId})`,
     );
     throw new Error(`Invalid workspaceId: ${workspaceId}`);
   }
@@ -119,21 +114,20 @@ export async function writeToWorkingMemory(
     conversationId === "undefined"
   ) {
     console.error(
-      `[Memory Write] ERROR: conversationId is invalid: "${conversationId}" (type: ${typeof conversationId})`
+      `[Memory Write] ERROR: conversationId is invalid: "${conversationId}" (type: ${typeof conversationId})`,
     );
     throw new Error(`Invalid conversationId: ${conversationId}`);
   }
 
   try {
-    // Extract facts from messages
-    const facts = extractFactsFromMessages(messages);
+    const conversationText = formatConversationText(messages);
     console.log(
-      `[Memory Write] Extracted ${facts.length} facts from ${messages.length} messages for conversation ${conversationId}`
+      `[Memory Write] Prepared conversation text for ${conversationId} with ${messages.length} messages`,
     );
 
-    if (facts.length === 0) {
+    if (conversationText.trim().length === 0) {
       console.log(
-        `[Memory Write] No facts to write for conversation ${conversationId}. Messages:`,
+        `[Memory Write] No conversation text to write for conversation ${conversationId}. Messages:`,
         messages.map((m) => ({
           role: m.role,
           contentType: typeof m.content,
@@ -142,11 +136,59 @@ export async function writeToWorkingMemory(
             typeof m.content === "string"
               ? m.content.substring(0, 100)
               : Array.isArray(m.content)
-              ? `[Array with ${m.content.length} items]`
-              : String(m.content).substring(0, 100),
-        }))
+                ? `[Array with ${m.content.length} items]`
+                : String(m.content).substring(0, 100),
+        })),
       );
       return;
+    }
+
+    let contentToStore = conversationText;
+    let memoryOperations: Array<{
+      operation: "ADD" | "UPDATE" | "DELETE";
+      subject: string;
+      predicate: string;
+      object: string;
+      confidence: number;
+    }> = [];
+
+    if (memoryExtractionConfig?.enabled) {
+      try {
+        const extraction = await extractConversationMemory({
+          agentId,
+          workspaceId,
+          conversationId,
+          conversationText,
+          modelName: memoryExtractionConfig.modelName,
+          prompt: memoryExtractionConfig.prompt,
+        });
+        if (extraction) {
+          contentToStore =
+            extraction.summary.trim().length > 0
+              ? extraction.summary
+              : conversationText;
+          memoryOperations = extraction.memoryOperations;
+          if (memoryOperations.length > 0) {
+            await applyMemoryOperationsToGraph({
+              workspaceId,
+              agentId,
+              conversationId,
+              memoryOperations,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[Memory Write] Memory extraction failed for conversation ${conversationId}, falling back to raw text:`,
+          error instanceof Error
+            ? {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+              }
+            : String(error),
+        );
+      }
     }
 
     // Create raw fact data (without embeddings) to queue for async processing
@@ -158,33 +200,32 @@ export async function writeToWorkingMemory(
       cacheKey?: string;
     }> = [];
 
-    for (const fact of facts) {
-      // Generate cache key for this fact (workspace:agent:factHash)
-      const factCacheKey = `${workspaceId}:${agentId}:${hashFact(fact.text)}`;
-      const metadata = {
-        conversationId,
-        workspaceId,
-        agentId,
-      };
-      console.log(
-        `[Memory Write] Creating raw fact with metadata:`,
-        JSON.stringify(metadata, null, 2)
-      );
-      rawFacts.push({
-        id: randomUUID(),
-        content: fact.text,
-        timestamp: fact.timestamp,
-        metadata,
-        cacheKey: factCacheKey,
-      });
-    }
+    const now = new Date().toISOString();
+    const factCacheKey = `${workspaceId}:${agentId}:${hashFact(contentToStore)}`;
+    const metadata = {
+      conversationId,
+      workspaceId,
+      agentId,
+      memoryType: memoryExtractionConfig?.enabled ? "summary" : "conversation",
+    };
+    console.log(
+      `[Memory Write] Creating conversation memory record with metadata:`,
+      JSON.stringify(metadata, null, 2),
+    );
+    rawFacts.push({
+      id: `conversation-${conversationId}`,
+      content: contentToStore,
+      timestamp: now,
+      metadata,
+      cacheKey: factCacheKey,
+    });
 
     // Queue write operation to SQS with raw facts (embeddings will be generated async)
     console.log(
-      `[Memory Write] Queuing ${rawFacts.length} raw facts to SQS for agent ${agentId}, conversation ${conversationId}`
+      `[Memory Write] Queuing ${rawFacts.length} conversation record(s) to SQS for agent ${agentId}, conversation ${conversationId}`,
     );
     await sendWriteOperation({
-      operation: "insert",
+      operation: "update",
       agentId,
       temporalGrain: "working",
       workspaceId, // Include workspaceId for API key lookup in queue handler
@@ -194,7 +235,7 @@ export async function writeToWorkingMemory(
     });
 
     console.log(
-      `[Memory Write] Successfully queued ${rawFacts.length} raw facts to working memory for agent ${agentId}, conversation ${conversationId}`
+      `[Memory Write] Successfully queued ${rawFacts.length} conversation record(s) to working memory for agent ${agentId}, conversation ${conversationId}`,
     );
   } catch (error) {
     // Log error but don't throw - memory writes should not block conversation logging
@@ -206,7 +247,7 @@ export async function writeToWorkingMemory(
             stack: error.stack,
             name: error.name,
           }
-        : String(error)
+        : String(error),
     );
   }
 }
@@ -218,7 +259,7 @@ export async function writeToWorkingMemory(
 export async function queueMemoryWrite(
   agentId: string,
   grain: TemporalGrain,
-  records: FactRecord[]
+  records: FactRecord[],
 ): Promise<void> {
   if (records.length === 0) {
     return;

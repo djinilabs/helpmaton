@@ -172,7 +172,8 @@ export const openApiSchemas = {
       },
       enableSendEmail: {
         type: "boolean",
-        description: "Enable the email sending tool for this agent (requires workspace email connection)",
+        description:
+          "Enable the email sending tool for this agent (requires workspace email connection)",
       },
       enableImageGeneration: {
         type: "boolean",
@@ -181,6 +182,20 @@ export const openApiSchemas = {
       imageGenerationModel: {
         type: "string",
         description: "Image generation model name from OpenRouter",
+        nullable: true,
+      },
+      memoryExtractionEnabled: {
+        type: "boolean",
+        description: "Enable memory extraction for this agent",
+      },
+      memoryExtractionModel: {
+        type: "string",
+        description: "Model name to use for memory extraction",
+        nullable: true,
+      },
+      memoryExtractionPrompt: {
+        type: "string",
+        description: "Prompt to use for memory extraction",
         nullable: true,
       },
       summarizationPrompts: {
@@ -309,7 +324,8 @@ export const openApiSchemas = {
       },
       enableSendEmail: {
         type: "boolean",
-        description: "Enable the email sending tool for this agent (requires workspace email connection)",
+        description:
+          "Enable the email sending tool for this agent (requires workspace email connection)",
       },
       enableImageGeneration: {
         type: "boolean",
@@ -322,6 +338,20 @@ export const openApiSchemas = {
       },
       summarizationPrompts: {
         $ref: "#/components/schemas/SummarizationPrompts",
+      },
+      memoryExtractionEnabled: {
+        type: "boolean",
+        description: "Enable memory extraction for this agent",
+      },
+      memoryExtractionModel: {
+        type: "string",
+        description: "Model name to use for memory extraction",
+        nullable: true,
+      },
+      memoryExtractionPrompt: {
+        type: "string",
+        description: "Prompt to use for memory extraction",
+        nullable: true,
       },
     },
   },
@@ -372,7 +402,8 @@ export const openApiSchemas = {
       },
       enableSendEmail: {
         type: "boolean",
-        description: "Enable the email sending tool for this agent (requires workspace email connection)",
+        description:
+          "Enable the email sending tool for this agent (requires workspace email connection)",
       },
       enableImageGeneration: {
         type: "boolean",
@@ -385,6 +416,20 @@ export const openApiSchemas = {
       },
       summarizationPrompts: {
         $ref: "#/components/schemas/SummarizationPrompts",
+      },
+      memoryExtractionEnabled: {
+        type: "boolean",
+        description: "Enable memory extraction for this agent",
+      },
+      memoryExtractionModel: {
+        type: "string",
+        description: "Model name to use for memory extraction",
+        nullable: true,
+      },
+      memoryExtractionPrompt: {
+        type: "string",
+        description: "Prompt to use for memory extraction",
+        nullable: true,
       },
     },
   },

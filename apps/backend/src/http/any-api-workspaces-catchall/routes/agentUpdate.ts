@@ -9,7 +9,7 @@ type UpdateAgentBody = z.infer<typeof updateAgentSchema>;
 
 type Database = {
   agent: DatabaseSchema["agent"];
-  "output_channel": DatabaseSchema["output_channel"];
+  output_channel: DatabaseSchema["output_channel"];
   "mcp-server": DatabaseSchema["mcp-server"];
 };
 
@@ -19,18 +19,18 @@ const SEARCH_WEB_PROVIDERS = ["tavily", "jina"] as const;
 const FETCH_WEB_PROVIDERS = ["tavily", "jina", "scrape"] as const;
 
 const isSearchWebProvider = (
-  value: string
+  value: string,
 ): value is (typeof SEARCH_WEB_PROVIDERS)[number] =>
   SEARCH_WEB_PROVIDERS.includes(value as (typeof SEARCH_WEB_PROVIDERS)[number]);
 
 const isFetchWebProvider = (
-  value: string
+  value: string,
 ): value is (typeof FETCH_WEB_PROVIDERS)[number] =>
   FETCH_WEB_PROVIDERS.includes(value as (typeof FETCH_WEB_PROVIDERS)[number]);
 
 const resolveOptionalField = <T>(
   incoming: T | null | undefined,
-  fallback: T | undefined
+  fallback: T | undefined,
 ): T | undefined => {
   if (incoming === undefined) return fallback;
   if (incoming === null) return undefined;
@@ -70,7 +70,9 @@ export async function validateNotificationChannelId(params: {
   }
 }
 
-export function validateSpendingLimits(spendingLimits: UpdateAgentBody["spendingLimits"]): void {
+export function validateSpendingLimits(
+  spendingLimits: UpdateAgentBody["spendingLimits"],
+): void {
   if (spendingLimits === undefined) return;
   if (!Array.isArray(spendingLimits)) {
     throw badRequest("spendingLimits must be an array");
@@ -81,7 +83,7 @@ export function validateSpendingLimits(spendingLimits: UpdateAgentBody["spending
       !["daily", "weekly", "monthly"].includes(limit.timeFrame)
     ) {
       throw badRequest(
-        "Each spending limit must have a valid timeFrame (daily, weekly, or monthly)"
+        "Each spending limit must have a valid timeFrame (daily, weekly, or monthly)",
       );
     }
     if (typeof limit.amount !== "number" || limit.amount < 0) {
@@ -121,7 +123,7 @@ const hasDelegationCycle = (
   agentMap: Map<string, { delegatableAgentIds?: string[] }>,
   startId: string,
   currentId: string,
-  visited: Set<string>
+  visited: Set<string>,
 ): boolean => {
   if (visited.has(currentId)) return false;
   visited.add(currentId);
@@ -164,7 +166,9 @@ export async function validateDelegatableAgentIds(params: {
       throw resourceGone(`Delegatable agent ${id} not found`);
     }
     if (targetAgent.workspaceId !== params.workspaceId) {
-      throw forbidden(`Delegatable agent ${id} does not belong to this workspace`);
+      throw forbidden(
+        `Delegatable agent ${id} does not belong to this workspace`,
+      );
     }
   }
 
@@ -176,9 +180,16 @@ export async function validateDelegatableAgentIds(params: {
   });
 
   for (const id of delegatableAgentIds) {
-    if (hasDelegationCycle(agentMap, params.agentId, id, new Set([params.agentId]))) {
+    if (
+      hasDelegationCycle(
+        agentMap,
+        params.agentId,
+        id,
+        new Set([params.agentId]),
+      )
+    ) {
       throw badRequest(
-        "Circular delegation detected: this update would create a cycle in the delegation graph"
+        "Circular delegation detected: this update would create a cycle in the delegation graph",
       );
     }
   }
@@ -215,7 +226,10 @@ export async function cleanEnabledMcpServerIds(params: {
     return cleanedEnabledMcpServerIds;
   }
 
-  if (params.existingEnabledMcpServerIds && params.existingEnabledMcpServerIds.length > 0) {
+  if (
+    params.existingEnabledMcpServerIds &&
+    params.existingEnabledMcpServerIds.length > 0
+  ) {
     const cleanedEnabledMcpServerIds: string[] = [];
     for (const id of params.existingEnabledMcpServerIds) {
       const serverPk = `mcp-servers/${params.workspaceId}/${id}`;
@@ -224,7 +238,7 @@ export async function cleanEnabledMcpServerIds(params: {
         cleanedEnabledMcpServerIds.push(id);
       } else {
         console.warn(
-          `MCP server ${id} not found or invalid, filtering out from enabledMcpServerIds`
+          `MCP server ${id} not found or invalid, filtering out from enabledMcpServerIds`,
         );
       }
     }
@@ -234,7 +248,9 @@ export async function cleanEnabledMcpServerIds(params: {
   return undefined;
 }
 
-export function validateClientTools(clientTools: UpdateAgentBody["clientTools"]): void {
+export function validateClientTools(
+  clientTools: UpdateAgentBody["clientTools"],
+): void {
   if (clientTools === undefined) {
     return;
   }
@@ -251,12 +267,12 @@ export function validateClientTools(clientTools: UpdateAgentBody["clientTools"])
       typeof tool.parameters !== "object"
     ) {
       throw badRequest(
-        "Each client tool must have name, description (both strings) and parameters (object)"
+        "Each client tool must have name, description (both strings) and parameters (object)",
       );
     }
     if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(tool.name)) {
       throw badRequest(
-        `Tool name "${tool.name}" must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)`
+        `Tool name "${tool.name}" must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)`,
       );
     }
   }
@@ -276,7 +292,7 @@ export function validateKnowledgeConfig(params: {
       knowledgeInjectionMinSimilarity > 1
     ) {
       throw badRequest(
-        "knowledgeInjectionMinSimilarity must be a number between 0 and 1"
+        "knowledgeInjectionMinSimilarity must be a number between 0 and 1",
       );
     }
   }
@@ -367,7 +383,36 @@ export async function validateModelName(params: {
   const pricing = resolver("openrouter", trimmed);
   if (!pricing) {
     throw badRequest(
-      `Model "${trimmed}" is not available. Please check available models at /api/models`
+      `Model "${trimmed}" is not available. Please check available models at /api/models`,
+    );
+  }
+  return trimmed;
+}
+
+export async function validateMemoryExtractionModel(params: {
+  memoryExtractionModel: UpdateAgentBody["memoryExtractionModel"];
+  getModelPricing?: (provider: string, model: string) => unknown | null;
+}): Promise<string | undefined> {
+  const { memoryExtractionModel } = params;
+  if (memoryExtractionModel === undefined || memoryExtractionModel === null) {
+    return undefined;
+  }
+  if (
+    typeof memoryExtractionModel !== "string" ||
+    memoryExtractionModel.trim().length === 0
+  ) {
+    throw badRequest(
+      "memoryExtractionModel must be a non-empty string or null",
+    );
+  }
+  const resolver =
+    params.getModelPricing ??
+    (await import("../../../utils/pricing")).getModelPricing;
+  const trimmed = memoryExtractionModel.trim();
+  const pricing = resolver("openrouter", trimmed);
+  if (!pricing) {
+    throw badRequest(
+      `Model "${trimmed}" is not available. Please check available models at /api/models`,
     );
   }
   return trimmed;
@@ -378,25 +423,24 @@ export function validateImageGenerationConfig(params: {
   imageGenerationModel: UpdateAgentBody["imageGenerationModel"];
   isImageCapableModel?: (provider: string, model: string) => boolean;
 }): void {
-  const isImageCapable =
-    params.isImageCapableModel ?? isImageCapableModel;
+  const isImageCapable = params.isImageCapableModel ?? isImageCapableModel;
   const resolvedModel =
     typeof params.imageGenerationModel === "string"
       ? params.imageGenerationModel.trim()
       : params.imageGenerationModel === null
-      ? null
-      : undefined;
+        ? null
+        : undefined;
 
   if (params.enableImageGeneration === true && !resolvedModel) {
     throw badRequest(
-      "imageGenerationModel is required when enableImageGeneration is true"
+      "imageGenerationModel is required when enableImageGeneration is true",
     );
   }
 
   if (resolvedModel) {
     if (!isImageCapable("openrouter", resolvedModel)) {
       throw badRequest(
-        `Image generation model "${resolvedModel}" is not image-capable. Please select a model that supports image output.`
+        `Image generation model "${resolvedModel}" is not image-capable. Please select a model that supports image output.`,
       );
     }
   }
@@ -413,7 +457,7 @@ export function validateAvatar(params: {
     }
     if (!params.isValidAvatar(avatar)) {
       throw badRequest(
-        "Invalid avatar path. Avatar must be one of the available logo paths."
+        "Invalid avatar path. Avatar must be one of the available logo paths.",
       );
     }
   }
@@ -431,7 +475,9 @@ export function resolveSearchWebProvider(params: {
     ) {
       throw badRequest("searchWebProvider must be 'tavily', 'jina', or null");
     }
-    return params.searchWebProvider === null ? undefined : params.searchWebProvider;
+    return params.searchWebProvider === null
+      ? undefined
+      : params.searchWebProvider;
   }
   if (params.enableTavilySearch !== undefined) {
     return params.enableTavilySearch === true ? "tavily" : undefined;
@@ -450,10 +496,12 @@ export function resolveFetchWebProvider(params: {
       !isFetchWebProvider(params.fetchWebProvider)
     ) {
       throw badRequest(
-        "fetchWebProvider must be 'tavily', 'jina', 'scrape', or null"
+        "fetchWebProvider must be 'tavily', 'jina', 'scrape', or null",
       );
     }
-    return params.fetchWebProvider === null ? undefined : params.fetchWebProvider;
+    return params.fetchWebProvider === null
+      ? undefined
+      : params.fetchWebProvider;
   }
   if (params.enableTavilyFetch !== undefined) {
     return params.enableTavilyFetch === true ? "tavily" : undefined;
@@ -471,6 +519,7 @@ export function buildAgentUpdateParams(params: {
   resolvedSearchWebProvider: "tavily" | "jina" | undefined;
   resolvedFetchWebProvider: "tavily" | "jina" | "scrape" | undefined;
   resolvedModelName: string | undefined;
+  resolvedMemoryExtractionModel: string | undefined;
   updatedBy: string;
 }): Record<string, unknown> {
   const { body, agent } = params;
@@ -484,7 +533,7 @@ export function buildAgentUpdateParams(params: {
       body.systemPrompt !== undefined ? body.systemPrompt : agent.systemPrompt,
     notificationChannelId: resolveOptionalField(
       body.notificationChannelId,
-      agent.notificationChannelId
+      agent.notificationChannelId,
     ),
     delegatableAgentIds:
       body.delegatableAgentIds !== undefined
@@ -493,7 +542,7 @@ export function buildAgentUpdateParams(params: {
     enabledMcpServerIds:
       params.cleanedEnabledMcpServerIds !== undefined
         ? params.cleanedEnabledMcpServerIds
-        : agent.enabledMcpServerIds ?? [],
+        : (agent.enabledMcpServerIds ?? []),
     enableMemorySearch:
       body.enableMemorySearch !== undefined
         ? body.enableMemorySearch
@@ -512,7 +561,7 @@ export function buildAgentUpdateParams(params: {
         : agent.knowledgeInjectionSnippetCount,
     knowledgeInjectionMinSimilarity: resolveOptionalField(
       body.knowledgeInjectionMinSimilarity,
-      agent.knowledgeInjectionMinSimilarity
+      agent.knowledgeInjectionMinSimilarity,
     ),
     enableKnowledgeReranking:
       body.enableKnowledgeReranking !== undefined
@@ -520,7 +569,7 @@ export function buildAgentUpdateParams(params: {
         : agent.enableKnowledgeReranking,
     knowledgeRerankingModel: resolveOptionalField(
       body.knowledgeRerankingModel,
-      agent.knowledgeRerankingModel
+      agent.knowledgeRerankingModel,
     ),
     enableSendEmail:
       body.enableSendEmail !== undefined
@@ -542,24 +591,47 @@ export function buildAgentUpdateParams(params: {
         : agent.enableImageGeneration,
     imageGenerationModel: resolveOptionalField(
       body.imageGenerationModel,
-      agent.imageGenerationModel
+      agent.imageGenerationModel,
     ),
-    clientTools: body.clientTools !== undefined ? body.clientTools : agent.clientTools,
+    clientTools:
+      body.clientTools !== undefined ? body.clientTools : agent.clientTools,
     summarizationPrompts:
       body.summarizationPrompts !== undefined
         ? params.normalizedSummarizationPrompts
         : agent.summarizationPrompts,
+    memoryExtractionEnabled:
+      body.memoryExtractionEnabled !== undefined
+        ? body.memoryExtractionEnabled
+        : agent.memoryExtractionEnabled,
+    memoryExtractionModel:
+      body.memoryExtractionModel !== undefined
+        ? body.memoryExtractionModel === null
+          ? undefined
+          : params.resolvedMemoryExtractionModel
+        : agent.memoryExtractionModel,
+    memoryExtractionPrompt: resolveOptionalField(
+      body.memoryExtractionPrompt,
+      agent.memoryExtractionPrompt,
+    ),
     widgetConfig: resolveOptionalField(body.widgetConfig, agent.widgetConfig),
     spendingLimits:
-      body.spendingLimits !== undefined ? body.spendingLimits : agent.spendingLimits,
+      body.spendingLimits !== undefined
+        ? body.spendingLimits
+        : agent.spendingLimits,
     temperature: resolveOptionalField(body.temperature, agent.temperature),
     topP: resolveOptionalField(body.topP, agent.topP),
     topK: resolveOptionalField(body.topK, agent.topK),
-    maxOutputTokens: resolveOptionalField(body.maxOutputTokens, agent.maxOutputTokens),
-    stopSequences: resolveOptionalField(body.stopSequences, agent.stopSequences),
+    maxOutputTokens: resolveOptionalField(
+      body.maxOutputTokens,
+      agent.maxOutputTokens,
+    ),
+    stopSequences: resolveOptionalField(
+      body.stopSequences,
+      agent.stopSequences,
+    ),
     maxToolRoundtrips: resolveOptionalField(
       body.maxToolRoundtrips,
-      agent.maxToolRoundtrips
+      agent.maxToolRoundtrips,
     ),
     provider: "openrouter",
     modelName:
@@ -585,14 +657,19 @@ export function buildAgentResponse(params: {
     name: updated.name,
     systemPrompt: updated.systemPrompt,
     summarizationPrompts: updated.summarizationPrompts,
+    memoryExtractionEnabled: updated.memoryExtractionEnabled ?? false,
+    memoryExtractionModel: updated.memoryExtractionModel ?? null,
+    memoryExtractionPrompt: updated.memoryExtractionPrompt ?? null,
     notificationChannelId: updated.notificationChannelId,
     delegatableAgentIds: updated.delegatableAgentIds ?? [],
     enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
     enableMemorySearch: updated.enableMemorySearch ?? false,
     enableSearchDocuments: updated.enableSearchDocuments ?? false,
     enableKnowledgeInjection: updated.enableKnowledgeInjection ?? false,
-    knowledgeInjectionSnippetCount: updated.knowledgeInjectionSnippetCount ?? undefined,
-    knowledgeInjectionMinSimilarity: updated.knowledgeInjectionMinSimilarity ?? undefined,
+    knowledgeInjectionSnippetCount:
+      updated.knowledgeInjectionSnippetCount ?? undefined,
+    knowledgeInjectionMinSimilarity:
+      updated.knowledgeInjectionMinSimilarity ?? undefined,
     enableKnowledgeReranking: updated.enableKnowledgeReranking ?? false,
     knowledgeRerankingModel: updated.knowledgeRerankingModel ?? undefined,
     enableSendEmail: updated.enableSendEmail ?? false,

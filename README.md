@@ -292,7 +292,7 @@ Helpmaton is built on modern, scalable infrastructure:
 - **Vector Database**: LanceDB with S3 backend for agent memory and semantic search
 - **Storage**: S3 for document management and vector database persistence
 - **Frontend**: React with TypeScript
-- **AI**: Google Gemini API for embeddings and LLM capabilities
+- **AI**: OpenRouter for embeddings and LLM capabilities—use any provider and any model
 - **Queue Processing**: SQS FIFO queues with message groups for serialized memory writes and partial batch failure support for efficient error handling
 - **Deployment**: Automated CI/CD with GitHub Actions, multi-stage Docker builds for optimization
 - **Payments**: Lemon Squeezy integration for subscriptions and credit purchases

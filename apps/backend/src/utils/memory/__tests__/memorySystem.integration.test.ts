@@ -154,7 +154,7 @@ describe("Memory System Integration", () => {
           recordIds: message.data.recordIds,
         });
 
-        if (message.operation === "insert") {
+        if (message.operation === "insert" || message.operation === "update") {
           let recordsToStore: FactRecord[] = [];
 
           // If rawFacts are provided, generate embeddings for them
@@ -188,8 +188,12 @@ describe("Memory System Integration", () => {
 
             const existing =
               memoryStorage[message.temporalGrain].get(timeKey) || [];
+            const filtered =
+              message.operation === "update"
+                ? existing.filter((item) => item.id !== record.id)
+                : existing;
             // Create a new array to avoid reference issues
-            const updated = [...existing, record];
+            const updated = [...filtered, record];
             memoryStorage[message.temporalGrain].set(timeKey, updated);
           }
         } else if (message.operation === "delete" && message.data.recordIds) {
@@ -1035,10 +1039,10 @@ describe("Memory System Integration", () => {
 
     // Verify SQS operations were tracked
     expect(sqsOperations.length).toBeGreaterThan(0);
-    const insertOperations = sqsOperations.filter(
-      (op) => op.operation === "insert",
+    const writeOperations = sqsOperations.filter(
+      (op) => op.operation === "insert" || op.operation === "update",
     );
-    expect(insertOperations.length).toBeGreaterThan(0);
+    expect(writeOperations.length).toBeGreaterThan(0);
 
     // Verify time strings are correctly formatted
     const dailyTimeStrings = dailySummaries.map(
