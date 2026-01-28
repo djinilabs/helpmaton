@@ -1,5 +1,6 @@
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../embedding";
+import { MAX_QUERY_LIMIT } from "../vectordb/config";
 import { query } from "../vectordb/readClient";
 import type { TemporalGrain } from "../vectordb/types";
 
@@ -141,8 +142,9 @@ async function searchWorkingMemory(
   maxResults: number,
   queryText?: string,
 ): Promise<SearchMemoryResult[]> {
+  const hasQueryText = Boolean(queryText && queryText.trim().length > 0);
   const queryOptions: Parameters<typeof query>[2] = {
-    limit: maxResults,
+    limit: hasQueryText ? maxResults : MAX_QUERY_LIMIT,
     temporalFilter: {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
@@ -150,7 +152,7 @@ async function searchWorkingMemory(
   };
 
   // If queryText is provided, generate embedding and do semantic search
-  if (queryText && queryText.trim().length > 0) {
+  if (hasQueryText) {
     try {
       // Get API key for embedding generation
       // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
@@ -160,7 +162,7 @@ async function searchWorkingMemory(
       );
 
       const queryEmbedding = await generateEmbedding(
-        queryText.trim(),
+        queryText!.trim(),
         apiKey,
         undefined,
         undefined,
@@ -184,8 +186,18 @@ async function searchWorkingMemory(
     `[Memory Search] Found ${results.length} results in working memory for agent ${agentId}`,
   );
 
+  const orderedResults = hasQueryText
+    ? results
+    : results
+        .slice()
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        )
+        .slice(0, maxResults);
+
   // Format results with date prefixes
-  return results.map((result) => {
+  return orderedResults.map((result) => {
     const timestamp = new Date(result.timestamp);
     const datePrefix = formatDatePrefix(timestamp);
     return {
