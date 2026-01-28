@@ -7,6 +7,7 @@
 **Latest Work**:
 
 - **Suppress credit user errors in Sentry**: Added `isCreditUserError` helper and used it to skip Sentry capture for credit-limit errors in `handlingSQSErrors` and `knowledgeInjection`, with info-level logging and new tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **Backend Sentry sourcemaps deploy alignment**: Enabled sourcemap generation during `arc deploy`, set `SENTRY_DIST` for runtime, and moved backend sourcemap uploads to post-deploy for both `.arc` (zip Lambdas) and `dist` (container images). Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **OpenRouter embeddings migration**: Switched embedding generation to OpenRouter `thenlper/gte-base` via `@openrouter/sdk`, updated embedding callers/tests to use `OPENROUTER_API_KEY`, and refreshed docs/env guidance; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Typecheck/lint fixes for api-throttling test**: Added `methods.d.ts` typings and tightened test casts to satisfy TypeScript; reran `pnpm typecheck` and `pnpm lint --fix`.
 - **Email/MCP OAuth authorizer skip**: Exempted `/api/email/oauth/*` and `/api/mcp/oauth/*` from API Gateway authorizer in `api-throttling` plugin; added unit test and ran `pnpm --filter backend test --run api-throttling`, `pnpm typecheck`, `pnpm lint --fix`.
