@@ -15,19 +15,19 @@ export class LoginPage extends BasePage {
 
     // Initialize locators for email login
     this.emailInput = page.locator(
-      '#email, input[type="email"], input[name="email"]'
+      '#email, input[type="email"], input[name="email"]',
     );
     this.submitButton = page.locator(
-      'button[type="submit"], button:has-text("SEND SIGN-IN LINK"), button:has-text("SENDING...")'
+      'button[type="submit"], button:has-text("SEND SIGN-IN LINK"), button:has-text("SENDING...")',
     );
     this.successMessage = page.locator(
-      '[data-testid="success-message"], .success-message, .alert-success'
+      '[data-testid="success-message"], .success-message, .alert-success',
     );
     this.errorMessage = page.locator(
-      '[data-testid="error-message"], .error-message, .alert-error'
+      '[data-testid="error-message"], .error-message, .alert-error',
     );
     this.loadingSpinner = page.locator(
-      '[data-testid="loading-spinner"], .loading, .spinner'
+      '[data-testid="loading-spinner"], .loading, .spinner',
     );
   }
 
@@ -65,7 +65,7 @@ export class LoginPage extends BasePage {
 
             // Check if login form is visible
             const emailInput = document.querySelector(
-              '#email, input[type="email"][name="email"]'
+              '#email, input[type="email"][name="email"]',
             ) as HTMLInputElement | null;
             if (emailInput && emailInput.offsetParent !== null) {
               return true; // Login form is visible
@@ -76,7 +76,7 @@ export class LoginPage extends BasePage {
             const loadingIndicators = [
               ...Array.from(document.querySelectorAll(".animate-spin")),
               ...Array.from(
-                document.querySelectorAll('[data-testid="loading-spinner"]')
+                document.querySelectorAll('[data-testid="loading-spinner"]'),
               ),
               ...Array.from(document.querySelectorAll(".loading")),
               ...Array.from(document.querySelectorAll(".spinner")),
@@ -98,7 +98,7 @@ export class LoginPage extends BasePage {
             // Wait a bit more for potential redirect
             return false;
           },
-          { timeout: 30000 }
+          { timeout: 30000 },
         );
 
         // Additional wait to ensure React has finished rendering
@@ -151,7 +151,7 @@ export class LoginPage extends BasePage {
         `Last error: ${lastError?.message}\n` +
         `Page has email input: ${await this.emailInput
           .isVisible()
-          .catch(() => false)}`
+          .catch(() => false)}`,
     );
   }
 
@@ -207,22 +207,58 @@ export class LoginPage extends BasePage {
           : errorText || "Unknown authentication error";
 
         throw new Error(
-          `Magic link request failed - redirected to error page: ${errorMessage}`
+          `Magic link request failed - redirected to error page: ${errorMessage}`,
         );
       }
 
       // If we're still on the login page, check button state
       if (currentUrl.includes("/api/auth/signin") || currentUrl.endsWith("/")) {
-        // Wait for button text to NOT be "SENDING..." anymore (with a reasonable timeout)
+        // Wait for the UI to settle after submitting:
+        // - either a success indicator appears ("check your email/inbox")
+        // - or an error message appears
+        // - or the submit button leaves a disabled "sending" state
+        //
+        // Note: the UI uses "Sending..." (capital S) while this test previously checked
+        // for "SENDING..." (all-caps), which is brittle and can cause flakiness on CI.
         try {
           await this.page.waitForFunction(
             () => {
-              const button = document.querySelector('button[type="submit"]');
+              const hasVisibleText = (selector: string, re: RegExp) => {
+                const nodes = Array.from(document.querySelectorAll(selector));
+                return nodes.some((node) => {
+                  const el = node as HTMLElement;
+                  if (el.offsetParent === null) return false; // not visible
+                  const text = el.textContent ?? "";
+                  return re.test(text);
+                });
+              };
+
+              // "Check your email/inbox" confirmation on the sign-in screen
+              if (hasVisibleText("body", /check.*(your )?(email|inbox)/i)) {
+                return true;
+              }
+
+              // Any visible error message container (see locator in constructor)
+              if (
+                hasVisibleText(
+                  '[data-testid="error-message"], .error-message, .alert-error',
+                  /\S/,
+                )
+              ) {
+                return true;
+              }
+
+              // Submit button no longer in a disabled "sending" state
+              const button = document.querySelector(
+                'button[type="submit"]',
+              ) as HTMLButtonElement | null;
               if (!button) return false;
-              const text = button.textContent?.trim() || "";
-              return !text.includes("SENDING...");
+              const text = (button.textContent?.trim() || "").toLowerCase();
+              const isSending = text.includes("sending");
+              const isDisabled = button.disabled;
+              return !(isDisabled && isSending);
             },
-            { timeout: 30000 }
+            { timeout: 45000 },
           );
 
           // Wait a bit for any error messages to appear
@@ -234,15 +270,9 @@ export class LoginPage extends BasePage {
             throw new Error(`Magic link request failed: ${errorText}`);
           }
 
-          // Verify button is back to normal state
-          const buttonText = await this.submitButton.textContent();
-          if (buttonText?.includes("SENDING...")) {
-            throw new Error("Button is still in SENDING state after timeout");
-          }
-
           // Check for success indicator (like "Check your email" message)
           const checkEmailText = this.page.locator(
-            "text=/check.*(your )?(email|inbox)/i"
+            "text=/check.*(your )?(email|inbox)/i",
           );
           const hasCheckEmail = await checkEmailText
             .isVisible()
@@ -265,7 +295,7 @@ export class LoginPage extends BasePage {
       // If we're not on login or error page, assume success (might have redirected elsewhere)
       // Check for success indicator as fallback
       const checkEmailText = this.page.locator(
-        "text=/check.*(your )?(email|inbox)/i"
+        "text=/check.*(your )?(email|inbox)/i",
       );
       const hasCheckEmail = await checkEmailText.isVisible().catch(() => false);
       if (hasCheckEmail) {
@@ -295,7 +325,7 @@ export class LoginPage extends BasePage {
       throw new Error(
         `Magic link request may have failed. ` +
           `Button count: ${buttonCount}, visible: ${buttonVisible}, state: ${buttonState}, ` +
-          `Error visible: ${errorVisible}, URL: ${currentUrl}`
+          `Error visible: ${errorVisible}, URL: ${currentUrl}`,
       );
     } catch (error) {
       // Re-throw if it's already a formatted error
@@ -303,7 +333,7 @@ export class LoginPage extends BasePage {
         throw error;
       }
       throw new Error(
-        `Unexpected error waiting for magic link request: ${error}`
+        `Unexpected error waiting for magic link request: ${error}`,
       );
     }
   }
@@ -321,7 +351,7 @@ export class LoginPage extends BasePage {
    */
   async hasSuccessIndicator(): Promise<boolean> {
     const checkEmailText = this.page.locator(
-      "text=/check.*(your )?(email|inbox)/i"
+      "text=/check.*(your )?(email|inbox)/i",
     );
     return await this.isElementVisible(checkEmailText);
   }

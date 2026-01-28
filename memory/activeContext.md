@@ -4,12 +4,19 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+**CI note (2026-01-28)**:
+
+- **E2E on `main` failing**: GitHub Actions run `21431312943` failed in `tests/e2e/login.spec.ts` (“create and login user in one operation”) due to flaky/insufficient waiting in `LoginPage.waitForMagicLinkRequest` (button stays “Sending...”, success text not yet visible). Logs also show backend errors `OPENROUTER_API_KEY is not set` because the E2E workflow does not provide that env var.
+- **Fix**: Updated `.github/workflows/test-e2e.yml` to pass `OPENROUTER_API_KEY` into both `tests/e2e/.env` and the E2E job environment so the local Architect sandbox inherits it. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Fix**: Hardened `tests/e2e/pages/login-page.ts` `waitForMagicLinkRequest()` to treat the submit button “sending” state case-insensitively and to wait for success/error UI before failing (avoids CI flake where UI shows “Sending...” but test only checked “SENDING...”).
+
 **Latest Work**:
 
 - **LanceDB writer isolation**: Detached `agent-temporal-grain-queue` from `llm-shared-http`, added `config.arc` with `concurrency 1`, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Agent removal cleanup**: Added queue-based vector DB purge operation, scheduled purges for agent deletion, and removed adjacent agent records (keys, schedules, conversations, evals, stream servers, delegation tasks, bot integrations). Added/updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **PR 231 review fixes**: Added purge missing-table test, extracted agent cleanup test setup helper, and reran `pnpm typecheck` + `pnpm lint --fix`.
 - **Suppress credit user errors in Sentry**: Added `isCreditUserError` helper and used it to skip Sentry capture for credit-limit errors in `handlingSQSErrors` and `knowledgeInjection`, with info-level logging and new tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **Backend Sentry sourcemaps deploy alignment**: Enabled sourcemap generation during `arc deploy`, set `SENTRY_DIST` for runtime, and moved backend sourcemap uploads to post-deploy for both `.arc` (zip Lambdas) and `dist` (container images). Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **OpenRouter embeddings migration**: Switched embedding generation to OpenRouter `thenlper/gte-base` via `@openrouter/sdk`, updated embedding callers/tests to use `OPENROUTER_API_KEY`, and refreshed docs/env guidance; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Typecheck/lint fixes for api-throttling test**: Added `methods.d.ts` typings and tightened test casts to satisfy TypeScript; reran `pnpm typecheck` and `pnpm lint --fix`.
 - **Email/MCP OAuth authorizer skip**: Exempted `/api/email/oauth/*` and `/api/mcp/oauth/*` from API Gateway authorizer in `api-throttling` plugin; added unit test and ran `pnpm --filter backend test --run api-throttling`, `pnpm typecheck`, `pnpm lint --fix`.

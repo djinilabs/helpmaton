@@ -262,27 +262,6 @@ jobs:
           export AWS_CERTIFICATE_ARN="${AWS_CERTIFICATE_ARN}"
           pnpm build:backend
 
-      - name: Upload backend sourcemaps to Sentry
-        if: steps.check-pr.outputs.is_pr != 'true'
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          SENTRY_RELEASE: ${{ github.sha }}
-          SENTRY_DIST: "backend"
-        run: |
-          if [ -z "${SENTRY_AUTH_TOKEN}" ] || [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ]; then
-            echo "⚠️  Missing Sentry credentials, skipping backend sourcemap upload."
-            exit 0
-          fi
-
-          pnpm exec sentry-cli sourcemaps upload "apps/backend/dist" \
-            --release "${SENTRY_RELEASE}" \
-            --dist "${SENTRY_DIST}" \
-            --url-prefix "app:///var/task" \
-            --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/dist" \
-            --rewrite
-
       - name: Set up Docker Buildx
         if: steps.check-pr.outputs.is_pr != 'true'
         uses: docker/setup-buildx-action@v3
@@ -328,6 +307,7 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_DIST: "backend"
+          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
           VITE_SENTRY_RELEASE: ${{ github.sha }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
@@ -514,6 +494,42 @@ jobs:
           export LAMBDA_IMAGE_TAG="${{ github.sha }}"
           export LAMBDA_IMAGES_ECR_REPOSITORY="helpmaton-lambda-images"
           pnpm arc deploy --production --no-hydrate --verbose
+
+      - name: Upload backend sourcemaps to Sentry (post-deploy)
+        if: steps.check-pr.outputs.is_pr != 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_DIST: "backend"
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN}" ] || [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ]; then
+            echo "⚠️  Missing Sentry credentials, skipping backend sourcemap upload."
+            exit 0
+          fi
+
+          if [ -d "apps/backend/.arc" ]; then
+            pnpm exec sentry-cli sourcemaps upload "apps/backend/.arc" \
+              --release "${SENTRY_RELEASE}" \
+              --dist "${SENTRY_DIST}" \
+              --url-prefix "app:///var/task" \
+              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/.arc" \
+              --rewrite
+          else
+            echo "⚠️  apps/backend/.arc not found; skipping zip Lambda sourcemaps."
+          fi
+
+          if [ -d "apps/backend/dist" ]; then
+            pnpm exec sentry-cli sourcemaps upload "apps/backend/dist" \
+              --release "${SENTRY_RELEASE}" \
+              --dist "${SENTRY_DIST}" \
+              --url-prefix "app:///var/task" \
+              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/dist" \
+              --rewrite
+          else
+            echo "⚠️  apps/backend/dist not found; skipping container Lambda sourcemaps."
+          fi
 
       - name: Trigger API Gateway deployment
         if: steps.check-pr.outputs.is_pr != 'true'
