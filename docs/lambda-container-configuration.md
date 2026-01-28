@@ -204,6 +204,10 @@ The handler is located at:
 
 - `apps/backend/docker/lancedb/Dockerfile`
 
+### Runtime Additions
+
+- The `lancedb` image now includes DuckDB for in-memory analytics. Lambda handlers can use `apps/backend/src/utils/duckdb/duckdbClient.ts` to create an in-memory DuckDB instance that installs/loads the `httpfs` extension for querying S3-backed data sources (Parquet/CSV).
+
 ### Build Process
 
 1. Base image: `public.ecr.aws/lambda/nodejs:20`
