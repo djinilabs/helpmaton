@@ -6,12 +6,17 @@
   "dependencies": {
     "@lancedb/lancedb": "0.23.0",
     "apache-arrow": "21.1.0",
+    "duckdb": "^1.4.3",
     "reflect-metadata": "0.2.2"
   },
   "pnpm": {
     "supportedArchitectures": {
-      "os": ["linux"],
-      "cpu": ["arm64"]
+      "os": [
+        "linux"
+      ],
+      "cpu": [
+        "arm64"
+      ]
     }
   }
 }

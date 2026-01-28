@@ -4,6 +4,8 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Deploy Prod workflow timeout**: Set `deploy-prod.yml` job `timeout-minutes` to 45 and ran `pnpm typecheck` + `pnpm lint --fix`.
+
 - **PR 232 staging SQS check (2026-01-28)**: Queried `HelpmatonStagingPR232` SQS queues; all queues are empty except `AgentTemporalGrainQueue` which has 1 in-flight (`ApproximateNumberOfMessagesNotVisible: 1`).
 - **PR 232 staging temporal queue logs (2026-01-28)**: Latest `/aws/lambda/HelpmatonStagingPR232-AgentTemporalGrainQueueQueue-DHLt9QhJQWAZ` stream shows successful embedding generation + inserts with no errors or warnings.
 - **PR 232 memory API logs (2026-01-28)**: `/aws/lambda/HelpmatonStagingPR232-PostApiWebhookWorkspaceIdAge-m6wNPNCIecIW` handles `/api/workspaces/{proxy+}`; memory search logs show S3 read success and `maxResults: 5` responses containing only conversation facts (no `staging test fact`).
@@ -21,6 +23,7 @@
 
 **Latest Work**:
 
+- **DuckDB in lancedb image**: Added DuckDB dependency to the lancedb image and backend workspace, added `duckdbClient` helper to create in-memory DuckDB with `httpfs` + S3 settings (now dynamically imports DuckDB at call time), added allowlisted S3 settings guard, expanded unit tests (session token, custom endpoint, helpers, error paths), and updated container docs. Ran `pnpm --filter backend test --run duckdbClient`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Workspace removal cleanup**: Added shared `removeAgentResources` helper (including conversation file S3 cleanup), expanded workspace deletion to remove workspace-scoped data and credit reservations while preserving transactions, added `credit-reservations` GSI by workspace, and added/updated unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace deletion test fix**: Adjusted test mocks to create missing tables before assigning `queryAsync` and reran `pnpm test --run`.
 - **LanceDB writer isolation**: Detached `agent-temporal-grain-queue` from `llm-shared-http`, added `config.arc` with `concurrency 1`, and ran `pnpm typecheck` + `pnpm lint --fix`.

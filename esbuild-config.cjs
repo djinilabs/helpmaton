@@ -155,6 +155,8 @@ const config = {
     '@lancedb/lancedb-linux-x64',
     '@lancedb/lancedb-win32-x64',
     '@lancedb/*',
+    // DuckDB native module - resolved at runtime in Lambda container
+    'duckdb',
     // Puppeteer packages - installed in Docker container, not bundled
     'puppeteer-core',
     'puppeteer-extra',
