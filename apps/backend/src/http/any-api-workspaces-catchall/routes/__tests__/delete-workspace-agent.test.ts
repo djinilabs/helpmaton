@@ -64,6 +64,55 @@ function buildAsyncGenerator<T>(items: T[]) {
   })();
 }
 
+type MockIntegrationRecord = {
+  workspaceId: string;
+  pk: string;
+  sk?: string;
+  platform?: string;
+  config?: Record<string, unknown>;
+};
+
+function setupMockCleanupTables(
+  mockDb: MockDb,
+  options?: {
+    integrations?: MockIntegrationRecord[];
+  },
+) {
+  mockDb["agent-key"] = {
+    queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
+    delete: vi.fn(),
+  } as MockQueryTable;
+  mockDb["agent-schedule"] = {
+    queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
+    delete: vi.fn(),
+  } as MockQueryTable;
+  mockDb["agent-conversations"] = {
+    queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
+    delete: vi.fn(),
+  } as MockQueryTable;
+  mockDb["agent-eval-judge"] = {
+    queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
+    delete: vi.fn(),
+  } as MockQueryTable;
+  mockDb["agent-eval-result"] = {
+    queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
+    delete: vi.fn(),
+  } as MockQueryTable;
+  mockDb["agent-stream-servers"] = {
+    deleteIfExists: vi.fn(),
+  } as MockDeleteIfExistsTable;
+  mockDb["agent-delegation-tasks"] = {
+    queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
+    delete: vi.fn(),
+  } as MockQueryTable;
+  mockDb["bot-integration"] = {
+    queryAsync: vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator(options?.integrations ?? [])),
+    delete: vi.fn(),
+  } as MockQueryTable;
+}
+
 describe("DELETE /api/workspaces/:workspaceId/agents/:agentId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -336,37 +385,7 @@ describe("DELETE /api/workspaces/:workspaceId/agents/:agentId", () => {
     const mockAgentDelete = vi.fn().mockResolvedValue(undefined);
     mockDb.agent.delete = mockAgentDelete;
 
-    mockDb["agent-key"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-schedule"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-conversations"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-eval-judge"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-eval-result"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-stream-servers"] = {
-      deleteIfExists: vi.fn(),
-    } as MockDeleteIfExistsTable;
-    mockDb["agent-delegation-tasks"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["bot-integration"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
+    setupMockCleanupTables(mockDb);
 
     const req = createMockRequest({
       userRef: "users/user-123",
@@ -481,37 +500,7 @@ describe("DELETE /api/workspaces/:workspaceId/agents/:agentId", () => {
     const mockAgentDelete = vi.fn().mockRejectedValue(deleteError);
     mockDb.agent.delete = mockAgentDelete;
 
-    mockDb["agent-key"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-schedule"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-conversations"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-eval-judge"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-eval-result"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-stream-servers"] = {
-      deleteIfExists: vi.fn(),
-    } as MockDeleteIfExistsTable;
-    mockDb["agent-delegation-tasks"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["bot-integration"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
+    setupMockCleanupTables(mockDb);
 
     const req = createMockRequest({
       userRef: "users/user-123",
@@ -564,37 +553,7 @@ describe("DELETE /api/workspaces/:workspaceId/agents/:agentId", () => {
       },
     };
 
-    mockDb["agent-key"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-schedule"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-conversations"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-eval-judge"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-eval-result"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["agent-stream-servers"] = {
-      deleteIfExists: vi.fn(),
-    } as MockDeleteIfExistsTable;
-    mockDb["agent-delegation-tasks"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-      delete: vi.fn(),
-    } as MockQueryTable;
-    mockDb["bot-integration"] = {
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([integration])),
-      delete: vi.fn(),
-    } as MockQueryTable;
+    setupMockCleanupTables(mockDb, { integrations: [integration] });
 
     const req = createMockRequest({
       userRef: "users/user-123",
