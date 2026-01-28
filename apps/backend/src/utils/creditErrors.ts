@@ -17,12 +17,12 @@ export class InsufficientCreditsError extends Error {
     workspaceId: string,
     required: number, // nano-dollars
     available: number, // nano-dollars
-    currency: string
+    currency: string,
   ) {
     const requiredDisplay = fromNanoDollars(required);
     const availableDisplay = fromNanoDollars(available);
     super(
-      `Insufficient credits: required ${requiredDisplay} ${currency.toUpperCase()}, available ${availableDisplay} ${currency.toUpperCase()}`
+      `Insufficient credits: required ${requiredDisplay} ${currency.toUpperCase()}, available ${availableDisplay} ${currency.toUpperCase()}`,
     );
     this.name = "InsufficientCreditsError";
     this.workspaceId = workspaceId;
@@ -71,11 +71,11 @@ export class SpendingLimitExceededError extends Error {
       timeFrame: string;
       limit: number; // nano-dollars
       current: number; // nano-dollars
-    }>
+    }>,
   ) {
     const limitMessages = failedLimits.map(
       (limit) =>
-        `${limit.scope} ${limit.timeFrame} limit: ${fromNanoDollars(limit.current)}/${fromNanoDollars(limit.limit)}`
+        `${limit.scope} ${limit.timeFrame} limit: ${fromNanoDollars(limit.current)}/${fromNanoDollars(limit.limit)}`,
     );
     super(`Spending limits exceeded: ${limitMessages.join(", ")}`);
     this.name = "SpendingLimitExceededError";
@@ -100,6 +100,28 @@ export class SpendingLimitExceededError extends Error {
   }
 }
 
+export type CreditUserError =
+  | InsufficientCreditsError
+  | SpendingLimitExceededError;
+
+export function isCreditUserError(error: unknown): error is CreditUserError {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  if (
+    error instanceof InsufficientCreditsError ||
+    error instanceof SpendingLimitExceededError
+  ) {
+    return true;
+  }
+
+  const name = "name" in error ? String(error.name) : "";
+  return (
+    name === "InsufficientCreditsError" || name === "SpendingLimitExceededError"
+  );
+}
+
 /**
  * Error thrown when credit deduction fails after retries
  */
@@ -109,7 +131,7 @@ export class CreditDeductionError extends Error {
 
   constructor(workspaceId: string, retries: number, originalError?: Error) {
     super(
-      `Failed to deduct credits after ${retries} retries: ${originalError?.message || "Unknown error"}`
+      `Failed to deduct credits after ${retries} retries: ${originalError?.message || "Unknown error"}`,
     );
     this.name = "CreditDeductionError";
     this.workspaceId = workspaceId;
@@ -117,4 +139,3 @@ export class CreditDeductionError extends Error {
     this.cause = originalError;
   }
 }
-

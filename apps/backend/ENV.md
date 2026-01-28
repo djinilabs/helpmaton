@@ -60,18 +60,17 @@ This document describes the environment variables required for the helpmaton bac
 
 ### `GEMINI_API_KEY`
 
-- **Description**: Google Gemini API key for AI agent functionality and memory system
-- **Required**: Yes (for agent webhook functionality and memory system)
+- **Description**: Google Gemini API key for model metadata/pricing
+- **Required**: No (required only for Google model pricing updates and validation tests)
 - **Example**: `AIzaSy...`
 - **How to obtain**:
   1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
   2. Create a new API key
   3. Copy the key value
 - **Note**:
-  - Used to invoke Gemini models for agent responses via webhooks
-  - Used for embedding generation (`text-embedding-004`) in the memory system
-  - Used for LLM-based summarization in the stratified memory system
-  - Workspace-specific API keys can override this system key (see [Agent Memory System documentation](../docs/agent-memory-system.md))
+  - Used by pricing/model update scripts to fetch Google model metadata
+  - Used by model validation integration tests when enabled
+  - Not used for embeddings or OpenRouter-based model calls
 
 ### `OPENROUTER_API_KEY`
 
@@ -88,6 +87,7 @@ This document describes the environment variables required for the helpmaton bac
   - Used as the primary provider for all LLM calls (replaces direct provider API keys)
   - Provides access to multiple AI models from different providers (Anthropic, Google, Meta, Mistral, etc.)
   - Supports automatic model selection when model is set to "auto"
+  - Used for embedding generation in the memory system (`thenlper/gte-base`)
   - Workspace-specific OpenRouter API keys can override this system key (BYOK support)
   - Cost verification is performed in background via OpenRouter API to ensure accurate billing
 

@@ -19,7 +19,7 @@ export const handler = handlingScheduledErrors(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- event parameter required by Lambda handler signature
   async (_event: ScheduledEvent): Promise<void> => {
     console.log(
-      "[Quarterly Memory Summarization] Starting quarterly summarization"
+      "[Quarterly Memory Summarization] Starting quarterly summarization",
     );
 
     const db = await database();
@@ -38,7 +38,7 @@ export const handler = handlingScheduledErrors(
 
     const workspaceIds = [
       ...new Set(
-        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", ""))
+        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", "")),
       ),
     ];
 
@@ -81,7 +81,7 @@ export const handler = handlingScheduledErrors(
 
             // Extract content from sorted month summaries
             const content = sortedMonthSummaries.map(
-              (record) => record.content
+              (record) => record.content,
             );
 
             // Summarize
@@ -89,7 +89,7 @@ export const handler = handlingScheduledErrors(
               content,
               "quarterly",
               workspaceId,
-              agent.summarizationPrompts
+              agent.summarizationPrompts,
             );
 
             if (!summary || summary.trim().length === 0) {
@@ -99,21 +99,21 @@ export const handler = handlingScheduledErrors(
             // Generate embedding
             // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
             const apiKey = getDefined(
-              process.env.GEMINI_API_KEY,
-              "GEMINI_API_KEY is not set"
+              process.env.OPENROUTER_API_KEY,
+              "OPENROUTER_API_KEY is not set",
             );
 
             const embedding = await generateEmbedding(
               summary,
               apiKey,
               undefined,
-              undefined
+              undefined,
             );
 
             // Create quarter summary record
             const quarterTimeString = formatTimeForGrain(
               "quarterly",
-              lastQuarter
+              lastQuarter,
             );
             const record: FactRecord = {
               id: randomUUID(),
@@ -131,25 +131,25 @@ export const handler = handlingScheduledErrors(
             await queueMemoryWrite(agentId, "quarterly", [record]);
 
             console.log(
-              `[Quarterly Memory Summarization] Agent ${agentId}: Created quarter summary for ${quarterTimeString}`
+              `[Quarterly Memory Summarization] Agent ${agentId}: Created quarter summary for ${quarterTimeString}`,
             );
           } catch (error) {
             console.error(
               `[Quarterly Memory Summarization] Error processing agent ${agent.pk}:`,
-              error
+              error,
             );
           }
         }
       } catch (error) {
         console.error(
           `[Quarterly Memory Summarization] Error processing workspace ${workspaceId}:`,
-          error
+          error,
         );
       }
     }
 
     console.log(
-      "[Quarterly Memory Summarization] Completed quarterly summarization"
+      "[Quarterly Memory Summarization] Completed quarterly summarization",
     );
-  }
+  },
 );

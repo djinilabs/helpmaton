@@ -38,12 +38,12 @@ export const handler = handlingScheduledErrors(
 
     const workspaceIds = [
       ...new Set(
-        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", ""))
+        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", "")),
       ),
     ];
 
     console.log(
-      `[Daily Memory Summarization] Found ${workspaceIds.length} workspaces`
+      `[Daily Memory Summarization] Found ${workspaceIds.length} workspaces`,
     );
 
     // Process each workspace
@@ -60,7 +60,7 @@ export const handler = handlingScheduledErrors(
 
         const agents = agentsQuery.items;
         console.log(
-          `[Daily Memory Summarization] Workspace ${workspaceId}: Found ${agents.length} agents`
+          `[Daily Memory Summarization] Workspace ${workspaceId}: Found ${agents.length} agents`,
         );
 
         // Process each agent
@@ -79,13 +79,13 @@ export const handler = handlingScheduledErrors(
 
             if (workingMemory.length === 0) {
               console.log(
-                `[Daily Memory Summarization] Agent ${agentId}: No working memory to summarize`
+                `[Daily Memory Summarization] Agent ${agentId}: No working memory to summarize`,
               );
               continue;
             }
 
             console.log(
-              `[Daily Memory Summarization] Agent ${agentId}: Found ${workingMemory.length} working memory records`
+              `[Daily Memory Summarization] Agent ${agentId}: Found ${workingMemory.length} working memory records`,
             );
 
             // Sort working memory by timestamp (oldest first) to ensure chronological order
@@ -103,12 +103,12 @@ export const handler = handlingScheduledErrors(
               content,
               "daily",
               workspaceId,
-              agent.summarizationPrompts
+              agent.summarizationPrompts,
             );
 
             if (!summary || summary.trim().length === 0) {
               console.log(
-                `[Daily Memory Summarization] Agent ${agentId}: Empty summary, skipping`
+                `[Daily Memory Summarization] Agent ${agentId}: Empty summary, skipping`,
               );
               continue;
             }
@@ -116,15 +116,15 @@ export const handler = handlingScheduledErrors(
             // Generate embedding for the summary
             // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
             const apiKey = getDefined(
-              process.env.GEMINI_API_KEY,
-              "GEMINI_API_KEY is not set"
+              process.env.OPENROUTER_API_KEY,
+              "OPENROUTER_API_KEY is not set",
             );
 
             const embedding = await generateEmbedding(
               summary,
               apiKey,
               undefined,
-              undefined
+              undefined,
             );
 
             // Create fact record for the day summary
@@ -146,12 +146,12 @@ export const handler = handlingScheduledErrors(
             await queueMemoryWrite(agentId, "daily", [record]);
 
             console.log(
-              `[Daily Memory Summarization] Agent ${agentId}: Created day summary for ${dayTimeString}`
+              `[Daily Memory Summarization] Agent ${agentId}: Created day summary for ${dayTimeString}`,
             );
           } catch (error) {
             console.error(
               `[Daily Memory Summarization] Error processing agent ${agent.pk}:`,
-              error
+              error,
             );
             // Continue with next agent
           }
@@ -159,12 +159,12 @@ export const handler = handlingScheduledErrors(
       } catch (error) {
         console.error(
           `[Daily Memory Summarization] Error processing workspace ${workspaceId}:`,
-          error
+          error,
         );
         // Continue with next workspace
       }
     }
 
     console.log("[Daily Memory Summarization] Completed daily summarization");
-  }
+  },
 );

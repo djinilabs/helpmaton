@@ -418,7 +418,7 @@ scheduled summarize-memory-quarterly lancedb llm-shared-http
 scheduled summarize-memory-yearly lancedb llm-shared-http
 scheduled cleanup-memory-retention lancedb llm-shared-http
 
-queue agent-temporal-grain-queue lancedb llm-shared-http
+queue agent-temporal-grain-queue lancedb
 queue agent-delegation-queue lancedb llm-shared-http
 queue bot-webhook-queue lancedb llm-shared-http
 queue agent-schedule-queue lancedb llm-shared-http

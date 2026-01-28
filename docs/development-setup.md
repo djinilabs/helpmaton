@@ -79,6 +79,8 @@ MAILGUN_KEY=your-mailgun-api-key
 MAILGUN_DOMAIN=helpmaton.com
 
 # LLM API
+OPENROUTER_API_KEY=your-openrouter-api-key
+# Optional: Google model pricing/validation
 GEMINI_API_KEY=your-gemini-api-key
 
 # Database (local persistence)

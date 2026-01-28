@@ -3,7 +3,7 @@ import type { ModelMessage } from "ai";
 import type { DatabaseSchema } from "../tables/schema";
 
 import { fromNanoDollars, toNanoDollars } from "./creditConversions";
-import { InsufficientCreditsError } from "./creditErrors";
+import { InsufficientCreditsError, isCreditUserError } from "./creditErrors";
 import { searchDocuments, type SearchResult } from "./documentSearch";
 import { rerankSnippets } from "./knowledgeReranking";
 import {
@@ -28,7 +28,7 @@ type RerankingOutcome = {
 };
 
 const buildEmptyInjectionResult = (
-  messages: ModelMessage[]
+  messages: ModelMessage[],
 ): KnowledgeInjectionResult => ({
   modelMessages: messages,
   knowledgeInjectionMessage: null,
@@ -44,14 +44,18 @@ const resolveSnippetCount = (agent: {
 };
 
 const getExistingResults = (
-  existingConversationMessages?: UIMessage[]
+  existingConversationMessages?: UIMessage[],
 ): SearchResult[] | undefined => {
-  if (!existingConversationMessages || existingConversationMessages.length === 0) {
+  if (
+    !existingConversationMessages ||
+    existingConversationMessages.length === 0
+  ) {
     return undefined;
   }
 
-  const existingKnowledgeMessage =
-    findExistingKnowledgeInjectionMessage(existingConversationMessages);
+  const existingKnowledgeMessage = findExistingKnowledgeInjectionMessage(
+    existingConversationMessages,
+  );
   if (
     existingKnowledgeMessage &&
     existingKnowledgeMessage.role === "user" &&
@@ -62,7 +66,7 @@ const getExistingResults = (
     console.log(
       "[knowledgeInjection] Reusing existing knowledge injection message with",
       existingKnowledgeMessage.knowledgeSnippets.length,
-      "snippets"
+      "snippets",
     );
     return existingKnowledgeMessage.knowledgeSnippets;
   }
@@ -112,7 +116,7 @@ const resolveRerankingCostNanoDollars = (params: {
         requestPrice: modelPricing.usd.request,
         costWithMarkup,
         costInNanoDollars,
-      }
+      },
     );
     return costInNanoDollars;
   }
@@ -124,7 +128,9 @@ const resolveRerankingCostNanoDollars = (params: {
     costUsd: params.costUsd,
   });
   Sentry.captureException(
-    ensureError(new Error(`${message} model=${params.model}, costUsd=${params.costUsd}`))
+    ensureError(
+      new Error(`${message} model=${params.model}, costUsd=${params.costUsd}`),
+    ),
   );
   throw new Error(message);
 };
@@ -204,12 +210,12 @@ const reserveRerankingCreditsIfNeeded = async (params: {
 }): Promise<string | undefined> => {
   if (params.usesByok) {
     console.log(
-      "[knowledgeInjection] BYOK enabled, skipping credit reservation for re-ranking"
+      "[knowledgeInjection] BYOK enabled, skipping credit reservation for re-ranking",
     );
     if (!params.model) {
       const byokConfigError = new Error(
         "BYOK is enabled for this workspace, but no knowledge reranking model is configured. " +
-          "Please configure a reranking provider/API key in the workspace settings."
+          "Please configure a reranking provider/API key in the workspace settings.",
       );
 
       Sentry.captureException(byokConfigError, {
@@ -232,7 +238,7 @@ const reserveRerankingCreditsIfNeeded = async (params: {
 
   if (!params.db || !params.context) {
     throw new Error(
-      "Database and context are required for re-ranking credit reservation"
+      "Database and context are required for re-ranking credit reservation",
     );
   }
 
@@ -246,7 +252,7 @@ const reserveRerankingCreditsIfNeeded = async (params: {
       params.context,
       params.agentId,
       params.conversationId,
-      params.usesByok
+      params.usesByok,
     );
     console.log("[knowledgeInjection] Reserved credits for re-ranking:", {
       reservationId: reservation.reservationId,
@@ -256,33 +262,33 @@ const reserveRerankingCreditsIfNeeded = async (params: {
   } catch (error) {
     const errorObj = ensureError(error);
 
-    if (errorObj instanceof InsufficientCreditsError) {
-      console.error(
-        "[knowledgeInjection] Insufficient credits for re-ranking, failing request:",
-        errorObj.message
-      );
-      Sentry.captureException(errorObj, {
-        tags: {
-          context: "knowledge-injection",
-          operation: "reserve-reranking-credits",
-          errorType: "InsufficientCreditsError",
-        },
-        extra: {
+    if (isCreditUserError(errorObj)) {
+      console.info(
+        "[knowledgeInjection] Credit limits prevented re-ranking, returning original messages:",
+        {
+          error: errorObj.message,
+          errorType: errorObj.name,
           workspaceId: params.workspaceId,
           agentId: params.agentId,
           conversationId: params.conversationId,
           model: params.model,
           documentCount: params.documentCount,
-          required: errorObj.required,
-          available: errorObj.available,
+          required:
+            errorObj instanceof InsufficientCreditsError
+              ? errorObj.required
+              : undefined,
+          available:
+            errorObj instanceof InsufficientCreditsError
+              ? errorObj.available
+              : undefined,
         },
-      });
+      );
       throw errorObj;
     }
 
     console.error(
       "[knowledgeInjection] Failed to reserve credits for re-ranking:",
-      errorObj.message
+      errorObj.message,
     );
     Sentry.captureException(errorObj, {
       tags: {
@@ -325,7 +331,7 @@ const adjustRerankingCreditsIfNeeded = async (params: {
       params.context,
       3,
       params.agentId,
-      params.conversationId
+      params.conversationId,
     );
 
     if (params.generationId) {
@@ -334,13 +340,13 @@ const adjustRerankingCreditsIfNeeded = async (params: {
         params.generationId,
         params.workspaceId,
         params.agentId,
-        params.conversationId
+        params.conversationId,
       );
     }
   } catch (error) {
     console.error(
       "[knowledgeInjection] Error adjusting re-ranking credits:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     Sentry.captureException(ensureError(error), {
       tags: {
@@ -380,12 +386,12 @@ const refundRerankingCreditsIfNeeded = async (params: {
       params.context,
       3,
       params.agentId,
-      params.conversationId
+      params.conversationId,
     );
   } catch (refundError) {
     console.error(
       "[knowledgeInjection] Error refunding re-ranking credits:",
-      refundError instanceof Error ? refundError.message : String(refundError)
+      refundError instanceof Error ? refundError.message : String(refundError),
     );
     Sentry.captureException(ensureError(refundError), {
       tags: {
@@ -420,7 +426,10 @@ const performReranking = async (params: {
   conversationId?: string;
   usesByok?: boolean;
 }): Promise<RerankingOutcome> => {
-  if (!params.agent.enableKnowledgeReranking || !params.agent.knowledgeRerankingModel) {
+  if (
+    !params.agent.enableKnowledgeReranking ||
+    !params.agent.knowledgeRerankingModel
+  ) {
     return { results: params.searchResults };
   }
 
@@ -448,7 +457,7 @@ const performReranking = async (params: {
       params.query,
       params.searchResults,
       model,
-      params.workspaceId
+      params.workspaceId,
     );
     const executionTimeMs = Date.now() - rerankingStartTime;
     const costNanoDollars = resolveRerankingCostNanoDollars({
@@ -483,7 +492,7 @@ const performReranking = async (params: {
     const executionTimeMs = Date.now() - rerankingStartTime;
     console.error(
       "[knowledgeInjection] Error during re-ranking, using original results:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     Sentry.captureException(ensureError(error), {
       tags: {
@@ -525,7 +534,10 @@ const performReranking = async (params: {
   }
 };
 
-const buildKnowledgeMessages = (knowledgePrompt: string, results: SearchResult[]) => {
+const buildKnowledgeMessages = (
+  knowledgePrompt: string,
+  results: SearchResult[],
+) => {
   const knowledgeModelMessage: ModelMessage = {
     role: "user",
     content: knowledgePrompt,
@@ -543,7 +555,7 @@ const buildKnowledgeMessages = (knowledgePrompt: string, results: SearchResult[]
 
 const insertKnowledgeMessage = (
   messages: ModelMessage[],
-  knowledgeMessage: ModelMessage
+  knowledgeMessage: ModelMessage,
 ): ModelMessage[] => {
   const firstUserIndex = messages.findIndex((msg) => msg.role === "user");
   if (firstUserIndex === -1) {
@@ -567,9 +579,7 @@ function formatKnowledgePrompt(results: SearchResult[]): string {
 
   const snippetsText = results
     .map((result, index) => {
-      const folderPathText = result.folderPath
-        ? ` (${result.folderPath})`
-        : "";
+      const folderPathText = result.folderPath ? ` (${result.folderPath})` : "";
       const similarityPercent = (result.similarity * 100).toFixed(1);
 
       return `[${index + 1}] Document: ${result.documentName}${folderPathText}
@@ -598,14 +608,14 @@ Please use this information to provide a comprehensive and accurate response to 
  * @returns Knowledge injection message if found, null otherwise
  */
 function findExistingKnowledgeInjectionMessage(
-  messages: UIMessage[]
+  messages: UIMessage[],
 ): UIMessage | null {
   return (
     messages.find(
       (msg) =>
         msg.role === "user" &&
         "knowledgeInjection" in msg &&
-        msg.knowledgeInjection === true
+        msg.knowledgeInjection === true,
     ) || null
   );
 }
@@ -617,9 +627,7 @@ function findExistingKnowledgeInjectionMessage(
  */
 function extractQueryFromMessages(messages: ModelMessage[]): string {
   // Find the first user message (skip knowledge injection messages)
-  const firstUserMessage = messages.find(
-    (msg) => msg.role === "user"
-  );
+  const firstUserMessage = messages.find((msg) => msg.role === "user");
 
   if (!firstUserMessage) {
     return "";
@@ -676,7 +684,7 @@ export async function injectKnowledgeIntoMessages(
   agentId?: string,
   conversationId?: string,
   usesByok?: boolean,
-  existingConversationMessages?: UIMessage[]
+  existingConversationMessages?: UIMessage[],
 ): Promise<KnowledgeInjectionResult> {
   // Check if knowledge injection is enabled
   if (!agent.enableKnowledgeInjection) {
@@ -704,7 +712,7 @@ export async function injectKnowledgeIntoMessages(
       const searchResults = await searchDocuments(
         workspaceId,
         query,
-        validSnippetCount
+        validSnippetCount,
       );
 
       if (searchResults.length === 0) {
@@ -728,11 +736,26 @@ export async function injectKnowledgeIntoMessages(
       rerankingRequestMessage = rerankingOutcome.rerankingRequestMessage;
       rerankingResultMessage = rerankingOutcome.rerankingResultMessage;
     } catch (error) {
+      const errorObj = ensureError(error);
+      if (isCreditUserError(errorObj)) {
+        console.info(
+          "[knowledgeInjection] Credit limits prevented document search reranking, returning original messages:",
+          {
+            error: errorObj.message,
+            errorType: errorObj.name,
+            workspaceId,
+            agentId,
+            conversationId,
+          },
+        );
+        return buildEmptyInjectionResult(messages);
+      }
+
       console.error(
         "[knowledgeInjection] Error during document search:",
-        error instanceof Error ? error.message : String(error)
+        errorObj.message,
       );
-      Sentry.captureException(ensureError(error), {
+      Sentry.captureException(errorObj, {
         tags: {
           context: "knowledge-injection",
           operation: "search-documents",
@@ -757,7 +780,7 @@ export async function injectKnowledgeIntoMessages(
   // Filter snippets by minimum similarity score
   const minSimilarity = agent.knowledgeInjectionMinSimilarity ?? 0;
   const filteredResults = finalResults.filter(
-    (result) => result.similarity >= minSimilarity
+    (result) => result.similarity >= minSimilarity,
   );
 
   // If filtering results in empty array, return early
@@ -766,21 +789,18 @@ export async function injectKnowledgeIntoMessages(
   }
 
   try {
-
     // Format knowledge prompt
     const knowledgePrompt = formatKnowledgePrompt(filteredResults);
     if (!knowledgePrompt || knowledgePrompt.length === 0) {
       return buildEmptyInjectionResult(messages);
     }
 
-    const { knowledgeModelMessage, knowledgeUIMessage } = buildKnowledgeMessages(
-      knowledgePrompt,
-      filteredResults
-    );
+    const { knowledgeModelMessage, knowledgeUIMessage } =
+      buildKnowledgeMessages(knowledgePrompt, filteredResults);
 
     const updatedMessages = insertKnowledgeMessage(
       messages,
-      knowledgeModelMessage
+      knowledgeModelMessage,
     );
 
     return {
@@ -792,7 +812,7 @@ export async function injectKnowledgeIntoMessages(
   } catch (error) {
     console.error(
       "[knowledgeInjection] Error during knowledge injection:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     Sentry.captureException(ensureError(error), {
       tags: {

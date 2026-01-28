@@ -60,9 +60,11 @@ The following secrets must be configured in your GitHub repository settings (Set
   - Example: `https://app.helpmaton.com`
   - Used for generating magic link URLs in authentication emails
 
-- **`GEMINI_API_KEY`**: Google Gemini API key for AI agent functionality
+- **`OPENROUTER_API_KEY`**: OpenRouter API key for LLM calls and embeddings
+  - Obtain from: https://openrouter.ai/dashboard → Keys
+  - Required for agent execution and memory embeddings
+- **`GEMINI_API_KEY`**: (Optional) Google Gemini API key for pricing/model updates
   - Obtain from: https://makersuite.google.com/app/apikey
-  - Required for agent webhook functionality
 
 ### Lemon Squeezy (Payment Integration)
 
@@ -171,7 +173,8 @@ The deployment workflow automatically sets the following environment variables i
 - `MAILGUN_KEY` - Mailgun API key
 - `MAILGUN_DOMAIN` - Mailgun domain (if provided)
 - `BASE_URL` - Production base URL
-- `GEMINI_API_KEY` - Google Gemini API key
+- `OPENROUTER_API_KEY` - OpenRouter API key
+- `GEMINI_API_KEY` - (Optional) Google Gemini API key for pricing/model updates
 - `HELPMATON_CUSTOM_DOMAIN` - Custom domain name
 - `AWS_CERTIFICATE_ARN` - ACM certificate ARN
 - `AWS_ZONE_ID` - Route53 hosted zone ID
@@ -299,6 +302,7 @@ If you need to deploy manually (not recommended for production):
 export AUTH_SECRET="your-secret"
 export MAILGUN_KEY="your-key"
 export BASE_URL="https://app.helpmaton.com"
+export OPENROUTER_API_KEY="sk-or-v1-your-key"
 export GEMINI_API_KEY="your-key"
 export HELPMATON_CUSTOM_DOMAIN="app.helpmaton.com"
 export AWS_CERTIFICATE_ARN="arn:aws:acm:eu-west-2:..."
@@ -318,6 +322,7 @@ cd apps/backend
 pnpm arc env --add --env production AUTH_SECRET "${AUTH_SECRET}"
 pnpm arc env --add --env production MAILGUN_KEY "${MAILGUN_KEY}"
 pnpm arc env --add --env production BASE_URL "${BASE_URL}"
+pnpm arc env --add --env production OPENROUTER_API_KEY "${OPENROUTER_API_KEY}"
 pnpm arc env --add --env production GEMINI_API_KEY "${GEMINI_API_KEY}"
 pnpm arc env --add --env production HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
 pnpm arc env --add --env production AWS_CERTIFICATE_ARN "${AWS_CERTIFICATE_ARN}"

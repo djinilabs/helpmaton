@@ -81,7 +81,7 @@ describe("agent-temporal-grain-queue handler", () => {
     vi.clearAllMocks();
 
     // Set environment variable for API key
-    process.env.GEMINI_API_KEY = "test-api-key";
+    process.env.OPENROUTER_API_KEY = "test-api-key";
 
     const { connect } = await import("@lancedb/lancedb");
     const mockConnect = vi.mocked(connect);

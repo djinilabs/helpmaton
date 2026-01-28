@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockQuery } = vi.hoisted(() => {
+const { mockQuery, mockEmbeddingsGenerate } = vi.hoisted(() => {
   return {
     mockQuery: vi.fn(),
+    mockEmbeddingsGenerate: vi.fn(),
   };
 });
 
@@ -12,8 +13,14 @@ vi.mock("../vectordb/readClient", () => ({
   query: mockQuery,
 }));
 
-// Mock fetch globally
-global.fetch = vi.fn();
+vi.mock("@openrouter/sdk", () => {
+  class OpenRouterMock {
+    embeddings = {
+      generate: mockEmbeddingsGenerate,
+    };
+  }
+  return { OpenRouter: OpenRouterMock };
+});
 
 // Import after mocks are set up
 import {
@@ -32,8 +39,7 @@ describe("documentSearch", () => {
     mockQuery.mockResolvedValue([]);
 
     // Setup default environment
-    process.env.GEMINI_API_KEY = "test-api-key";
-    process.env.GEMINI_REFERER = "http://localhost:3000";
+    process.env.OPENROUTER_API_KEY = "test-api-key";
   });
 
   describe("splitDocumentIntoSnippets", () => {
@@ -150,7 +156,7 @@ describe("documentSearch", () => {
       const vecB = [1, 2];
 
       expect(() => cosineSimilarity(vecA, vecB)).toThrow(
-        "Vectors must have the same length"
+        "Vectors must have the same length",
       );
     });
 
@@ -175,30 +181,24 @@ describe("documentSearch", () => {
     beforeEach(() => {
       // Clear all caches before each test
       // clearWorkspaceCache removed - no longer needed with LanceDB
-      // Clear fetch mocks
+      // Clear OpenRouter mocks
       vi.clearAllMocks();
     });
 
     it("should generate embedding successfully", async () => {
-      const mockResponse = {
-        embedding: {
-          values: Array(768).fill(0.1),
-        },
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
+      const mockEmbedding = Array(768).fill(0.1);
+      mockEmbeddingsGenerate.mockResolvedValueOnce({
+        data: [{ embedding: mockEmbedding }],
       });
 
       const embedding = await generateEmbedding(
         "test text",
         "test-api-key",
-        "test-cache-key"
+        "test-cache-key",
       );
 
-      expect(embedding).toEqual(mockResponse.embedding.values);
-      expect(global.fetch).toHaveBeenCalled();
+      expect(embedding).toEqual(mockEmbedding);
+      expect(mockEmbeddingsGenerate).toHaveBeenCalled();
     });
 
     it("should use cached embedding if available", async () => {
@@ -206,46 +206,38 @@ describe("documentSearch", () => {
       const uniqueCacheKey = `test-cache-key-${Date.now()}`;
 
       // First call - generate and cache
-      const mockResponse = {
-        embedding: {
-          values: cachedEmbedding,
-        },
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => mockResponse,
+      mockEmbeddingsGenerate.mockResolvedValueOnce({
+        data: [{ embedding: cachedEmbedding }],
       });
 
       const firstResult = await generateEmbedding(
         "test text",
         "test-api-key",
-        uniqueCacheKey
+        uniqueCacheKey,
       );
 
       expect(firstResult).toEqual(cachedEmbedding);
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(1);
 
       // Second call - should use cache (no fetch call)
       const secondResult = await generateEmbedding(
         "test text",
         "test-api-key",
-        uniqueCacheKey
+        uniqueCacheKey,
       );
 
       expect(secondResult).toEqual(cachedEmbedding);
       // Should still only call fetch once (cached on second call)
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error for empty text", async () => {
       await expect(generateEmbedding("", "test-api-key")).rejects.toThrow(
-        "Text cannot be empty"
+        "Text cannot be empty",
       );
 
       await expect(generateEmbedding("   ", "test-api-key")).rejects.toThrow(
-        "Text cannot be empty"
+        "Text cannot be empty",
       );
     });
 
@@ -258,8 +250,8 @@ describe("documentSearch", () => {
           "test text",
           "test-api-key",
           undefined,
-          abortController.signal
-        )
+          abortController.signal,
+        ),
       ).rejects.toThrow("Operation aborted");
     });
 
@@ -267,29 +259,21 @@ describe("documentSearch", () => {
       vi.useFakeTimers();
 
       // First two calls fail with 429, third succeeds
-      (global.fetch as ReturnType<typeof vi.fn>)
+      const firstError = new Error("quota exceeded");
+      (firstError as { statusCode?: number }).statusCode = 429;
+      const secondError = new Error("rate limit");
+      (secondError as { statusCode?: number }).statusCode = 429;
+      mockEmbeddingsGenerate
+        .mockRejectedValueOnce(firstError)
+        .mockRejectedValueOnce(secondError)
         .mockResolvedValueOnce({
-          ok: false,
-          status: 429,
-          text: async () => "quota exceeded",
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 429,
-          text: async () => "rate limit",
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: async () => ({
-            embedding: { values: Array(768).fill(0.1) },
-          }),
+          data: [{ embedding: Array(768).fill(0.1) }],
         });
 
       const embeddingPromise = generateEmbedding(
         "test text",
         "test-api-key",
-        undefined // No cache key to avoid cache interference
+        undefined, // No cache key to avoid cache interference
       );
 
       // Fast-forward timers to allow retries
@@ -299,36 +283,32 @@ describe("documentSearch", () => {
 
       expect(embedding).toBeDefined();
       expect(embedding.length).toBe(768);
-      expect(global.fetch).toHaveBeenCalledTimes(3);
+      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(3);
 
       vi.useRealTimers();
     });
 
-    it("should throw error for referrer restriction errors without retrying", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: false,
-        status: 403,
-        text: async () => "referrer restriction error",
-      });
+    it("should throw error for non-retryable errors without retrying", async () => {
+      const authError = new Error("unauthorized");
+      (authError as { statusCode?: number }).statusCode = 403;
+      mockEmbeddingsGenerate.mockRejectedValueOnce(authError);
 
       await expect(
-        generateEmbedding("test text", "test-api-key", undefined)
-      ).rejects.toThrow("referrer restriction");
+        generateEmbedding("test text", "test-api-key", undefined),
+      ).rejects.toThrow("unauthorized");
 
       // Should not retry
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error for invalid response format", async () => {
       // Mock successful response but with invalid structure
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ invalid: "response" }), // Missing embedding field
+      mockEmbeddingsGenerate.mockResolvedValueOnce({
+        data: [{ notEmbedding: [] }],
       });
 
       await expect(
-        generateEmbedding("test text", "test-api-key", undefined)
+        generateEmbedding("test text", "test-api-key", undefined),
       ).rejects.toThrow("Invalid embedding response format");
     });
 
@@ -336,14 +316,10 @@ describe("documentSearch", () => {
       vi.useFakeTimers();
 
       // First call fails with network error, second succeeds
-      (global.fetch as ReturnType<typeof vi.fn>)
+      mockEmbeddingsGenerate
         .mockRejectedValueOnce(new TypeError("fetch failed: network error"))
         .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: async () => ({
-            embedding: { values: Array(768).fill(0.1) },
-          }),
+          data: [{ embedding: Array(768).fill(0.1) }],
         });
 
       const embeddingPromise = generateEmbedding("test text", "test-api-key");
@@ -355,7 +331,7 @@ describe("documentSearch", () => {
 
       expect(embedding).toBeDefined();
       expect(embedding.length).toBe(768);
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(2);
 
       vi.useRealTimers();
     });
@@ -380,11 +356,8 @@ describe("documentSearch", () => {
 
       // Mock embedding generation for query
       const mockEmbedding = Array(768).fill(0.1);
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          embedding: { values: mockEmbedding },
-        }),
+      mockEmbeddingsGenerate.mockResolvedValue({
+        data: [{ embedding: mockEmbedding }],
       });
 
       const results = await searchDocuments("workspace-123", "test query");
@@ -418,11 +391,8 @@ describe("documentSearch", () => {
 
       // Mock embedding generation for query
       const mockEmbedding = Array(768).fill(0.1);
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          embedding: { values: mockEmbedding },
-        }),
+      mockEmbeddingsGenerate.mockResolvedValue({
+        data: [{ embedding: mockEmbedding }],
       });
 
       const results = await searchDocuments("workspace-123", "test query", 5);
@@ -460,11 +430,8 @@ describe("documentSearch", () => {
       mockQuery.mockResolvedValue(mockQueryResults);
 
       const mockEmbedding = Array(768).fill(0.1);
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          embedding: { values: mockEmbedding },
-        }),
+      mockEmbeddingsGenerate.mockResolvedValue({
+        data: [{ embedding: mockEmbedding }],
       });
 
       // Start two searches concurrently
@@ -485,11 +452,8 @@ describe("documentSearch", () => {
       mockQuery.mockResolvedValue([]);
 
       const mockEmbedding = Array(768).fill(0.1);
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          embedding: { values: mockEmbedding },
-        }),
+      mockEmbeddingsGenerate.mockResolvedValue({
+        data: [{ embedding: mockEmbedding }],
       });
 
       // Test with workspaceId - each workspace has its own isolated database
@@ -504,7 +468,7 @@ describe("documentSearch", () => {
         expect.objectContaining({
           vector: mockEmbedding,
           limit: 5,
-        })
+        }),
       );
       // Verify no filter is used (workspace isolation is at database level)
       const queryCall = mockQuery.mock.calls[0];

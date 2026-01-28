@@ -45,7 +45,12 @@ vi.mock("../sentry", () => ({
     startSpan: mockSentryStartSpan,
     setTag: vi.fn(),
     setContext: vi.fn(),
-    withScope: (callback: (scope: { setTag: () => void; setContext: () => void }) => Promise<unknown>) =>
+    withScope: (
+      callback: (scope: {
+        setTag: () => void;
+        setContext: () => void;
+      }) => Promise<unknown>,
+    ) =>
       callback({
         setTag: vi.fn(),
         setContext: vi.fn(),
@@ -62,6 +67,7 @@ vi.mock("../workspaceCreditContext", () => ({
   clearCurrentSQSContext: vi.fn(),
 }));
 
+import { InsufficientCreditsError } from "../creditErrors";
 import { handlingSQSErrors } from "../handlingSQSErrors";
 
 describe("handlingSQSErrors", () => {
@@ -106,12 +112,14 @@ describe("handlingSQSErrors", () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleInfoSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     mockSentryStartSpan.mockImplementation(async (_config, callback) => {
       if (typeof callback === "function") {
         return callback();
@@ -124,6 +132,7 @@ describe("handlingSQSErrors", () => {
     consoleLogSpy.mockRestore();
     consoleWarnSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+    consoleInfoSpy.mockRestore();
   });
 
   describe("successful processing", () => {
@@ -157,7 +166,7 @@ describe("handlingSQSErrors", () => {
           op: "sqs.consume",
           name: "SQS queue",
         }),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
@@ -168,7 +177,7 @@ describe("handlingSQSErrors", () => {
       await wrappedHandler(mockEvent);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Successfully processed all 2 message(s)")
+        expect.stringContaining("Successfully processed all 2 message(s)"),
       );
     });
   });
@@ -177,7 +186,7 @@ describe("handlingSQSErrors", () => {
     it("should return batchItemFailures for failed messages", async () => {
       // Handler returns msg-1 as failed, empty for others
       const handler = vi.fn(async (event) =>
-        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : []
+        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : [],
       );
       const wrappedHandler = handlingSQSErrors(handler);
 
@@ -195,7 +204,7 @@ describe("handlingSQSErrors", () => {
     it("should log warning for failed messages", async () => {
       // Handler returns msg-1 as failed, empty for others
       const handler = vi.fn(async (event) =>
-        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : []
+        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : [],
       );
       const wrappedHandler = handlingSQSErrors(handler);
 
@@ -213,7 +222,7 @@ describe("handlingSQSErrors", () => {
               messageBody: '{"test":"data"}',
             }),
           ]),
-        })
+        }),
       );
     });
 
@@ -271,7 +280,7 @@ describe("handlingSQSErrors", () => {
               processingDurationMs: expect.any(Number),
             }),
           }),
-        })
+        }),
       );
     });
 
@@ -291,11 +300,15 @@ describe("handlingSQSErrors", () => {
 
       await wrappedHandler(singleEvent);
 
-      const captureCall = (Sentry.captureException as unknown as {
-        mock: { calls: unknown[][] };
-      }).mock.calls[0];
+      const captureCall = (
+        Sentry.captureException as unknown as {
+          mock: { calls: unknown[][] };
+        }
+      ).mock.calls[0];
       expect(captureCall?.[0]).toBe(underlyingError);
-      const captureContext = captureCall?.[1] as { tags?: Record<string, string> };
+      const captureContext = captureCall?.[1] as {
+        tags?: Record<string, string>;
+      };
       expect(captureContext?.tags?.timeout).toBeUndefined();
     });
 
@@ -320,14 +333,14 @@ describe("handlingSQSErrors", () => {
       });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(
-          "Failed to commit credit transactions for message msg-1 in queue queue"
+          "Failed to commit credit transactions for message msg-1 in queue queue",
         ),
         expect.objectContaining({
           error: "Commit failed",
           queueName: "queue",
           messageId: "msg-1",
           messageBody: '{"test":"data"}',
-        })
+        }),
       );
       expect(Sentry.captureException).toHaveBeenCalledWith(
         expect.any(Error),
@@ -337,7 +350,7 @@ describe("handlingSQSErrors", () => {
             messageId: "msg-1",
             queueName: "queue",
           }),
-        })
+        }),
       );
     });
 
@@ -375,13 +388,15 @@ describe("handlingSQSErrors", () => {
 
       // Should log error for the specific record that failed
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[SQS Handler] Error processing message msg-1 in queue queue"),
+        expect.stringContaining(
+          "[SQS Handler] Error processing message msg-1 in queue queue",
+        ),
         expect.objectContaining({
           error: "Unexpected error",
           queueName: "queue",
           messageId: "msg-1",
           messageBody: '{"test":"data"}',
-        })
+        }),
       );
     });
 
@@ -415,7 +430,36 @@ describe("handlingSQSErrors", () => {
               messageBody: '{"test":"data"}',
             }),
           }),
-        })
+        }),
+      );
+    });
+
+    it("should not report credit errors to Sentry", async () => {
+      const { Sentry } = await import("../sentry");
+      const creditError = new InsufficientCreditsError(
+        "workspace-1",
+        1_000,
+        0,
+        "usd",
+      );
+      const handler = vi.fn().mockRejectedValue(creditError);
+      const wrappedHandler = handlingSQSErrors(handler, {
+        handlerName: "test-credit-handler",
+      });
+      const singleEvent: SQSEvent = {
+        Records: [mockEvent.Records[0]],
+      };
+
+      await wrappedHandler(singleEvent);
+
+      expect(Sentry.captureException).not.toHaveBeenCalled();
+      expect(consoleInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "[SQS Handler] Error processing message msg-1 in queue queue",
+        ),
+        expect.objectContaining({
+          creditUserError: true,
+        }),
       );
     });
   });
@@ -463,7 +507,7 @@ describe("handlingSQSErrors", () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining("Error flushing events"),
-        expect.any(Error)
+        expect.any(Error),
       );
     });
   });
@@ -488,7 +532,7 @@ describe("handlingSQSErrors", () => {
       // Handler returns msg-1 as failed for first record, empty for second
       // (handler returns the messageId of the failed record)
       const handler = vi.fn(async (event) =>
-        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : []
+        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : [],
       );
       const wrappedHandler = handlingSQSErrors(handler);
 
@@ -502,6 +546,3 @@ describe("handlingSQSErrors", () => {
     });
   });
 });
-
-
-

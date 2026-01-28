@@ -3,6 +3,7 @@ import type { Context, SQSBatchResponse, SQSEvent } from "aws-lambda";
 
 import { isTimeoutError } from "../http/utils/requestTimeout";
 
+import { isCreditUserError } from "./creditErrors";
 import { flushPostHog } from "./posthog";
 import { flushSentry, ensureError, Sentry } from "./sentry";
 import {
@@ -65,11 +66,11 @@ function resolveReportableError(error: Error): Error {
  */
 export const handlingSQSErrors = (
   userHandler: (event: SQSEvent) => Promise<string[]>,
-  options?: { handlerName?: string }
+  options?: { handlerName?: string },
 ): ((event: SQSEvent) => Promise<SQSBatchResponse>) => {
   return async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const queueNames = event.Records.map((record) =>
-      extractQueueName(record.eventSourceARN)
+      extractQueueName(record.eventSourceARN),
     );
     const uniqueQueueNames = [...new Set(queueNames)];
     const handlerName = options?.handlerName || userHandler.name || "unknown";
@@ -141,9 +142,8 @@ export const handlingSQSErrors = (
 
                     // Augment context with workspace credit transaction capability
                     // Database will be lazy-loaded only if workspace credit transactions are actually used
-                    const augmentedContext = augmentContextWithCreditTransactions(
-                      recordContext
-                    );
+                    const augmentedContext =
+                      augmentContextWithCreditTransactions(recordContext);
 
                     // Make context available to handler code via module-level storage
                     setCurrentSQSContext(messageId, augmentedContext);
@@ -155,7 +155,8 @@ export const handlingSQSErrors = (
 
                     try {
                       // Process this record
-                      const recordFailedIds = await userHandler(singleRecordEvent);
+                      const recordFailedIds =
+                        await userHandler(singleRecordEvent);
 
                       // If the handler returned this message as failed, track it
                       if (recordFailedIds.includes(messageId)) {
@@ -165,7 +166,7 @@ export const handlingSQSErrors = (
                         try {
                           await commitContextTransactions(recordContext, false);
                           console.log(
-                            `[SQS Handler] Successfully processed and committed transactions for message ${messageId}`
+                            `[SQS Handler] Successfully processed and committed transactions for message ${messageId}`,
                           );
                         } catch (commitError: unknown) {
                           console.error(
@@ -182,7 +183,7 @@ export const handlingSQSErrors = (
                               queueName,
                               messageId,
                               messageBody: record.body,
-                            }
+                            },
                           );
                           // Mark this message as failed due to commit error
                           failedMessageIds.add(messageId);
@@ -223,12 +224,19 @@ export const handlingSQSErrors = (
 
                       // Log error for this specific record with queue name and message body
                       const ensuredError = ensureError(error);
-                      const reportableError = resolveReportableError(ensuredError);
+                      const reportableError =
+                        resolveReportableError(ensuredError);
                       const boomed = boomify(reportableError);
                       const timeoutError = isTimeoutError(reportableError);
+                      const creditUserError =
+                        isCreditUserError(reportableError) ||
+                        isCreditUserError(ensuredError);
                       const shouldIncludeOriginalError =
                         reportableError !== ensuredError;
-                      console.error(
+                      const logFn = creditUserError
+                        ? console.info
+                        : console.error;
+                      logFn(
                         `[SQS Handler] Error processing message ${messageId} in queue ${queueName}:`,
                         {
                           error:
@@ -248,55 +256,58 @@ export const handlingSQSErrors = (
                           queueName,
                           messageId,
                           messageBody: record.body,
+                          creditUserError,
                           boom: {
                             statusCode: boomed.output.statusCode,
                             message: boomed.message,
                             isServer: boomed.isServer,
                           },
-                        }
+                        },
                       );
 
                       // Report to Sentry
-                      if (timeoutError) {
-                        Sentry.captureException(reportableError, {
-                          tags: {
-                            handler: "SQSFunction",
-                            statusCode: boomed.output.statusCode,
-                            messageId,
-                            queueName,
-                            queueHandler: handlerName,
-                            timeout: "true",
-                          },
-                          contexts: {
-                            event: {
+                      if (!creditUserError) {
+                        if (timeoutError) {
+                          Sentry.captureException(reportableError, {
+                            tags: {
+                              handler: "SQSFunction",
+                              statusCode: boomed.output.statusCode,
                               messageId,
                               queueName,
-                              eventSource: record.eventSource,
-                              awsRegion: record.awsRegion,
-                              messageBody: record.body,
+                              queueHandler: handlerName,
+                              timeout: "true",
                             },
-                            timeout: timeoutContext,
-                          },
-                        });
-                      } else if (boomed.isServer) {
-                        Sentry.captureException(reportableError, {
-                          tags: {
-                            handler: "SQSFunction",
-                            statusCode: boomed.output.statusCode,
-                            messageId,
-                            queueName,
-                            queueHandler: handlerName,
-                          },
-                          contexts: {
-                            event: {
+                            contexts: {
+                              event: {
+                                messageId,
+                                queueName,
+                                eventSource: record.eventSource,
+                                awsRegion: record.awsRegion,
+                                messageBody: record.body,
+                              },
+                              timeout: timeoutContext,
+                            },
+                          });
+                        } else if (boomed.isServer) {
+                          Sentry.captureException(reportableError, {
+                            tags: {
+                              handler: "SQSFunction",
+                              statusCode: boomed.output.statusCode,
                               messageId,
                               queueName,
-                              eventSource: record.eventSource,
-                              awsRegion: record.awsRegion,
-                              messageBody: record.body,
+                              queueHandler: handlerName,
                             },
-                          },
-                        });
+                            contexts: {
+                              event: {
+                                messageId,
+                                queueName,
+                                eventSource: record.eventSource,
+                                awsRegion: record.awsRegion,
+                                messageBody: record.body,
+                              },
+                            },
+                          });
+                        }
                       }
 
                       // Continue processing other records even if this one failed
@@ -305,20 +316,20 @@ export const handlingSQSErrors = (
                       // Always clear the context after processing this record
                       clearCurrentSQSContext(messageId);
                     }
-                  }
+                  },
                 );
               });
-            })
+            }),
           );
 
           // Return batch response with failed message IDs
           const failedMessageIdList = [...failedMessageIds];
           if (failedMessageIdList.length > 0) {
             const failedRecords = event.Records.filter((r) =>
-              failedMessageIds.has(r.messageId || "unknown")
+              failedMessageIds.has(r.messageId || "unknown"),
             );
             const failedQueueNames = failedRecords.map((r) =>
-              extractQueueName(r.eventSourceARN)
+              extractQueueName(r.eventSourceARN),
             );
             console.warn(
               `[SQS Handler] ${failedMessageIdList.length} message(s) failed out of ${event.Records.length}:`,
@@ -330,7 +341,7 @@ export const handlingSQSErrors = (
                   queueName: extractQueueName(r.eventSourceARN),
                   messageBody: r.body,
                 })),
-              }
+              },
             );
             return {
               batchItemFailures: failedMessageIdList.map((id) => ({
@@ -341,7 +352,7 @@ export const handlingSQSErrors = (
 
           // All messages processed successfully
           console.log(
-            `[SQS Handler] Successfully processed all ${event.Records.length} message(s)`
+            `[SQS Handler] Successfully processed all ${event.Records.length} message(s)`,
           );
           return {
             batchItemFailures: [],
@@ -351,10 +362,14 @@ export const handlingSQSErrors = (
           const ensuredError = ensureError(error);
           const reportableError = resolveReportableError(ensuredError);
           const boomed = boomify(reportableError);
+          const creditUserError =
+            isCreditUserError(reportableError) ||
+            isCreditUserError(ensuredError);
           const shouldIncludeOriginalError = reportableError !== ensuredError;
 
           // Always log the full error details with queue names and message bodies
-          console.error("SQS function error:", {
+          const logFn = creditUserError ? console.info : console.error;
+          logFn("SQS function error:", {
             error:
               reportableError instanceof Error
                 ? reportableError.message
@@ -369,6 +384,7 @@ export const handlingSQSErrors = (
                   message: ensuredError.message,
                 }
               : undefined,
+            creditUserError,
             boom: {
               statusCode: boomed.output.statusCode,
               message: boomed.message,
@@ -388,29 +404,31 @@ export const handlingSQSErrors = (
 
           // SQS functions don't have user errors - all errors are server errors
           // Report all errors to Sentry
-          console.error("SQS function server error details:", boomed);
-          Sentry.captureException(reportableError, {
-            tags: {
-              handler: "SQSFunction",
-              statusCode: boomed.output.statusCode,
-              recordCount: event.Records.length,
-              queueNames: uniqueQueueNames.join(","),
-            },
-            contexts: {
-              event: {
+          if (!creditUserError) {
+            console.error("SQS function server error details:", boomed);
+            Sentry.captureException(reportableError, {
+              tags: {
+                handler: "SQSFunction",
+                statusCode: boomed.output.statusCode,
                 recordCount: event.Records.length,
-                messageIds: event.Records.map((r) => r.messageId),
-                queueNames: uniqueQueueNames,
-                eventSource: event.Records[0]?.eventSource,
-                awsRegion: event.Records[0]?.awsRegion,
-                messages: event.Records.map((r) => ({
-                  messageId: r.messageId,
-                  queueName: extractQueueName(r.eventSourceARN),
-                  messageBody: r.body,
-                })),
+                queueNames: uniqueQueueNames.join(","),
               },
-            },
-          });
+              contexts: {
+                event: {
+                  recordCount: event.Records.length,
+                  messageIds: event.Records.map((r) => r.messageId),
+                  queueNames: uniqueQueueNames,
+                  eventSource: event.Records[0]?.eventSource,
+                  awsRegion: event.Records[0]?.awsRegion,
+                  messages: event.Records.map((r) => ({
+                    messageId: r.messageId,
+                    queueName: extractQueueName(r.eventSourceARN),
+                    messageBody: r.body,
+                  })),
+                },
+              },
+            });
+          }
 
           // Return all messages as failed for retry
           return {
@@ -422,11 +440,14 @@ export const handlingSQSErrors = (
           // Flush analytics after all records are processed
           await Promise.all([flushPostHog(), flushSentry()]).catch(
             (flushErrors) => {
-              console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
-            }
+              console.error(
+                "[PostHog/Sentry] Error flushing events:",
+                flushErrors,
+              );
+            },
           );
         }
-      }
+      },
     );
   };
 };

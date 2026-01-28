@@ -1,5 +1,7 @@
-// Gemini embedding model name
-const EMBEDDING_MODEL = "text-embedding-004";
+import { OpenRouter } from "@openrouter/sdk";
+
+// OpenRouter embedding model name
+const EMBEDDING_MODEL = "thenlper/gte-base";
 
 // Exponential backoff configuration
 const BACKOFF_INITIAL_DELAY_MS = 1000; // 1 second
@@ -12,10 +14,27 @@ const BACKOFF_MULTIPLIER = 2;
 // Value: embedding vector (number[])
 const embeddingCache = new Map<string, number[]>();
 
+const EMBEDDING_TIMEOUT_MS = 30000; // 30 seconds timeout
+
+const openRouterClients = new Map<string, OpenRouter>();
+
+function getOpenRouterClient(apiKey: string): OpenRouter {
+  const existingClient = openRouterClients.get(apiKey);
+  if (existingClient) {
+    return existingClient;
+  }
+  const newClient = new OpenRouter({ apiKey });
+  openRouterClients.set(apiKey, newClient);
+  return newClient;
+}
+
 /**
  * Check if an error is a throttling/rate limit error
  */
-function isThrottlingError(status: number, errorText: string): boolean {
+function isThrottlingError(
+  status: number | undefined,
+  errorText: string,
+): boolean {
   return (
     status === 429 ||
     errorText.toLowerCase().includes("quota") ||
@@ -23,6 +42,28 @@ function isThrottlingError(status: number, errorText: string): boolean {
     errorText.toLowerCase().includes("throttle") ||
     errorText.toLowerCase().includes("too many requests")
   );
+}
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+  const status = (error as { statusCode?: number; status?: number }).statusCode;
+  if (typeof status === "number") {
+    return status;
+  }
+  const fallbackStatus = (error as { status?: number }).status;
+  if (typeof fallbackStatus === "number") {
+    return fallbackStatus;
+  }
+  return undefined;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
 
 /**
@@ -51,7 +92,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
- * Generate embedding for text using Gemini API
+ * Generate embedding for text using OpenRouter embeddings API
  * Uses in-memory cache to avoid regenerating embeddings for the same text
  * Implements exponential backoff retry for throttling errors
  */
@@ -59,7 +100,7 @@ export async function generateEmbedding(
   text: string,
   apiKey: string,
   cacheKey?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<number[]> {
   // Check cache first if cacheKey is provided
   if (cacheKey) {
@@ -88,48 +129,24 @@ export async function generateEmbedding(
     try {
       if (attempt > 0) {
         console.log(
-          `[generateEmbedding] Retry attempt ${attempt}/${BACKOFF_MAX_RETRIES}`
+          `[generateEmbedding] Retry attempt ${attempt}/${BACKOFF_MAX_RETRIES}`,
         );
       }
       console.log(
-        `[generateEmbedding] Making API request to Gemini (attempt ${
+        `[generateEmbedding] Making API request to OpenRouter (attempt ${
           attempt + 1
-        })...`
+        })...`,
       );
-      // Note: The @ai-sdk/google package may not have direct embedding support
-      // We'll need to use the REST API directly
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`;
-
-      const requestBody = {
-        content: {
-          parts: [{ text }],
-        },
-      };
-
-      // Set Referer header - this must match the API key's allowed referrers
-      // The API key should be configured to allow requests from this referrer
-      // For server-side calls, we might need to use a wildcard or remove referrer restrictions
-      const referer =
-        process.env.GEMINI_REFERER || "http://localhost:3000/api/workspaces";
-
-      // Create headers object
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-      };
-
-      // Add Referer header - try different variations
-      headers["Referer"] = referer;
-      headers["referer"] = referer; // lowercase version
+      const openRouter = getOpenRouterClient(apiKey);
 
       // Create AbortController for this fetch request with timeout
       const fetchController = new AbortController();
-      const FETCH_TIMEOUT_MS = 30000; // 30 seconds timeout
       const timeoutId = setTimeout(() => {
         console.error(
-          `[generateEmbedding] Fetch timeout after ${FETCH_TIMEOUT_MS}ms`
+          `[generateEmbedding] Request timeout after ${EMBEDDING_TIMEOUT_MS}ms`,
         );
         fetchController.abort();
-      }, FETCH_TIMEOUT_MS);
+      }, EMBEDDING_TIMEOUT_MS);
 
       if (signal) {
         // If parent signal is aborted, abort fetch immediately
@@ -144,120 +161,101 @@ export async function generateEmbedding(
         });
       }
 
-      const fetchStartTime = Date.now();
+      const requestStartTime = Date.now();
       console.log(
-        `[generateEmbedding] Starting fetch request to ${url.substring(
-          0,
-          80
-        )}... (timeout: ${FETCH_TIMEOUT_MS}ms)`
+        `[generateEmbedding] Starting OpenRouter embeddings request (timeout: ${EMBEDDING_TIMEOUT_MS}ms)`,
       );
       try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: headers,
-          referrer: referer, // Also set as fetch option
-          body: JSON.stringify(requestBody),
-          signal: fetchController.signal,
-        });
-        clearTimeout(timeoutId);
-        const fetchDuration = Date.now() - fetchStartTime;
+        const response = await openRouter.embeddings.generate(
+          {
+            input: text,
+            model: EMBEDDING_MODEL,
+          },
+          {
+            fetchOptions: {
+              signal: fetchController.signal,
+            },
+          },
+        );
+        const requestDuration = Date.now() - requestStartTime;
         console.log(
-          `[generateEmbedding] Fetch completed in ${fetchDuration}ms, status: ${response.status}`
+          `[generateEmbedding] Request completed in ${requestDuration}ms`,
         );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`[generateEmbedding] API error response: ${errorText}`);
-
-          // Check if it's a referrer restriction error (don't retry this)
-          if (
-            (response.status === 403 && errorText.includes("referer")) ||
-            errorText.includes("referrer")
-          ) {
-            const errorMsg = `API key referrer restriction error. For server-side API calls, the GEMINI_API_KEY should be configured WITHOUT HTTP referrer restrictions in Google Cloud Console. Instead, use IP address restrictions or no application restrictions. Current error: ${errorText}`;
-            console.error(`[generateEmbedding] ${errorMsg}`);
-            throw new Error(errorMsg);
-          }
-
-          // Check if it's a throttling error and we have retries left
-          if (
-            isThrottlingError(response.status, errorText) &&
-            attempt < BACKOFF_MAX_RETRIES
-          ) {
-            // Calculate delay with exponential backoff and jitter
-            const baseDelay = Math.min(
-              BACKOFF_INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt),
-              BACKOFF_MAX_DELAY_MS
-            );
-            // Add jitter: random value between 0 and 20% of base delay
-            const jitter = Math.random() * baseDelay * 0.2;
-            const delay = baseDelay + jitter;
-
-            // Wait with abort signal support
-            try {
-              await sleep(delay, signal);
-            } catch (sleepError) {
-              // If sleep was aborted, throw abort error
-              if (
-                sleepError instanceof Error &&
-                sleepError.message === "Operation aborted"
-              ) {
-                throw sleepError;
-              }
-              throw sleepError;
-            }
-
-            // Continue to next retry attempt
-            lastError = new Error(
-              `Failed to generate embedding: ${response.status} ${errorText}`
-            );
-            continue;
-          }
-
-          // Not a throttling error or no retries left, throw immediately
-          throw new Error(
-            `Failed to generate embedding: ${response.status} ${errorText}`
-          );
-        }
-
-        const data = (await response.json()) as {
-          embedding?: { values?: number[] };
-        };
-
-        if (!data.embedding?.values) {
+        if (typeof response === "string") {
           console.error(
             `[generateEmbedding] Invalid response format:`,
-            JSON.stringify(data).substring(0, 200)
+            response.substring(0, 200),
+          );
+          throw new Error("Invalid embedding response format");
+        }
+
+        const embedding = response.data[0]?.embedding;
+        if (!Array.isArray(embedding)) {
+          console.error(
+            `[generateEmbedding] Invalid response format:`,
+            JSON.stringify(response).substring(0, 200),
           );
           throw new Error("Invalid embedding response format");
         }
 
         // Cache the embedding if cacheKey is provided
         if (cacheKey) {
-          embeddingCache.set(cacheKey, data.embedding.values);
+          embeddingCache.set(cacheKey, embedding);
         }
 
-        return data.embedding.values;
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
+        return embedding;
+      } catch (requestError) {
         // Check if it's a timeout/abort error
         if (
-          fetchError instanceof Error &&
-          (fetchError.name === "AbortError" ||
-            fetchError.message.includes("aborted") ||
-            fetchError.message.includes("timeout"))
+          requestError instanceof Error &&
+          (requestError.name === "AbortError" ||
+            requestError.message.includes("aborted") ||
+            requestError.message.includes("timeout"))
         ) {
           throw new Error(
-            `Embedding generation timed out or was aborted after ${FETCH_TIMEOUT_MS}ms`
+            `Embedding generation timed out or was aborted after ${EMBEDDING_TIMEOUT_MS}ms`,
           );
         }
-        throw fetchError;
+        throw requestError;
+      } finally {
+        clearTimeout(timeoutId);
       }
     } catch (error) {
       console.error(`[generateEmbedding] Error generating embedding:`, error);
       // Check if it's an abort error
       if (error instanceof Error && error.message === "Operation aborted") {
         throw error;
+      }
+
+      const status = getErrorStatus(error);
+      const errorMessage = getErrorMessage(error);
+
+      if (
+        isThrottlingError(status, errorMessage) &&
+        attempt < BACKOFF_MAX_RETRIES
+      ) {
+        const baseDelay = Math.min(
+          BACKOFF_INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt),
+          BACKOFF_MAX_DELAY_MS,
+        );
+        const jitter = Math.random() * baseDelay * 0.2;
+        const delay = baseDelay + jitter;
+
+        try {
+          await sleep(delay, signal);
+        } catch (sleepError) {
+          if (
+            sleepError instanceof Error &&
+            sleepError.message === "Operation aborted"
+          ) {
+            throw sleepError;
+          }
+          throw sleepError;
+        }
+
+        lastError = error as Error;
+        continue;
       }
 
       // Check if it's a network/fetch error that might be retryable
@@ -268,7 +266,7 @@ export async function generateEmbedding(
         if (attempt < BACKOFF_MAX_RETRIES) {
           const baseDelay = Math.min(
             BACKOFF_INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt),
-            BACKOFF_MAX_DELAY_MS
+            BACKOFF_MAX_DELAY_MS,
           );
           const jitter = Math.random() * baseDelay * 0.2;
           const delay = baseDelay + jitter;
@@ -293,10 +291,7 @@ export async function generateEmbedding(
       // If we've exhausted retries or it's a non-retryable error, throw
       if (
         attempt === BACKOFF_MAX_RETRIES ||
-        !isThrottlingError(
-          0,
-          error instanceof Error ? error.message : String(error)
-        )
+        !isThrottlingError(status, errorMessage)
       ) {
         console.error(`[generateEmbedding] Error generating embedding:`, error);
         if (error instanceof Error) {
@@ -304,7 +299,7 @@ export async function generateEmbedding(
           console.error(`[generateEmbedding] Error stack: ${error.stack}`);
           throw error;
         }
-        throw new Error(`Failed to generate embedding: ${String(error)}`);
+        throw new Error(`Failed to generate embedding: ${errorMessage}`);
       }
 
       lastError = error as Error;
@@ -347,6 +342,6 @@ export function clearWorkspaceCache(workspaceId: string): void {
   }
 
   console.log(
-    `[embedding] Cleared cache for workspace: ${workspaceId} (${keysToDelete.length} embeddings)`
+    `[embedding] Cleared cache for workspace: ${workspaceId} (${keysToDelete.length} embeddings)`,
   );
 }

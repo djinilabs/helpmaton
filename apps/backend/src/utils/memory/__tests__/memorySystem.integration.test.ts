@@ -100,7 +100,7 @@ describe("Memory System Integration", () => {
     vi.useFakeTimers();
 
     // Set environment variable for API key
-    process.env.GEMINI_API_KEY = "test-api-key";
+    process.env.OPENROUTER_API_KEY = "test-api-key";
 
     // Clear storage
     Object.values(memoryStorage).forEach((map) => map.clear());
@@ -198,7 +198,7 @@ describe("Memory System Integration", () => {
             message.temporalGrain
           ].entries()) {
             const filtered = records.filter(
-              (r: FactRecord) => !message.data.recordIds!.includes(r.id)
+              (r: FactRecord) => !message.data.recordIds!.includes(r.id),
             );
             if (filtered.length > 0) {
               memoryStorage[message.temporalGrain].set(timeKey, filtered);
@@ -207,7 +207,7 @@ describe("Memory System Integration", () => {
             }
           }
         }
-      }
+      },
     );
 
     // Mock vector DB query - return records from memory storage
@@ -219,7 +219,7 @@ describe("Memory System Integration", () => {
           limit?: number;
           temporalFilter?: { startDate?: string; endDate?: string };
           vector?: number[];
-        }
+        },
       ) => {
         if (queryAgentId !== agentId) {
           return [];
@@ -250,7 +250,7 @@ describe("Memory System Integration", () => {
         // Apply limit
         const limit = options?.limit || 100;
         return filtered.slice(0, limit);
-      }
+      },
     );
 
     // Mock LLM summarization - create realistic summaries that preserve key information
@@ -262,7 +262,7 @@ describe("Memory System Integration", () => {
           (params.messages as Array<{ role: string; content: string }>) || [];
         // Return immediately (no actual async delay)
         const userMessage = messages.find(
-          (m: { role: string; content: string }) => m.role === "user"
+          (m: { role: string; content: string }) => m.role === "user",
         );
         const content = (userMessage?.content as string) || "";
 
@@ -375,7 +375,7 @@ describe("Memory System Integration", () => {
             }.`,
           } as Awaited<ReturnType<typeof generateText>>;
         }
-      }
+      },
     );
   });
 
@@ -441,13 +441,13 @@ describe("Memory System Integration", () => {
     expect(workingRecordsAfterDay1.length).toBeGreaterThan(0);
     expect(
       workingRecordsAfterDay1.some((r: FactRecord) =>
-        r.content.includes("John")
-      )
+        r.content.includes("John"),
+      ),
     ).toBe(true);
     expect(
       workingRecordsAfterDay1.some((r: FactRecord) =>
-        r.content.includes("Sarah")
-      )
+        r.content.includes("Sarah"),
+      ),
     ).toBe(true);
 
     // Day 2 conversations
@@ -490,7 +490,7 @@ describe("Memory System Integration", () => {
         agentId,
         workspaceId,
         `conv-day${day}-1`,
-        conv
+        conv,
       );
     }
 
@@ -515,7 +515,7 @@ describe("Memory System Integration", () => {
     const day1Summary = await summarizeWithLLM(
       day1Content,
       "daily",
-      workspaceId
+      workspaceId,
     );
 
     expect(day1Summary).toContain("Daily Summary");
@@ -550,7 +550,7 @@ describe("Memory System Integration", () => {
       const dayDate = new Date(`2024-01-${14 + day}T12:00:00Z`);
       const dayTimeString = formatTimeForGrain("daily", dayDate);
       const dayEmbedding = await mockGenerateEmbedding(
-        `Daily Summary: Day ${day} activities`
+        `Daily Summary: Day ${day} activities`,
       );
       const dayRecord: FactRecord = {
         id: `day-${dayTimeString}-summary`,
@@ -587,7 +587,7 @@ describe("Memory System Integration", () => {
     const week1Summary = await summarizeWithLLM(
       week1Content,
       "weekly",
-      workspaceId
+      workspaceId,
     );
 
     expect(week1Summary).toContain("Weekly Summary");
@@ -597,7 +597,7 @@ describe("Memory System Integration", () => {
     const week1Embedding = await mockGenerateEmbedding(week1Summary);
     const week1TimeString = formatTimeForGrain(
       "weekly",
-      new Date("2024-01-15")
+      new Date("2024-01-15"),
     );
     const week1Record: FactRecord = {
       id: `week-${week1TimeString}-summary`,
@@ -627,7 +627,7 @@ describe("Memory System Integration", () => {
       const weekStartDate = new Date(2024, 0, 15 + (week - 1) * 7 + 1); // January, day calculation
       const weekTimeString = formatTimeForGrain("weekly", weekStartDate);
       const weekEmbedding = await mockGenerateEmbedding(
-        `Weekly Summary: Week ${week}`
+        `Weekly Summary: Week ${week}`,
       );
       const weekMidDate = new Date(2024, 0, 15 + (week - 1) * 7 + 3); // Mid-week date
       const weekRecord: FactRecord = {
@@ -660,12 +660,12 @@ describe("Memory System Integration", () => {
     expect(januaryWeeklySummaries.length).toBeGreaterThan(0);
 
     const monthContent = januaryWeeklySummaries.map(
-      (r: FactRecord) => r.content
+      (r: FactRecord) => r.content,
     );
     const monthSummary = await summarizeWithLLM(
       monthContent,
       "monthly",
-      workspaceId
+      workspaceId,
     );
 
     expect(monthSummary).toContain("Monthly Summary");
@@ -673,7 +673,7 @@ describe("Memory System Integration", () => {
     const monthEmbedding = await mockGenerateEmbedding(monthSummary);
     const monthTimeString = formatTimeForGrain(
       "monthly",
-      new Date("2024-01-01")
+      new Date("2024-01-01"),
     );
     const monthRecord: FactRecord = {
       id: `month-${monthTimeString}-summary`,
@@ -703,7 +703,7 @@ describe("Memory System Integration", () => {
       const monthDate = new Date(2024, month - 1, 1); // month is 1-indexed, Date month is 0-indexed
       const monthTimeString = formatTimeForGrain("monthly", monthDate);
       const monthEmbedding = await mockGenerateEmbedding(
-        `Monthly Summary: Month ${month}`
+        `Monthly Summary: Month ${month}`,
       );
       const monthMidDate = new Date(2024, month - 1, 15);
       const monthRecord: FactRecord = {
@@ -739,7 +739,7 @@ describe("Memory System Integration", () => {
     const quarterSummary = await summarizeWithLLM(
       quarterContent,
       "quarterly",
-      workspaceId
+      workspaceId,
     );
 
     expect(quarterSummary).toContain("Quarterly Summary");
@@ -747,7 +747,7 @@ describe("Memory System Integration", () => {
     const quarterEmbedding = await mockGenerateEmbedding(quarterSummary);
     const quarterTimeString = formatTimeForGrain(
       "quarterly",
-      new Date("2024-01-01")
+      new Date("2024-01-01"),
     );
     const quarterRecord: FactRecord = {
       id: `quarter-${quarterTimeString}-summary`,
@@ -778,7 +778,7 @@ describe("Memory System Integration", () => {
       const quarterDate = new Date(2024, quarterMonth, 1);
       const quarterTimeString = formatTimeForGrain("quarterly", quarterDate);
       const quarterEmbedding = await mockGenerateEmbedding(
-        `Quarterly Summary: Q${quarter}`
+        `Quarterly Summary: Q${quarter}`,
       );
       const quarterMidDate = new Date(2024, quarterMonth + 1, 15); // Mid-quarter
       const quarterRecord: FactRecord = {
@@ -811,12 +811,12 @@ describe("Memory System Integration", () => {
     expect(year2024QuarterlySummaries.length).toBeGreaterThan(0);
 
     const yearContent = year2024QuarterlySummaries.map(
-      (r: FactRecord) => r.content
+      (r: FactRecord) => r.content,
     );
     const yearSummary = await summarizeWithLLM(
       yearContent,
       "yearly",
-      workspaceId
+      workspaceId,
     );
 
     expect(yearSummary).toContain("Yearly Summary");
@@ -900,10 +900,10 @@ describe("Memory System Integration", () => {
     const recentTimeString2 = formatTimeForGrain("daily", recentDate2);
 
     const recentEmbedding1 = await mockGenerateEmbedding(
-      "Recent daily summary 1"
+      "Recent daily summary 1",
     );
     const recentEmbedding2 = await mockGenerateEmbedding(
-      "Recent daily summary 2"
+      "Recent daily summary 2",
     );
 
     const recentRecord1: FactRecord = {
@@ -967,7 +967,7 @@ describe("Memory System Integration", () => {
     for (const record of remainingDailyRecords) {
       const recordDate = new Date(record.timestamp);
       expect(recordDate.getTime()).toBeGreaterThanOrEqual(
-        dailyCutoff.getTime()
+        dailyCutoff.getTime(),
       );
     }
 
@@ -993,29 +993,29 @@ describe("Memory System Integration", () => {
     const allWeeklySummaries = getAllRecordsForGrain("weekly");
     expect(
       allWeeklySummaries.every(
-        (r: FactRecord) => r.metadata?.grain === "weekly"
-      )
+        (r: FactRecord) => r.metadata?.grain === "weekly",
+      ),
     ).toBe(true);
 
     const allMonthlySummaries = getAllRecordsForGrain("monthly");
     expect(
       allMonthlySummaries.every(
-        (r: FactRecord) => r.metadata?.grain === "monthly"
-      )
+        (r: FactRecord) => r.metadata?.grain === "monthly",
+      ),
     ).toBe(true);
 
     const allQuarterlySummaries = getAllRecordsForGrain("quarterly");
     expect(
       allQuarterlySummaries.every(
-        (r: FactRecord) => r.metadata?.grain === "quarterly"
-      )
+        (r: FactRecord) => r.metadata?.grain === "quarterly",
+      ),
     ).toBe(true);
 
     const allYearlySummaries = getAllRecordsForGrain("yearly");
     expect(
       allYearlySummaries.every(
-        (r: FactRecord) => r.metadata?.grain === "yearly"
-      )
+        (r: FactRecord) => r.metadata?.grain === "yearly",
+      ),
     ).toBe(true);
 
     // Verify that summaries preserve key information through the hierarchy
@@ -1023,33 +1023,33 @@ describe("Memory System Integration", () => {
     // These should appear in daily and weekly summaries, but may be abstracted in higher levels
     const dailySummaries = getAllRecordsForGrain("daily");
     const hasJohnInDaily = dailySummaries.some((r: FactRecord) =>
-      r.content.toLowerCase().includes("john")
+      r.content.toLowerCase().includes("john"),
     );
     expect(hasJohnInDaily).toBe(true);
 
     const weeklySummaries = getAllRecordsForGrain("weekly");
     const hasJohnInWeekly = weeklySummaries.some((r: FactRecord) =>
-      r.content.toLowerCase().includes("john")
+      r.content.toLowerCase().includes("john"),
     );
     expect(hasJohnInWeekly).toBe(true);
 
     // Verify SQS operations were tracked
     expect(sqsOperations.length).toBeGreaterThan(0);
     const insertOperations = sqsOperations.filter(
-      (op) => op.operation === "insert"
+      (op) => op.operation === "insert",
     );
     expect(insertOperations.length).toBeGreaterThan(0);
 
     // Verify time strings are correctly formatted
     const dailyTimeStrings = dailySummaries.map(
-      (r) => r.metadata?.timeString as string
+      (r) => r.metadata?.timeString as string,
     );
     for (const timeString of dailyTimeStrings) {
       expect(timeString).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
 
     const weeklyTimeStrings = weeklySummaries.map(
-      (r) => r.metadata?.timeString as string
+      (r) => r.metadata?.timeString as string,
     );
     for (const timeString of weeklyTimeStrings) {
       expect(timeString).toMatch(/^\d{4}-W\d+$/);
@@ -1108,7 +1108,7 @@ describe("Memory System Integration", () => {
     const freeCutoff = calculateRetentionCutoff("daily", "free");
     const freeRecords = getAllRecordsForGrain("daily");
     const freeRecordsToKeep = freeRecords.filter(
-      (r) => new Date(r.timestamp) >= freeCutoff
+      (r) => new Date(r.timestamp) >= freeCutoff,
     );
 
     // Free plan: only recent record should be kept (30 days retention)
@@ -1119,7 +1119,7 @@ describe("Memory System Integration", () => {
     const starterCutoff = calculateRetentionCutoff("daily", "starter");
     const starterRecords = getAllRecordsForGrain("daily");
     const starterRecordsToKeep = starterRecords.filter(
-      (r) => new Date(r.timestamp) >= starterCutoff
+      (r) => new Date(r.timestamp) >= starterCutoff,
     );
 
     // Starter plan: recent and old records should be kept (60 days retention)
@@ -1133,7 +1133,7 @@ describe("Memory System Integration", () => {
     const proCutoff = calculateRetentionCutoff("daily", "pro");
     const proRecords = getAllRecordsForGrain("daily");
     const proRecordsToKeep = proRecords.filter(
-      (r) => new Date(r.timestamp) >= proCutoff
+      (r) => new Date(r.timestamp) >= proCutoff,
     );
 
     // Pro plan: recent and old records should be kept (120 days retention)

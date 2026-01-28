@@ -93,10 +93,10 @@ async function generateEmbeddingsForFacts(
   rawFacts: RawFactData[],
 ): Promise<FactRecord[]> {
   // Get API key for embedding generation
-  // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
+  // Note: Embeddings use OpenRouter's API directly, workspace API keys are not supported for embeddings
   const apiKey = getDefined(
-    process.env.GEMINI_API_KEY,
-    "GEMINI_API_KEY is not set",
+    process.env.OPENROUTER_API_KEY,
+    "OPENROUTER_API_KEY is not set",
   );
 
   const records: FactRecord[] = [];

@@ -25,7 +25,7 @@ export interface SearchMemoryResult {
  * Returns results prefixed with the date when they happened
  */
 export async function searchMemory(
-  options: SearchMemoryOptions
+  options: SearchMemoryOptions,
 ): Promise<SearchMemoryResult[]> {
   const {
     agentId,
@@ -40,12 +40,12 @@ export async function searchMemory(
   // Reject docs grain - it's for document search, not memory search
   if (grain === "docs") {
     throw new Error(
-      "The 'docs' grain is for document search, not memory search. Use document search tools instead."
+      "The 'docs' grain is for document search, not memory search. Use document search tools instead.",
     );
   }
 
   console.log(
-    `[Memory Search] Searching memory for agent ${agentId}, grain ${grain}, minDays: ${minimumDaysAgo}, maxDays: ${maximumDaysAgo}, maxResults: ${maxResults}`
+    `[Memory Search] Searching memory for agent ${agentId}, grain ${grain}, minDays: ${minimumDaysAgo}, maxDays: ${maximumDaysAgo}, maxResults: ${maxResults}`,
   );
 
   // Calculate date range from days ago
@@ -56,7 +56,7 @@ export async function searchMemory(
   endDate.setDate(endDate.getDate() - minimumDaysAgo);
 
   console.log(
-    `[Memory Search] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+    `[Memory Search] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`,
   );
 
   // For working memory, we can't filter by time string, so we'll query all and filter by timestamp
@@ -67,7 +67,7 @@ export async function searchMemory(
       startDate,
       endDate,
       maxResults,
-      queryText
+      queryText,
     );
   }
 
@@ -88,21 +88,21 @@ export async function searchMemory(
       // Get API key for embedding generation
       // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
       const apiKey = getDefined(
-        process.env.GEMINI_API_KEY,
-        "GEMINI_API_KEY is not set"
+        process.env.OPENROUTER_API_KEY,
+        "OPENROUTER_API_KEY is not set",
       );
 
       const queryEmbedding = await generateEmbedding(
         queryText.trim(),
         apiKey,
         undefined,
-        undefined
+        undefined,
       );
       queryOptions.vector = queryEmbedding;
     } catch (error) {
       console.error(
         "[Memory Search] Failed to generate query embedding:",
-        error
+        error,
       );
       // Continue without semantic search
     }
@@ -110,11 +110,11 @@ export async function searchMemory(
 
   // Query the database
   console.log(
-    `[Memory Search] Querying database for agent ${agentId}, grain ${grain}`
+    `[Memory Search] Querying database for agent ${agentId}, grain ${grain}`,
   );
   const results = await query(agentId, grain, queryOptions);
   console.log(
-    `[Memory Search] Found ${results.length} results for agent ${agentId}, grain ${grain}`
+    `[Memory Search] Found ${results.length} results for agent ${agentId}, grain ${grain}`,
   );
 
   // Format results with date prefixes
@@ -139,7 +139,7 @@ async function searchWorkingMemory(
   startDate: Date,
   endDate: Date,
   maxResults: number,
-  queryText?: string
+  queryText?: string,
 ): Promise<SearchMemoryResult[]> {
   const queryOptions: Parameters<typeof query>[2] = {
     limit: maxResults,
@@ -155,21 +155,21 @@ async function searchWorkingMemory(
       // Get API key for embedding generation
       // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
       const apiKey = getDefined(
-        process.env.GEMINI_API_KEY,
-        "GEMINI_API_KEY is not set"
+        process.env.OPENROUTER_API_KEY,
+        "OPENROUTER_API_KEY is not set",
       );
 
       const queryEmbedding = await generateEmbedding(
         queryText.trim(),
         apiKey,
         undefined,
-        undefined
+        undefined,
       );
       queryOptions.vector = queryEmbedding;
     } catch (error) {
       console.error(
         "[Memory Search] Failed to generate query embedding:",
-        error
+        error,
       );
       // Continue without semantic search
     }
@@ -177,11 +177,11 @@ async function searchWorkingMemory(
 
   // Query working memory
   console.log(
-    `[Memory Search] Querying working memory for agent ${agentId}, date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+    `[Memory Search] Querying working memory for agent ${agentId}, date range: ${startDate.toISOString()} to ${endDate.toISOString()}`,
   );
   const results = await query(agentId, "working", queryOptions);
   console.log(
-    `[Memory Search] Found ${results.length} results in working memory for agent ${agentId}`
+    `[Memory Search] Found ${results.length} results in working memory for agent ${agentId}`,
   );
 
   // Format results with date prefixes
