@@ -68,7 +68,7 @@ export interface QueryResult {
 /**
  * Write operation types
  */
-export type WriteOperationType = "insert" | "update" | "delete";
+export type WriteOperationType = "insert" | "update" | "delete" | "purge";
 
 /**
  * Raw fact data (without embedding) for async embedding generation
@@ -101,7 +101,7 @@ export interface WriteOperationMessage {
  */
 export const WriteOperationMessageSchema = z
   .object({
-    operation: z.enum(["insert", "update", "delete"]),
+    operation: z.enum(["insert", "update", "delete", "purge"]),
     agentId: z.string().min(1, "agentId is required"),
     temporalGrain: z.enum([
       "working",
@@ -122,7 +122,7 @@ export const WriteOperationMessageSchema = z
             embedding: z.array(z.number()),
             timestamp: z.string(),
             metadata: z.record(z.string(), z.unknown()).optional(),
-          })
+          }),
         )
         .optional(),
       rawFacts: z
@@ -133,7 +133,7 @@ export const WriteOperationMessageSchema = z
             timestamp: z.string(),
             metadata: z.record(z.string(), z.unknown()).optional(),
             cacheKey: z.string().optional(),
-          })
+          }),
         )
         .optional(),
       recordIds: z.array(z.string().min(1)).optional(),
@@ -159,20 +159,22 @@ export const WriteOperationMessageSchema = z
         if (!message.data.recordIds || message.data.recordIds.length === 0) {
           return false;
         }
+      } else if (message.operation === "purge") {
+        // No additional data required
       }
       return true;
     },
     {
       message:
         "Invalid operation data: insert/update requires records or rawFacts (rawFacts requires workspaceId), delete requires recordIds",
-    }
+    },
   );
 
 /**
  * Type guard to check if a value matches WriteOperationMessage schema
  */
 export function isValidWriteOperationMessage(
-  value: unknown
+  value: unknown,
 ): value is WriteOperationMessage {
   return WriteOperationMessageSchema.safeParse(value).success;
 }

@@ -443,6 +443,49 @@ async function executeDelete(
 }
 
 /**
+ * Purge all records from a LanceDB database table
+ */
+async function executePurge(
+  agentId: string,
+  temporalGrain: TemporalGrain,
+): Promise<void> {
+  const uri = getDatabaseUri(agentId, temporalGrain);
+  console.log(
+    `[Write Server] Executing purge for agent ${agentId}, grain ${temporalGrain}`,
+  );
+
+  try {
+    const connectionOptions = getLanceDBConnectionOptions();
+    const db = await connect(uri, connectionOptions);
+
+    const table = await db.openTable("vectors").catch(async (error) => {
+      console.warn(
+        `[Write Server] Table "vectors" not found in database ${uri}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+      return null;
+    });
+
+    if (!table) {
+      console.log(
+        `[Write Server] No table found, nothing to purge for agent ${agentId}, grain ${temporalGrain}`,
+      );
+      return;
+    }
+
+    // Delete all records in the table.
+    await table.delete("id IS NOT NULL");
+
+    console.log(
+      `[Write Server] Successfully purged table for agent ${agentId}, grain ${temporalGrain}`,
+    );
+  } catch (error) {
+    console.error(`[Write Server] Purge failed:`, error);
+    throw error;
+  }
+}
+
+/**
  * Process a single write operation message
  */
 async function processWriteOperation(record: SQSRecord): Promise<void> {
@@ -547,6 +590,10 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
         throw new Error("Delete operation requires recordIds");
       }
       await executeDelete(agentId, temporalGrain, data.recordIds);
+      break;
+
+    case "purge":
+      await executePurge(agentId, temporalGrain);
       break;
 
     default:

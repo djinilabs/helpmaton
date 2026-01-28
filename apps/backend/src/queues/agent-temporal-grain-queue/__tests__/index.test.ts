@@ -306,6 +306,65 @@ describe("agent-temporal-grain-queue handler", () => {
       });
     });
 
+    describe("purge operation", () => {
+      it("should purge all records in the table", async () => {
+        const { connect } = await import("@lancedb/lancedb");
+        const mockConnect = vi.mocked(connect);
+
+        const mockDelete = vi.fn().mockResolvedValue(undefined);
+        const mockOpenTable = vi.fn().mockResolvedValue({
+          delete: mockDelete,
+        });
+
+        mockConnect.mockResolvedValue({
+          openTable: mockOpenTable,
+          createTable: vi.fn(),
+        } as unknown as Awaited<ReturnType<typeof connect>>);
+
+        const message: WriteOperationMessage = {
+          operation: "purge",
+          agentId: "agent-123",
+          temporalGrain: "daily",
+          data: {},
+        };
+
+        const event = createSQSEvent([message]);
+
+        const result = await handler(event);
+
+        expect(mockDelete).toHaveBeenCalledWith("id IS NOT NULL");
+        expect(result).toEqual({ batchItemFailures: [] });
+      });
+
+      it("should handle missing table gracefully", async () => {
+        const { connect } = await import("@lancedb/lancedb");
+        const mockConnect = vi.mocked(connect);
+
+        const mockOpenTable = vi
+          .fn()
+          .mockRejectedValue(new Error("Table not found"));
+
+        mockConnect.mockResolvedValue({
+          openTable: mockOpenTable,
+          createTable: vi.fn(),
+        } as unknown as Awaited<ReturnType<typeof connect>>);
+
+        const message: WriteOperationMessage = {
+          operation: "purge",
+          agentId: "agent-123",
+          temporalGrain: "daily",
+          data: {},
+        };
+
+        const event = createSQSEvent([message]);
+
+        const result = await handler(event);
+
+        expect(mockOpenTable).toHaveBeenCalledWith("vectors");
+        expect(result).toEqual({ batchItemFailures: [] });
+      });
+    });
+
     describe("error handling", () => {
       it("should not request retries for invalid message format", async () => {
         const event: SQSEvent = {

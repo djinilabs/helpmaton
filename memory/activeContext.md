@@ -12,6 +12,9 @@
 
 **Latest Work**:
 
+- **LanceDB writer isolation**: Detached `agent-temporal-grain-queue` from `llm-shared-http`, added `config.arc` with `concurrency 1`, and ran `pnpm typecheck` + `pnpm lint --fix`.
+- **Agent removal cleanup**: Added queue-based vector DB purge operation, scheduled purges for agent deletion, and removed adjacent agent records (keys, schedules, conversations, evals, stream servers, delegation tasks, bot integrations). Added/updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
+- **PR 231 review fixes**: Added purge missing-table test, extracted agent cleanup test setup helper, and reran `pnpm typecheck` + `pnpm lint --fix`.
 - **Disable backend ETags**: Disabled Express ETag generation across backend API apps to prevent 304s; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Remove unused workspace email OAuth callback**: Deleted `/api/workspaces/:workspaceId/email/oauth/:provider/callback` handler/tests, removed registration, and cleaned OpenAPI/docs; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **SQS no-retry enforcement**: `handlingSQSErrors` now always returns empty `batchItemFailures` to prevent SQS retries, with updated queue/unit tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test --run`.
