@@ -59,6 +59,8 @@ const DEFAULT_REGION = "eu-west-2";
 const DEFAULT_MODEL_NAME = "google/gemini-2.5-flash";
 const DEFAULT_REPLY_TEXT = "Hello from test";
 const DEFAULT_CREDITS_USD = 25;
+// Workspace credit balances are stored in nano-USD (1 USD = 1_000_000_000 nano-USD).
+const NANO_USD_PER_USD = 1_000_000_000;
 const DEFAULT_TIMEOUT_MS = 180_000;
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_INTERVAL_MS = 10_000;
@@ -123,7 +125,7 @@ async function generateAccessToken(
   authSecret: string,
   userId: string,
   email: string,
-  expirySeconds: number
+  expirySeconds: number,
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   return await new SignJWT({ userId, email })
@@ -138,14 +140,14 @@ async function generateAccessToken(
 async function fetchJson<T>(
   url: string,
   init: RequestInit,
-  allowedStatus: number[] = []
+  allowedStatus: number[] = [],
 ): Promise<ApiResponse<T>> {
   const response = await fetch(url, init);
   const rawText = await response.text();
   const isAllowed = allowedStatus.includes(response.status);
   if (!response.ok && !isAllowed) {
     throw new Error(
-      `Request failed: ${init.method ?? "GET"} ${url} (${response.status}) ${rawText}`
+      `Request failed: ${init.method ?? "GET"} ${url} (${response.status}) ${rawText}`,
     );
   }
   const data = rawText ? (JSON.parse(rawText) as T) : ({} as T);
@@ -155,14 +157,14 @@ async function fetchJson<T>(
 async function fetchText(
   url: string,
   init: RequestInit,
-  allowedStatus: number[] = []
+  allowedStatus: number[] = [],
 ): Promise<ApiResponse<string>> {
   const response = await fetch(url, init);
   const rawText = await response.text();
   const isAllowed = allowedStatus.includes(response.status);
   if (!response.ok && !isAllowed) {
     throw new Error(
-      `Request failed: ${init.method ?? "GET"} ${url} (${response.status}) ${rawText}`
+      `Request failed: ${init.method ?? "GET"} ${url} (${response.status}) ${rawText}`,
     );
   }
   return { response, data: rawText, rawText };
@@ -170,7 +172,7 @@ async function fetchText(
 
 async function assertApiAccess(
   apiBaseUrl: string,
-  authHeader: Record<string, string>
+  authHeader: Record<string, string>,
 ): Promise<void> {
   const response = await fetchText(
     `${apiBaseUrl}/api/workspaces`,
@@ -180,12 +182,12 @@ async function assertApiAccess(
         ...authHeader,
       },
     },
-    [200, 401, 403]
+    [200, 401, 403],
   );
   if (response.response.status !== 200) {
     throw new Error(
       `Authorization check failed for /api/workspaces (${response.response.status}). ` +
-        `Ensure AUTH_SECRET matches the PR environment and the user has access. Response: ${response.rawText}`
+        `Ensure AUTH_SECRET matches the PR environment and the user has access. Response: ${response.rawText}`,
     );
   }
 }
@@ -193,7 +195,7 @@ async function assertApiAccess(
 function buildSlackSignature(
   signingSecret: string,
   timestamp: string,
-  body: string
+  body: string,
 ): string {
   const base = `v0:${timestamp}:${body}`;
   const digest = crypto
@@ -205,10 +207,10 @@ function buildSlackSignature(
 
 async function getStackOutputs(
   client: CloudFormationClient,
-  stackName: string
+  stackName: string,
 ): Promise<StackOutput[]> {
   const response = await client.send(
-    new DescribeStacksCommand({ StackName: stackName })
+    new DescribeStacksCommand({ StackName: stackName }),
   );
   const stack = response.Stacks?.[0];
   if (!stack) {
@@ -219,7 +221,7 @@ async function getStackOutputs(
 
 async function listStackResources(
   client: CloudFormationClient,
-  stackName: string
+  stackName: string,
 ): Promise<StackResource[]> {
   const resources: StackResource[] = [];
   let nextToken: string | undefined;
@@ -228,7 +230,7 @@ async function listStackResources(
       new ListStackResourcesCommand({
         StackName: stackName,
         NextToken: nextToken,
-      })
+      }),
     );
     resources.push(...(response.StackResourceSummaries ?? []));
     nextToken = response.NextToken;
@@ -236,7 +238,10 @@ async function listStackResources(
   return resources;
 }
 
-function pickOutputValue(outputs: StackOutput[], keys: string[]): string | null {
+function pickOutputValue(
+  outputs: StackOutput[],
+  keys: string[],
+): string | null {
   for (const key of keys) {
     const match = outputs.find((output) => output.OutputKey === key);
     if (match?.OutputValue) {
@@ -249,10 +254,10 @@ function pickOutputValue(outputs: StackOutput[], keys: string[]): string | null 
 function findResource(
   resources: StackResource[],
   logicalCandidates: string[],
-  physicalHint?: string
+  physicalHint?: string,
 ): StackResource | undefined {
   const candidateSet = new Set(
-    logicalCandidates.map((candidate) => candidate.toLowerCase())
+    logicalCandidates.map((candidate) => candidate.toLowerCase()),
   );
   const directMatch = resources.find((resource) => {
     const logicalId = resource.LogicalResourceId?.toLowerCase();
@@ -272,7 +277,7 @@ function findResource(
 
 async function resolveTableName(
   resources: StackResource[],
-  tableName: string
+  tableName: string,
 ): Promise<string> {
   const pascal = toPascalCase(tableName);
   const candidates = [
@@ -300,7 +305,7 @@ async function resolveTableName(
 async function resolveQueueUrl(
   resources: StackResource[],
   queueName: string,
-  client: SQSClient
+  client: SQSClient,
 ): Promise<string> {
   const pascal = toPascalCase(queueName);
   const candidates = [queueName, pascal, `${pascal}Queue`];
@@ -331,7 +336,7 @@ async function resolveQueueUrl(
     queueNameValue = physicalId;
   }
   const response = await client.send(
-    new GetQueueUrlCommand({ QueueName: queueNameValue })
+    new GetQueueUrlCommand({ QueueName: queueNameValue }),
   );
   if (!response.QueueUrl) {
     throw new Error(`Queue URL not found for ${queueName}`);
@@ -357,7 +362,7 @@ function extractAssistantReply(messages: unknown[]): string | null {
             part &&
             typeof part === "object" &&
             (part as { type?: string }).type === "text" &&
-            typeof (part as { text?: string }).text === "string"
+            typeof (part as { text?: string }).text === "string",
         ) as { text?: string } | undefined;
         if (textPart?.text) {
           return textPart.text;
@@ -402,7 +407,10 @@ function assertNoDuplicateMessages(messages: unknown[], context: string): void {
   }
 }
 
-function assertNoDuplicateToolCalls(messages: unknown[], context: string): void {
+function assertNoDuplicateToolCalls(
+  messages: unknown[],
+  context: string,
+): void {
   if (!Array.isArray(messages)) {
     return;
   }
@@ -434,7 +442,7 @@ function assertNoDuplicateToolCalls(messages: unknown[], context: string): void 
       });
       if (toolCallSignatures.has(signature)) {
         throw new Error(
-          `Duplicate tool calls detected in ${context}: ${signature}`
+          `Duplicate tool calls detected in ${context}: ${signature}`,
         );
       }
       toolCallSignatures.add(signature);
@@ -520,7 +528,7 @@ async function waitForConversation(
   expectedType: string,
   expectedReply: string,
   expectedToolName: string | null,
-  timeoutMs: number
+  timeoutMs: number,
 ) {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
   const start = Date.now();
@@ -530,7 +538,7 @@ async function waitForConversation(
       new GetCommand({
         TableName: tableName,
         Key: { pk },
-      })
+      }),
     );
     const item = response.Item as
       | {
@@ -542,20 +550,20 @@ async function waitForConversation(
     if (item) {
       if (item.error) {
         throw new Error(
-          `Conversation ${conversationId} failed: ${item.error.message ?? "unknown"}`
+          `Conversation ${conversationId} failed: ${item.error.message ?? "unknown"}`,
         );
       }
       assertNoDuplicateMessages(
         item.messages ?? [],
-        `conversation ${conversationId}`
+        `conversation ${conversationId}`,
       );
       assertNoDuplicateToolCalls(
         item.messages ?? [],
-        `conversation ${conversationId}`
+        `conversation ${conversationId}`,
       );
       if (item.conversationType !== expectedType) {
         throw new Error(
-          `Conversation ${conversationId} type mismatch: expected ${expectedType}, got ${item.conversationType ?? "unknown"}`
+          `Conversation ${conversationId} type mismatch: expected ${expectedType}, got ${item.conversationType ?? "unknown"}`,
         );
       }
       const reply = extractAssistantReply(item.messages ?? []);
@@ -565,7 +573,7 @@ async function waitForConversation(
           !hasToolInvocation(item.messages ?? [], expectedToolName)
         ) {
           throw new Error(
-            `Conversation ${conversationId} missing tool invocation for ${expectedToolName}`
+            `Conversation ${conversationId} missing tool invocation for ${expectedToolName}`,
           );
         }
         return item;
@@ -588,7 +596,7 @@ async function waitForConversationByType(
   expectedType: string,
   expectedReply: string | null,
   expectedToolName: string | null,
-  timeoutMs: number
+  timeoutMs: number,
 ) {
   const start = Date.now();
   let delayMs = POLL_INTERVAL_MS;
@@ -603,7 +611,7 @@ async function waitForConversationByType(
         },
         ScanIndexForward: false,
         Limit: QUERY_LIMIT_LARGE,
-      })
+      }),
     );
     const items = (response.Items ?? []) as Array<{
       conversationType?: string;
@@ -619,11 +627,11 @@ async function waitForConversationByType(
       }
       assertNoDuplicateMessages(
         item.messages ?? [],
-        `${expectedType} conversation`
+        `${expectedType} conversation`,
       );
       assertNoDuplicateToolCalls(
         item.messages ?? [],
-        `${expectedType} conversation`
+        `${expectedType} conversation`,
       );
       if (expectedToolName) {
         if (!hasToolInvocation(item.messages ?? [], expectedToolName)) {
@@ -654,7 +662,7 @@ async function waitForDelegationTask(
   workspaceId: string,
   callingAgentId: string,
   targetAgentId: string,
-  timeoutMs: number
+  timeoutMs: number,
 ) {
   const gsi1pk = `workspace/${workspaceId}/agent/${callingAgentId}`;
   const start = Date.now();
@@ -670,7 +678,7 @@ async function waitForDelegationTask(
         },
         ScanIndexForward: false,
         Limit: QUERY_LIMIT_SMALL,
-      })
+      }),
     );
     const items = (response.Items ?? []) as Array<{
       targetAgentId?: string;
@@ -679,15 +687,13 @@ async function waitForDelegationTask(
       taskId?: string;
       pk?: string;
     }>;
-    const match = items.find(
-      (item) => item.targetAgentId === targetAgentId
-    );
+    const match = items.find((item) => item.targetAgentId === targetAgentId);
     if (match && match.status === "completed") {
       return match;
     }
     if (match && match.status === "failed") {
       throw new Error(
-        `Delegation task failed: ${match.error ?? match.pk ?? "unknown"}`
+        `Delegation task failed: ${match.error ?? match.pk ?? "unknown"}`,
       );
     }
     const remaining = timeoutMs - (Date.now() - start);
@@ -705,7 +711,7 @@ async function waitForEvalResult(
   tableName: string,
   conversationId: string,
   judgeId: string,
-  timeoutMs: number
+  timeoutMs: number,
 ) {
   const start = Date.now();
   let delayMs = POLL_INTERVAL_MS;
@@ -720,7 +726,7 @@ async function waitForEvalResult(
         },
         ScanIndexForward: false,
         Limit: QUERY_LIMIT_SMALL,
-      })
+      }),
     );
     const items = (response.Items ?? []) as Array<{
       judgeId?: string;
@@ -744,7 +750,7 @@ async function waitForCostTransaction(
   tableName: string,
   workspaceId: string,
   conversationId: string,
-  timeoutMs: number
+  timeoutMs: number,
 ) {
   const pk = `workspaces/${workspaceId}`;
   const start = Date.now();
@@ -764,7 +770,7 @@ async function waitForCostTransaction(
           ScanIndexForward: false,
           Limit: QUERY_LIMIT_LARGE,
           ExclusiveStartKey: lastEvaluatedKey,
-        })
+        }),
       );
       if ((response.Items ?? []).length > 0) {
         return response.Items;
@@ -789,7 +795,7 @@ async function waitForMemoryRecord(
   workspaceId: string,
   agentId: string,
   expectedContent: string,
-  timeoutMs: number
+  timeoutMs: number,
 ) {
   const start = Date.now();
   let delayMs = POLL_INTERVAL_MS;
@@ -798,18 +804,18 @@ async function waitForMemoryRecord(
       records: Array<{ content?: string }>;
     }>(
       `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/memory?grain=working&queryText=${encodeURIComponent(
-        expectedContent
+        expectedContent,
       )}&maxResults=${QUERY_LIMIT_SMALL}`,
       {
         method: "GET",
         headers: {
           ...authHeader,
         },
-      }
+      },
     );
     if (
       response.data.records?.some((record) =>
-        record.content?.includes(expectedContent)
+        record.content?.includes(expectedContent),
       )
     ) {
       return;
@@ -837,12 +843,8 @@ async function main() {
   const expectedWeekday = getExpectedWeekday();
   const runMarker = `HM_TEST_${crypto.randomUUID()}`;
   const replyMarker = args.reply ?? runMarker;
-  const creditsUsd = args.credits
-    ? Number(args.credits)
-    : DEFAULT_CREDITS_USD;
-  const timeoutMs = args.timeout
-    ? Number(args.timeout)
-    : DEFAULT_TIMEOUT_MS;
+  const creditsUsd = args.credits ? Number(args.credits) : DEFAULT_CREDITS_USD;
+  const timeoutMs = args.timeout ? Number(args.timeout) : DEFAULT_TIMEOUT_MS;
   const keepResources =
     process.env.KEEP_STAGING_TEST_RESOURCES === "true" ||
     process.env.KEEP_STAGING_TEST_RESOURCES === "1";
@@ -867,12 +869,12 @@ async function main() {
   const apiBaseUrl = normalizeUrl(
     process.env.API_BASE_URL ??
       pickOutputValue(outputs, ["ApiUrl", "RestApiUrl", "HttpApiUrl"]) ??
-      ""
+      "",
   );
   const streamBaseUrl = normalizeUrl(
     process.env.STREAMING_FUNCTION_URL ??
       pickOutputValue(outputs, ["StreamingFunctionUrl"]) ??
-      ""
+      "",
   );
 
   if (!apiBaseUrl) {
@@ -893,16 +895,20 @@ async function main() {
     evalResults: await resolveTableName(resources, "agent-eval-result"),
     creditTransactions: await resolveTableName(
       resources,
-      "workspace-credit-transactions"
+      "workspace-credit-transactions",
     ),
   };
 
   const queueUrls = {
-    schedule: await resolveQueueUrl(resources, "agent-schedule-queue", sqsClient),
+    schedule: await resolveQueueUrl(
+      resources,
+      "agent-schedule-queue",
+      sqsClient,
+    ),
     temporal: await resolveQueueUrl(
       resources,
       "agent-temporal-grain-queue",
-      sqsClient
+      sqsClient,
     ),
   };
 
@@ -919,7 +925,7 @@ async function main() {
       authSecret,
       userId,
       userEmail,
-      Math.min(60 * 60, Math.max(15 * 60, Math.ceil(timeoutMs / 1000) + 300))
+      Math.min(60 * 60, Math.max(15 * 60, Math.ceil(timeoutMs / 1000) + 300)),
     ));
   const authHeader = { Authorization: `Bearer ${accessToken}` };
 
@@ -942,7 +948,7 @@ async function main() {
           name: `staging-pr-${prNumber}-agent-tests`,
           description: "Automated staging agent tests",
         }),
-      }
+      },
     );
     workspaceId = workspaceResponse.data.id;
 
@@ -953,7 +959,7 @@ async function main() {
       new GetCommand({
         TableName: tables.workspace,
         Key: { pk: `workspaces/${workspaceId}`, sk: "workspace" },
-      })
+      }),
     );
     const subscriptionId = (workspaceRecord.Item as { subscriptionId?: string })
       ?.subscriptionId;
@@ -972,7 +978,7 @@ async function main() {
           ":plan": "pro",
           ":updatedAt": new Date().toISOString(),
         },
-      })
+      }),
     );
 
     const userQuestion =
@@ -998,35 +1004,35 @@ async function main() {
           systemPrompt: `Always call get_datetime before answering. ${replyInstruction}`,
           modelName,
         }),
-      }
+      },
     );
     const helloAgentId = helloAgentResponse.data.id;
 
-  const delegateAgentResponse = await fetchJson<{ id: string }>(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Delegated Agent",
+    const delegateAgentResponse = await fetchJson<{ id: string }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Delegated Agent",
           systemPrompt: `Always call get_datetime before answering. ${replyInstruction}`,
-        modelName,
-      }),
-    }
-  );
-  const delegateAgentId = delegateAgentResponse.data.id;
-
-  const delegatorAgentResponse = await fetchJson<{ id: string }>(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
-    {
-      method: "POST",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
+          modelName,
+        }),
       },
+    );
+    const delegateAgentId = delegateAgentResponse.data.id;
+
+    const delegatorAgentResponse = await fetchJson<{ id: string }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents`,
+      {
+        method: "POST",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           name: "Delegator Agent",
           systemPrompt:
@@ -1034,35 +1040,38 @@ async function main() {
             `After the tool returns, ${replyInstruction}`,
           modelName,
         }),
-    }
-  );
-  const delegatorAgentId = delegatorAgentResponse.data.id;
-
-  logStep("Enabling delegation");
-    await fetchJson(
-    `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}`,
-    {
-      method: "PUT",
-      headers: {
-        ...authHeader,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        delegatableAgentIds: [delegateAgentId],
-      }),
-    }
-  );
+    );
+    const delegatorAgentId = delegatorAgentResponse.data.id;
+
+    logStep("Enabling delegation");
+    await fetchJson(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}`,
+      {
+        method: "PUT",
+        headers: {
+          ...authHeader,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          delegatableAgentIds: [delegateAgentId],
+        }),
+      },
+    );
     const delegatorCheck = await fetchJson<{
       delegatableAgentIds?: string[];
-    }>(`${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}`, {
-      method: "GET",
-      headers: {
-        ...authHeader,
+    }>(
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}`,
+      {
+        method: "GET",
+        headers: {
+          ...authHeader,
+        },
       },
-    });
+    );
     if (!delegatorCheck.data.delegatableAgentIds?.includes(delegateAgentId)) {
       throw new Error(
-        `Delegation not configured: ${delegatorAgentId} missing ${delegateAgentId}`
+        `Delegation not configured: ${delegatorAgentId} missing ${delegateAgentId}`,
       );
     }
 
@@ -1078,7 +1087,7 @@ async function main() {
         body: JSON.stringify({
           allowedOrigins: ["*"],
         }),
-      }
+      },
     );
     const streamSecret = streamConfigResponse.data.secret;
 
@@ -1095,7 +1104,7 @@ async function main() {
           name: "Webhook key",
           type: "webhook",
         }),
-      }
+      },
     );
     const webhookKey = webhookKeyResponse.data.key;
 
@@ -1111,7 +1120,7 @@ async function main() {
         body: JSON.stringify({
           name: "Staging Eval Judge",
           modelName,
-        evalPrompt: `You are an AI Agent Auditor. Your job is to objectively evaluate the performance of an AI Agent based on its execution trace.
+          evalPrompt: `You are an AI Agent Auditor. Your job is to objectively evaluate the performance of an AI Agent based on its execution trace.
 
 The agent's goal is: {agent_goal}
 
@@ -1156,29 +1165,30 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           enabled: true,
           samplingProbability: 100,
         }),
-      }
+      },
     );
     const evalJudgeId = evalJudgeResponse.data.id;
 
     logStep("Setting workspace credits in DynamoDB");
-    const creditBalance = Math.round(creditsUsd * 1_000_000);
+    const creditBalance = Math.round(creditsUsd * NANO_USD_PER_USD);
     const workspacePk = `workspaces/${workspaceId}`;
     await docClient.send(
       new UpdateCommand({
         TableName: tables.workspace,
         Key: { pk: workspacePk, sk: "workspace" },
-        UpdateExpression: "SET creditBalance = :balance, updatedAt = :updatedAt",
+        UpdateExpression:
+          "SET creditBalance = :balance, updatedAt = :updatedAt",
         ExpressionAttributeValues: {
           ":balance": creditBalance,
           ":updatedAt": new Date().toISOString(),
         },
-      })
+      }),
     );
     const workspaceCheck = await docClient.send(
       new GetCommand({
         TableName: tables.workspace,
         Key: { pk: workspacePk, sk: "workspace" },
-      })
+      }),
     );
     const storedBalance = (workspaceCheck.Item as { creditBalance?: number })
       ?.creditBalance;
@@ -1186,7 +1196,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       throw new Error(
         `Failed to set credits. Expected ${creditBalance} (number), got ${
           storedBalance ?? "unknown"
-        } (type: ${typeof storedBalance})`
+        } (type: ${typeof storedBalance})`,
       );
     }
 
@@ -1202,7 +1212,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           "X-Conversation-Id": testConversationId,
         },
         body: JSON.stringify([{ role: "user", content: userQuestion }]),
-      }
+      },
     );
     const testConversation = await waitForConversation(
       docClient,
@@ -1213,14 +1223,14 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       "test",
       replyMarker,
       DATETIME_TOOL_NAME,
-      timeoutMs
+      timeoutMs,
     );
     const testReply = extractAssistantReply(
-      (testConversation as { messages?: unknown[] }).messages ?? []
+      (testConversation as { messages?: unknown[] }).messages ?? [],
     );
     if (!testReply?.includes(expectedWeekday)) {
       throw new Error(
-        `Test reply missing weekday "${expectedWeekday}": ${testReply ?? "empty"}`
+        `Test reply missing weekday "${expectedWeekday}": ${testReply ?? "empty"}`,
       );
     }
 
@@ -1236,7 +1246,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           Origin: "https://app.helpmaton.com",
         },
         body: JSON.stringify([{ role: "user", content: userQuestion }]),
-      }
+      },
     );
     const streamConversation = await waitForConversation(
       docClient,
@@ -1247,14 +1257,14 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       "stream",
       replyMarker,
       DATETIME_TOOL_NAME,
-      timeoutMs
+      timeoutMs,
     );
     const streamReply = extractAssistantReply(
-      (streamConversation as { messages?: unknown[] }).messages ?? []
+      (streamConversation as { messages?: unknown[] }).messages ?? [],
     );
     if (!streamReply?.includes(expectedWeekday)) {
       throw new Error(
-        `Stream reply missing weekday "${expectedWeekday}": ${streamReply ?? "empty"}`
+        `Stream reply missing weekday "${expectedWeekday}": ${streamReply ?? "empty"}`,
       );
     }
 
@@ -1268,7 +1278,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
         },
         body: userQuestion,
       },
-      [202]
+      [202],
     );
     const webhookConversationId = webhookResponse.data.conversationId;
     if (!webhookConversationId) {
@@ -1283,7 +1293,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       "webhook",
       replyMarker,
       DATETIME_TOOL_NAME,
-      timeoutMs
+      timeoutMs,
     );
     const webhookMessages = (webhookConversation as { messages?: unknown[] })
       .messages;
@@ -1301,8 +1311,8 @@ You must respond with valid JSON only. Do not include markdown formatting like \
               role,
               contentTypes: content.map((item) =>
                 item && typeof item === "object"
-                  ? (item as { type?: string }).type ?? "unknown"
-                  : typeof item
+                  ? ((item as { type?: string }).type ?? "unknown")
+                  : typeof item,
               ),
             };
           }
@@ -1312,21 +1322,19 @@ You must respond with valid JSON only. Do not include markdown formatting like \
             contentPreview:
               typeof content === "string" ? content.slice(0, 120) : undefined,
           };
-        })
+        }),
       );
       throw new Error("Webhook conversation missing get_datetime tool call");
     }
-    const webhookReply = extractAssistantReply(
-      webhookMessages ?? []
-    );
+    const webhookReply = extractAssistantReply(webhookMessages ?? []);
     if (!webhookReply || !webhookReply.includes(replyMarker)) {
       throw new Error(
-        `Webhook reply mismatch. Expected "${replyMarker}", got "${webhookReply ?? "empty"}"`
+        `Webhook reply mismatch. Expected "${replyMarker}", got "${webhookReply ?? "empty"}"`,
       );
     }
     if (!webhookReply.includes(expectedWeekday)) {
       throw new Error(
-        `Webhook reply missing weekday "${expectedWeekday}": ${webhookReply}`
+        `Webhook reply missing weekday "${expectedWeekday}": ${webhookReply}`,
       );
     }
 
@@ -1342,7 +1350,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           "X-Conversation-Id": delegatorConversationId,
         },
         body: JSON.stringify([{ role: "user", content: userQuestion }]),
-      }
+      },
     );
     await waitForDelegationTask(
       docClient,
@@ -1350,7 +1358,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       workspaceId,
       delegatorAgentId,
       delegateAgentId,
-      timeoutMs
+      timeoutMs,
     );
     const delegationConversation = await waitForConversationByType(
       docClient,
@@ -1359,14 +1367,14 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       "test",
       replyMarker,
       DATETIME_TOOL_NAME,
-      timeoutMs
+      timeoutMs,
     );
     const delegationReply = extractAssistantReply(
-      (delegationConversation as { messages?: unknown[] }).messages ?? []
+      (delegationConversation as { messages?: unknown[] }).messages ?? [],
     );
     if (!delegationReply?.includes(expectedWeekday)) {
       throw new Error(
-        `Delegation reply missing weekday "${expectedWeekday}": ${delegationReply ?? "empty"}`
+        `Delegation reply missing weekday "${expectedWeekday}": ${delegationReply ?? "empty"}`,
       );
     }
 
@@ -1376,7 +1384,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       tables.evalResults,
       testConversationId,
       evalJudgeId,
-      timeoutMs
+      timeoutMs,
     );
 
     logStep("Testing schedule queue via direct SQS message");
@@ -1394,7 +1402,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           prompt: userQuestion,
           enabled: true,
         }),
-      }
+      },
     );
     const scheduleId = scheduleResponse.data.id;
     await sqsClient.send(
@@ -1407,7 +1415,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
         }),
         MessageGroupId: `${helloAgentId}-schedule`,
         MessageDeduplicationId: crypto.randomUUID(),
-      })
+      }),
     );
     const scheduleConversation = await waitForConversationByType(
       docClient,
@@ -1416,14 +1424,14 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       "scheduled",
       replyMarker,
       DATETIME_TOOL_NAME,
-      timeoutMs
+      timeoutMs,
     );
     const scheduleReply = extractAssistantReply(
-      (scheduleConversation as { messages?: unknown[] }).messages ?? []
+      (scheduleConversation as { messages?: unknown[] }).messages ?? [],
     );
     if (!scheduleReply?.includes(expectedWeekday)) {
       throw new Error(
-        `Scheduled reply missing weekday "${expectedWeekday}": ${scheduleReply ?? "empty"}`
+        `Scheduled reply missing weekday "${expectedWeekday}": ${scheduleReply ?? "empty"}`,
       );
     }
 
@@ -1450,7 +1458,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
         }),
         MessageGroupId: `${helloAgentId}-working`,
         MessageDeduplicationId: crypto.randomUUID(),
-      })
+      }),
     );
 
     logStep("Verifying memory write via API");
@@ -1460,7 +1468,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       workspaceId,
       helloAgentId,
       "staging test fact",
-      timeoutMs
+      timeoutMs,
     );
 
     logStep("Verifying cost verification queue");
@@ -1469,7 +1477,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       tables.creditTransactions,
       workspaceId,
       testConversationId,
-      timeoutMs
+      timeoutMs,
     );
 
     console.log("ℹ️  Skipping Slack bot-webhook test (disabled in CI).");
@@ -1488,15 +1496,13 @@ You must respond with valid JSON only. Do not include markdown formatting like \
               ...authHeader,
             },
           },
-          [204]
+          [204],
         );
       } catch (error) {
         console.warn("⚠️  Failed to cleanup workspace:", error);
       }
     } else if (workspaceId) {
-      console.log(
-        `ℹ️  Skipping cleanup; leaving workspace ${workspaceId}`
-      );
+      console.log(`ℹ️  Skipping cleanup; leaving workspace ${workspaceId}`);
     }
   }
 }

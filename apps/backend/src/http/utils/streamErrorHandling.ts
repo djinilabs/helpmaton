@@ -6,6 +6,7 @@ import {
   extractErrorMessage,
   updateConversation,
 } from "../../utils/conversationLogger";
+import { isCreditUserError } from "../../utils/creditErrors";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 
@@ -28,7 +29,7 @@ import {
  */
 export async function writeErrorResponse(
   responseStream: HttpResponseStream,
-  error: unknown
+  error: unknown,
 ): Promise<void> {
   const errorMessage = extractErrorMessage(error);
   // Boomify the original error to check if it's a server error
@@ -63,7 +64,7 @@ export async function writeErrorResponse(
         writeError:
           writeError instanceof Error ? writeError.message : String(writeError),
         originalError: errorMessage,
-      }
+      },
     );
     // Only send to Sentry if the original error was a server error
     if (boomed.isServer) {
@@ -100,11 +101,7 @@ export async function writeErrorResponse(
   }
 }
 
-const AI_ERROR_NAME_MARKERS = [
-  "AI_",
-  "APICallError",
-  "NoOutputGeneratedError",
-];
+const AI_ERROR_NAME_MARKERS = ["AI_", "APICallError", "NoOutputGeneratedError"];
 
 const isAiSdkError = (error: unknown): boolean => {
   if (isNoOutputError(error)) {
@@ -130,7 +127,7 @@ const isAiSdkError = (error: unknown): boolean => {
  */
 export async function persistConversationError(
   context: StreamRequestContext | undefined,
-  error: unknown
+  error: unknown,
 ): Promise<void> {
   if (!context) return;
 
@@ -154,7 +151,7 @@ export async function persistConversationError(
       context.usesByok,
       errorInfo,
       context.awsRequestId,
-      context.endpointType as "test" | "stream"
+      context.endpointType as "test" | "stream",
     );
   } catch (logError) {
     console.error("[Stream Handler] Failed to persist conversation error:", {
@@ -187,7 +184,7 @@ export async function handleStreamingError(
   error: unknown,
   context: StreamRequestContext,
   responseStream: HttpResponseStream,
-  llmCallAttempted: boolean
+  llmCallAttempted: boolean,
 ): Promise<boolean> {
   logErrorDetails(error, {
     workspaceId: context.workspaceId,
@@ -197,19 +194,26 @@ export async function handleStreamingError(
   });
 
   const errorToLog = normalizeByokError(error);
-  Sentry.captureException(ensureError(errorToLog), {
-    tags: {
-      context: "stream-error-handling",
-      operation: "handle-stream-error",
-      endpoint: context.endpointType,
-    },
-    extra: {
-      workspaceId: context.workspaceId,
-      agentId: context.agentId,
-      conversationId: context.conversationId,
-    },
-    level: "warning",
-  });
+  const creditUserError =
+    isCreditUserError(error) || isCreditUserError(errorToLog);
+
+  // Credit errors are expected user errors (402) and should not create Sentry noise.
+  // All other errors (including BYOK auth/config issues) should still be captured.
+  if (!creditUserError) {
+    Sentry.captureException(ensureError(errorToLog), {
+      tags: {
+        context: "stream-error-handling",
+        operation: "handle-stream-error",
+        endpoint: context.endpointType,
+      },
+      extra: {
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+        conversationId: context.conversationId,
+      },
+      level: "warning",
+    });
+  }
 
   // Handle BYOK authentication errors
   if (isByokAuthenticationError(error, context.usesByok)) {
@@ -217,8 +221,8 @@ export async function handleStreamingError(
     await writeErrorResponse(
       responseStream,
       new Error(
-        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
-      )
+        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+      ),
     );
     return true;
   }
@@ -227,9 +231,22 @@ export async function handleStreamingError(
   const creditErrorResult = await handleCreditErrors(
     error,
     context.workspaceId,
-    context.endpointType as "test" | "stream"
+    context.endpointType as "test" | "stream",
   );
   if (creditErrorResult.handled && creditErrorResult.response) {
+    console.info(
+      "[Stream Handler] Credit user error (not reported to Sentry):",
+      {
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+        conversationId: context.conversationId,
+        endpoint: context.endpointType,
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : String(error),
+      },
+    );
     await persistConversationError(context, error);
     const response = creditErrorResult.response;
     if (
@@ -258,7 +275,7 @@ export async function handleStreamingError(
         llmCallAttempted,
         context.usesByok,
         context.endpointType as "test" | "stream",
-        lambdaContext
+        lambdaContext,
       );
     }
   }
@@ -280,29 +297,45 @@ export async function handleStreamingError(
 export async function handleResultExtractionError(
   resultError: unknown,
   context: StreamRequestContext,
-  responseStream: HttpResponseStream
+  responseStream: HttpResponseStream,
 ): Promise<boolean> {
-  Sentry.captureException(ensureError(resultError), {
-    tags: {
-      context: "stream-error-handling",
-      operation: "result-extraction",
-      endpoint: context.endpointType,
-    },
-    extra: {
-      workspaceId: context.workspaceId,
-      agentId: context.agentId,
-      conversationId: context.conversationId,
-    },
-    level: "warning",
-  });
+  if (isCreditUserError(resultError)) {
+    console.info(
+      "[Stream Handler] Credit user error during result extraction (not reported to Sentry):",
+      {
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+        conversationId: context.conversationId,
+        endpoint: context.endpointType,
+        error:
+          resultError instanceof Error
+            ? { name: resultError.name, message: resultError.message }
+            : String(resultError),
+      },
+    );
+  } else {
+    Sentry.captureException(ensureError(resultError), {
+      tags: {
+        context: "stream-error-handling",
+        operation: "result-extraction",
+        endpoint: context.endpointType,
+      },
+      extra: {
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+        conversationId: context.conversationId,
+      },
+      level: "warning",
+    });
+  }
   if (isByokAuthenticationError(resultError, context.usesByok)) {
     const errorToLog = normalizeByokError(resultError);
     await persistConversationError(context, errorToLog);
     await writeErrorResponse(
       responseStream,
       new Error(
-        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
-      )
+        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+      ),
     );
     return true;
   }
@@ -320,7 +353,7 @@ export async function handleStreamingErrorForApiGateway(
   error: unknown,
   context: StreamRequestContext,
   responseHeaders: Record<string, string>,
-  llmCallAttempted: boolean
+  llmCallAttempted: boolean,
 ): Promise<APIGatewayProxyResultV2 | null> {
   logErrorDetails(error, {
     workspaceId: context.workspaceId,
@@ -348,7 +381,7 @@ export async function handleStreamingErrorForApiGateway(
   const creditErrorResult = await handleCreditErrors(
     error,
     context.workspaceId,
-    context.endpointType as "test" | "stream"
+    context.endpointType as "test" | "stream",
   );
   if (creditErrorResult.handled && creditErrorResult.response) {
     await persistConversationError(context, error);
@@ -381,7 +414,7 @@ export async function handleStreamingErrorForApiGateway(
         llmCallAttempted,
         context.usesByok,
         context.endpointType as "test" | "stream",
-        lambdaContext
+        lambdaContext,
       );
     }
   }

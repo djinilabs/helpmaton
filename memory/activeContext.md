@@ -15,6 +15,7 @@
 - **LanceDB writer isolation**: Detached `agent-temporal-grain-queue` from `llm-shared-http`, added `config.arc` with `concurrency 1`, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Agent removal cleanup**: Added queue-based vector DB purge operation, scheduled purges for agent deletion, and removed adjacent agent records (keys, schedules, conversations, evals, stream servers, delegation tasks, bot integrations). Added/updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **PR 231 review fixes**: Added purge missing-table test, extracted agent cleanup test setup helper, and reran `pnpm typecheck` + `pnpm lint --fix`.
+- **SQS no-retry enforcement**: `handlingSQSErrors` now always returns empty `batchItemFailures` to prevent SQS retries, with updated queue/unit tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test --run`.
 - **Suppress credit user errors in Sentry**: Added `isCreditUserError` helper and used it to skip Sentry capture for credit-limit errors in `handlingSQSErrors` and `knowledgeInjection`, with info-level logging and new tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
 - **Backend Sentry sourcemaps deploy alignment**: Enabled sourcemap generation during `arc deploy`, set `SENTRY_DIST` for runtime, and moved backend sourcemap uploads to post-deploy for both `.arc` (zip Lambdas) and `dist` (container images). Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **OpenRouter embeddings migration**: Switched embedding generation to OpenRouter `thenlper/gte-base` via `@openrouter/sdk`, updated embedding callers/tests to use `OPENROUTER_API_KEY`, and refreshed docs/env guidance; ran `pnpm typecheck` and `pnpm lint --fix`.
@@ -236,6 +237,7 @@
 - **Intercom MCP integration**: Added Intercom OAuth flow with admin ID capture, Intercom API client + MCP tools for contacts/conversations (read/write), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm --filter backend test --run intercom`, `pnpm lint --fix`, and `pnpm typecheck`.
 
 - **Staging schedule queue test**: Added FIFO `MessageGroupId` and `MessageDeduplicationId` to schedule queue SQS send in `run-staging-agent-tests.ts`. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 231 staging agent tests failure (credits) - fixed**: `Staging Agent Tests / run-staging-agent-tests` timed out waiting for a successful `scheduled` conversation because the schedule queue run fails with `InsufficientCreditsError` after earlier test calls push the workspace `creditBalance` negative. Root cause was the staging harness setting `creditBalance` using `creditsUsd * 1_000_000` (micro) while the system treats balances as nano-USD. Fixed in `scripts/run-staging-agent-tests.ts` by using nano-USD (`creditsUsd * 1_000_000_000`).
 - **Scheduled conversation logging**: Added fallback assistant text when observer events omit it, and passed fallback in the schedule queue so scheduled conversations include final assistant output. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Observer dedupe + response logs**: Deduped tool call/result events when both steps and arrays are present, added stream response logging, and expanded llmObserver tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Tool-result dedupe in conversations**: Deduplicated tool-result entries in `expandMessagesWithToolCalls` to prevent duplicate tool messages, with unit coverage. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test --run`.
@@ -3281,3 +3283,4 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Restored /api/streams buffering when no response stream
 - Added llm-shared HTTP streaming diagnostics
 - Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
+- Credit user errors (`InsufficientCreditsError`, `SpendingLimitExceededError`) are now **info-only** (no Sentry capture, no email notifications); added streaming error handling tests; verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run streamErrorHandling`

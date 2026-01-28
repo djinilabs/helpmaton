@@ -52,14 +52,11 @@ function resolveReportableError(error: Error): Error {
 }
 
 /**
- * Wrapper for SQS Lambda functions with support for partial batch failures
- * Handles errors uniformly and reports server errors to Sentry
+ * Wrapper for SQS Lambda functions with uniform error handling
+ * Handles errors and reports server errors to Sentry
  *
- * When using partial batch failures:
- * - Handler should return an array of failed message IDs
- * - Successful messages will be deleted from the queue
- * - Failed messages will be retried based on queue configuration
- * - This prevents reprocessing of successfully processed messages
+ * This wrapper intentionally avoids retries by always returning
+ * an empty batch failure list, even when individual records fail.
  *
  * Each SQS record is processed separately with its own context and transaction buffer.
  * Transactions are committed after successful processing of each record.
@@ -158,7 +155,7 @@ export const handlingSQSErrors = (
                       const recordFailedIds =
                         await userHandler(singleRecordEvent);
 
-                      // If the handler returned this message as failed, track it
+                      // Track handler-declared failures for logging
                       if (recordFailedIds.includes(messageId)) {
                         failedMessageIds.add(messageId);
                       } else {
@@ -322,7 +319,7 @@ export const handlingSQSErrors = (
             }),
           );
 
-          // Return batch response with failed message IDs
+          // Log failures, but always return an empty batch failure list to avoid retries
           const failedMessageIdList = [...failedMessageIds];
           if (failedMessageIdList.length > 0) {
             const failedRecords = event.Records.filter((r) =>
@@ -344,9 +341,7 @@ export const handlingSQSErrors = (
               },
             );
             return {
-              batchItemFailures: failedMessageIdList.map((id) => ({
-                itemIdentifier: id,
-              })),
+              batchItemFailures: [],
             };
           }
 
@@ -430,11 +425,9 @@ export const handlingSQSErrors = (
             });
           }
 
-          // Return all messages as failed for retry
+          // Do not request retries for unexpected errors
           return {
-            batchItemFailures: event.Records.map((record) => ({
-              itemIdentifier: record.messageId,
-            })),
+            batchItemFailures: [],
           };
         } finally {
           // Flush analytics after all records are processed

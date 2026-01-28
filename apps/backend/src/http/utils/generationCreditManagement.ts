@@ -1,6 +1,7 @@
 import type { ModelMessage } from "ai";
 
 import type { TokenUsage } from "../../utils/conversationLogger";
+import { isCreditUserError } from "../../utils/creditErrors";
 import {
   adjustCreditReservation,
   enqueueCostVerification,
@@ -17,12 +18,14 @@ import type { GenerationEndpoint } from "./generationErrorHandling";
  * Converts AI SDK tools to definition format for credit estimation
  */
 export function convertToolsToDefinitions(
-  tools: Record<string, unknown> | undefined
-): Array<{
-  name: string;
-  description: string;
-  parameters: unknown;
-}> | undefined {
+  tools: Record<string, unknown> | undefined,
+):
+  | Array<{
+      name: string;
+      description: string;
+      parameters: unknown;
+    }>
+  | undefined {
   if (!tools) {
     return undefined;
   }
@@ -55,7 +58,7 @@ export async function validateAndReserveCredits(
   usesByok: boolean,
   endpoint: GenerationEndpoint,
   context?: AugmentedContext,
-  conversationId?: string
+  conversationId?: string,
 ): Promise<string | undefined> {
   const toolDefinitions = convertToolsToDefinitions(tools);
 
@@ -70,7 +73,7 @@ export async function validateAndReserveCredits(
     toolDefinitions,
     usesByok,
     context,
-    conversationId
+    conversationId,
   );
 
   if (reservation) {
@@ -89,7 +92,7 @@ export async function validateAndReserveCredits(
       agentId,
       usesByok,
       note: "This is expected if BYOK is used or credit validation is disabled. Cost verification will still run but won't finalize a reservation.",
-    }
+    },
   );
 
   return undefined;
@@ -111,7 +114,7 @@ export async function adjustCreditsAfterLLMCall(
   openrouterGenerationIds: string[] | undefined, // New parameter
   endpoint: GenerationEndpoint,
   context: AugmentedContext,
-  conversationId?: string
+  conversationId?: string,
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
   if (
@@ -129,7 +132,7 @@ export async function adjustCreditsAfterLLMCall(
           agentId,
           reservationId,
           tokenUsage,
-        }
+        },
       );
     } else if (!reservationId || reservationId === "byok") {
       console.log(
@@ -138,7 +141,7 @@ export async function adjustCreditsAfterLLMCall(
           workspaceId,
           agentId,
           reservationId,
-        }
+        },
       );
     }
     return;
@@ -168,26 +171,37 @@ export async function adjustCreditsAfterLLMCall(
       openrouterGenerationId,
       openrouterGenerationIds,
       agentId,
-      conversationId
+      conversationId,
     );
     console.log(
-      `[${endpoint} Handler] Step 2: Credit reservation adjusted successfully`
+      `[${endpoint} Handler] Step 2: Credit reservation adjusted successfully`,
     );
   } catch (error) {
+    const ensuredError = ensureError(error);
+    if (isCreditUserError(ensuredError)) {
+      console.info(
+        `[${endpoint} Handler] Credit user error adjusting reservation (not reported to Sentry):`,
+        {
+          workspaceId,
+          agentId,
+          reservationId,
+          error: { name: ensuredError.name, message: ensuredError.message },
+        },
+      );
+      return;
+    }
+
     // Log error but don't fail the request
-    console.error(
-      `[${endpoint} Handler] Error adjusting credit reservation:`,
-      {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        workspaceId,
-        agentId,
-        reservationId,
-        tokenUsage,
-      }
-    );
+    console.error(`[${endpoint} Handler] Error adjusting credit reservation:`, {
+      error: ensuredError.message,
+      stack: ensuredError.stack,
+      workspaceId,
+      agentId,
+      reservationId,
+      tokenUsage,
+    });
     // Report to Sentry
-    Sentry.captureException(ensureError(error), {
+    Sentry.captureException(ensuredError, {
       tags: {
         endpoint,
         operation: "credit_adjustment",
@@ -211,7 +225,7 @@ export async function cleanupReservationWithoutTokenUsage(
   reservationId: string,
   workspaceId: string,
   agentId: string,
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
 ): Promise<void> {
   console.warn(
     `[${endpoint} Handler] No token usage available after successful call, keeping estimated cost:`,
@@ -219,7 +233,7 @@ export async function cleanupReservationWithoutTokenUsage(
       workspaceId,
       agentId,
       reservationId,
-    }
+    },
   );
   // Delete reservation without refund (estimated cost remains deducted)
   try {
@@ -228,7 +242,7 @@ export async function cleanupReservationWithoutTokenUsage(
   } catch (deleteError) {
     console.warn(
       `[${endpoint} Handler] Error deleting reservation:`,
-      deleteError
+      deleteError,
     );
   }
 }
@@ -248,7 +262,7 @@ export async function cleanupReservationOnError(
   llmCallAttempted: boolean,
   usesByok: boolean,
   endpoint: GenerationEndpoint,
-  context: AugmentedContext
+  context: AugmentedContext,
 ): Promise<void> {
   if (usesByok || reservationId === "byok") {
     return;
@@ -256,14 +270,17 @@ export async function cleanupReservationOnError(
 
   // LLM failures should refund the reservation regardless of call stage
   try {
-    console.log(`[${endpoint} Handler] LLM call failed, refunding reservation:`, {
-      workspaceId,
-      reservationId,
-      provider,
-      modelName,
-      llmCallAttempted,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.log(
+      `[${endpoint} Handler] LLM call failed, refunding reservation:`,
+      {
+        workspaceId,
+        reservationId,
+        provider,
+        modelName,
+        llmCallAttempted,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     await refundReservation(db, reservationId, context, {
       endpoint,
       error,
@@ -276,7 +293,9 @@ export async function cleanupReservationOnError(
     console.error(`[${endpoint} Handler] Error refunding reservation:`, {
       reservationId,
       error:
-        refundError instanceof Error ? refundError.message : String(refundError),
+        refundError instanceof Error
+          ? refundError.message
+          : String(refundError),
     });
   }
 }
@@ -291,7 +310,7 @@ export async function enqueueCostVerificationIfNeeded(
   reservationId: string | undefined,
   conversationId: string | undefined,
   agentId: string | undefined,
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
 ): Promise<void> {
   // Determine which IDs to verify
   const idsToVerify =
@@ -303,7 +322,7 @@ export async function enqueueCostVerificationIfNeeded(
 
   if (idsToVerify.length === 0) {
     console.warn(
-      `[${endpoint} Handler] No OpenRouter generation IDs found, skipping cost verification`
+      `[${endpoint} Handler] No OpenRouter generation IDs found, skipping cost verification`,
     );
     return;
   }
@@ -316,13 +335,18 @@ export async function enqueueCostVerificationIfNeeded(
         workspaceId,
         reservationId && reservationId !== "byok" ? reservationId : undefined,
         conversationId,
-        agentId
+        agentId,
       );
-      console.log(`[${endpoint} Handler] Enqueued cost verification for generation:`, {
-        generationId,
-        reservationId:
-          reservationId && reservationId !== "byok" ? reservationId : undefined,
-      });
+      console.log(
+        `[${endpoint} Handler] Enqueued cost verification for generation:`,
+        {
+          generationId,
+          reservationId:
+            reservationId && reservationId !== "byok"
+              ? reservationId
+              : undefined,
+        },
+      );
     } catch (error) {
       // Log but continue with other IDs
       console.error(
@@ -330,7 +354,7 @@ export async function enqueueCostVerificationIfNeeded(
         {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
-        }
+        },
       );
     }
   }
@@ -342,7 +366,6 @@ export async function enqueueCostVerificationIfNeeded(
       reservationId:
         reservationId && reservationId !== "byok" ? reservationId : undefined,
       hasReservation: !!(reservationId && reservationId !== "byok"),
-    }
+    },
   );
 }
-

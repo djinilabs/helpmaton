@@ -2,15 +2,12 @@ import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const {
-  mockDatabase,
-  mockExecuteEvaluation,
-  mockGetCurrentSQSContext,
-} = vi.hoisted(() => ({
-  mockDatabase: vi.fn(),
-  mockExecuteEvaluation: vi.fn(),
-  mockGetCurrentSQSContext: vi.fn(),
-}));
+const { mockDatabase, mockExecuteEvaluation, mockGetCurrentSQSContext } =
+  vi.hoisted(() => ({
+    mockDatabase: vi.fn(),
+    mockExecuteEvaluation: vi.fn(),
+    mockGetCurrentSQSContext: vi.fn(),
+  }));
 
 // Mock the database module - index.ts imports from "../../tables" which exports database
 vi.mock("../../tables", () => ({
@@ -71,7 +68,12 @@ vi.mock("../../utils/sentry", () => ({
     startSpan: vi.fn(async (_config, callback) => callback?.()),
     setTag: vi.fn(),
     setContext: vi.fn(),
-    withScope: (callback: (scope: { setTag: () => void; setContext: () => void }) => Promise<unknown>) =>
+    withScope: (
+      callback: (scope: {
+        setTag: () => void;
+        setContext: () => void;
+      }) => Promise<unknown>,
+    ) =>
       callback({
         setTag: vi.fn(),
         setContext: vi.fn(),
@@ -140,7 +142,7 @@ describe("agent-eval-queue handler", () => {
       expect.objectContaining({
         awsRequestId: "msg-1",
         addWorkspaceCreditTransaction: expect.any(Function),
-      })
+      }),
     );
     expect(result).toEqual({ batchItemFailures: [] }); // No failed messages
   });
@@ -187,7 +189,7 @@ describe("agent-eval-queue handler", () => {
     expect(result).toEqual({ batchItemFailures: [] }); // No failed messages
   });
 
-  it("should return failed message IDs when processing fails", async () => {
+  it("should not request retries when processing fails", async () => {
     const record: SQSRecord = {
       messageId: "msg-1",
       receiptHandle: "receipt-1",
@@ -217,11 +219,11 @@ describe("agent-eval-queue handler", () => {
     const result = await handler(event);
 
     expect(result).toEqual({
-      batchItemFailures: [{ itemIdentifier: "msg-1" }],
-    }); // Failed message ID
+      batchItemFailures: [],
+    });
   });
 
-  it("should handle invalid JSON in message body", async () => {
+  it("should handle invalid JSON in message body without retries", async () => {
     const record: SQSRecord = {
       messageId: "msg-1",
       receiptHandle: "receipt-1",
@@ -245,8 +247,8 @@ describe("agent-eval-queue handler", () => {
 
     expect(mockExecuteEvaluation).not.toHaveBeenCalled();
     expect(result).toEqual({
-      batchItemFailures: [{ itemIdentifier: "msg-1" }],
-    }); // Failed due to parse error
+      batchItemFailures: [],
+    });
   });
 
   it("should process successfully when SQS context is available", async () => {
@@ -286,7 +288,7 @@ describe("agent-eval-queue handler", () => {
     }); // Success - context is always available
   });
 
-  it("should process some messages successfully and some fail", async () => {
+  it("should process some messages successfully and some fail without retries", async () => {
     const record1: SQSRecord = {
       messageId: "msg-1",
       receiptHandle: "receipt-1",
@@ -334,7 +336,7 @@ describe("agent-eval-queue handler", () => {
 
     expect(mockExecuteEvaluation).toHaveBeenCalledTimes(2);
     expect(result).toEqual({
-      batchItemFailures: [{ itemIdentifier: "msg-2" }],
-    }); // Only second message failed
+      batchItemFailures: [],
+    });
   });
 });
