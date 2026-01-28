@@ -12,6 +12,7 @@ import { registerPostVerifyAuthGate } from "./routes/post-verify-auth-gate";
 
 export const createApp = (): express.Application => {
   const app = express();
+  app.set("etag", false);
   app.set("trust proxy", true);
   app.use(express.json());
 

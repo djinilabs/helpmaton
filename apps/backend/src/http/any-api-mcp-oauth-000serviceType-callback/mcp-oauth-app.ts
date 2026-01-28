@@ -48,7 +48,7 @@ export const buildWorkspaceCallbackUrl = (params: {
 
 export const buildRootErrorRedirectUrl = (
   redirectBaseUrl: string,
-  errorMsg: string
+  errorMsg: string,
 ) => `${redirectBaseUrl}/?oauth_error=${errorMsg}`;
 
 export const buildSignInRedirectUrl = (params: {
@@ -60,20 +60,19 @@ export const buildSignInRedirectUrl = (params: {
   serviceType: string;
 }) => {
   const returnUrl = encodeURIComponent(
-    `/workspaces/${params.workspaceId}/mcp-servers/${params.serverId}/oauth-callback?code=${params.code}&state=${params.state}&serviceType=${params.serviceType}`
+    `/workspaces/${params.workspaceId}/mcp-servers/${params.serverId}/oauth-callback?code=${params.code}&state=${params.state}&serviceType=${params.serviceType}`,
   );
   return `${params.redirectBaseUrl}/api/auth/signin?callbackUrl=${returnUrl}`;
 };
 
 const tryExtractStateData = async (
-  state?: string
+  state?: string,
 ): Promise<McpOAuthStateData | null> => {
   if (!state) {
     return null;
   }
-  const { validateAndExtractMcpOAuthStateToken } = await import(
-    "../../utils/oauth/mcp/common"
-  );
+  const { validateAndExtractMcpOAuthStateToken } =
+    await import("../../utils/oauth/mcp/common");
   return validateAndExtractMcpOAuthStateToken(state);
 };
 
@@ -99,13 +98,13 @@ const buildErrorRedirectFromState = async (params: {
 
 const requireStateData = async (
   state: string | undefined,
-  redirectBaseUrl: string
+  redirectBaseUrl: string,
 ): Promise<{ stateData?: McpOAuthStateData; redirectUrl?: string }> => {
   if (!state) {
     return {
       redirectUrl: buildRootErrorRedirectUrl(
         redirectBaseUrl,
-        encodeErrorMessage("State parameter is missing")
+        encodeErrorMessage("State parameter is missing"),
       ),
     };
   }
@@ -114,7 +113,7 @@ const requireStateData = async (
     return {
       redirectUrl: buildRootErrorRedirectUrl(
         redirectBaseUrl,
-        encodeErrorMessage("Invalid or expired state token")
+        encodeErrorMessage("Invalid or expired state token"),
       ),
     };
   }
@@ -126,9 +125,8 @@ const exchangeHandlers: Record<
   (params: OAuthExchangeParams) => Promise<McpOAuthTokenInfo>
 > = {
   "google-drive": async ({ code }) => {
-    const { exchangeGoogleDriveCode } = await import(
-      "../../utils/oauth/mcp/google-drive"
-    );
+    const { exchangeGoogleDriveCode } =
+      await import("../../utils/oauth/mcp/google-drive");
     return exchangeGoogleDriveCode(code);
   },
   gmail: async ({ code }) => {
@@ -136,9 +134,8 @@ const exchangeHandlers: Record<
     return exchangeGmailCode(code);
   },
   "google-calendar": async ({ code }) => {
-    const { exchangeGoogleCalendarCode } = await import(
-      "../../utils/oauth/mcp/google-calendar"
-    );
+    const { exchangeGoogleCalendarCode } =
+      await import("../../utils/oauth/mcp/google-calendar");
     return exchangeGoogleCalendarCode(code);
   },
   notion: async ({ code }) => {
@@ -154,15 +151,13 @@ const exchangeHandlers: Record<
     return exchangeLinearCode(code);
   },
   hubspot: async ({ code }) => {
-    const { exchangeHubspotCode } = await import(
-      "../../utils/oauth/mcp/hubspot"
-    );
+    const { exchangeHubspotCode } =
+      await import("../../utils/oauth/mcp/hubspot");
     return exchangeHubspotCode(code);
   },
   shopify: async ({ code, workspaceId, serverId }) => {
-    const { exchangeShopifyCode } = await import(
-      "../../utils/oauth/mcp/shopify"
-    );
+    const { exchangeShopifyCode } =
+      await import("../../utils/oauth/mcp/shopify");
     return exchangeShopifyCode(workspaceId, serverId, code);
   },
   slack: async ({ code }) => {
@@ -174,27 +169,23 @@ const exchangeHandlers: Record<
     return exchangeStripeCode(code);
   },
   salesforce: async ({ code }) => {
-    const { exchangeSalesforceCode } = await import(
-      "../../utils/oauth/mcp/salesforce"
-    );
+    const { exchangeSalesforceCode } =
+      await import("../../utils/oauth/mcp/salesforce");
     return exchangeSalesforceCode(code);
   },
   intercom: async ({ code }) => {
-    const { exchangeIntercomCode } = await import(
-      "../../utils/oauth/mcp/intercom"
-    );
+    const { exchangeIntercomCode } =
+      await import("../../utils/oauth/mcp/intercom");
     return exchangeIntercomCode(code);
   },
   todoist: async ({ code }) => {
-    const { exchangeTodoistCode } = await import(
-      "../../utils/oauth/mcp/todoist"
-    );
+    const { exchangeTodoistCode } =
+      await import("../../utils/oauth/mcp/todoist");
     return exchangeTodoistCode(code);
   },
   zendesk: async ({ code, workspaceId, serverId }) => {
-    const { exchangeZendeskCode } = await import(
-      "../../utils/oauth/mcp/zendesk"
-    );
+    const { exchangeZendeskCode } =
+      await import("../../utils/oauth/mcp/zendesk");
     return exchangeZendeskCode(workspaceId, serverId, code);
   },
 };
@@ -203,7 +194,7 @@ const ALLOWED_SERVICE_TYPES = new Set(Object.keys(exchangeHandlers));
 
 const exchangeOAuthCode = async (
   serviceType: string,
-  params: OAuthExchangeParams
+  params: OAuthExchangeParams,
 ) => {
   const handler = exchangeHandlers[serviceType];
   if (!handler) {
@@ -246,7 +237,7 @@ const ensureWorkspacePermission = async (params: {
     const [authorized] = await isUserAuthorized(
       params.currentUserRef,
       resource,
-      PERMISSION_LEVELS.WRITE
+      PERMISSION_LEVELS.WRITE,
     );
     if (!authorized) {
       return buildWorkspaceCallbackUrl({
@@ -256,7 +247,7 @@ const ensureWorkspacePermission = async (params: {
         serviceType: params.serviceType,
         success: false,
         errorMsg: encodeErrorMessage(
-          "You don't have permission to modify this workspace"
+          "You don't have permission to modify this workspace",
         ),
       });
     }
@@ -305,7 +296,7 @@ const loadOauthServerOrRedirect = async (params: {
         serviceType: params.serviceType,
         success: false,
         errorMsg: encodeErrorMessage(
-          `MCP server ${params.serverId} is not an OAuth-based server`
+          `MCP server ${params.serverId} is not an OAuth-based server`,
         ),
       }),
     };
@@ -320,7 +311,7 @@ const loadOauthServerOrRedirect = async (params: {
         serviceType: params.serviceType,
         success: false,
         errorMsg: encodeErrorMessage(
-          `Service type mismatch: expected ${server.serviceType}, got ${params.serviceType}`
+          `Service type mismatch: expected ${server.serviceType}, got ${params.serviceType}`,
         ),
       }),
     };
@@ -367,7 +358,11 @@ export const buildOAuthConfig = (params: {
 const hasRequiredTokenFields = (tokenInfo: McpOAuthTokenInfo) =>
   !!tokenInfo.accessToken && !!tokenInfo.refreshToken && !!tokenInfo.expiresAt;
 
-const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) => {
+const handleMcpOauthCallback: express.RequestHandler = async (
+  req,
+  res,
+  next,
+) => {
   try {
     const serviceType = req.params.serviceType as string;
     const code = req.query.code as string | undefined;
@@ -383,7 +378,7 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
       const errorMsg = encodeErrorMessage(
         `OAuth error: ${error}${
           errorDescription ? ` - ${errorDescription}` : ""
-        }`
+        }`,
       );
       const redirectUrl = await buildErrorRedirectFromState({
         redirectBaseUrl,
@@ -414,7 +409,7 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
 
     if (!ALLOWED_SERVICE_TYPES.has(serviceType)) {
       const errorMsg = encodeErrorMessage(
-        `Unsupported service type: ${serviceType}`
+        `Unsupported service type: ${serviceType}`,
       );
       return res.redirect(
         buildWorkspaceCallbackUrl({
@@ -424,7 +419,7 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
           serviceType,
           success: false,
           errorMsg,
-        })
+        }),
       );
     }
 
@@ -479,17 +474,17 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
           hasRefreshToken: !!tokenInfo.refreshToken,
           hasExpiresAt: !!tokenInfo.expiresAt,
           hasEmail: !!tokenInfo.email,
-        }
+        },
       );
     } catch (error) {
       console.error(
         `[MCP OAuth Callback] Token exchange failed for ${serviceType}:`,
-        error
+        error,
       );
       const errorMsg = encodeErrorMessage(
         error instanceof Error
           ? error.message
-          : "Failed to exchange OAuth code for tokens"
+          : "Failed to exchange OAuth code for tokens",
       );
       return res.redirect(
         buildWorkspaceCallbackUrl({
@@ -499,7 +494,7 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
           serviceType,
           success: false,
           errorMsg,
-        })
+        }),
       );
     }
 
@@ -511,10 +506,10 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
           hasRefreshToken: !!tokenInfo.refreshToken,
           hasExpiresAt: !!tokenInfo.expiresAt,
           hasEmail: !!tokenInfo.email,
-        }
+        },
       );
       const errorMsg = encodeErrorMessage(
-        "Failed to obtain required OAuth tokens"
+        "Failed to obtain required OAuth tokens",
       );
       return res.redirect(
         buildWorkspaceCallbackUrl({
@@ -524,7 +519,7 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
           serviceType,
           success: false,
           errorMsg,
-        })
+        }),
       );
     }
 
@@ -549,7 +544,7 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
         serverId,
         serviceType,
         success: true,
-      })
+      }),
     );
   } catch (error) {
     return next(error);
@@ -558,6 +553,7 @@ const handleMcpOauthCallback: express.RequestHandler = async (req, res, next) =>
 
 export const createApp: () => express.Application = () => {
   const app = express();
+  app.set("etag", false);
   app.set("trust proxy", true);
 
   // GET /api/mcp/oauth/:serviceType/callback - OAuth callback handler for MCP servers

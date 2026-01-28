@@ -17,7 +17,7 @@ export const buildAuthGateMiddleware =
   async (
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) => {
     try {
       const email =
@@ -39,7 +39,7 @@ export const buildAuthGateMiddleware =
       const normalizedCallbackUrl = normalizeAuthCallbackUrl(
         fullCallbackUrl,
         frontendUrl,
-        [frontendUrl]
+        [frontendUrl],
       ).toString();
 
       const gateToken =
@@ -80,6 +80,7 @@ export const buildAuthGateMiddleware =
 
 export const createApp: () => Promise<express.Application> = async () => {
   const app = express();
+  app.set("etag", false);
   app.set("trust proxy", true);
   const frontendUrl = resolveFrontendUrl();
 

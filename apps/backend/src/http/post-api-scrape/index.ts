@@ -93,6 +93,7 @@ async function waitForRedditHydration(page: Page) {
  */
 export function createApp(): express.Application {
   const app = express();
+  app.set("etag", false);
   app.set("trust proxy", true);
   app.use(express.json());
 
@@ -141,7 +142,7 @@ export function createApp(): express.Application {
         "scrape",
         "scrape",
         agentId,
-        conversationId
+        conversationId,
       );
 
       console.log(`[scrape] Credits reserved. Proxy selection...`);
@@ -181,7 +182,7 @@ export function createApp(): express.Application {
         // Step 1: Wait for structural indicators (React/Lit components)
         await page.waitForSelector(
           'shreddit-post, shreddit-comment, [data-testid="post-container"], .Post',
-          { timeout: 15000 }
+          { timeout: 15000 },
         );
 
         // Step 2: Wait for text length to stabilize
@@ -189,7 +190,7 @@ export function createApp(): express.Application {
       } catch (error) {
         console.warn(
           "[scrape] Hydration wait timed out or structure differ, proceeding with fallback.",
-          error
+          error,
         );
       }
 
@@ -205,13 +206,13 @@ export function createApp(): express.Application {
         await page.waitForFunction(
           (h) => document.body.scrollHeight > h,
           { timeout: 3000, polling: 500 },
-          prevHeight
+          prevHeight,
         );
       } catch (error) {
         // If height didn't change, page might be fully loaded already
         console.warn(
           "[scrape] Height didn't change, page might be fully loaded already.",
-          error
+          error,
         );
       }
 
@@ -224,11 +225,11 @@ export function createApp(): express.Application {
       // --- 6. Captcha Handling ---
       // Check for captcha frames quickly
       const potentialCaptcha = await page.$(
-        'iframe[src*="captcha"], #captcha, [data-testid="captcha"]'
+        'iframe[src*="captcha"], #captcha, [data-testid="captcha"]',
       );
       if (potentialCaptcha) {
         console.log(
-          "[scrape] Potential captcha detected, initiating solver..."
+          "[scrape] Potential captcha detected, initiating solver...",
         );
         await waitForCaptchaElements(page);
         await solveCaptchas(page);
@@ -247,7 +248,7 @@ export function createApp(): express.Application {
           workspace_id: workspaceId,
           agent_id: agentId,
         },
-        undefined // Scrape uses token auth, no user request context
+        undefined, // Scrape uses token auth, no user request context
       );
 
       res.setHeader("Content-Type", "application/xml");
@@ -270,7 +271,7 @@ export function createApp(): express.Application {
         try {
           const db = await database();
           await db["credit-reservations"].delete(
-            `credit-reservations/${reservation.reservationId}`
+            `credit-reservations/${reservation.reservationId}`,
           );
           console.log("[scrape] Removed reservation after error.");
         } catch (cleanupError) {
@@ -316,7 +317,7 @@ const createHandler = async (): Promise<APIGatewayProxyHandlerV2> => {
   try {
     const app = createApp();
     cachedHandler = handlingErrors(
-      serverlessExpress({ app, respondWithErrors: true })
+      serverlessExpress({ app, respondWithErrors: true }),
     );
     return cachedHandler;
   } catch (error) {
@@ -329,5 +330,5 @@ export const handler = adaptHttpHandler(
   async (...args: Parameters<APIGatewayProxyHandlerV2>) => {
     const h = await createHandler();
     return (await h(...args)) as APIGatewayProxyResultV2;
-  }
+  },
 );

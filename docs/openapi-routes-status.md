@@ -112,7 +112,6 @@
 - **DELETE /api/workspaces/{workspaceId}/email-connection** - Delete workspace email connection
 - **POST /api/workspaces/{workspaceId}/email-connection/test** - Test workspace email connection
 - **GET /api/workspaces/{workspaceId}/email/oauth/{provider}/authorize** - Get email OAuth authorization URL
-- **GET /api/workspaces/{workspaceId}/email/oauth/{provider}/callback** - Handle email OAuth callback
 
 ### MCP Servers
 
