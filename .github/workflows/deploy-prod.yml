@@ -27,6 +27,7 @@ jobs:
         )
       }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     # Security: Explicit permissions - only what's needed
     permissions:
       contents: read
