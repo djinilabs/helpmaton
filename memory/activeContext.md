@@ -16,6 +16,7 @@
 **Latest Work**:
 
 - **Workspace removal cleanup**: Added shared `removeAgentResources` helper (including conversation file S3 cleanup), expanded workspace deletion to remove workspace-scoped data and credit reservations while preserving transactions, added `credit-reservations` GSI by workspace, and added/updated unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Workspace deletion test fix**: Adjusted test mocks to create missing tables before assigning `queryAsync` and reran `pnpm test --run`.
 - **LanceDB writer isolation**: Detached `agent-temporal-grain-queue` from `llm-shared-http`, added `config.arc` with `concurrency 1`, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Agent removal cleanup**: Added queue-based vector DB purge operation, scheduled purges for agent deletion, and removed adjacent agent records (keys, schedules, conversations, evals, stream servers, delegation tasks, bot integrations). Added/updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **PR 231 review fixes**: Added purge missing-table test, extracted agent cleanup test setup helper, and reran `pnpm typecheck` + `pnpm lint --fix`.

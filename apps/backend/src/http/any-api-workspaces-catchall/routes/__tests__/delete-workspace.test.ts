@@ -74,10 +74,20 @@ type MockDb = ReturnType<typeof createMockDatabase> &
   Record<
     string,
     {
-      queryAsync?: (...args: unknown[]) => AsyncGenerator<unknown, void, unknown>;
+      queryAsync?: (
+        ...args: unknown[]
+      ) => AsyncGenerator<unknown, void, unknown>;
       delete?: (...args: unknown[]) => unknown;
     }
   >;
+
+type QueryAsyncTable<T extends object> = T & {
+  queryAsync: (...args: unknown[]) => AsyncGenerator<unknown, void, unknown>;
+};
+
+function withQueryAsync<T extends object>(table: T): QueryAsyncTable<T> {
+  return table as QueryAsyncTable<T>;
+}
 
 function buildAsyncGenerator<T>(items: T[]) {
   return (async function* () {
@@ -85,6 +95,13 @@ function buildAsyncGenerator<T>(items: T[]) {
       yield item;
     }
   })();
+}
+
+function ensureTable(db: MockDb, name: string): Record<string, unknown> {
+  if (!db[name]) {
+    db[name] = {};
+  }
+  return db[name];
 }
 
 describe("DELETE /api/workspaces/:workspaceId", () => {
@@ -120,20 +137,17 @@ describe("DELETE /api/workspaces/:workspaceId", () => {
       sk: "workspace",
       name: "Workspace",
     });
-    mockDb.agent = {
-      ...mockDb.agent,
-      queryAsync: vi.fn().mockReturnValue(
-        buildAsyncGenerator([
-          { pk: `agents/${workspaceId}/agent-1`, sk: "agent" },
-          { pk: `agents/${workspaceId}/agent-2`, sk: "agent" },
-        ]),
-      ),
-    };
+    withQueryAsync(mockDb.agent).queryAsync = vi.fn().mockReturnValue(
+      buildAsyncGenerator([
+        { pk: `agents/${workspaceId}/agent-1`, sk: "agent" },
+        { pk: `agents/${workspaceId}/agent-2`, sk: "agent" },
+      ]),
+    );
     mockRemoveAgentResources.mockResolvedValue({ cleanupErrors: [] });
 
-    mockDb["workspace-document"] = {
-      ...mockDb["workspace-document"],
-      queryAsync: vi.fn().mockReturnValue(
+    withQueryAsync(ensureTable(mockDb, "workspace-document")).queryAsync = vi
+      .fn()
+      .mockReturnValue(
         buildAsyncGenerator([
           {
             pk: `workspace-documents/${workspaceId}/doc-1`,
@@ -141,8 +155,7 @@ describe("DELETE /api/workspaces/:workspaceId", () => {
             s3Key: `workspaces/${workspaceId}/documents/file.txt`,
           },
         ]),
-      ),
-    };
+      );
 
     mockDb.permission.query = vi.fn().mockResolvedValue({
       items: [
@@ -152,51 +165,35 @@ describe("DELETE /api/workspaces/:workspaceId", () => {
     });
     mockDb.permission.delete = vi.fn();
     mockDb.workspace.delete = vi.fn();
-    mockDb["workspace-credit-transactions"] = {
-      ...mockDb["workspace-credit-transactions"],
-      delete: vi.fn(),
-    };
+    ensureTable(mockDb, "workspace-credit-transactions").delete = vi.fn();
 
-    mockDb["workspace-api-key"] = {
-      ...mockDb["workspace-api-key"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb.output_channel = {
-      ...mockDb.output_channel,
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["email-connection"] = {
-      ...mockDb["email-connection"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["mcp-server"] = {
-      ...mockDb["mcp-server"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["workspace-invite"] = {
-      ...mockDb["workspace-invite"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["token-usage-aggregates"] = {
-      ...mockDb["token-usage-aggregates"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["tool-usage-aggregates"] = {
-      ...mockDb["tool-usage-aggregates"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["credit-reservations"] = {
-      ...mockDb["credit-reservations"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["bot-integration"] = {
-      ...mockDb["bot-integration"],
-      queryAsync: vi.fn().mockReturnValue(buildAsyncGenerator([])),
-    };
-    mockDb["trial-credit-requests"] = {
-      ...mockDb["trial-credit-requests"],
-      delete: vi.fn(),
-    };
+    withQueryAsync(ensureTable(mockDb, "workspace-api-key")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "output_channel")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "email-connection")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "mcp-server")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "workspace-invite")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "token-usage-aggregates")).queryAsync =
+      vi.fn().mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "tool-usage-aggregates")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "credit-reservations")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    withQueryAsync(ensureTable(mockDb, "bot-integration")).queryAsync = vi
+      .fn()
+      .mockReturnValue(buildAsyncGenerator([]));
+    ensureTable(mockDb, "trial-credit-requests").delete = vi.fn();
 
     const req = createMockRequest({
       workspaceResource,
