@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -7,6 +8,7 @@ const EmailOAuthCallback = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const success = searchParams.get("success");
   const provider = searchParams.get("provider");
@@ -41,12 +43,13 @@ const EmailOAuthCallback = () => {
   useEffect(() => {
     if (status === "success") {
       refetch();
+      queryClient.invalidateQueries();
       const redirectTimeout = setTimeout(() => {
         navigate(`/workspaces/${workspaceId}`);
       }, 2000);
       return () => clearTimeout(redirectTimeout);
     }
-  }, [status, workspaceId, navigate, refetch]);
+  }, [status, workspaceId, navigate, refetch, queryClient]);
 
   if (!workspaceId && !error && !success) {
     return (

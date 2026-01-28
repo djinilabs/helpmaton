@@ -416,6 +416,7 @@ async function apiFetch(
     response = await fetch(url, {
       ...options,
       headers,
+      cache: "no-store",
     });
   } catch (error) {
     // Network error (no internet, server down, etc.)

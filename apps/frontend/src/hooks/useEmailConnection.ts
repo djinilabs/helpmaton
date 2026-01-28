@@ -17,6 +17,7 @@ export function useEmailConnection(workspaceId: string) {
   return useQuery({
     queryKey: ["workspaces", workspaceId, "email-connection"],
     queryFn: () => getEmailConnection(workspaceId),
+    refetchOnMount: "always",
   });
 }
 

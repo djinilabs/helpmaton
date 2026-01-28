@@ -6,6 +6,8 @@
 
 - **Deploy Prod workflow timeout**: Set `deploy-prod.yml` job `timeout-minutes` to 45 and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Prod email OAuth missing connection (2026-01-28)**: Checked `/aws/lambda/HelpmatonProduction-AnyApiEmailOauthProviderCallba-bh1m3fyArgXd` logs around 18:00Z; Gmail OAuth token exchange succeeded twice, but no DynamoDB write logs appear and request ends with “No transactions to commit,” suggesting the connection was not persisted.
+- **Service worker cache scope (2026-01-28)**: Frontend `service-worker.js` explicitly ignores `/api/*` requests and only caches root HTML + static assets.
+- **Frontend cache bypass + OAuth invalidate (2026-01-28)**: Added `cache: "no-store"` to `apiFetch` and invalidated all queries on OAuth callback success.
 
 - **PR 232 staging SQS check (2026-01-28)**: Queried `HelpmatonStagingPR232` SQS queues; all queues are empty except `AgentTemporalGrainQueue` which has 1 in-flight (`ApproximateNumberOfMessagesNotVisible: 1`).
 - **PR 232 staging temporal queue logs (2026-01-28)**: Latest `/aws/lambda/HelpmatonStagingPR232-AgentTemporalGrainQueueQueue-DHLt9QhJQWAZ` stream shows successful embedding generation + inserts with no errors or warnings.
