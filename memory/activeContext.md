@@ -4,6 +4,12 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+**CI note (2026-01-28)**:
+
+- **E2E on `main` failing**: GitHub Actions run `21431312943` failed in `tests/e2e/login.spec.ts` (“create and login user in one operation”) due to flaky/insufficient waiting in `LoginPage.waitForMagicLinkRequest` (button stays “Sending...”, success text not yet visible). Logs also show backend errors `OPENROUTER_API_KEY is not set` because the E2E workflow does not provide that env var.
+- **Fix**: Updated `.github/workflows/test-e2e.yml` to pass `OPENROUTER_API_KEY` into both `tests/e2e/.env` and the E2E job environment so the local Architect sandbox inherits it. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Fix**: Hardened `tests/e2e/pages/login-page.ts` `waitForMagicLinkRequest()` to treat the submit button “sending” state case-insensitively and to wait for success/error UI before failing (avoids CI flake where UI shows “Sending...” but test only checked “SENDING...”).
+
 **Latest Work**:
 
 - **Suppress credit user errors in Sentry**: Added `isCreditUserError` helper and used it to skip Sentry capture for credit-limit errors in `handlingSQSErrors` and `knowledgeInjection`, with info-level logging and new tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.

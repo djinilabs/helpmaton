@@ -193,6 +193,7 @@ jobs:
           BASE_URL=${{ steps.test-env.outputs.base_url }}
           MAILGUN_KEY=${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN=helpmaton.com
+          OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
           AUTH_SECRET=${{ secrets.STAGING_AUTH_SECRET }}
           HEADLESS=true
           CI=true
@@ -213,6 +214,8 @@ jobs:
           BASE_URL: ${{ steps.test-env.outputs.base_url }}
           # FRONTEND_URL is used by backend for auth redirects
           FRONTEND_URL: ${{ steps.test-env.outputs.base_url }}
+          # Required by backend paths exercised during E2E (streams, reranking, memory search, etc.)
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           # Pass AUTH_SECRET as environment variable so global-setup.ts can access it
           AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
