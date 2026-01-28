@@ -19,7 +19,9 @@ export type FactRow = {
   properties?: Record<string, unknown> | null;
 };
 
-export type FactWhere = Partial<Pick<FactRow, "id" | "source_id" | "target_id" | "label">>;
+export type FactWhere = Partial<
+  Pick<FactRow, "id" | "source_id" | "target_id" | "label">
+>;
 
 export type GraphDb = {
   insertFacts: (rows: FactRow[]) => Promise<void>;
@@ -62,7 +64,9 @@ function formatSqlValue(value: unknown): string {
 }
 
 function buildWhereClause(where: FactWhere): string {
-  const entries = Object.entries(where).filter(([, value]) => value !== undefined);
+  const entries = Object.entries(where).filter(
+    ([, value]) => value !== undefined,
+  );
   if (entries.length === 0) {
     throw new Error("Graph DB operations require at least one where clause.");
   }
@@ -101,6 +105,7 @@ function buildFactsS3Location(
 function resolveS3Credentials(): {
   accessKeyId: string;
   secretAccessKey: string;
+  sessionToken?: string;
   region: string;
   endpoint?: string;
   urlStyle?: "path" | "vhost";
@@ -112,6 +117,8 @@ function resolveS3Credentials(): {
   const secretAccessKey =
     process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
     process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken =
+    process.env.HELPMATON_S3_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
   const region =
     process.env.HELPMATON_S3_REGION ||
     process.env.AWS_REGION ||
@@ -124,6 +131,7 @@ function resolveS3Credentials(): {
     return {
       accessKeyId: LOCAL_S3_ACCESS_KEY,
       secretAccessKey: LOCAL_S3_SECRET_KEY,
+      sessionToken,
       region: DEFAULT_S3_REGION,
       endpoint,
       urlStyle: "path",
@@ -134,6 +142,7 @@ function resolveS3Credentials(): {
   return {
     accessKeyId: accessKeyId ?? "",
     secretAccessKey: secretAccessKey ?? "",
+    sessionToken,
     region,
     endpoint: customEndpoint,
     urlStyle: "vhost",
@@ -142,45 +151,15 @@ function resolveS3Credentials(): {
 }
 
 function createS3Client() {
-  const arcEnv = process.env.ARC_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  const isLocal =
-    arcEnv === "testing" || (arcEnv !== "production" && nodeEnv !== "production");
-  const region =
-    process.env.HELPMATON_S3_REGION ||
-    process.env.AWS_REGION ||
-    DEFAULT_S3_REGION;
-  const accessKeyId =
-    process.env.HELPMATON_S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey =
-    process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
-    process.env.AWS_SECRET_ACCESS_KEY;
-  const customEndpoint = process.env.HELPMATON_S3_ENDPOINT;
-
-  if (isLocal || !accessKeyId || !secretAccessKey) {
-    const endpoint = customEndpoint || DEFAULT_LOCAL_S3_ENDPOINT;
-    return new S3Client({
-      region: "us-east-1",
-      endpoint,
-      forcePathStyle: true,
-      credentials: {
-        accessKeyId: LOCAL_S3_ACCESS_KEY,
-        secretAccessKey: LOCAL_S3_SECRET_KEY,
-      },
-    });
-  }
-
+  const credentials = resolveS3Credentials();
   return new S3Client({
-    region,
-    endpoint:
-      customEndpoint &&
-      !customEndpoint.includes("localhost") &&
-      !customEndpoint.includes("127.0.0.1")
-        ? customEndpoint
-        : undefined,
+    region: credentials.region,
+    endpoint: credentials.endpoint || undefined,
+    forcePathStyle: credentials.urlStyle === "path",
     credentials: {
-      accessKeyId,
-      secretAccessKey,
+      accessKeyId: credentials.accessKeyId,
+      secretAccessKey: credentials.secretAccessKey,
+      sessionToken: credentials.sessionToken,
     },
   });
 }
@@ -200,7 +179,10 @@ async function parquetExists(location: S3Location): Promise<boolean> {
       error && typeof error === "object" && "$metadata" in error
         ? (error.$metadata as { httpStatusCode?: number }).httpStatusCode
         : undefined;
-    if (statusCode === 404 || (error as { name?: string }).name === "NotFound") {
+    if (
+      statusCode === 404 ||
+      (error as { name?: string }).name === "NotFound"
+    ) {
       return false;
     }
     throw error;
@@ -231,14 +213,19 @@ async function configureDuckDb(connection: DuckDbConnection) {
     throw new Error("DuckDB S3 credentials are not configured.");
   }
 
-  await runStatement(
-    connection,
-    `CREATE SECRET (TYPE S3, KEY_ID '${escapeSingleQuotes(
-      credentials.accessKeyId,
-    )}', SECRET '${escapeSingleQuotes(
-      credentials.secretAccessKey,
-    )}', REGION '${escapeSingleQuotes(credentials.region)}');`,
-  );
+  const createSecretSqlParts = [
+    "CREATE SECRET (TYPE S3",
+    `KEY_ID '${escapeSingleQuotes(credentials.accessKeyId)}'`,
+    `SECRET '${escapeSingleQuotes(credentials.secretAccessKey)}'`,
+    `REGION '${escapeSingleQuotes(credentials.region)}'`,
+  ];
+  if (credentials.sessionToken) {
+    createSecretSqlParts.push(
+      `SESSION_TOKEN '${escapeSingleQuotes(credentials.sessionToken)}'`,
+    );
+  }
+
+  await runStatement(connection, `${createSecretSqlParts.join(", ")});`);
 
   if (credentials.endpoint) {
     await runStatement(
@@ -265,10 +252,11 @@ async function initializeFactsTable(
   location: S3Location,
 ): Promise<void> {
   const exists = await parquetExists(location);
+  const escapedUri = escapeSingleQuotes(location.uri);
   if (exists) {
     await runStatement(
       connection,
-      `CREATE TABLE facts AS SELECT * FROM read_parquet('${location.uri}');`,
+      `CREATE TABLE facts AS SELECT * FROM read_parquet('${escapedUri}');`,
     );
   } else {
     await runStatement(
@@ -303,21 +291,33 @@ export async function createGraphDb(
   const location = buildFactsS3Location(workspaceId, agentId);
   const instance = await DuckDBInstance.create(":memory:");
   const connection = await instance.connect();
-
-  await configureDuckDb(connection);
-  await initializeFactsTable(connection, location);
+  try {
+    await configureDuckDb(connection);
+    await initializeFactsTable(connection, location);
+  } catch (error) {
+    try {
+      await closeDuckDb(connection, instance);
+    } catch {
+      // Ignore cleanup errors to preserve original failure.
+    }
+    throw error;
+  }
 
   return {
     insertFacts: async (rows: FactRow[]) => {
       if (rows.length === 0) return;
       const columns = ["id", "source_id", "target_id", "label", "properties"];
       const values = rows.map((row) => {
+        const propertiesValue =
+          row.properties === null
+            ? formatSqlValue(null)
+            : formatSqlValue(row.properties ?? {});
         const valuesList = [
           formatSqlValue(row.id),
           formatSqlValue(row.source_id),
           formatSqlValue(row.target_id),
           formatSqlValue(row.label),
-          formatSqlValue(row.properties ?? {}),
+          propertiesValue,
         ];
         return `(${valuesList.join(", ")})`;
       });
@@ -341,9 +341,10 @@ export async function createGraphDb(
     queryGraph: async <T = unknown>(sql: string) =>
       runQuery<T>(connection, sql),
     save: async () => {
+      const escapedUri = escapeSingleQuotes(location.uri);
       await runStatement(
         connection,
-        `COPY facts TO '${location.uri}' (FORMAT PARQUET, OVERWRITE 1);`,
+        `COPY facts TO '${escapedUri}' (FORMAT PARQUET, OVERWRITE 1);`,
       );
     },
     close: async () => closeDuckDb(connection, instance),

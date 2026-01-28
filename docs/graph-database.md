@@ -62,9 +62,13 @@ The property graph (`facts_graph`) uses `facts` as the edge table and a derived
 
 - `HELPMATON_S3_ACCESS_KEY_ID` / `AWS_ACCESS_KEY_ID`
 - `HELPMATON_S3_SECRET_ACCESS_KEY` / `AWS_SECRET_ACCESS_KEY`
+- `HELPMATON_S3_SESSION_TOKEN` / `AWS_SESSION_TOKEN` (required for IAM role / temporary AWS credentials)
 - `HELPMATON_S3_REGION` / `AWS_REGION`
 - `HELPMATON_S3_ENDPOINT` (optional, supports local or custom S3 endpoints)
 - `ARC_ENV` (local testing detection)
+
+When running with IAM roles or other temporary AWS credentials, the access key,
+secret, and session token are propagated into the DuckDB `httpfs` S3 secret.
 
 ## API surface
 
