@@ -221,30 +221,23 @@ export async function applyMemoryOperationsToGraph(params: {
       }
 
       if (operation.operation === "UPDATE") {
-        const existing = await graphDb.queryGraph<{ id: string }>(
+        const existingFacts = await graphDb.queryGraph<{ id: string }>(
           `SELECT id FROM facts WHERE source_id = '${escapeSqlString(
             subject,
-          )}' AND label = '${escapeSqlString(predicate)}' LIMIT 1;`,
+          )}' AND label = '${escapeSqlString(predicate)}';`,
         );
-        if (existing.length > 0) {
-          await graphDb.updateFacts(
-            { id: existing[0].id },
-            {
-              target_id: object,
-              properties,
-            },
-          );
-        } else {
-          await graphDb.insertFacts([
-            {
-              id: buildFactId(subject, predicate, object),
-              source_id: subject,
-              target_id: object,
-              label: predicate,
-              properties,
-            },
-          ]);
+        for (const fact of existingFacts) {
+          await graphDb.deleteFacts({ id: fact.id });
         }
+        await graphDb.insertFacts([
+          {
+            id: buildFactId(subject, predicate, object),
+            source_id: subject,
+            target_id: object,
+            label: predicate,
+            properties,
+          },
+        ]);
         continue;
       }
 

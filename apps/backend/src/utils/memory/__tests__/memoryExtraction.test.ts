@@ -95,8 +95,8 @@ describe("memoryExtraction", () => {
     const mockQueryGraph = vi
       .fn()
       .mockResolvedValueOnce([]) // ADD -> not found
-      .mockResolvedValueOnce([{ id: "fact-1" }]) // UPDATE -> existing
-      .mockResolvedValueOnce([{ id: "fact-2" }]); // ADD -> existing
+      .mockResolvedValueOnce([{ id: "fact-1" }, { id: "fact-2" }]) // UPDATE -> existing
+      .mockResolvedValueOnce([{ id: "fact-3" }]); // ADD -> existing
 
     mockCreateGraphDb.mockResolvedValue({
       insertFacts: mockInsertFacts,
@@ -144,12 +144,21 @@ describe("memoryExtraction", () => {
     });
 
     expect(mockInsertFacts).toHaveBeenCalled();
-    expect(mockUpdateFacts).toHaveBeenCalled();
+    expect(mockDeleteFacts).toHaveBeenCalledWith({ id: "fact-1" });
+    expect(mockDeleteFacts).toHaveBeenCalledWith({ id: "fact-2" });
     expect(mockDeleteFacts).toHaveBeenCalledWith({
       source_id: "User",
       label: "uses_tech",
       target_id: "GCP",
     });
+    expect(mockUpdateFacts).toHaveBeenCalledWith(
+      { id: "fact-3" },
+      expect.objectContaining({
+        properties: expect.objectContaining({
+          conversationId: "conversation-1",
+        }),
+      }),
+    );
     expect(mockSave).toHaveBeenCalled();
     expect(mockClose).toHaveBeenCalled();
   });

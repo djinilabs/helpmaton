@@ -144,6 +144,7 @@ export async function writeToWorkingMemory(
     }
 
     let contentToStore = conversationText;
+    let memoryType: "summary" | "conversation" = "conversation";
     let memoryOperations: Array<{
       operation: "ADD" | "UPDATE" | "DELETE";
       subject: string;
@@ -163,10 +164,14 @@ export async function writeToWorkingMemory(
           prompt: memoryExtractionConfig.prompt,
         });
         if (extraction) {
-          contentToStore =
-            extraction.summary.trim().length > 0
-              ? extraction.summary
-              : conversationText;
+          const summary = extraction.summary.trim();
+          if (summary.length > 0) {
+            contentToStore = summary;
+            memoryType = "summary";
+          } else {
+            contentToStore = conversationText;
+            memoryType = "conversation";
+          }
           memoryOperations = extraction.memoryOperations;
           if (memoryOperations.length > 0) {
             await applyMemoryOperationsToGraph({
@@ -206,7 +211,7 @@ export async function writeToWorkingMemory(
       conversationId,
       workspaceId,
       agentId,
-      memoryType: memoryExtractionConfig?.enabled ? "summary" : "conversation",
+      memoryType,
     };
     console.log(
       `[Memory Write] Creating conversation memory record with metadata:`,
