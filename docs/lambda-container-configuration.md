@@ -206,7 +206,7 @@ The handler is located at:
 
 ### Runtime Additions
 
-- The `lancedb` image now includes DuckDB for in-memory analytics. Lambda handlers can use `apps/backend/src/utils/duckdb/duckdbClient.ts` to create an in-memory DuckDB instance that installs/loads the `httpfs` extension for querying S3-backed data sources (Parquet/CSV).
+- The `lancedb` image now includes DuckDB with DuckPGQ for graph queries. Lambda handlers should use `apps/backend/src/utils/duckdb/graphDb.ts` to create an in-memory DuckDB instance that installs/loads `httpfs` + `duckpgq`, initializes the `facts` property graph, and persists graph data as S3 Parquet.
 
 ### Build Process
 

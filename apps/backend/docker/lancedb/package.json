@@ -4,9 +4,10 @@
   "private": true,
   "description": "Minimal runtime dependencies for LanceDB Lambda container",
   "dependencies": {
+    "@duckdb/node-api": "1.4.4-r.1",
+    "@duckdb/node-bindings": "1.4.4-r.1",
     "@lancedb/lancedb": "0.23.0",
     "apache-arrow": "21.1.0",
-    "duckdb": "^1.4.3",
     "reflect-metadata": "0.2.2"
   },
   "pnpm": {

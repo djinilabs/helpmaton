@@ -9,7 +9,7 @@
 - **Database**: DynamoDB (with encryption for sensitive data)
 - **Storage**: S3 (document management)
 - **Compute**: AWS Lambda
-- **Analytics**: DuckDB (in-memory with httpfs for S3 access in lancedb image)
+- **Analytics**: DuckDB (in-memory with httpfs + DuckPGQ for S3-backed graph queries in lancedb image)
 - **API**: API Gateway (REST API)
 - **Build**: esbuild
 - **Testing**: Jest (backend tests)
