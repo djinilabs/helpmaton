@@ -5,6 +5,7 @@
 **Status**: Nano-dollar pricing conversion complete ✅
 
 - **Deploy Prod workflow timeout**: Set `deploy-prod.yml` job `timeout-minutes` to 45 and ran `pnpm typecheck` + `pnpm lint --fix`.
+- **Prod email OAuth missing connection (2026-01-28)**: Checked `/aws/lambda/HelpmatonProduction-AnyApiEmailOauthProviderCallba-bh1m3fyArgXd` logs around 18:00Z; Gmail OAuth token exchange succeeded twice, but no DynamoDB write logs appear and request ends with “No transactions to commit,” suggesting the connection was not persisted.
 
 - **PR 232 staging SQS check (2026-01-28)**: Queried `HelpmatonStagingPR232` SQS queues; all queues are empty except `AgentTemporalGrainQueue` which has 1 in-flight (`ApproximateNumberOfMessagesNotVisible: 1`).
 - **PR 232 staging temporal queue logs (2026-01-28)**: Latest `/aws/lambda/HelpmatonStagingPR232-AgentTemporalGrainQueueQueue-DHLt9QhJQWAZ` stream shows successful embedding generation + inserts with no errors or warnings.
@@ -23,6 +24,8 @@
 
 **Latest Work**:
 
+- **DuckPGQ graph DB**: Replaced DuckDB dependency with `@duckdb/node-api` + `@duckdb/node-bindings`, added `graphDb` wrapper for per-workspace/agent facts stored as S3 Parquet with DuckPGQ property graph initialization and CRUD/save helpers, updated tests/docs, and ran `pnpm --filter backend test --run graphDb`, `pnpm lint --fix`, and `pnpm typecheck`.
+- **Graph DB doc**: Added `docs/graph-database.md` describing DuckPGQ setup, storage layout, schema, env vars, and usage.
 - **DuckDB in lancedb image**: Added DuckDB dependency to the lancedb image and backend workspace, added `duckdbClient` helper to create in-memory DuckDB with `httpfs` + S3 settings (now dynamically imports DuckDB at call time), added allowlisted S3 settings guard, expanded unit tests (session token, custom endpoint, helpers, error paths), and updated container docs. Ran `pnpm --filter backend test --run duckdbClient`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Workspace removal cleanup**: Added shared `removeAgentResources` helper (including conversation file S3 cleanup), expanded workspace deletion to remove workspace-scoped data and credit reservations while preserving transactions, added `credit-reservations` GSI by workspace, and added/updated unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace deletion test fix**: Adjusted test mocks to create missing tables before assigning `queryAsync` and reran `pnpm test --run`.

@@ -36,7 +36,7 @@ Unlike the base image, this image installs npm dependencies (via `pnpm install`)
 
 Use this image when your Lambda function needs to use LanceDB for vector database operations. The image includes all necessary build tools and installs dependencies to ensure LanceDB's native modules are properly compiled for the Lambda runtime environment.
 
-The image also bundles DuckDB for in-memory analytics. Lambdas running on the `lancedb` image can use `apps/backend/src/utils/duckdb/duckdbClient.ts` to create an in-memory DuckDB instance that installs/loads the `httpfs` extension for S3 access (e.g., querying Parquet/CSV data directly from S3).
+The image also bundles DuckDB for graph queries. Lambdas running on the `lancedb` image can use `apps/backend/src/utils/duckdb/graphDb.ts` to create an in-memory DuckDB instance that installs/loads `httpfs` + `duckpgq`, builds the `facts` property graph, and persists graph data as S3 Parquet.
 
 **Usage in app.arc:**
 
