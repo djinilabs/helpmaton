@@ -9,9 +9,13 @@
 - **E2E on `main` failing**: GitHub Actions run `21431312943` failed in `tests/e2e/login.spec.ts` (“create and login user in one operation”) due to flaky/insufficient waiting in `LoginPage.waitForMagicLinkRequest` (button stays “Sending...”, success text not yet visible). Logs also show backend errors `OPENROUTER_API_KEY is not set` because the E2E workflow does not provide that env var.
 - **Fix**: Updated `.github/workflows/test-e2e.yml` to pass `OPENROUTER_API_KEY` into both `tests/e2e/.env` and the E2E job environment so the local Architect sandbox inherits it. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Fix**: Hardened `tests/e2e/pages/login-page.ts` `waitForMagicLinkRequest()` to treat the submit button “sending” state case-insensitively and to wait for success/error UI before failing (avoids CI flake where UI shows “Sending...” but test only checked “SENDING...”).
+- **Deploy Prod cancellations**: Run `21439225272` was canceled during “Build backend (for Docker images)” after the runner received a shutdown signal; logs show the runner shutdown and `The operation was canceled.` right after backend build output.
+- **Deploy Prod prior attempt**: Run `21439188160` also canceled during “Build backend (for Docker images)”; logs show `The operation was canceled.` after backend build output (no commit mismatch).
+- **GitHub status check (2026-01-28)**: No GitHub Status incidents on 2026-01-28; latest Actions-related incidents were Jan 26 (Windows runners in public repos) and Jan 20 (run start delays). Nothing matching the Ubuntu runner shutdown/cancel.
 
 **Latest Work**:
 
+- **Workspace removal cleanup**: Added shared `removeAgentResources` helper (including conversation file S3 cleanup), expanded workspace deletion to remove workspace-scoped data and credit reservations while preserving transactions, added `credit-reservations` GSI by workspace, and added/updated unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **LanceDB writer isolation**: Detached `agent-temporal-grain-queue` from `llm-shared-http`, added `config.arc` with `concurrency 1`, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Agent removal cleanup**: Added queue-based vector DB purge operation, scheduled purges for agent deletion, and removed adjacent agent records (keys, schedules, conversations, evals, stream servers, delegation tasks, bot integrations). Added/updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **PR 231 review fixes**: Added purge missing-table test, extracted agent cleanup test setup helper, and reran `pnpm typecheck` + `pnpm lint --fix`.

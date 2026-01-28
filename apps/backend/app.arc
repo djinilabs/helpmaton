@@ -300,6 +300,11 @@ credit-reservations
   expires **Number
   name byExpiresHour
 
+credit-reservations
+  workspaceId *String
+  pk **String
+  name byWorkspaceId
+
 workspace-credit-transactions
   agentId *String
   sk **String
