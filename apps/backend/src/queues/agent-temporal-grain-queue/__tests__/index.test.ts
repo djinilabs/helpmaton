@@ -15,7 +15,7 @@ vi.mock("@lancedb/lancedb", () => ({
 vi.mock("../../../utils/vectordb/paths", () => ({
   getDatabaseUri: vi.fn(
     (agentId: string, grain: string) =>
-      `s3://bucket/vectordb/${agentId}/${grain}/`
+      `s3://bucket/vectordb/${agentId}/${grain}/`,
   ),
 }));
 
@@ -119,7 +119,7 @@ describe("agent-temporal-grain-queue handler", () => {
           eventSource: "aws:sqs",
           eventSourceARN: "arn:aws:sqs:region:account:queue",
           awsRegion: "eu-west-2",
-        })
+        }),
       ),
     });
 
@@ -220,7 +220,7 @@ describe("agent-temporal-grain-queue handler", () => {
               content: "Test",
               vector: [0.1, 0.2],
             }),
-          ])
+          ]),
         );
         expect(result).toEqual({ batchItemFailures: [] });
       });
@@ -302,6 +302,37 @@ describe("agent-temporal-grain-queue handler", () => {
 
         expect(mockDelete).toHaveBeenCalledWith("id = 'record-1'");
         expect(mockDelete).toHaveBeenCalledWith("id = 'record-2'");
+        expect(result).toEqual({ batchItemFailures: [] });
+      });
+    });
+
+    describe("purge operation", () => {
+      it("should purge all records in the table", async () => {
+        const { connect } = await import("@lancedb/lancedb");
+        const mockConnect = vi.mocked(connect);
+
+        const mockDelete = vi.fn().mockResolvedValue(undefined);
+        const mockOpenTable = vi.fn().mockResolvedValue({
+          delete: mockDelete,
+        });
+
+        mockConnect.mockResolvedValue({
+          openTable: mockOpenTable,
+          createTable: vi.fn(),
+        } as unknown as Awaited<ReturnType<typeof connect>>);
+
+        const message: WriteOperationMessage = {
+          operation: "purge",
+          agentId: "agent-123",
+          temporalGrain: "daily",
+          data: {},
+        };
+
+        const event = createSQSEvent([message]);
+
+        const result = await handler(event);
+
+        expect(mockDelete).toHaveBeenCalledWith("id IS NOT NULL");
         expect(result).toEqual({ batchItemFailures: [] });
       });
     });
@@ -401,7 +432,7 @@ describe("agent-temporal-grain-queue handler", () => {
           "User said: Hello world",
           expect.any(String), // API key
           "workspace-456:agent-123:abc123",
-          undefined
+          undefined,
         );
 
         // Verify record was inserted with generated embedding

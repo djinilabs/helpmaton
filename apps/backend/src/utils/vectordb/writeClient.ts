@@ -10,7 +10,7 @@ export async function insert(
   agentId: string,
   temporalGrain: TemporalGrain,
   records: FactRecord[],
-  workspaceId?: string
+  workspaceId?: string,
 ): Promise<void> {
   if (records.length === 0) {
     return;
@@ -38,7 +38,7 @@ export async function update(
   agentId: string,
   temporalGrain: TemporalGrain,
   records: FactRecord[],
-  workspaceId?: string
+  workspaceId?: string,
 ): Promise<void> {
   if (records.length === 0) {
     return;
@@ -66,7 +66,7 @@ export async function remove(
   agentId: string,
   temporalGrain: TemporalGrain,
   recordIds: string[],
-  workspaceId?: string
+  workspaceId?: string,
 ): Promise<void> {
   if (recordIds.length === 0) {
     return;
@@ -87,3 +87,21 @@ export async function remove(
 
 // Export as delete for consistency with common naming
 export { remove as delete };
+
+/**
+ * Purge all fact records from a vector database (by temporal grain)
+ * Sends the operation to SQS FIFO queue for processing
+ */
+export async function purge(
+  agentId: string,
+  temporalGrain: TemporalGrain,
+): Promise<void> {
+  const message: WriteOperationMessage = {
+    operation: "purge",
+    agentId,
+    temporalGrain,
+    data: {},
+  };
+
+  await sendWriteOperation(message);
+}
