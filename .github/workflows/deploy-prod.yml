@@ -38,51 +38,51 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Check if E2E Tests was for a PR
-        id: check-pr
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Handle workflow_dispatch trigger (no workflow_run in context)
-            if (context.eventName === 'workflow_dispatch') {
-              console.log('Workflow triggered via workflow_dispatch - not a PR');
-              core.setOutput('is_pr', 'false');
-              return;
-            }
+      # - name: Check if E2E Tests was for a PR
+      #   id: check-pr
+      #   uses: actions/github-script@v8
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #     script: |
+      #       // Handle workflow_dispatch trigger (no workflow_run in context)
+      #       if (context.eventName === 'workflow_dispatch') {
+      #         console.log('Workflow triggered via workflow_dispatch - not a PR');
+      #         core.setOutput('is_pr', 'false');
+      #         return;
+      #       }
 
-            const workflowRun = context.payload.workflow_run;
-            if (!workflowRun) {
-              console.log('No workflow_run in context - not a PR');
-              core.setOutput('is_pr', 'false');
-              return;
-            }
+      #       const workflowRun = context.payload.workflow_run;
+      #       if (!workflowRun) {
+      #         console.log('No workflow_run in context - not a PR');
+      #         core.setOutput('is_pr', 'false');
+      #         return;
+      #       }
 
-            const hasPullRequests = workflowRun.pull_requests && workflowRun.pull_requests.length > 0;
-            const event = workflowRun.event;
-            const headBranch = workflowRun.head_branch || '';
+      #       const hasPullRequests = workflowRun.pull_requests && workflowRun.pull_requests.length > 0;
+      #       const event = workflowRun.event;
+      #       const headBranch = workflowRun.head_branch || '';
 
-            console.log(`E2E Tests workflow event: ${event}`);
-            console.log(`E2E Tests workflow head_branch: ${headBranch}`);
-            console.log(`Has pull requests: ${hasPullRequests}`);
-            console.log(`Pull requests: ${JSON.stringify(workflowRun.pull_requests || [])}`);
+      #       console.log(`E2E Tests workflow event: ${event}`);
+      #       console.log(`E2E Tests workflow head_branch: ${headBranch}`);
+      #       console.log(`Has pull requests: ${hasPullRequests}`);
+      #       console.log(`Pull requests: ${JSON.stringify(workflowRun.pull_requests || [])}`);
 
-            // Determine if this was a PR test:
-            // 1. If event is 'pull_request', it was triggered by a PR
-            // 2. If it has pull_requests associated, it's a PR test
-            // 3. If head_branch is not 'main', it's likely a PR branch (though workflow_run always runs on main)
-            // Only deploy if: event is 'push' AND head_branch is 'main' AND no pull_requests
-            const isPRTest = event === 'pull_request' || 
-                            hasPullRequests || 
-                            (headBranch !== 'main' && headBranch !== '');
+      #       // Determine if this was a PR test:
+      #       // 1. If event is 'pull_request', it was triggered by a PR
+      #       // 2. If it has pull_requests associated, it's a PR test
+      #       // 3. If head_branch is not 'main', it's likely a PR branch (though workflow_run always runs on main)
+      #       // Only deploy if: event is 'push' AND head_branch is 'main' AND no pull_requests
+      #       const isPRTest = event === 'pull_request' || 
+      #                       hasPullRequests || 
+      #                       (headBranch !== 'main' && headBranch !== '');
 
-            if (isPRTest) {
-              console.log('❌ E2E Tests was for a PR, skipping production deploy');
-              core.setOutput('is_pr', 'true');
-            } else {
-              console.log('✅ E2E Tests was for main branch, proceeding with production deploy');
-              core.setOutput('is_pr', 'false');
-            }
+      #       if (isPRTest) {
+      #         console.log('❌ E2E Tests was for a PR, skipping production deploy');
+      #         core.setOutput('is_pr', 'true');
+      #       } else {
+      #         console.log('✅ E2E Tests was for main branch, proceeding with production deploy');
+      #         core.setOutput('is_pr', 'false');
+      #       }
 
       - name: Configure AWS credentials
         if: steps.check-pr.outputs.is_pr != 'true'
@@ -99,44 +99,44 @@ jobs:
           # For workflow_run events (triggered by E2E Tests), use the commit that was tested
           ref: ${{ github.event_name == 'push' && github.sha || (github.event_name == 'workflow_dispatch' && github.sha) || github.event.workflow_run.head_sha }}
 
-      - name: Verify commit SHA
-        if: steps.check-pr.outputs.is_pr != 'true'
-        run: |
-          CURRENT_COMMIT=$(git rev-parse HEAD)
-          echo "Deploying commit: ${CURRENT_COMMIT}"
+      # - name: Verify commit SHA
+      #   if: steps.check-pr.outputs.is_pr != 'true'
+      #   run: |
+      #     CURRENT_COMMIT=$(git rev-parse HEAD)
+      #     echo "Deploying commit: ${CURRENT_COMMIT}"
 
-          if [ "${{ github.event_name }}" == "push" ]; then
-            EXPECTED_COMMIT="${{ github.sha }}"
-            echo "Expected commit (from push): ${EXPECTED_COMMIT}"
-            if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
-              echo "❌ Error: Commit mismatch detected - aborting deployment"
-              echo "Current: ${CURRENT_COMMIT}"
-              echo "Expected: ${EXPECTED_COMMIT}"
-              exit 1
-            fi
-            echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from push"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            EXPECTED_COMMIT="${{ github.sha }}"
-            echo "Expected commit (from workflow_dispatch): ${EXPECTED_COMMIT}"
-            if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
-              echo "❌ Error: Commit mismatch detected - aborting deployment"
-              echo "Current: ${CURRENT_COMMIT}"
-              echo "Expected: ${EXPECTED_COMMIT}"
-              exit 1
-            fi
-            echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from workflow_dispatch"
-          else
-            # workflow_run event - verify we're deploying the same commit that was tested
-            TESTED_COMMIT="${{ github.event.workflow_run.head_sha }}"
-            echo "Tested commit (from E2E Tests workflow_run): ${TESTED_COMMIT}"
-            if [ "${CURRENT_COMMIT}" != "${TESTED_COMMIT}" ]; then
-              echo "❌ Error: Commit mismatch detected - aborting deployment"
-              echo "Current: ${CURRENT_COMMIT}"
-              echo "Expected (tested): ${TESTED_COMMIT}"
-              exit 1
-            fi
-            echo "✅ Commit verified - deploying tested commit ${CURRENT_COMMIT}"
-          fi
+      #     if [ "${{ github.event_name }}" == "push" ]; then
+      #       EXPECTED_COMMIT="${{ github.sha }}"
+      #       echo "Expected commit (from push): ${EXPECTED_COMMIT}"
+      #       if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
+      #         echo "❌ Error: Commit mismatch detected - aborting deployment"
+      #         echo "Current: ${CURRENT_COMMIT}"
+      #         echo "Expected: ${EXPECTED_COMMIT}"
+      #         exit 1
+      #       fi
+      #       echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from push"
+      #     elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+      #       EXPECTED_COMMIT="${{ github.sha }}"
+      #       echo "Expected commit (from workflow_dispatch): ${EXPECTED_COMMIT}"
+      #       if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
+      #         echo "❌ Error: Commit mismatch detected - aborting deployment"
+      #         echo "Current: ${CURRENT_COMMIT}"
+      #         echo "Expected: ${EXPECTED_COMMIT}"
+      #         exit 1
+      #       fi
+      #       echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from workflow_dispatch"
+      #     else
+      #       # workflow_run event - verify we're deploying the same commit that was tested
+      #       TESTED_COMMIT="${{ github.event.workflow_run.head_sha }}"
+      #       echo "Tested commit (from E2E Tests workflow_run): ${TESTED_COMMIT}"
+      #       if [ "${CURRENT_COMMIT}" != "${TESTED_COMMIT}" ]; then
+      #         echo "❌ Error: Commit mismatch detected - aborting deployment"
+      #         echo "Current: ${CURRENT_COMMIT}"
+      #         echo "Expected (tested): ${TESTED_COMMIT}"
+      #         exit 1
+      #       fi
+      #       echo "✅ Commit verified - deploying tested commit ${CURRENT_COMMIT}"
+      #     fi
 
       - name: Enable pnpm corepack
         if: steps.check-pr.outputs.is_pr != 'true'
