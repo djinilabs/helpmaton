@@ -1,13 +1,11 @@
 import type { APIGatewayProxyResultV2 } from "aws-lambda";
 import type express from "express";
 
-import { sendAgentErrorNotification } from "../../utils/agentErrorNotifications";
 import {
   InsufficientCreditsError,
   SpendingLimitExceededError,
 } from "../../utils/creditErrors";
 import { isAuthenticationError } from "../../utils/handlingErrors";
-import { Sentry, ensureError } from "../../utils/sentry";
 
 /**
  * Endpoint type for logging context
@@ -69,7 +67,7 @@ export function normalizeByokError(error: unknown): unknown {
  */
 export function isByokAuthenticationError(
   error: unknown,
-  usesByok: boolean
+  usesByok: boolean,
 ): boolean {
   if (!usesByok) {
     return false;
@@ -89,7 +87,7 @@ export function getByokErrorMessage(): string {
  */
 export function handleByokAuthenticationErrorExpress(
   res: express.Response,
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
 ): void {
   console.log(`[${endpoint} Handler] BYOK authentication error detected`);
   res.status(400).json({
@@ -101,7 +99,7 @@ export function handleByokAuthenticationErrorExpress(
  * Handles BYOK authentication errors for API Gateway responses
  */
 export function handleByokAuthenticationErrorApiGateway(
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
 ): APIGatewayProxyResultV2 {
   console.log(`[${endpoint} Handler] BYOK authentication error detected`);
   return {
@@ -115,37 +113,26 @@ export function handleByokAuthenticationErrorApiGateway(
 
 /**
  * Handles credit-related errors (InsufficientCreditsError, SpendingLimitExceededError)
- * Sends email notifications and returns sanitized error responses
+ * Returns sanitized error responses.
+ *
+ * NOTE: These are expected "user errors" (402) and should not trigger alerts.
+ * We only log them at info level.
  */
 export async function handleCreditErrors(
   error: unknown,
   workspaceId: string,
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
 ): Promise<{
   handled: boolean;
   response?: APIGatewayProxyResultV2 | express.Response;
 }> {
   if (error instanceof InsufficientCreditsError) {
-    // Send email notification (non-blocking)
-    try {
-      await sendAgentErrorNotification(workspaceId, "credit", error);
-    } catch (emailError) {
-      console.error(
-        `[${endpoint} Handler] Failed to send error notification:`,
-        emailError
-      );
-      Sentry.captureException(ensureError(emailError), {
-        tags: {
-          context: "generation-error-handling",
-          operation: "send-credit-notification",
-          endpoint,
-        },
-        extra: {
-          workspaceId,
-        },
-        level: "warning",
-      });
-    }
+    console.info(`[${endpoint} Handler] Insufficient credits (user error):`, {
+      workspaceId,
+      required: error.required,
+      available: error.available,
+      currency: error.currency,
+    });
 
     return {
       handled: true,
@@ -163,26 +150,13 @@ export async function handleCreditErrors(
   }
 
   if (error instanceof SpendingLimitExceededError) {
-    // Send email notification (non-blocking)
-    try {
-      await sendAgentErrorNotification(workspaceId, "spendingLimit", error);
-    } catch (emailError) {
-      console.error(
-        `[${endpoint} Handler] Failed to send error notification:`,
-        emailError
-      );
-      Sentry.captureException(ensureError(emailError), {
-        tags: {
-          context: "generation-error-handling",
-          operation: "send-spending-limit-notification",
-          endpoint,
-        },
-        extra: {
-          workspaceId,
-        },
-        level: "warning",
-      });
-    }
+    console.info(
+      `[${endpoint} Handler] Spending limit exceeded (user error):`,
+      {
+        workspaceId,
+        failedLimits: error.failedLimits,
+      },
+    );
 
     return {
       handled: true,
@@ -209,7 +183,7 @@ export async function handleCreditErrorsExpress(
   error: unknown,
   workspaceId: string,
   res: express.Response,
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
 ): Promise<boolean> {
   const result = await handleCreditErrors(error, workspaceId, endpoint);
   if (result.handled && result.response) {
@@ -239,18 +213,16 @@ export function logErrorDetails(
     agentId?: string;
     usesByok?: boolean;
     endpoint: GenerationEndpoint;
-  }
+  },
 ): void {
   console.error(`[${context.endpoint} Handler] Error caught:`, {
     workspaceId: context.workspaceId,
     agentId: context.agentId,
     usesByok: context.usesByok,
-    errorType:
-      error instanceof Error ? error.constructor.name : typeof error,
+    errorType: error instanceof Error ? error.constructor.name : typeof error,
     errorMessage: error instanceof Error ? error.message : String(error),
     errorStack: error instanceof Error ? error.stack : undefined,
-    errorKeys:
-      error && typeof error === "object" ? Object.keys(error) : [],
+    errorKeys: error && typeof error === "object" ? Object.keys(error) : [],
     errorStringified:
       error && typeof error === "object"
         ? JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
@@ -270,4 +242,3 @@ export function logErrorDetails(
         : undefined,
   });
 }
-

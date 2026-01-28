@@ -233,6 +233,7 @@
 - **Intercom MCP integration**: Added Intercom OAuth flow with admin ID capture, Intercom API client + MCP tools for contacts/conversations (read/write), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm --filter backend test --run intercom`, `pnpm lint --fix`, and `pnpm typecheck`.
 
 - **Staging schedule queue test**: Added FIFO `MessageGroupId` and `MessageDeduplicationId` to schedule queue SQS send in `run-staging-agent-tests.ts`. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **PR 231 staging agent tests failure (credits) - fixed**: `Staging Agent Tests / run-staging-agent-tests` timed out waiting for a successful `scheduled` conversation because the schedule queue run fails with `InsufficientCreditsError` after earlier test calls push the workspace `creditBalance` negative. Root cause was the staging harness setting `creditBalance` using `creditsUsd * 1_000_000` (micro) while the system treats balances as nano-USD. Fixed in `scripts/run-staging-agent-tests.ts` by using nano-USD (`creditsUsd * 1_000_000_000`).
 - **Scheduled conversation logging**: Added fallback assistant text when observer events omit it, and passed fallback in the schedule queue so scheduled conversations include final assistant output. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Observer dedupe + response logs**: Deduped tool call/result events when both steps and arrays are present, added stream response logging, and expanded llmObserver tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Tool-result dedupe in conversations**: Deduplicated tool-result entries in `expandMessagesWithToolCalls` to prevent duplicate tool messages, with unit coverage. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test --run`.
@@ -3278,3 +3279,4 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Restored /api/streams buffering when no response stream
 - Added llm-shared HTTP streaming diagnostics
 - Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
+- Credit user errors (`InsufficientCreditsError`, `SpendingLimitExceededError`) are now **info-only** (no Sentry capture, no email notifications); added streaming error handling tests; verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run streamErrorHandling`

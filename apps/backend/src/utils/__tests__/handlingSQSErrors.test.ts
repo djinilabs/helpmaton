@@ -183,7 +183,7 @@ describe("handlingSQSErrors", () => {
   });
 
   describe("partial batch failures", () => {
-    it("should return batchItemFailures for failed messages", async () => {
+    it("should return empty batchItemFailures for failed messages", async () => {
       // Handler returns msg-1 as failed, empty for others
       const handler = vi.fn(async (event) =>
         event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : [],
@@ -193,11 +193,7 @@ describe("handlingSQSErrors", () => {
       const result = await wrappedHandler(mockEvent);
 
       expect(result).toEqual({
-        batchItemFailures: [
-          {
-            itemIdentifier: "msg-1",
-          },
-        ],
+        batchItemFailures: [],
       });
     });
 
@@ -226,7 +222,7 @@ describe("handlingSQSErrors", () => {
       );
     });
 
-    it("should handle multiple failed messages", async () => {
+    it("should handle multiple failed messages without retries", async () => {
       // Handler returns each message as failed
       const handler = vi.fn(async (event) => [
         event.Records[0]?.messageId || "unknown",
@@ -236,14 +232,7 @@ describe("handlingSQSErrors", () => {
       const result = await wrappedHandler(mockEvent);
 
       expect(result).toEqual({
-        batchItemFailures: [
-          {
-            itemIdentifier: "msg-1",
-          },
-          {
-            itemIdentifier: "msg-2",
-          },
-        ],
+        batchItemFailures: [],
       });
     });
   });
@@ -325,11 +314,7 @@ describe("handlingSQSErrors", () => {
       const result = await wrappedHandler(singleEvent);
 
       expect(result).toEqual({
-        batchItemFailures: [
-          {
-            itemIdentifier: "msg-1",
-          },
-        ],
+        batchItemFailures: [],
       });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining(
@@ -354,7 +339,7 @@ describe("handlingSQSErrors", () => {
       );
     });
 
-    it("should return all messages as failed when handler throws", async () => {
+    it("should not request retries when handler throws", async () => {
       const error = new Error("Unexpected error");
       const handler = vi.fn().mockRejectedValue(error);
       const wrappedHandler = handlingSQSErrors(handler);
@@ -362,14 +347,7 @@ describe("handlingSQSErrors", () => {
       const result = await wrappedHandler(mockEvent);
 
       expect(result).toEqual({
-        batchItemFailures: [
-          {
-            itemIdentifier: "msg-1",
-          },
-          {
-            itemIdentifier: "msg-2",
-          },
-        ],
+        batchItemFailures: [],
       });
     });
 
@@ -528,7 +506,7 @@ describe("handlingSQSErrors", () => {
       });
     });
 
-    it("should handle handler returning undefined message IDs", async () => {
+    it("should handle handler returning failed message IDs", async () => {
       // Handler returns msg-1 as failed for first record, empty for second
       // (handler returns the messageId of the failed record)
       const handler = vi.fn(async (event) =>
@@ -538,10 +516,8 @@ describe("handlingSQSErrors", () => {
 
       const result = await wrappedHandler(mockEvent);
 
-      // Should handle the failed message
-      expect(result.batchItemFailures).toHaveLength(1);
-      expect(result.batchItemFailures[0]).toEqual({
-        itemIdentifier: "msg-1",
+      expect(result).toEqual({
+        batchItemFailures: [],
       });
     });
   });

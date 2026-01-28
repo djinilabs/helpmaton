@@ -80,6 +80,7 @@
 - **Error Handling**: Custom error utilities in `utils/handlingErrors.ts`
 - **Logging**: Structured logging with table logger
 - **Sentry Tracing**: Use `@sentry/aws-serverless` with wrapper-level `startSpan` for Lambda/SQS/scheduled handlers and flush only in handler `finally` blocks; manual spans for aws-lite S3 calls.
+- **Credit user errors**: `InsufficientCreditsError` / `SpendingLimitExceededError` are expected 402s; log at `info` and do not report to Sentry or trigger notifications.
 - **LLM Observers**: Wrap models with `llmObserver` to emit events; wrap tools for execution timing; build conversation records from observed events
 - **Embeddings**: Use OpenRouter embeddings (`thenlper/gte-base`) via `@openrouter/sdk`; embeddings use the system `OPENROUTER_API_KEY` (no workspace BYOK).
 - **SQS Queue Processing**: Use partial batch failures via `handlingSQSErrors` utility
