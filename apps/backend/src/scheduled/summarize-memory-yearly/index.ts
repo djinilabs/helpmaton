@@ -36,7 +36,7 @@ export const handler = handlingScheduledErrors(
 
     const workspaceIds = [
       ...new Set(
-        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", ""))
+        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", "")),
       ),
     ];
 
@@ -76,12 +76,12 @@ export const handler = handlingScheduledErrors(
                 const aTime = new Date(a.timestamp).getTime();
                 const bTime = new Date(b.timestamp).getTime();
                 return aTime - bTime;
-              }
+              },
             );
 
             // Extract content from sorted quarter summaries
             const content = sortedQuarterSummaries.map(
-              (record) => record.content
+              (record) => record.content,
             );
 
             // Summarize
@@ -89,7 +89,7 @@ export const handler = handlingScheduledErrors(
               content,
               "yearly",
               workspaceId,
-              agent.summarizationPrompts
+              agent.summarizationPrompts,
             );
 
             if (!summary || summary.trim().length === 0) {
@@ -99,15 +99,15 @@ export const handler = handlingScheduledErrors(
             // Generate embedding
             // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
             const apiKey = getDefined(
-              process.env.GEMINI_API_KEY,
-              "GEMINI_API_KEY is not set"
+              process.env.OPENROUTER_API_KEY,
+              "OPENROUTER_API_KEY is not set",
             );
 
             const embedding = await generateEmbedding(
               summary,
               apiKey,
               undefined,
-              undefined
+              undefined,
             );
 
             // Create year summary record
@@ -128,23 +128,23 @@ export const handler = handlingScheduledErrors(
             await queueMemoryWrite(agentId, "yearly", [record]);
 
             console.log(
-              `[Yearly Memory Summarization] Agent ${agentId}: Created year summary for ${yearTimeString}`
+              `[Yearly Memory Summarization] Agent ${agentId}: Created year summary for ${yearTimeString}`,
             );
           } catch (error) {
             console.error(
               `[Yearly Memory Summarization] Error processing agent ${agent.pk}:`,
-              error
+              error,
             );
           }
         }
       } catch (error) {
         console.error(
           `[Yearly Memory Summarization] Error processing workspace ${workspaceId}:`,
-          error
+          error,
         );
       }
     }
 
     console.log("[Yearly Memory Summarization] Completed yearly summarization");
-  }
+  },
 );

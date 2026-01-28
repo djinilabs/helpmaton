@@ -73,7 +73,7 @@ Yearly Summaries
 When a conversation is created or updated, facts are extracted and written to working memory:
 
 - Extracts text from user and assistant messages
-- Generates embeddings using Gemini API (`text-embedding-004`)
+- Generates embeddings using OpenRouter (`thenlper/gte-base`)
 - Creates `FactRecord` objects with metadata (conversationId, workspaceId, agentId)
 - Queues write operations to SQS for serialized processing
 
@@ -88,7 +88,7 @@ When a conversation is created or updated, facts are extracted and written to wo
 
 LLM-based summarization consolidates information from finer-grained memories:
 
-- Uses Google Gemini API via `@ai-sdk/google`
+- Uses OpenRouter via `modelFactory`
 - Grain-specific prompts that focus on:
   - Important events and occurrences
   - Key people and their roles/relationships
@@ -321,8 +321,8 @@ Comprehensive integration tests are available in:
 
 ### Environment Variables
 
-- `GEMINI_API_KEY`: Required for embedding generation and LLM summarization
-- Workspace API keys: Can override system key for embedding generation
+- `OPENROUTER_API_KEY`: Required for embedding generation and LLM summarization
+- Workspace API keys: Can override system key for LLM calls (embeddings use the system key)
 
 ### S3 Configuration
 

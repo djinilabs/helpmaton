@@ -9,6 +9,7 @@ const {
   mockAdjustRerankingCreditReservation,
   mockQueueRerankingCostVerification,
   mockRefundRerankingCredits,
+  mockSentryCaptureException,
 } = vi.hoisted(() => {
   return {
     mockSearchDocuments: vi.fn(),
@@ -17,6 +18,7 @@ const {
     mockAdjustRerankingCreditReservation: vi.fn(),
     mockQueueRerankingCostVerification: vi.fn(),
     mockRefundRerankingCredits: vi.fn(),
+    mockSentryCaptureException: vi.fn(),
   };
 });
 
@@ -38,8 +40,16 @@ vi.mock("../knowledgeRerankingCredits", () => ({
   refundRerankingCredits: mockRefundRerankingCredits,
 }));
 
+vi.mock("../sentry", () => ({
+  ensureError: vi.fn((error) => error),
+  Sentry: {
+    captureException: mockSentryCaptureException,
+  },
+}));
+
 // Import after mocks are set up
 import type { DatabaseSchema } from "../../tables/schema";
+import { InsufficientCreditsError } from "../creditErrors";
 import type { SearchResult } from "../documentSearch";
 import { injectKnowledgeIntoMessages } from "../knowledgeInjection";
 import type { AugmentedContext } from "../workspaceCreditContext";
@@ -80,7 +90,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       expect(result.modelMessages).toEqual(messages);
@@ -100,7 +110,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       expect(result.modelMessages).toEqual(messages);
@@ -112,14 +122,12 @@ describe("knowledgeInjection", () => {
         enableKnowledgeInjection: true,
       };
 
-      const messages: ModelMessage[] = [
-        { role: "user", content: "" },
-      ];
+      const messages: ModelMessage[] = [{ role: "user", content: "" }];
 
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       expect(result.modelMessages).toEqual(messages);
@@ -141,14 +149,14 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       expect(result.modelMessages).toEqual(messages);
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        5
+        5,
       );
     });
 
@@ -169,7 +177,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       expect(result.modelMessages).toHaveLength(4);
@@ -177,9 +185,15 @@ describe("knowledgeInjection", () => {
       expect(result.modelMessages[1].role).toBe("user");
       // Knowledge injection message should be before the original user message
       expect(typeof result.modelMessages[1].content).toBe("string");
-      expect(result.modelMessages[1].content).toContain("Relevant Knowledge from Workspace Documents");
-      expect(result.modelMessages[1].content).toContain("First relevant snippet");
-      expect(result.modelMessages[1].content).toContain("Second relevant snippet");
+      expect(result.modelMessages[1].content).toContain(
+        "Relevant Knowledge from Workspace Documents",
+      );
+      expect(result.modelMessages[1].content).toContain(
+        "First relevant snippet",
+      );
+      expect(result.modelMessages[1].content).toContain(
+        "Second relevant snippet",
+      );
       expect(result.modelMessages[2].role).toBe("user");
       expect(result.modelMessages[2].content).toBe("Test query");
       expect(result.modelMessages[3].role).toBe("assistant");
@@ -201,7 +215,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        5
+        5,
       );
     });
 
@@ -222,7 +236,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        10
+        10,
       );
     });
 
@@ -243,7 +257,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        50
+        50,
       );
     });
 
@@ -264,7 +278,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        1
+        1,
       );
     });
 
@@ -284,7 +298,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "What is the meaning of life?",
-        5
+        5,
       );
     });
 
@@ -310,7 +324,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query from array",
-        5
+        5,
       );
     });
 
@@ -405,19 +419,23 @@ describe("knowledgeInjection", () => {
         agent,
         messages,
         mockDb,
-        mockContext
+        mockContext,
       );
 
       expect(mockRerankSnippets).toHaveBeenCalledWith(
         "Test query",
         mockSearchResults,
         "cohere/rerank-v3",
-        "workspace-1"
+        "workspace-1",
       );
 
       // Should use re-ranked results
-      expect(result.modelMessages[0].content).toContain("Second relevant snippet");
-      expect(result.modelMessages[0].content).toContain("First relevant snippet");
+      expect(result.modelMessages[0].content).toContain(
+        "Second relevant snippet",
+      );
+      expect(result.modelMessages[0].content).toContain(
+        "First relevant snippet",
+      );
 
       // Should create re-ranking request message
       expect(result.rerankingRequestMessage).toBeDefined();
@@ -427,7 +445,10 @@ describe("knowledgeInjection", () => {
         Array.isArray(result.rerankingRequestMessage.content)
       ) {
         // First element should be text content
-        expect(result.rerankingRequestMessage.content[0]).toHaveProperty("type", "text");
+        expect(result.rerankingRequestMessage.content[0]).toHaveProperty(
+          "type",
+          "text",
+        );
         // Second element should be reranking-request content
         const requestContent = result.rerankingRequestMessage.content[1];
         expect(requestContent).toHaveProperty("type", "reranking-request");
@@ -517,7 +538,7 @@ describe("knowledgeInjection", () => {
         agent,
         messages,
         mockDb,
-        mockContext
+        mockContext,
       );
 
       // Should still create re-ranking request message
@@ -559,8 +580,12 @@ describe("knowledgeInjection", () => {
       }
 
       // Should use original results
-      expect(result.modelMessages[0].content).toContain("First relevant snippet");
-      expect(result.modelMessages[0].content).toContain("Second relevant snippet");
+      expect(result.modelMessages[0].content).toContain(
+        "First relevant snippet",
+      );
+      expect(result.modelMessages[0].content).toContain(
+        "Second relevant snippet",
+      );
     });
 
     it("should not create re-ranking messages when re-ranking is disabled", async () => {
@@ -578,7 +603,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       // Should not call re-ranking
@@ -606,11 +631,13 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       const knowledgeContent = result.modelMessages[0].content as string;
-      expect(knowledgeContent).toContain("## Relevant Knowledge from Workspace Documents");
+      expect(knowledgeContent).toContain(
+        "## Relevant Knowledge from Workspace Documents",
+      );
       expect(knowledgeContent).toContain("[1] Document: Document 1 (/folder1)");
       expect(knowledgeContent).toContain("Similarity: 90.0%");
       expect(knowledgeContent).toContain("First relevant snippet");
@@ -618,7 +645,7 @@ describe("knowledgeInjection", () => {
       expect(knowledgeContent).toContain("Similarity: 80.0%");
       expect(knowledgeContent).toContain("Second relevant snippet");
       expect(knowledgeContent).toContain(
-        "Please use this information to provide a comprehensive and accurate response"
+        "Please use this information to provide a comprehensive and accurate response",
       );
     });
 
@@ -646,12 +673,12 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain(
-        "[1] Document: Document (/path/to/folder)"
+        "[1] Document: Document (/path/to/folder)",
       );
     });
 
@@ -679,7 +706,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       const knowledgeContent = result.modelMessages[0].content as string;
@@ -701,7 +728,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       // Should return original messages on error
@@ -720,7 +747,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       // Should return original messages since there's no query to search for
@@ -745,7 +772,7 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
       );
 
       // Knowledge should be injected before the FIRST user message
@@ -802,7 +829,7 @@ describe("knowledgeInjection", () => {
           mockContext,
           "agent-1",
           "conversation-1",
-          false // usesByok
+          false, // usesByok
         );
 
         expect(mockReserveRerankingCredits).toHaveBeenCalledWith(
@@ -814,7 +841,7 @@ describe("knowledgeInjection", () => {
           mockContext,
           "agent-1",
           "conversation-1",
-          false // usesByok
+          false, // usesByok
         );
       });
 
@@ -850,7 +877,7 @@ describe("knowledgeInjection", () => {
           mockDb,
           mockContext,
           "agent-1",
-          "conversation-1"
+          "conversation-1",
         );
 
         expect(mockAdjustRerankingCreditReservation).toHaveBeenCalledWith(
@@ -862,7 +889,7 @@ describe("knowledgeInjection", () => {
           mockContext,
           3, // maxRetries
           "agent-1",
-          "conversation-1"
+          "conversation-1",
         );
       });
 
@@ -898,7 +925,7 @@ describe("knowledgeInjection", () => {
           mockDb,
           mockContext,
           "agent-1",
-          "conversation-1"
+          "conversation-1",
         );
 
         expect(mockQueueRerankingCostVerification).toHaveBeenCalledWith(
@@ -906,7 +933,7 @@ describe("knowledgeInjection", () => {
           "gen-123",
           "workspace-1",
           "agent-1",
-          "conversation-1"
+          "conversation-1",
         );
       });
 
@@ -939,7 +966,7 @@ describe("knowledgeInjection", () => {
           agent,
           messages,
           mockDb,
-          mockContext
+          mockContext,
         );
 
         expect(mockQueueRerankingCostVerification).not.toHaveBeenCalled();
@@ -964,7 +991,7 @@ describe("knowledgeInjection", () => {
         await injectKnowledgeIntoMessages(
           "workspace-1",
           agent,
-          messages
+          messages,
           // No db or context - optional parameters
         );
 
@@ -982,7 +1009,7 @@ describe("knowledgeInjection", () => {
 
         mockSearchDocuments.mockResolvedValue(mockSearchResults);
         mockReserveRerankingCredits.mockRejectedValue(
-          new Error("Insufficient credits")
+          new Error("Insufficient credits"),
         );
         // When reservation fails, the error is caught and original messages are returned
         mockRerankSnippets.mockResolvedValue({
@@ -999,7 +1026,7 @@ describe("knowledgeInjection", () => {
           agent,
           messages,
           mockDb,
-          mockContext
+          mockContext,
         );
 
         // Should return original messages when credit reservation fails
@@ -1008,6 +1035,37 @@ describe("knowledgeInjection", () => {
         expect(mockRerankSnippets).not.toHaveBeenCalled();
         // No credit adjustment should happen since reservation failed
         expect(mockAdjustRerankingCreditReservation).not.toHaveBeenCalled();
+      });
+
+      it("should not report credit user errors to Sentry", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockRejectedValue(
+          new InsufficientCreditsError("workspace-1", 1_000, 0, "usd"),
+        );
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+        });
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        const result = await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext,
+        );
+
+        expect(result.modelMessages).toEqual(messages);
+        expect(mockSentryCaptureException).not.toHaveBeenCalled();
       });
 
       it("should refund credits when re-ranking fails", async () => {
@@ -1037,7 +1095,7 @@ describe("knowledgeInjection", () => {
           mockDb,
           mockContext,
           "agent-1",
-          "conversation-1"
+          "conversation-1",
         );
 
         expect(mockRefundRerankingCredits).toHaveBeenCalledWith(
@@ -1047,7 +1105,7 @@ describe("knowledgeInjection", () => {
           mockContext,
           3, // maxRetries
           "agent-1",
-          "conversation-1"
+          "conversation-1",
         );
       });
 
@@ -1080,7 +1138,7 @@ describe("knowledgeInjection", () => {
           mockContext,
           "agent-1",
           "conversation-1",
-          true // usesByok
+          true, // usesByok
         );
 
         // When BYOK is enabled, credit reservation is skipped, so rerankingReservationId is undefined
@@ -1111,7 +1169,7 @@ describe("knowledgeInjection", () => {
           generationId: "gen-123",
         });
         mockAdjustRerankingCreditReservation.mockRejectedValue(
-          new Error("Adjustment failed")
+          new Error("Adjustment failed"),
         );
 
         const messages: ModelMessage[] = [
@@ -1124,7 +1182,7 @@ describe("knowledgeInjection", () => {
           agent,
           messages,
           mockDb,
-          mockContext
+          mockContext,
         );
 
         // Should still inject knowledge
@@ -1146,7 +1204,7 @@ describe("knowledgeInjection", () => {
         });
         mockRerankSnippets.mockRejectedValue(new Error("Re-ranking failed"));
         mockRefundRerankingCredits.mockRejectedValue(
-          new Error("Refund failed")
+          new Error("Refund failed"),
         );
 
         const messages: ModelMessage[] = [
@@ -1159,11 +1217,13 @@ describe("knowledgeInjection", () => {
           agent,
           messages,
           mockDb,
-          mockContext
+          mockContext,
         );
 
         // Should still inject knowledge with original results
-        expect(result.modelMessages[0].content).toContain("First relevant snippet");
+        expect(result.modelMessages[0].content).toContain(
+          "First relevant snippet",
+        );
       });
     });
   });

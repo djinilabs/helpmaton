@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Suppress credit user errors in Sentry**: Added `isCreditUserError` helper and used it to skip Sentry capture for credit-limit errors in `handlingSQSErrors` and `knowledgeInjection`, with info-level logging and new tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **OpenRouter embeddings migration**: Switched embedding generation to OpenRouter `thenlper/gte-base` via `@openrouter/sdk`, updated embedding callers/tests to use `OPENROUTER_API_KEY`, and refreshed docs/env guidance; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Typecheck/lint fixes for api-throttling test**: Added `methods.d.ts` typings and tightened test casts to satisfy TypeScript; reran `pnpm typecheck` and `pnpm lint --fix`.
 - **Email/MCP OAuth authorizer skip**: Exempted `/api/email/oauth/*` and `/api/mcp/oauth/*` from API Gateway authorizer in `api-throttling` plugin; added unit test and ran `pnpm --filter backend test --run api-throttling`, `pnpm typecheck`, `pnpm lint --fix`.
 - **Prod Gmail OAuth "Not Authorized"**: Found API Gateway authorizer applied to `/api/email/oauth/:provider/callback` because `api-throttling` plugin skip list doesn't include email OAuth. Gateway returns "Not Authorized" before Lambda, so no CloudWatch logs for the callback function in production.

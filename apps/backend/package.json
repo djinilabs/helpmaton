@@ -23,6 +23,7 @@
     "@hapi/boom": "^10.0.1",
     "@lancedb/lancedb": "^0.23.0",
     "@openrouter/ai-sdk-provider": "^2.0.0",
+    "@openrouter/sdk": "^0.5.1",
     "@sentry/aws-serverless": "^10.34.0",
     "@sentry/node": "^10.0.0",
     "@slack/web-api": "^7.13.0",

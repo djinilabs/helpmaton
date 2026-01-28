@@ -116,7 +116,7 @@ async function summarizeDaily(agentId, workspaceId, summarizationPrompts) {
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
   const apiKey =
     workspaceApiKey ||
-    getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+    getDefined(process.env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY is not set");
 
   const embedding = await generateEmbedding(
     summary,
@@ -192,7 +192,7 @@ async function summarizeWeekly(agentId, workspaceId, summarizationPrompts) {
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
   const apiKey =
     workspaceApiKey ||
-    getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+    getDefined(process.env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY is not set");
 
   const embedding = await generateEmbedding(
     summary,
@@ -270,7 +270,7 @@ async function summarizeMonthly(agentId, workspaceId, summarizationPrompts) {
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
   const apiKey =
     workspaceApiKey ||
-    getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+    getDefined(process.env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY is not set");
 
   const embedding = await generateEmbedding(
     summary,
@@ -350,7 +350,7 @@ async function summarizeQuarterly(agentId, workspaceId, summarizationPrompts) {
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
   const apiKey =
     workspaceApiKey ||
-    getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+    getDefined(process.env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY is not set");
 
   const embedding = await generateEmbedding(
     summary,
@@ -430,7 +430,7 @@ async function summarizeYearly(agentId, workspaceId, summarizationPrompts) {
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
   const apiKey =
     workspaceApiKey ||
-    getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+    getDefined(process.env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY is not set");
 
   const embedding = await generateEmbedding(
     summary,

@@ -101,8 +101,8 @@ async function spawnSandbox(): Promise<void> {
       FRONTEND_URL: "http://localhost:5173",
     };
 
-    if (process.env.GEMINI_API_KEY) {
-      envVars.GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (process.env.OPENROUTER_API_KEY) {
+      envVars.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
     }
 
     const envFileContent =
@@ -120,7 +120,7 @@ async function spawnSandbox(): Promise<void> {
       ARC_DB_PATH: "./db",
       AUTH_SECRET: authSecret,
       FRONTEND_URL: "http://localhost:5173",
-      GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
+      OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
     };
 
     console.log("Starting Architect sandbox...");
@@ -256,7 +256,7 @@ async function createTestUser(): Promise<TestUser> {
  * Create a workspace via API
  */
 async function createTestWorkspace(
-  accessToken: string
+  accessToken: string,
 ): Promise<TestWorkspace> {
   const response = await fetch(`${API_BASE_URL}/api/workspaces`, {
     method: "POST",
@@ -289,7 +289,7 @@ async function uploadDocument(
   workspaceId: string,
   accessToken: string,
   name: string,
-  content: string
+  content: string,
 ): Promise<{ id: string; name: string }> {
   // Construct multipart/form-data manually for Node.js compatibility
   const boundary = `----formdata-${Date.now()}`;
@@ -312,7 +312,7 @@ async function uploadDocument(
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
       },
       body,
-    }
+    },
   );
 
   if (!response.ok) {
@@ -331,10 +331,10 @@ async function searchDocumentsViaAPI(
   workspaceId: string,
   accessToken: string,
   query: string,
-  limit: number = 5
+  limit: number = 5,
 ): Promise<SearchResult[]> {
   const url = new URL(
-    `${API_BASE_URL}/api/workspaces/${workspaceId}/documents/search`
+    `${API_BASE_URL}/api/workspaces/${workspaceId}/documents/search`,
   );
   url.searchParams.set("q", query);
   url.searchParams.set("limit", limit.toString());
@@ -364,7 +364,7 @@ async function waitForIndexing(
   accessToken: string,
   searchQuery: string,
   expectedDocumentId?: string,
-  timeoutMs: number = MAX_INDEXING_WAIT_MS
+  timeoutMs: number = MAX_INDEXING_WAIT_MS,
 ): Promise<void> {
   const startTime = Date.now();
   let attemptCount = 0;
@@ -375,24 +375,24 @@ async function waitForIndexing(
       workspaceId,
       accessToken,
       searchQuery,
-      10
+      10,
     );
 
     if (attemptCount % 3 === 0) {
       console.log(
-        `[Test] Search attempt ${attemptCount}: found ${results.length} results`
+        `[Test] Search attempt ${attemptCount}: found ${results.length} results`,
       );
       if (results.length > 0) {
         console.log(
           `[Test] First result: documentId=${
             results[0].documentId
-          }, snippet=${results[0].snippet.substring(0, 50)}...`
+          }, snippet=${results[0].snippet.substring(0, 50)}...`,
         );
         if (expectedDocumentId) {
           console.log(
             `[Test] Looking for documentId: ${expectedDocumentId}, found: ${results
               .map((r) => r.documentId)
-              .join(", ")}`
+              .join(", ")}`,
           );
         }
       }
@@ -405,7 +405,7 @@ async function waitForIndexing(
           console.log(
             `[Test] Document found after ${attemptCount} attempts (${
               Date.now() - startTime
-            }ms)`
+            }ms)`,
           );
           return;
         }
@@ -413,7 +413,7 @@ async function waitForIndexing(
         console.log(
           `[Test] Results found after ${attemptCount} attempts (${
             Date.now() - startTime
-          }ms)`
+          }ms)`,
         );
         return;
       }
@@ -423,7 +423,7 @@ async function waitForIndexing(
       console.log(
         `[Test] Still waiting for indexing... attempt ${attemptCount}, elapsed: ${
           Date.now() - startTime
-        }ms`
+        }ms`,
       );
     }
 
@@ -431,7 +431,7 @@ async function waitForIndexing(
   }
 
   throw new Error(
-    `Document indexing timeout after ${timeoutMs}ms (${attemptCount} attempts). Query: "${searchQuery}"`
+    `Document indexing timeout after ${timeoutMs}ms (${attemptCount} attempts). Query: "${searchQuery}"`,
   );
 }
 
@@ -442,7 +442,7 @@ async function updateDocument(
   workspaceId: string,
   documentId: string,
   accessToken: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const response = await fetch(
     `${API_BASE_URL}/api/workspaces/${workspaceId}/documents/${documentId}`,
@@ -453,7 +453,7 @@ async function updateDocument(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ content }),
-    }
+    },
   );
 
   if (!response.ok) {
@@ -468,7 +468,7 @@ async function updateDocument(
 async function deleteDocument(
   workspaceId: string,
   documentId: string,
-  accessToken: string
+  accessToken: string,
 ): Promise<void> {
   const response = await fetch(
     `${API_BASE_URL}/api/workspaces/${workspaceId}/documents/${documentId}`,
@@ -477,7 +477,7 @@ async function deleteDocument(
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -486,13 +486,13 @@ async function deleteDocument(
   }
 }
 
-describe.skipIf(!process.env.GEMINI_API_KEY)(
+describe.skipIf(!process.env.OPENROUTER_API_KEY)(
   "Document Search Integration",
   () => {
     beforeAll(async () => {
-      if (!process.env.GEMINI_API_KEY) {
+      if (!process.env.OPENROUTER_API_KEY) {
         throw new Error(
-          "GEMINI_API_KEY is required for document search integration tests"
+          "OPENROUTER_API_KEY is required for document search integration tests",
         );
       }
 
@@ -531,7 +531,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         testUser.accessToken,
         documentName,
-        documentContent
+        documentContent,
       );
 
       expect(document.id).toBeTruthy();
@@ -542,20 +542,20 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         testUser.accessToken,
         "quick brown fox",
-        document.id
+        document.id,
       );
 
       // Search for the document
       const results = await searchDocumentsViaAPI(
         testWorkspace.id,
         testUser.accessToken,
-        "quick brown fox"
+        "quick brown fox",
       );
 
       expect(results.length).toBeGreaterThan(0);
       expect(results.some((r) => r.documentId === document.id)).toBe(true);
       expect(results.some((r) => r.snippet.includes("quick brown fox"))).toBe(
-        true
+        true,
       );
     }, 60000); // 60 second timeout
 
@@ -590,7 +590,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
           testWorkspace.id,
           testUser.accessToken,
           doc.name,
-          doc.content
+          doc.content,
         );
         uploadedDocs.push(uploaded);
       }
@@ -602,7 +602,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
           testWorkspace.id,
           testUser.accessToken,
           searchTerm,
-          uploadedDocs[i].id
+          uploadedDocs[i].id,
         );
       }
 
@@ -610,31 +610,31 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
       const pythonResults = await searchDocumentsViaAPI(
         testWorkspace.id,
         testUser.accessToken,
-        "Python programming"
+        "Python programming",
       );
       expect(pythonResults.length).toBeGreaterThan(0);
       expect(
-        pythonResults.some((r) => r.documentId === uploadedDocs[0].id)
+        pythonResults.some((r) => r.documentId === uploadedDocs[0].id),
       ).toBe(true);
 
       const reactResults = await searchDocumentsViaAPI(
         testWorkspace.id,
         testUser.accessToken,
-        "React JavaScript"
+        "React JavaScript",
       );
       expect(reactResults.length).toBeGreaterThan(0);
       expect(
-        reactResults.some((r) => r.documentId === uploadedDocs[1].id)
+        reactResults.some((r) => r.documentId === uploadedDocs[1].id),
       ).toBe(true);
 
       const typescriptResults = await searchDocumentsViaAPI(
         testWorkspace.id,
         testUser.accessToken,
-        "TypeScript"
+        "TypeScript",
       );
       expect(typescriptResults.length).toBeGreaterThan(0);
       expect(
-        typescriptResults.some((r) => r.documentId === uploadedDocs[2].id)
+        typescriptResults.some((r) => r.documentId === uploadedDocs[2].id),
       ).toBe(true);
     }, 60000);
 
@@ -656,7 +656,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         testUser.accessToken,
         "update-test.txt",
-        initialContent
+        initialContent,
       );
 
       // Wait for initial indexing
@@ -664,14 +664,14 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         testUser.accessToken,
         "original document",
-        document.id
+        document.id,
       );
 
       // Verify initial content is searchable
       let results = await searchDocumentsViaAPI(
         testWorkspace.id,
         testUser.accessToken,
-        "original document"
+        "original document",
       );
       expect(results.length).toBeGreaterThan(0);
       expect(results.some((r) => r.documentId === document.id)).toBe(true);
@@ -681,7 +681,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         document.id,
         testUser.accessToken,
-        updatedContent
+        updatedContent,
       );
 
       // Wait for re-indexing
@@ -689,7 +689,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         testUser.accessToken,
         "updated document",
-        document.id
+        document.id,
       );
 
       // Wait for re-indexing to complete - wait until new content appears
@@ -702,7 +702,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         results = await searchDocumentsViaAPI(
           testWorkspace.id,
           testUser.accessToken,
-          "new information" // Search for phrase unique to updated content
+          "new information", // Search for phrase unique to updated content
         );
         foundNew = results.find((r) => r.documentId === document.id);
         if (foundNew && foundNew.snippet.includes("updated")) {
@@ -718,7 +718,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
       results = await searchDocumentsViaAPI(
         testWorkspace.id,
         testUser.accessToken,
-        "original document"
+        "original document",
       );
       const foundOld = results.find((r) => r.documentId === document.id);
       if (foundOld) {
@@ -727,7 +727,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         console.log(
           `[Test] Old content still present but new content has higher similarity (${
             foundNew!.similarity
-          } > ${foundOld.similarity})`
+          } > ${foundOld.similarity})`,
         );
       } else {
         // Old content successfully removed
@@ -752,7 +752,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         testUser.accessToken,
         documentName,
-        documentContent
+        documentContent,
       );
 
       // Wait for indexing
@@ -760,14 +760,14 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         testWorkspace.id,
         testUser.accessToken,
         "will be deleted",
-        document.id
+        document.id,
       );
 
       // Verify document is searchable
       let results = await searchDocumentsViaAPI(
         testWorkspace.id,
         testUser.accessToken,
-        "will be deleted"
+        "will be deleted",
       );
       expect(results.length).toBeGreaterThan(0);
       expect(results.some((r) => r.documentId === document.id)).toBe(true);
@@ -786,7 +786,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
         results = await searchDocumentsViaAPI(
           testWorkspace.id,
           testUser.accessToken,
-          "will be deleted"
+          "will be deleted",
         );
         const found = results.find((r) => r.documentId === document.id);
         if (!found) {
@@ -801,8 +801,8 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
       // This might be acceptable if deletion is still processing
       // But we'll log a warning
       console.warn(
-        "Document still appears in search results after deletion (may still be processing)"
+        "Document still appears in search results after deletion (may still be processing)",
       );
     }, 30000);
-  }
+  },
 );

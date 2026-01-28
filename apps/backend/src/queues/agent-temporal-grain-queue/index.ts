@@ -73,11 +73,11 @@ function getLanceDBConnectionOptions(): {
       ? "true"
       : "false";
     console.log(
-      `[Write Server] Using custom S3 endpoint: ${customEndpoint}, region: ${region}`
+      `[Write Server] Using custom S3 endpoint: ${customEndpoint}, region: ${region}`,
     );
   } else {
     console.log(
-      `[Write Server] Using AWS S3 with explicit credentials, region: ${region}`
+      `[Write Server] Using AWS S3 with explicit credentials, region: ${region}`,
     );
   }
 
@@ -90,13 +90,13 @@ function getLanceDBConnectionOptions(): {
  * Generate embeddings for raw facts
  */
 async function generateEmbeddingsForFacts(
-  rawFacts: RawFactData[]
+  rawFacts: RawFactData[],
 ): Promise<FactRecord[]> {
   // Get API key for embedding generation
-  // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
+  // Note: Embeddings use OpenRouter's API directly, workspace API keys are not supported for embeddings
   const apiKey = getDefined(
-    process.env.GEMINI_API_KEY,
-    "GEMINI_API_KEY is not set"
+    process.env.OPENROUTER_API_KEY,
+    "OPENROUTER_API_KEY is not set",
   );
 
   const records: FactRecord[] = [];
@@ -107,13 +107,13 @@ async function generateEmbeddingsForFacts(
       console.log(
         `[Write Server] Generating embedding ${i + 1}/${
           rawFacts.length
-        } for fact: "${rawFact.content.substring(0, 50)}..."`
+        } for fact: "${rawFact.content.substring(0, 50)}..."`,
       );
       const embedding = await generateEmbedding(
         rawFact.content,
         apiKey,
         rawFact.cacheKey,
-        undefined // No abort signal
+        undefined, // No abort signal
       );
 
       const record: FactRecord = {
@@ -125,13 +125,13 @@ async function generateEmbeddingsForFacts(
       };
       console.log(
         `[Write Server] Created record with metadata:`,
-        JSON.stringify(record.metadata, null, 2)
+        JSON.stringify(record.metadata, null, 2),
       );
       records.push(record);
       console.log(
         `[Write Server] Successfully generated embedding ${i + 1}/${
           rawFacts.length
-        }`
+        }`,
       );
     } catch (error) {
       console.error(
@@ -144,7 +144,7 @@ async function generateEmbeddingsForFacts(
               stack: error.stack,
               name: error.name,
             }
-          : String(error)
+          : String(error),
       );
       Sentry.captureException(ensureError(error), {
         tags: {
@@ -239,38 +239,38 @@ async function executeInsert(
   temporalGrain: TemporalGrain,
   records: FactRecord[],
   rawFacts?: RawFactData[],
-  workspaceId?: string
+  workspaceId?: string,
 ): Promise<void> {
   // If rawFacts are provided, generate embeddings first
   let finalRecords = records;
   if (rawFacts && rawFacts.length > 0) {
     if (!workspaceId) {
       throw new Error(
-        "workspaceId is required when rawFacts are provided for embedding generation"
+        "workspaceId is required when rawFacts are provided for embedding generation",
       );
     }
     console.log(
-      `[Write Server] Generating embeddings for ${rawFacts.length} raw facts...`
+      `[Write Server] Generating embeddings for ${rawFacts.length} raw facts...`,
     );
     const generatedRecords = await generateEmbeddingsForFacts(rawFacts);
     finalRecords = generatedRecords;
     console.log(
-      `[Write Server] Generated ${generatedRecords.length} embeddings out of ${rawFacts.length} raw facts`
+      `[Write Server] Generated ${generatedRecords.length} embeddings out of ${rawFacts.length} raw facts`,
     );
   }
 
   if (finalRecords.length === 0) {
     console.log(
-      `[Write Server] No records to insert after embedding generation`
+      `[Write Server] No records to insert after embedding generation`,
     );
     return;
   }
   const uri = getDatabaseUri(agentId, temporalGrain);
   console.log(
-    `[Write Server] Executing insert for agent ${agentId}, grain ${temporalGrain}, ${finalRecords.length} records, URI: ${uri}`
+    `[Write Server] Executing insert for agent ${agentId}, grain ${temporalGrain}, ${finalRecords.length} records, URI: ${uri}`,
   );
   console.log(
-    `[Write Server] Record IDs: ${finalRecords.map((r) => r.id).join(", ")}`
+    `[Write Server] Record IDs: ${finalRecords.map((r) => r.id).join(", ")}`,
   );
 
   try {
@@ -279,7 +279,7 @@ async function executeInsert(
     if (connectionOptions.storageOptions) {
       console.log(
         `[Write Server] Using storageOptions for local dev:`,
-        connectionOptions.storageOptions
+        connectionOptions.storageOptions,
       );
     }
     const db = await connect(uri, connectionOptions);
@@ -309,14 +309,14 @@ async function executeInsert(
               folderPath: initialRecords[0].folderPath,
             },
             null,
-            2
-          )
+            2,
+          ),
         );
       }
       // Create table with first record to establish schema
       table = await db.createTable("vectors", [initialRecords[0]]);
       console.log(
-        `[Write Server] Created new table "vectors" in ${uri} with schema from first record`
+        `[Write Server] Created new table "vectors" in ${uri} with schema from first record`,
       );
       // Add remaining records (skip first since it's already in createTable)
       if (initialRecords.length > 1) {
@@ -324,18 +324,18 @@ async function executeInsert(
         console.log(
           `[Write Server] Added ${
             initialRecords.length - 1
-          } additional records to table`
+          } additional records to table`,
         );
       }
       console.log(
-        `[Write Server] Successfully inserted ${initialRecords.length} records into newly created table for agent ${agentId}, grain ${temporalGrain}`
+        `[Write Server] Successfully inserted ${initialRecords.length} records into newly created table for agent ${agentId}, grain ${temporalGrain}`,
       );
       return;
     }
 
     // Insert records into existing table
     console.log(
-      `[Write Server] Adding ${finalRecords.length} records to existing table for agent ${agentId}, grain ${temporalGrain}`
+      `[Write Server] Adding ${finalRecords.length} records to existing table for agent ${agentId}, grain ${temporalGrain}`,
     );
     // Use normalizeRecordSchema to ensure all records have the same schema structure
     const recordsToInsert = finalRecords.map((r) => normalizeRecordSchema(r));
@@ -353,14 +353,14 @@ async function executeInsert(
             folderPath: recordsToInsert[0].folderPath,
           },
           null,
-          2
-        )
+          2,
+        ),
       );
     }
     await table.add(recordsToInsert);
 
     console.log(
-      `[Write Server] Successfully inserted ${finalRecords.length} records into database for agent ${agentId}, grain ${temporalGrain}`
+      `[Write Server] Successfully inserted ${finalRecords.length} records into database for agent ${agentId}, grain ${temporalGrain}`,
     );
   } catch (error) {
     console.error(`[Write Server] Insert failed:`, error);
@@ -374,11 +374,11 @@ async function executeInsert(
 async function executeUpdate(
   agentId: string,
   temporalGrain: TemporalGrain,
-  records: FactRecord[]
+  records: FactRecord[],
 ): Promise<void> {
   const uri = getDatabaseUri(agentId, temporalGrain);
   console.log(
-    `[Write Server] Executing update for agent ${agentId}, grain ${temporalGrain}, ${records.length} records`
+    `[Write Server] Executing update for agent ${agentId}, grain ${temporalGrain}, ${records.length} records`,
   );
 
   try {
@@ -401,7 +401,7 @@ async function executeUpdate(
     await table.add(records.map((r) => normalizeRecordSchema(r)));
 
     console.log(
-      `[Write Server] Successfully updated ${records.length} records`
+      `[Write Server] Successfully updated ${records.length} records`,
     );
   } catch (error) {
     console.error(`[Write Server] Update failed:`, error);
@@ -415,11 +415,11 @@ async function executeUpdate(
 async function executeDelete(
   agentId: string,
   temporalGrain: TemporalGrain,
-  recordIds: string[]
+  recordIds: string[],
 ): Promise<void> {
   const uri = getDatabaseUri(agentId, temporalGrain);
   console.log(
-    `[Write Server] Executing delete for agent ${agentId}, grain ${temporalGrain}, ${recordIds.length} records`
+    `[Write Server] Executing delete for agent ${agentId}, grain ${temporalGrain}, ${recordIds.length} records`,
   );
 
   try {
@@ -434,7 +434,7 @@ async function executeDelete(
     }
 
     console.log(
-      `[Write Server] Successfully deleted ${recordIds.length} records`
+      `[Write Server] Successfully deleted ${recordIds.length} records`,
     );
   } catch (error) {
     console.error(`[Write Server] Delete failed:`, error);
@@ -450,7 +450,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
   console.log(
     `[Write Server] Processing message ${messageId}, body length: ${
       record.body?.length || 0
-    }`
+    }`,
   );
 
   let parsedBody: unknown;
@@ -469,7 +469,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
             name: error.name,
           }
         : String(error),
-      `Body: ${record.body?.substring(0, 500) || "no body"}`
+      `Body: ${record.body?.substring(0, 500) || "no body"}`,
     );
     throw new Error("Invalid message format: JSON parse error");
   }
@@ -484,7 +484,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
     console.error(
       `[Write Server] Message validation failed:`,
       JSON.stringify(errors, null, 2),
-      `Message body: ${record.body.substring(0, 500)}`
+      `Message body: ${record.body.substring(0, 500)}`,
     );
     throw new Error(`Invalid write operation message: ${errors.join(", ")}`);
   }
@@ -494,24 +494,24 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
 
   // Log the message details for debugging
   console.log(
-    `[Write Server] Processing ${operation} operation for agent ${agentId}, grain ${temporalGrain}, workspaceId: ${workspaceId}`
+    `[Write Server] Processing ${operation} operation for agent ${agentId}, grain ${temporalGrain}, workspaceId: ${workspaceId}`,
   );
   if (data.rawFacts && data.rawFacts.length > 0) {
     console.log(
-      `[Write Server] Message contains ${data.rawFacts.length} rawFacts`
+      `[Write Server] Message contains ${data.rawFacts.length} rawFacts`,
     );
     console.log(
       `[Write Server] First rawFact metadata:`,
-      JSON.stringify(data.rawFacts[0].metadata, null, 2)
+      JSON.stringify(data.rawFacts[0].metadata, null, 2),
     );
   }
   if (data.records && data.records.length > 0) {
     console.log(
-      `[Write Server] Message contains ${data.records.length} records`
+      `[Write Server] Message contains ${data.records.length} records`,
     );
     console.log(
       `[Write Server] First record metadata:`,
-      JSON.stringify(data.records[0].metadata, null, 2)
+      JSON.stringify(data.records[0].metadata, null, 2),
     );
   }
 
@@ -525,7 +525,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
           temporalGrain,
           [], // No pre-generated records
           data.rawFacts,
-          workspaceId
+          workspaceId,
         );
       } else if (data.records && data.records.length > 0) {
         // Use pre-generated embeddings
@@ -562,7 +562,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
 export const handler = handlingSQSErrors(
   async (event: SQSEvent): Promise<string[]> => {
     console.log(
-      `[Write Server] Received ${event.Records.length} SQS message(s)`
+      `[Write Server] Received ${event.Records.length} SQS message(s)`,
     );
 
     const failedMessageIds: string[] = [];
@@ -574,7 +574,7 @@ export const handler = handlingSQSErrors(
       try {
         await processWriteOperation(record);
         console.log(
-          `[Write Server] Successfully processed message ${messageId}`
+          `[Write Server] Successfully processed message ${messageId}`,
         );
       } catch (error) {
         // Log detailed error information
@@ -586,12 +586,12 @@ export const handler = handlingSQSErrors(
                 stack: error.stack,
                 name: error.name,
               }
-            : String(error)
+            : String(error),
         );
         console.error(
           `[Write Server] Message body preview: ${
             record.body?.substring(0, 500) || "no body"
-          }`
+          }`,
         );
 
         // Track failed message for retry, but continue processing other messages
@@ -601,10 +601,10 @@ export const handler = handlingSQSErrors(
 
     const successCount = event.Records.length - failedMessageIds.length;
     console.log(
-      `[Write Server] Batch processing complete: ${successCount} succeeded, ${failedMessageIds.length} failed`
+      `[Write Server] Batch processing complete: ${successCount} succeeded, ${failedMessageIds.length} failed`,
     );
 
     return failedMessageIds;
   },
-  { handlerName: "agent-temporal-grain-queue" }
+  { handlerName: "agent-temporal-grain-queue" },
 );

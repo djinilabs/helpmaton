@@ -36,7 +36,7 @@ export const handler = handlingScheduledErrors(
 
     const workspaceIds = [
       ...new Set(
-        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", ""))
+        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", "")),
       ),
     ];
 
@@ -85,7 +85,7 @@ export const handler = handlingScheduledErrors(
               content,
               "weekly",
               workspaceId,
-              agent.summarizationPrompts
+              agent.summarizationPrompts,
             );
 
             if (!summary || summary.trim().length === 0) {
@@ -95,15 +95,15 @@ export const handler = handlingScheduledErrors(
             // Generate embedding
             // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
             const apiKey = getDefined(
-              process.env.GEMINI_API_KEY,
-              "GEMINI_API_KEY is not set"
+              process.env.OPENROUTER_API_KEY,
+              "OPENROUTER_API_KEY is not set",
             );
 
             const embedding = await generateEmbedding(
               summary,
               apiKey,
               undefined,
-              undefined
+              undefined,
             );
 
             // Create week summary record
@@ -124,23 +124,23 @@ export const handler = handlingScheduledErrors(
             await queueMemoryWrite(agentId, "weekly", [record]);
 
             console.log(
-              `[Weekly Memory Summarization] Agent ${agentId}: Created week summary for ${weekTimeString}`
+              `[Weekly Memory Summarization] Agent ${agentId}: Created week summary for ${weekTimeString}`,
             );
           } catch (error) {
             console.error(
               `[Weekly Memory Summarization] Error processing agent ${agent.pk}:`,
-              error
+              error,
             );
           }
         }
       } catch (error) {
         console.error(
           `[Weekly Memory Summarization] Error processing workspace ${workspaceId}:`,
-          error
+          error,
         );
       }
     }
 
     console.log("[Weekly Memory Summarization] Completed weekly summarization");
-  }
+  },
 );

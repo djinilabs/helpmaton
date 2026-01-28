@@ -38,7 +38,7 @@ export function splitDocumentIntoSnippets(
   content: string,
   chunkSize: number = DEFAULT_CHUNK_SIZE,
   chunkOverlap?: number,
-  chunkStrategy?: "paragraph" | "character"
+  chunkStrategy?: "paragraph" | "character",
 ): string[] {
   if (!content || content.trim().length === 0) {
     return [];
@@ -49,7 +49,7 @@ export function splitDocumentIntoSnippets(
   const calculatedOverlap = Math.min(
     Math.floor(chunkSize * 0.2),
     DEFAULT_CHUNK_OVERLAP,
-    Math.max(1, chunkSize - 1) // Ensure overlap is always less than chunk size
+    Math.max(1, chunkSize - 1), // Ensure overlap is always less than chunk size
   );
   const finalChunkOverlap =
     chunkOverlap !== undefined
@@ -64,8 +64,8 @@ export function splitDocumentIntoSnippets(
     chunkStrategy !== undefined
       ? chunkStrategy
       : hasParagraphs
-      ? "paragraph"
-      : "character";
+        ? "paragraph"
+        : "character";
 
   // Use llm-splitter with appropriate splitter based on content structure
   const chunks = split(content, {
@@ -138,15 +138,15 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
 export async function searchDocuments(
   workspaceId: string,
   queryText: string,
-  topN: number = 5
+  topN: number = 5,
 ): Promise<SearchResult[]> {
   if (!queryText || queryText.trim().length === 0) {
     return [];
   }
 
   const apiKey = getDefined(
-    process.env.GEMINI_API_KEY,
-    "GEMINI_API_KEY is not set"
+    process.env.OPENROUTER_API_KEY,
+    "OPENROUTER_API_KEY is not set",
   );
 
   // Generate embedding for the query
@@ -156,12 +156,12 @@ export async function searchDocuments(
       queryText.trim(),
       apiKey,
       undefined,
-      undefined
+      undefined,
     );
   } catch (error) {
     console.error(
       "[searchDocuments] Failed to generate query embedding:",
-      error
+      error,
     );
     throw error;
   }

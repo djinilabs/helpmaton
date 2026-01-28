@@ -122,7 +122,8 @@ The function has the following environment variables configured:
 - `HELPMATON_S3_SECRET_ACCESS_KEY`: S3 secret key
 - `AUTH_SECRET`: Authentication secret
 - `SENTRY_DSN`: Sentry error tracking DSN
-- `GEMINI_API_KEY`: Google Gemini API key
+- `OPENROUTER_API_KEY`: OpenRouter API key
+- `GEMINI_API_KEY`: (Optional) Google Gemini API key for pricing/model updates
 - `GOOGLE_OAUTH_CLIENT_ID`: Google OAuth client ID
 - `GOOGLE_OAUTH_CLIENT_SECRET`: Google OAuth client secret
 - `OUTLOOK_CLIENT_ID`: Outlook OAuth client ID

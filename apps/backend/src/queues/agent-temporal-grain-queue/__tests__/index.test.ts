@@ -15,7 +15,7 @@ vi.mock("@lancedb/lancedb", () => ({
 vi.mock("../../../utils/vectordb/paths", () => ({
   getDatabaseUri: vi.fn(
     (agentId: string, grain: string) =>
-      `s3://bucket/vectordb/${agentId}/${grain}/`
+      `s3://bucket/vectordb/${agentId}/${grain}/`,
   ),
 }));
 
@@ -81,7 +81,7 @@ describe("agent-temporal-grain-queue handler", () => {
     vi.clearAllMocks();
 
     // Set environment variable for API key
-    process.env.GEMINI_API_KEY = "test-api-key";
+    process.env.OPENROUTER_API_KEY = "test-api-key";
 
     const { connect } = await import("@lancedb/lancedb");
     const mockConnect = vi.mocked(connect);
@@ -119,7 +119,7 @@ describe("agent-temporal-grain-queue handler", () => {
           eventSource: "aws:sqs",
           eventSourceARN: "arn:aws:sqs:region:account:queue",
           awsRegion: "eu-west-2",
-        })
+        }),
       ),
     });
 
@@ -220,7 +220,7 @@ describe("agent-temporal-grain-queue handler", () => {
               content: "Test",
               vector: [0.1, 0.2],
             }),
-          ])
+          ]),
         );
         expect(result).toEqual({ batchItemFailures: [] });
       });
@@ -401,7 +401,7 @@ describe("agent-temporal-grain-queue handler", () => {
           "User said: Hello world",
           expect.any(String), // API key
           "workspace-456:agent-123:abc123",
-          undefined
+          undefined,
         );
 
         // Verify record was inserted with generated embedding

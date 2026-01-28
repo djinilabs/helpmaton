@@ -19,7 +19,7 @@ export const handler = handlingScheduledErrors(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- event parameter required by Lambda handler signature
   async (_event: ScheduledEvent): Promise<void> => {
     console.log(
-      "[Monthly Memory Summarization] Starting monthly summarization"
+      "[Monthly Memory Summarization] Starting monthly summarization",
     );
 
     const db = await database();
@@ -38,7 +38,7 @@ export const handler = handlingScheduledErrors(
 
     const workspaceIds = [
       ...new Set(
-        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", ""))
+        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", "")),
       ),
     ];
 
@@ -90,7 +90,7 @@ export const handler = handlingScheduledErrors(
               content,
               "monthly",
               workspaceId,
-              agent.summarizationPrompts
+              agent.summarizationPrompts,
             );
 
             if (!summary || summary.trim().length === 0) {
@@ -100,15 +100,15 @@ export const handler = handlingScheduledErrors(
             // Generate embedding
             // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
             const apiKey = getDefined(
-              process.env.GEMINI_API_KEY,
-              "GEMINI_API_KEY is not set"
+              process.env.OPENROUTER_API_KEY,
+              "OPENROUTER_API_KEY is not set",
             );
 
             const embedding = await generateEmbedding(
               summary,
               apiKey,
               undefined,
-              undefined
+              undefined,
             );
 
             // Create month summary record
@@ -129,25 +129,25 @@ export const handler = handlingScheduledErrors(
             await queueMemoryWrite(agentId, "monthly", [record]);
 
             console.log(
-              `[Monthly Memory Summarization] Agent ${agentId}: Created month summary for ${monthTimeString}`
+              `[Monthly Memory Summarization] Agent ${agentId}: Created month summary for ${monthTimeString}`,
             );
           } catch (error) {
             console.error(
               `[Monthly Memory Summarization] Error processing agent ${agent.pk}:`,
-              error
+              error,
             );
           }
         }
       } catch (error) {
         console.error(
           `[Monthly Memory Summarization] Error processing workspace ${workspaceId}:`,
-          error
+          error,
         );
       }
     }
 
     console.log(
-      "[Monthly Memory Summarization] Completed monthly summarization"
+      "[Monthly Memory Summarization] Completed monthly summarization",
     );
-  }
+  },
 );
