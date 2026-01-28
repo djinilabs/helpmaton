@@ -1,11 +1,24 @@
-import duckdb from "duckdb";
+import type * as DuckDbTypes from "duckdb";
 
 const DEFAULT_S3_REGION = "eu-west-2";
 const DEFAULT_LOCAL_S3_ENDPOINT = "http://localhost:4568";
+const ALLOWED_S3_SETTINGS = new Set([
+  "s3_region",
+  "s3_access_key_id",
+  "s3_secret_access_key",
+  "s3_session_token",
+  "s3_endpoint",
+  "s3_url_style",
+  "s3_use_ssl",
+]);
+
+type DuckDbDatabase = DuckDbTypes.Database;
+type DuckDbConnection = DuckDbTypes.Connection;
+type DuckDbTableData = DuckDbTypes.TableData;
 
 type DuckDbClient = {
-  db: duckdb.Database;
-  connection: duckdb.Connection;
+  db: DuckDbDatabase;
+  connection: DuckDbConnection;
   run: (sql: string) => Promise<void>;
   all: <T = unknown>(sql: string) => Promise<T[]>;
   close: () => Promise<void>;
@@ -84,7 +97,7 @@ function buildS3Settings(): S3Setting[] {
 }
 
 function runStatement(
-  connection: duckdb.Connection,
+  connection: DuckDbConnection,
   sql: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -99,11 +112,11 @@ function runStatement(
 }
 
 function runAll<T = unknown>(
-  connection: duckdb.Connection,
+  connection: DuckDbConnection,
   sql: string,
 ): Promise<T[]> {
   return new Promise((resolve, reject) => {
-    connection.all(sql, (error: Error | null, rows: duckdb.TableData) => {
+    connection.all(sql, (error: Error | null, rows: DuckDbTableData) => {
       if (error) {
         reject(error);
         return;
@@ -114,21 +127,24 @@ function runAll<T = unknown>(
 }
 
 async function configureHttpfs(
-  connection: duckdb.Connection,
+  connection: DuckDbConnection,
   settings: S3Setting[],
 ): Promise<void> {
   await runStatement(connection, "INSTALL httpfs;");
   await runStatement(connection, "LOAD httpfs;");
 
   for (const setting of settings) {
+    if (!ALLOWED_S3_SETTINGS.has(setting.key)) {
+      throw new Error(`Unsupported DuckDB S3 setting: ${setting.key}`);
+    }
     const formattedValue = formatSettingValue(setting.value);
     await runStatement(connection, `SET ${setting.key}=${formattedValue};`);
   }
 }
 
 function closeDuckDb(
-  connection: duckdb.Connection,
-  db: duckdb.Database,
+  connection: DuckDbConnection,
+  db: DuckDbDatabase,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     connection.close((connectionError: Error | null) => {
@@ -150,7 +166,10 @@ function closeDuckDb(
 }
 
 export async function createInMemoryDuckDb(): Promise<DuckDbClient> {
-  const db = new duckdb.Database(":memory:");
+  const duckdbModule = await import("duckdb");
+  const DatabaseConstructor =
+    duckdbModule.default?.Database ?? duckdbModule.Database;
+  const db = new DatabaseConstructor(":memory:") as DuckDbDatabase;
   const connection = db.connect();
   const settings = buildS3Settings();
 

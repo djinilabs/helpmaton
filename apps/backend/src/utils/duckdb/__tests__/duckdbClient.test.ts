@@ -4,12 +4,24 @@ const {
   runStatements,
   databasePaths,
   connectCalls,
+  closeErrors,
+  closeCalls,
+  mockRun,
+  mockAll,
   mockConnection,
   MockDatabase,
 } = vi.hoisted(() => {
   const runStatements: string[] = [];
   const databasePaths: string[] = [];
   const connectCalls = { value: 0 };
+  const closeErrors = {
+    connection: null as Error | null,
+    database: null as Error | null,
+  };
+  const closeCalls = {
+    connection: 0,
+    database: 0,
+  };
   const mockRun = vi.fn(function run(
     sql: string,
     callback?: (error: Error | null) => void,
@@ -27,7 +39,8 @@ const {
     run: mockRun,
     all: mockAll,
     close: vi.fn(function close(callback?: (error: Error | null) => void) {
-      callback?.(null);
+      closeCalls.connection += 1;
+      callback?.(closeErrors.connection);
     }),
   };
 
@@ -42,7 +55,8 @@ const {
     }
 
     close(callback?: (error: Error | null) => void) {
-      callback?.(null);
+      closeCalls.database += 1;
+      callback?.(closeErrors.database);
     }
   }
 
@@ -50,6 +64,10 @@ const {
     runStatements,
     databasePaths,
     connectCalls,
+    closeErrors,
+    closeCalls,
+    mockRun,
+    mockAll,
     mockConnection,
     MockDatabase,
   };
@@ -70,6 +88,10 @@ describe("createInMemoryDuckDb", () => {
     runStatements.length = 0;
     databasePaths.length = 0;
     connectCalls.value = 0;
+    closeCalls.connection = 0;
+    closeCalls.database = 0;
+    closeErrors.connection = null;
+    closeErrors.database = null;
     delete process.env.ARC_ENV;
     delete process.env.HELPMATON_S3_ACCESS_KEY_ID;
     delete process.env.HELPMATON_S3_SECRET_ACCESS_KEY;
@@ -116,5 +138,58 @@ describe("createInMemoryDuckDb", () => {
       "SET s3_access_key_id='ACCESS_KEY';",
       "SET s3_secret_access_key='SECRET_KEY';",
     ]);
+  });
+
+  it("sets session token and custom endpoint for production", async () => {
+    process.env.ARC_ENV = "production";
+    process.env.HELPMATON_S3_ACCESS_KEY_ID = "ACCESS_KEY";
+    process.env.HELPMATON_S3_SECRET_ACCESS_KEY = "SECRET_KEY";
+    process.env.AWS_SESSION_TOKEN = "SESSION_TOKEN";
+    process.env.HELPMATON_S3_ENDPOINT = "http://s3.example.test";
+
+    await createInMemoryDuckDb();
+
+    expect(runStatements).toEqual([
+      "INSTALL httpfs;",
+      "LOAD httpfs;",
+      "SET s3_region='eu-west-2';",
+      "SET s3_access_key_id='ACCESS_KEY';",
+      "SET s3_secret_access_key='SECRET_KEY';",
+      "SET s3_session_token='SESSION_TOKEN';",
+      "SET s3_endpoint='http://s3.example.test';",
+      "SET s3_use_ssl=false;",
+    ]);
+  });
+
+  it("exposes run/all/close helpers", async () => {
+    const client = await createInMemoryDuckDb();
+
+    await client.run("SELECT 1;");
+    await client.all("SELECT 1;");
+    await client.close();
+
+    expect(mockRun).toHaveBeenCalledWith("SELECT 1;", expect.any(Function));
+    expect(mockAll).toHaveBeenCalledWith("SELECT 1;", expect.any(Function));
+    expect(closeCalls.connection).toBe(1);
+    expect(closeCalls.database).toBe(1);
+  });
+
+  it("fails when httpfs install fails", async () => {
+    mockRun.mockImplementationOnce(function run(
+      sql: string,
+      callback?: (error: Error | null) => void,
+    ) {
+      runStatements.push(sql);
+      callback?.(new Error("install failed"));
+    });
+
+    await expect(createInMemoryDuckDb()).rejects.toThrow("install failed");
+  });
+
+  it("rejects when close fails", async () => {
+    closeErrors.connection = new Error("close failed");
+    const client = await createInMemoryDuckDb();
+
+    await expect(client.close()).rejects.toThrow("close failed");
   });
 });

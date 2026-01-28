@@ -23,7 +23,7 @@
 
 **Latest Work**:
 
-- **DuckDB in lancedb image**: Added DuckDB dependency to the lancedb image and backend workspace, added `duckdbClient` helper to create in-memory DuckDB with `httpfs` + S3 settings, added unit tests, and updated container docs. Ran `pnpm --filter backend test --run duckdbClient`, `pnpm lint --fix`, and `pnpm typecheck`.
+- **DuckDB in lancedb image**: Added DuckDB dependency to the lancedb image and backend workspace, added `duckdbClient` helper to create in-memory DuckDB with `httpfs` + S3 settings (now dynamically imports DuckDB at call time), added allowlisted S3 settings guard, expanded unit tests (session token, custom endpoint, helpers, error paths), and updated container docs. Ran `pnpm --filter backend test --run duckdbClient`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Workspace removal cleanup**: Added shared `removeAgentResources` helper (including conversation file S3 cleanup), expanded workspace deletion to remove workspace-scoped data and credit reservations while preserving transactions, added `credit-reservations` GSI by workspace, and added/updated unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace deletion test fix**: Adjusted test mocks to create missing tables before assigning `queryAsync` and reran `pnpm test --run`.
 - **LanceDB writer isolation**: Detached `agent-temporal-grain-queue` from `llm-shared-http`, added `config.arc` with `concurrency 1`, and ran `pnpm typecheck` + `pnpm lint --fix`.
