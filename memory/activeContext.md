@@ -4,6 +4,11 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **PR 232 staging SQS check (2026-01-28)**: Queried `HelpmatonStagingPR232` SQS queues; all queues are empty except `AgentTemporalGrainQueue` which has 1 in-flight (`ApproximateNumberOfMessagesNotVisible: 1`).
+- **PR 232 staging temporal queue logs (2026-01-28)**: Latest `/aws/lambda/HelpmatonStagingPR232-AgentTemporalGrainQueueQueue-DHLt9QhJQWAZ` stream shows successful embedding generation + inserts with no errors or warnings.
+- **PR 232 memory API logs (2026-01-28)**: `/aws/lambda/HelpmatonStagingPR232-PostApiWebhookWorkspaceIdAge-m6wNPNCIecIW` handles `/api/workspaces/{proxy+}`; memory search logs show S3 read success and `maxResults: 5` responses containing only conversation facts (no `staging test fact`).
+- **Staging agent test robustness (2026-01-28)**: Updated `waitForMemoryRecord` to query memory without `queryText` and use `maxResults=50` to avoid semantic search misses.
+
 **CI note (2026-01-28)**:
 
 - **E2E on `main` failing**: GitHub Actions run `21431312943` failed in `tests/e2e/login.spec.ts` (“create and login user in one operation”) due to flaky/insufficient waiting in `LoginPage.waitForMagicLinkRequest` (button stays “Sending...”, success text not yet visible). Logs also show backend errors `OPENROUTER_API_KEY is not set` because the E2E workflow does not provide that env var.

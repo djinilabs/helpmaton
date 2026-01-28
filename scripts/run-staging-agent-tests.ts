@@ -803,9 +803,7 @@ async function waitForMemoryRecord(
     const response = await fetchJson<{
       records: Array<{ content?: string }>;
     }>(
-      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/memory?grain=working&queryText=${encodeURIComponent(
-        expectedContent,
-      )}&maxResults=${QUERY_LIMIT_SMALL}`,
+      `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/memory?grain=working&maxResults=50`,
       {
         method: "GET",
         headers: {
