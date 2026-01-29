@@ -754,9 +754,9 @@
         },
         "nvidia/nemotron-3-nano-30b-a3b": {
           "usd": {
-            "input": 0.06,
-            "output": 0.24,
-            "cachedInput": 0.006
+            "input": 0.049999999999999996,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.005
           },
           "capabilities": {
             "input_modalities": [
@@ -12187,9 +12187,9 @@
         },
         "moonshotai/kimi-k2.5": {
           "usd": {
-            "input": 0.6,
-            "output": 3,
-            "cachedInput": 0.06
+            "input": 0.5700000000000001,
+            "output": 2.8499999999999996,
+            "cachedInput": 0.05700000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -12261,5 +12261,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-28T00:16:09.616Z"
+  "lastUpdated": "2026-01-29T00:17:56.823Z"
 }
