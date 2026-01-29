@@ -301,8 +301,14 @@ export async function exportWorkspace(
         enableMemorySearch: agent.enableMemorySearch,
         enableSearchDocuments: agent.enableSearchDocuments,
         enableKnowledgeInjection: agent.enableKnowledgeInjection,
+        enableKnowledgeInjectionFromMemories:
+          agent.enableKnowledgeInjectionFromMemories,
+        enableKnowledgeInjectionFromDocuments:
+          agent.enableKnowledgeInjectionFromDocuments,
         knowledgeInjectionSnippetCount: agent.knowledgeInjectionSnippetCount,
         knowledgeInjectionMinSimilarity: agent.knowledgeInjectionMinSimilarity,
+        knowledgeInjectionEntityExtractorModel:
+          agent.knowledgeInjectionEntityExtractorModel,
         enableKnowledgeReranking: agent.enableKnowledgeReranking,
         knowledgeRerankingModel: agent.knowledgeRerankingModel,
         enableSendEmail: agent.enableSendEmail,

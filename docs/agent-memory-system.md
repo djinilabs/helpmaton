@@ -20,6 +20,17 @@ This progressive summarization ensures that:
 - Storage costs are optimized through automatic summarization
 - Important information is preserved across time scales
 
+## Knowledge Injection Integration
+
+Agents can optionally inject memory-derived context into the first user prompt in a conversation via the **Inject Knowledge** settings.
+
+When enabled, memory injection uses two sources:
+
+- **Working memory vector search**: Searches the agent’s working memory grain using the user prompt.
+- **Graph facts**: Extracts entities from the prompt, then retrieves matching (subject, predicate, object) tuples from the graph database.
+
+These memory snippets can be merged with document snippets and re-ranked together before being injected into the prompt. See the **Inject Knowledge** section in `docs/agent-configuration.md` for configuration details.
+
 ## Architecture
 
 ### Memory Grains

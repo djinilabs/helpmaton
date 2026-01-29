@@ -298,6 +298,54 @@ export function validateKnowledgeConfig(params: {
   }
 }
 
+export function resolveKnowledgeInjectionSources(params: {
+  body: UpdateAgentBody;
+  agent: NonNullable<AgentRecord>;
+}): {
+  enableKnowledgeInjection: boolean;
+  enableKnowledgeInjectionFromDocuments: boolean;
+  enableKnowledgeInjectionFromMemories: boolean;
+} {
+  const enableKnowledgeInjection =
+    params.body.enableKnowledgeInjection !== undefined
+      ? params.body.enableKnowledgeInjection
+      : params.agent.enableKnowledgeInjection ?? false;
+
+  const enableKnowledgeInjectionFromDocuments =
+    params.body.enableKnowledgeInjectionFromDocuments !== undefined
+      ? params.body.enableKnowledgeInjectionFromDocuments
+      : params.agent.enableKnowledgeInjectionFromDocuments ?? true;
+
+  const enableKnowledgeInjectionFromMemories =
+    params.body.enableKnowledgeInjectionFromMemories !== undefined
+      ? params.body.enableKnowledgeInjectionFromMemories
+      : params.agent.enableKnowledgeInjectionFromMemories ?? false;
+
+  return {
+    enableKnowledgeInjection,
+    enableKnowledgeInjectionFromDocuments,
+    enableKnowledgeInjectionFromMemories,
+  };
+}
+
+export function validateKnowledgeInjectionSources(params: {
+  enableKnowledgeInjection: boolean;
+  enableKnowledgeInjectionFromDocuments: boolean;
+  enableKnowledgeInjectionFromMemories: boolean;
+}): void {
+  if (!params.enableKnowledgeInjection) {
+    return;
+  }
+  if (
+    !params.enableKnowledgeInjectionFromDocuments &&
+    !params.enableKnowledgeInjectionFromMemories
+  ) {
+    throw badRequest(
+      "At least one knowledge injection source must be enabled (documents or memories)",
+    );
+  }
+}
+
 export function validateModelTuning(params: {
   temperature: UpdateAgentBody["temperature"];
   topP: UpdateAgentBody["topP"];
@@ -418,6 +466,38 @@ export async function validateMemoryExtractionModel(params: {
   return trimmed;
 }
 
+export async function validateKnowledgeInjectionEntityExtractorModel(params: {
+  knowledgeInjectionEntityExtractorModel: UpdateAgentBody["knowledgeInjectionEntityExtractorModel"];
+  getModelPricing?: (provider: string, model: string) => unknown | null;
+}): Promise<string | undefined> {
+  const { knowledgeInjectionEntityExtractorModel } = params;
+  if (
+    knowledgeInjectionEntityExtractorModel === undefined ||
+    knowledgeInjectionEntityExtractorModel === null
+  ) {
+    return undefined;
+  }
+  if (
+    typeof knowledgeInjectionEntityExtractorModel !== "string" ||
+    knowledgeInjectionEntityExtractorModel.trim().length === 0
+  ) {
+    throw badRequest(
+      "knowledgeInjectionEntityExtractorModel must be a non-empty string or null",
+    );
+  }
+  const resolver =
+    params.getModelPricing ??
+    (await import("../../../utils/pricing")).getModelPricing;
+  const trimmed = knowledgeInjectionEntityExtractorModel.trim();
+  const pricing = resolver("openrouter", trimmed);
+  if (!pricing) {
+    throw badRequest(
+      `Model "${trimmed}" is not available. Please check available models at /api/models`,
+    );
+  }
+  return trimmed;
+}
+
 export function validateImageGenerationConfig(params: {
   enableImageGeneration: UpdateAgentBody["enableImageGeneration"];
   imageGenerationModel: UpdateAgentBody["imageGenerationModel"];
@@ -520,6 +600,7 @@ export function buildAgentUpdateParams(params: {
   resolvedFetchWebProvider: "tavily" | "jina" | "scrape" | undefined;
   resolvedModelName: string | undefined;
   resolvedMemoryExtractionModel: string | undefined;
+  resolvedKnowledgeInjectionEntityExtractorModel: string | undefined;
   updatedBy: string;
 }): Record<string, unknown> {
   const { body, agent } = params;
@@ -555,6 +636,14 @@ export function buildAgentUpdateParams(params: {
       body.enableKnowledgeInjection !== undefined
         ? body.enableKnowledgeInjection
         : agent.enableKnowledgeInjection,
+    enableKnowledgeInjectionFromMemories:
+      body.enableKnowledgeInjectionFromMemories !== undefined
+        ? body.enableKnowledgeInjectionFromMemories
+        : agent.enableKnowledgeInjectionFromMemories,
+    enableKnowledgeInjectionFromDocuments:
+      body.enableKnowledgeInjectionFromDocuments !== undefined
+        ? body.enableKnowledgeInjectionFromDocuments
+        : agent.enableKnowledgeInjectionFromDocuments,
     knowledgeInjectionSnippetCount:
       body.knowledgeInjectionSnippetCount !== undefined
         ? body.knowledgeInjectionSnippetCount
@@ -563,6 +652,12 @@ export function buildAgentUpdateParams(params: {
       body.knowledgeInjectionMinSimilarity,
       agent.knowledgeInjectionMinSimilarity,
     ),
+    knowledgeInjectionEntityExtractorModel:
+      body.knowledgeInjectionEntityExtractorModel !== undefined
+        ? body.knowledgeInjectionEntityExtractorModel === null
+          ? undefined
+          : params.resolvedKnowledgeInjectionEntityExtractorModel
+        : agent.knowledgeInjectionEntityExtractorModel,
     enableKnowledgeReranking:
       body.enableKnowledgeReranking !== undefined
         ? body.enableKnowledgeReranking
@@ -666,10 +761,16 @@ export function buildAgentResponse(params: {
     enableMemorySearch: updated.enableMemorySearch ?? false,
     enableSearchDocuments: updated.enableSearchDocuments ?? false,
     enableKnowledgeInjection: updated.enableKnowledgeInjection ?? false,
+    enableKnowledgeInjectionFromMemories:
+      updated.enableKnowledgeInjectionFromMemories ?? false,
+    enableKnowledgeInjectionFromDocuments:
+      updated.enableKnowledgeInjectionFromDocuments ?? true,
     knowledgeInjectionSnippetCount:
       updated.knowledgeInjectionSnippetCount ?? undefined,
     knowledgeInjectionMinSimilarity:
       updated.knowledgeInjectionMinSimilarity ?? undefined,
+    knowledgeInjectionEntityExtractorModel:
+      updated.knowledgeInjectionEntityExtractorModel ?? undefined,
     enableKnowledgeReranking: updated.enableKnowledgeReranking ?? false,
     knowledgeRerankingModel: updated.knowledgeRerankingModel ?? undefined,
     enableSendEmail: updated.enableSendEmail ?? false,

@@ -4,7 +4,9 @@ import type { DatabaseSchema } from "../tables/schema";
 
 import { fromNanoDollars, toNanoDollars } from "./creditConversions";
 import { InsufficientCreditsError, isCreditUserError } from "./creditErrors";
-import { searchDocuments, type SearchResult } from "./documentSearch";
+import { searchDocuments } from "./documentSearch";
+import { extractEntitiesFromPrompt } from "./knowledgeInjection/entityExtraction";
+import { searchGraphByEntities } from "./knowledgeInjection/graphSearch";
 import { rerankSnippets } from "./knowledgeReranking";
 import {
   adjustRerankingCreditReservation,
@@ -12,7 +14,9 @@ import {
   refundRerankingCredits,
   reserveRerankingCredits,
 } from "./knowledgeRerankingCredits";
+import { searchMemory } from "./memory/searchMemory";
 import type {
+  KnowledgeSnippet,
   RerankingRequestContent,
   RerankingResultContent,
   UIMessage,
@@ -22,7 +26,7 @@ import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
 type RerankingOutcome = {
-  results: SearchResult[];
+  results: KnowledgeSnippet[];
   rerankingRequestMessage?: UIMessage;
   rerankingResultMessage?: UIMessage;
 };
@@ -45,7 +49,7 @@ const resolveSnippetCount = (agent: {
 
 const getExistingResults = (
   existingConversationMessages?: UIMessage[],
-): SearchResult[] | undefined => {
+): KnowledgeSnippet[] | undefined => {
   if (
     !existingConversationMessages ||
     existingConversationMessages.length === 0
@@ -68,7 +72,10 @@ const getExistingResults = (
       existingKnowledgeMessage.knowledgeSnippets.length,
       "snippets",
     );
-    return existingKnowledgeMessage.knowledgeSnippets;
+    return existingKnowledgeMessage.knowledgeSnippets.map((snippet) => ({
+      ...snippet,
+      source: snippet.source ?? "document",
+    }));
   }
 
   return undefined;
@@ -77,9 +84,17 @@ const getExistingResults = (
 const buildRerankingRequestMessage = (params: {
   query: string;
   model: string;
-  results: SearchResult[];
+  results: KnowledgeSnippet[];
 }): UIMessage => {
-  const documentNames = params.results.map((result) => result.documentName);
+  const documentNames = params.results.map((result, index) => {
+    if (result.source === "document") {
+      return result.documentName || `Document ${index + 1}`;
+    }
+    if (result.source === "memory") {
+      return `Memory snippet ${index + 1}`;
+    }
+    return `Graph fact ${index + 1}`;
+  });
   const rerankingRequestContent: RerankingRequestContent = {
     type: "reranking-request",
     query: params.query,
@@ -138,7 +153,7 @@ const resolveRerankingCostNanoDollars = (params: {
 const buildRerankingResultMessage = (params: {
   model: string;
   rerankingResult: {
-    snippets: SearchResult[];
+    snippets: KnowledgeSnippet[];
     costUsd?: number;
     generationId?: string;
   };
@@ -154,10 +169,17 @@ const buildRerankingResultMessage = (params: {
       generationId: params.rerankingResult.generationId,
     }),
     executionTimeMs: params.executionTimeMs,
-    rerankedDocuments: params.rerankingResult.snippets.map((snippet) => ({
-      documentName: snippet.documentName,
-      relevanceScore: snippet.similarity,
-    })),
+    rerankedDocuments: params.rerankingResult.snippets.map(
+      (snippet, index) => ({
+        documentName:
+          snippet.source === "document"
+            ? snippet.documentName || `Document ${index + 1}`
+            : snippet.source === "memory"
+              ? `Memory snippet ${index + 1}`
+              : `Graph fact ${index + 1}`,
+        relevanceScore: snippet.similarity,
+      }),
+    ),
   };
 
   const costDisplay = `$${fromNanoDollars(params.costNanoDollars).toFixed(9)}`;
@@ -172,7 +194,7 @@ const buildRerankingResultMessage = (params: {
 const buildRerankingErrorMessage = (params: {
   model: string;
   error: unknown;
-  results: SearchResult[];
+  results: KnowledgeSnippet[];
   executionTimeMs: number;
 }): UIMessage => {
   const errorMessage =
@@ -183,8 +205,13 @@ const buildRerankingErrorMessage = (params: {
     documentCount: params.results.length,
     costUsd: 0,
     executionTimeMs: params.executionTimeMs,
-    rerankedDocuments: params.results.map((snippet) => ({
-      documentName: snippet.documentName,
+    rerankedDocuments: params.results.map((snippet, index) => ({
+      documentName:
+        snippet.source === "document"
+          ? snippet.documentName || `Document ${index + 1}`
+          : snippet.source === "memory"
+            ? `Memory snippet ${index + 1}`
+            : `Graph fact ${index + 1}`,
       relevanceScore: snippet.similarity,
     })),
     error: errorMessage,
@@ -419,7 +446,7 @@ const performReranking = async (params: {
     knowledgeRerankingModel?: string;
   };
   query: string;
-  searchResults: SearchResult[];
+  searchResults: KnowledgeSnippet[];
   db?: DatabaseSchema;
   context?: AugmentedContext;
   agentId?: string;
@@ -536,7 +563,7 @@ const performReranking = async (params: {
 
 const buildKnowledgeMessages = (
   knowledgePrompt: string,
-  results: SearchResult[],
+  results: KnowledgeSnippet[],
 ) => {
   const knowledgeModelMessage: ModelMessage = {
     role: "user",
@@ -572,34 +599,85 @@ const insertKnowledgeMessage = (
  * @param results - Array of search results (snippets)
  * @returns Formatted knowledge prompt text
  */
-function formatKnowledgePrompt(results: SearchResult[]): string {
+function formatKnowledgePrompt(results: KnowledgeSnippet[]): string {
   if (results.length === 0) {
     return "";
   }
 
-  const snippetsText = results
-    .map((result, index) => {
-      const folderPathText = result.folderPath ? ` (${result.folderPath})` : "";
-      const similarityPercent = (result.similarity * 100).toFixed(1);
+  const documentSnippets = results.filter(
+    (result) => result.source === "document",
+  );
+  const memorySnippets = results.filter((result) => result.source === "memory");
+  const graphSnippets = results.filter((result) => result.source === "graph");
 
-      return `[${index + 1}] Document: ${result.documentName}${folderPathText}
+  const sections: string[] = [];
+  let globalIndex = 1;
+
+  if (documentSnippets.length > 0) {
+    const snippetsText = documentSnippets
+      .map((result) => {
+        const folderPathText = result.folderPath
+          ? ` (${result.folderPath})`
+          : "";
+        const similarityPercent = (result.similarity * 100).toFixed(1);
+        const snippetIndex = globalIndex++;
+
+        return `[${snippetIndex}] Document: ${result.documentName}${folderPathText}
 Similarity: ${similarityPercent}%
 Content:
 ${result.snippet}
 
 ---`;
-    })
-    .join("\n\n");
+      })
+      .join("\n\n");
+    sections.push(`## Knowledge from Workspace Documents
 
-  return `## Relevant Knowledge from Workspace Documents
+${snippetsText}`);
+  }
 
-The following information has been retrieved from your workspace documents that may be relevant to your query:
+  if (memorySnippets.length > 0) {
+    const snippetsText = memorySnippets
+      .map((result) => {
+        const dateLabel = result.date || result.timestamp || "Unknown date";
+        const similarityPercent = (result.similarity * 100).toFixed(1);
+        const snippetIndex = globalIndex++;
 
-${snippetsText}
+        return `[${snippetIndex}] Memory (${dateLabel})
+Similarity: ${similarityPercent}%
+Content:
+${result.snippet}
 
----
+---`;
+      })
+      .join("\n\n");
+    sections.push(`## Knowledge from Agent Memories
 
-Please use this information to provide a comprehensive and accurate response to the user's query below.`;
+${snippetsText}`);
+  }
+
+  if (graphSnippets.length > 0) {
+    const snippetsText = graphSnippets
+      .map((result) => {
+        const similarityPercent = (result.similarity * 100).toFixed(1);
+        const triple =
+          result.subject && result.predicate && result.object
+            ? `Subject: ${result.subject}\nPredicate: ${result.predicate}\nObject: ${result.object}`
+            : result.snippet;
+        const snippetIndex = globalIndex++;
+
+        return `[${snippetIndex}] Fact
+Similarity: ${similarityPercent}%
+${triple}
+
+---`;
+      })
+      .join("\n\n");
+    sections.push(`## Knowledge from Agent Graph Facts
+
+${snippetsText}`);
+  }
+
+  return `${sections.join("\n\n")}\n\n---\n\nPlease use this information to provide a comprehensive and accurate response to the user's query below.`;
 }
 
 /**
@@ -691,6 +769,29 @@ export async function injectKnowledgeIntoMessages(
     return buildEmptyInjectionResult(messages);
   }
 
+  const enableKnowledgeInjectionFromDocuments =
+    agent.enableKnowledgeInjectionFromDocuments ?? true;
+  const enableKnowledgeInjectionFromMemories =
+    agent.enableKnowledgeInjectionFromMemories ?? false;
+  const canInjectFromMemories =
+    enableKnowledgeInjectionFromMemories && !!agentId;
+  if (enableKnowledgeInjectionFromMemories && !agentId) {
+    console.warn(
+      "[knowledgeInjection] Memory injection enabled but agentId is missing; skipping memory and graph search.",
+      {
+        workspaceId,
+        conversationId,
+      },
+    );
+  }
+
+  if (
+    !enableKnowledgeInjectionFromDocuments &&
+    !enableKnowledgeInjectionFromMemories
+  ) {
+    return buildEmptyInjectionResult(messages);
+  }
+
   // Check for existing knowledge injection message in conversation
   let finalResults = getExistingResults(existingConversationMessages);
   let rerankingRequestMessage: UIMessage | undefined;
@@ -707,16 +808,63 @@ export async function injectKnowledgeIntoMessages(
   if (!finalResults) {
     try {
       const validSnippetCount = resolveSnippetCount(agent);
+      const fetchLimit = Math.min(50, validSnippetCount * 2);
 
-      // Search for relevant documents
-      const searchResults = await searchDocuments(
-        workspaceId,
-        query,
-        validSnippetCount,
-      );
+      const documentSnippets = enableKnowledgeInjectionFromDocuments
+        ? (await searchDocuments(workspaceId, query, fetchLimit)).map(
+            (result) => ({
+              ...result,
+              source: "document" as const,
+            }),
+          )
+        : [];
+
+      let memorySnippets: KnowledgeSnippet[] = [];
+      let graphSnippets: KnowledgeSnippet[] = [];
+      if (canInjectFromMemories) {
+        const memoryResults = await searchMemory({
+          agentId,
+          workspaceId,
+          grain: "working",
+          maxResults: fetchLimit,
+          queryText: query,
+        });
+        memorySnippets = memoryResults.map((result) => ({
+          snippet: result.content,
+          similarity: result.similarity ?? 1,
+          source: "memory",
+          timestamp: result.timestamp,
+          date: result.date,
+        }));
+
+        const entities = await extractEntitiesFromPrompt({
+          workspaceId,
+          agentId,
+          prompt: query,
+          modelName: agent.knowledgeInjectionEntityExtractorModel,
+        });
+        const graphResults = await searchGraphByEntities({
+          workspaceId,
+          agentId,
+          entities,
+        });
+        graphSnippets = graphResults.map((result) => ({
+          snippet: result.snippet,
+          similarity: result.similarity,
+          source: "graph",
+          subject: result.subject,
+          predicate: result.predicate,
+          object: result.object,
+        }));
+      }
+
+      const searchResults = [
+        ...documentSnippets,
+        ...memorySnippets,
+        ...graphSnippets,
+      ];
 
       if (searchResults.length === 0) {
-        // No documents found, skip injection
         return buildEmptyInjectionResult(messages);
       }
 
@@ -732,14 +880,14 @@ export async function injectKnowledgeIntoMessages(
         usesByok,
       });
 
-      finalResults = rerankingOutcome.results;
+      finalResults = rerankingOutcome.results.slice(0, validSnippetCount);
       rerankingRequestMessage = rerankingOutcome.rerankingRequestMessage;
       rerankingResultMessage = rerankingOutcome.rerankingResultMessage;
     } catch (error) {
       const errorObj = ensureError(error);
       if (isCreditUserError(errorObj)) {
         console.info(
-          "[knowledgeInjection] Credit limits prevented document search reranking, returning original messages:",
+          "[knowledgeInjection] Credit limits prevented knowledge injection, returning original messages:",
           {
             error: errorObj.message,
             errorType: errorObj.name,
@@ -751,14 +899,13 @@ export async function injectKnowledgeIntoMessages(
         return buildEmptyInjectionResult(messages);
       }
 
-      console.error(
-        "[knowledgeInjection] Error during document search:",
-        errorObj.message,
-      );
+      console.error("[knowledgeInjection] Error during knowledge search:", {
+        message: errorObj.message,
+      });
       Sentry.captureException(errorObj, {
         tags: {
           context: "knowledge-injection",
-          operation: "search-documents",
+          operation: "search-knowledge",
         },
         extra: {
           workspaceId,

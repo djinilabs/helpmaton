@@ -527,9 +527,15 @@ async function createAgentsAndNestedEntities(
       enableMemorySearch: agentData.enableMemorySearch ?? false,
       enableSearchDocuments: agentData.enableSearchDocuments ?? false,
       enableKnowledgeInjection: agentData.enableKnowledgeInjection ?? false,
+      enableKnowledgeInjectionFromMemories:
+        agentData.enableKnowledgeInjectionFromMemories ?? false,
+      enableKnowledgeInjectionFromDocuments:
+        agentData.enableKnowledgeInjectionFromDocuments ?? true,
       knowledgeInjectionSnippetCount: agentData.knowledgeInjectionSnippetCount,
       knowledgeInjectionMinSimilarity:
         agentData.knowledgeInjectionMinSimilarity,
+      knowledgeInjectionEntityExtractorModel:
+        agentData.knowledgeInjectionEntityExtractorModel,
       enableKnowledgeReranking: agentData.enableKnowledgeReranking ?? false,
       knowledgeRerankingModel: agentData.knowledgeRerankingModel,
       enableSendEmail: agentData.enableSendEmail ?? false,

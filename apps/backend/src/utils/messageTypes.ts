@@ -2,7 +2,19 @@
  * Type definitions for message conversion utilities
  */
 
-import type { SearchResult } from "./documentSearch";
+export type KnowledgeSnippet = {
+  snippet: string;
+  similarity: number;
+  source: "document" | "memory" | "graph";
+  documentName?: string;
+  documentId?: string;
+  folderPath?: string;
+  timestamp?: string;
+  date?: string;
+  subject?: string;
+  predicate?: string;
+  object?: string;
+};
 
 export type TextContent = string | { type: "text"; text: string };
 
@@ -78,7 +90,7 @@ export type UIMessage =
       content: string | Array<TextContent | FileContent>;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
       knowledgeInjection?: true; // Marker for knowledge injection messages
-      knowledgeSnippets?: SearchResult[]; // Original snippets for reuse
+      knowledgeSnippets?: KnowledgeSnippet[]; // Original snippets for reuse
       generationStartedAt?: string; // ISO timestamp when message was received
       generationEndedAt?: string; // ISO timestamp when message was received (same as started for user messages)
     }

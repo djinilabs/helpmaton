@@ -170,6 +170,40 @@ export const openApiSchemas = {
         type: "boolean",
         description: "Enable the document search tool for this agent",
       },
+      enableKnowledgeInjection: {
+        type: "boolean",
+        description: "Enable knowledge injection for this agent",
+      },
+      enableKnowledgeInjectionFromMemories: {
+        type: "boolean",
+        description: "Inject knowledge from agent memories",
+      },
+      enableKnowledgeInjectionFromDocuments: {
+        type: "boolean",
+        description: "Inject knowledge from workspace documents",
+      },
+      knowledgeInjectionSnippetCount: {
+        type: "integer",
+        description: "Number of knowledge snippets to inject",
+      },
+      knowledgeInjectionMinSimilarity: {
+        type: "number",
+        description: "Minimum similarity score for injected snippets",
+      },
+      knowledgeInjectionEntityExtractorModel: {
+        type: "string",
+        description: "Model used to extract entities from prompts",
+        nullable: true,
+      },
+      enableKnowledgeReranking: {
+        type: "boolean",
+        description: "Enable re-ranking of injected snippets",
+      },
+      knowledgeRerankingModel: {
+        type: "string",
+        description: "Re-ranking model name from OpenRouter",
+        nullable: true,
+      },
       enableSendEmail: {
         type: "boolean",
         description:
@@ -321,6 +355,40 @@ export const openApiSchemas = {
       enableSearchDocuments: {
         type: "boolean",
         description: "Enable the document search tool for this agent",
+      },
+      enableKnowledgeInjection: {
+        type: "boolean",
+        description: "Enable knowledge injection for this agent",
+      },
+      enableKnowledgeInjectionFromMemories: {
+        type: "boolean",
+        description: "Inject knowledge from agent memories",
+      },
+      enableKnowledgeInjectionFromDocuments: {
+        type: "boolean",
+        description: "Inject knowledge from workspace documents",
+      },
+      knowledgeInjectionSnippetCount: {
+        type: "integer",
+        description: "Number of knowledge snippets to inject",
+      },
+      knowledgeInjectionMinSimilarity: {
+        type: "number",
+        description: "Minimum similarity score for injected snippets",
+      },
+      knowledgeInjectionEntityExtractorModel: {
+        type: "string",
+        description: "Model used to extract entities from prompts",
+        nullable: true,
+      },
+      enableKnowledgeReranking: {
+        type: "boolean",
+        description: "Enable re-ranking of injected snippets",
+      },
+      knowledgeRerankingModel: {
+        type: "string",
+        description: "Re-ranking model name from OpenRouter",
+        nullable: true,
       },
       enableSendEmail: {
         type: "boolean",

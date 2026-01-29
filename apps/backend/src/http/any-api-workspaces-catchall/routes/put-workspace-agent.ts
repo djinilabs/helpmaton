@@ -16,11 +16,14 @@ import {
   cleanEnabledMcpServerIds,
   getAgentOrThrow,
   resolveFetchWebProvider,
+  resolveKnowledgeInjectionSources,
   resolveSearchWebProvider,
   validateClientTools,
   validateDelegatableAgentIds,
   validateImageGenerationConfig,
   validateKnowledgeConfig,
+  validateKnowledgeInjectionEntityExtractorModel,
+  validateKnowledgeInjectionSources,
   validateMemoryExtractionModel,
   validateModelName,
   validateModelTuning,
@@ -159,6 +162,9 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         validateKnowledgeConfig({
           knowledgeInjectionMinSimilarity: body.knowledgeInjectionMinSimilarity,
         });
+        const resolvedKnowledgeInjectionSources =
+          resolveKnowledgeInjectionSources({ body, agent });
+        validateKnowledgeInjectionSources(resolvedKnowledgeInjectionSources);
         validateModelTuning({
           temperature: body.temperature,
           topP: body.topP,
@@ -173,6 +179,11 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         const resolvedMemoryExtractionModel =
           await validateMemoryExtractionModel({
             memoryExtractionModel: body.memoryExtractionModel,
+          });
+        const resolvedKnowledgeInjectionEntityExtractorModel =
+          await validateKnowledgeInjectionEntityExtractorModel({
+            knowledgeInjectionEntityExtractorModel:
+              body.knowledgeInjectionEntityExtractorModel,
           });
         validateImageGenerationConfig({
           enableImageGeneration: body.enableImageGeneration,
@@ -205,6 +216,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             resolvedFetchWebProvider,
             resolvedModelName,
             resolvedMemoryExtractionModel,
+            resolvedKnowledgeInjectionEntityExtractorModel,
             updatedBy: req.userRef || "",
           }),
         );
