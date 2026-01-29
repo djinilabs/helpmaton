@@ -86,6 +86,50 @@ describe("memoryExtraction", () => {
     expect(result?.memoryOperations).toHaveLength(1);
   });
 
+  it("parses responses wrapped in json code fences", async () => {
+    mockGenerateText.mockResolvedValue({
+      text:
+        "```json\n" +
+        JSON.stringify({
+          summary: "Summary text",
+          memory_operations: [],
+        }) +
+        "\n```",
+    });
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+    });
+
+    expect(result?.summary).toBe("Summary text");
+    expect(result?.memoryOperations).toHaveLength(0);
+  });
+
+  it("retries with repair when JSON parsing fails", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: "```json\n{ invalid }\n```" })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Recovered summary",
+          memory_operations: [],
+        }),
+      });
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+    });
+
+    expect(result?.summary).toBe("Recovered summary");
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockValidateCreditsAndLimits).toHaveBeenCalledTimes(2);
+  });
+
   it("applies memory operations to the graph database", async () => {
     const mockInsertFacts = vi.fn();
     const mockUpdateFacts = vi.fn();

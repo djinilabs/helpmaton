@@ -32,8 +32,19 @@
 
 **Latest Work**:
 
+- **PR 237 review fixes**: Added jsonParsing unit tests, improved knowledge graph endpoint coverage (agent missing, maxResults bounds, query escaping), fixed SVG marker ID collisions, added accessible search label + reset view control, and stabilized LIKE escape string handling. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for knowledge graph/jsonParsing.
+- **Knowledge graph panels visibility**: Adjusted the graph container to scroll internally without forcing column width and ensured facts list uses min-height-safe flex overflow so the overview stays visible. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Knowledge graph fixed height**: Locked the graph and facts overview panels to a fixed height with internal scrolling to avoid layout jumps when selecting nodes. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Knowledge graph pan/zoom**: Added mouse drag panning and wheel zooming to the knowledge graph SVG with viewBox updates for local navigation. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **DuckPGQ fallback**: DuckDB graph setup now attempts to install/load `duckpgq` but continues without property graph support when the extension isn't available (prevents local 404s for the community extension). Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **DuckDB home directory fix**: Set `home_directory` for DuckDB in graph DB initialization to avoid local IO errors, creating a default `helpmaton-duckdb` directory under `/tmp` when HOME is missing. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Knowledge graph UI**: Added agent knowledge graph API endpoint + SVG viewer section with search/max results and memory-extraction empty-state, plus backend/frontend tests. Ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run get-agent-knowledge-graph`, and `pnpm --filter frontend test --run knowledgeGraph`.
 - **Inject knowledge memories RAG**: Added agent-level settings for memory/document injection with entity extractor model, built memory+graph retrieval plus unified reranking in `knowledgeInjection`, added entity extraction + graph search helpers and tests, updated UI for memory/document sources and snippet display. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 236 review fixes**: Made reranking model nullable in update schema, added warning when memory injection lacks agentId, made entity extraction parse errors non-fatal, added accessibility labels for inject-source checkboxes, and switched snippet numbering to a global index. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **Memory extraction JSON repair**: Added enhanced JSON parsing (code fences + first-object extraction), added model retry for invalid JSON with a repair prompt, and updated memory extraction tests for fenced JSON and repair flows. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **Graph DB endpoint normalization**: Strip scheme from DuckDB `s3_endpoint` to avoid `http://http://...` in local s3rver writes, fixing graph save IO errors. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **Agent removal graph cleanup**: Added removal of graph facts parquet (`graphs/{workspaceId}/{agentId}/facts.parquet`) when deleting an agent. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
+- **Knowledge graph search escape fix**: Use single-character ESCAPE in knowledge graph LIKE queries to avoid DuckDB invalid escape errors. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm test`.
 - **Conversation memory extraction**: Added per-agent memory extraction settings (model/prompt) with UI controls, switched working memory to conversation-level update records, added LLM extraction with credit validation and graph fact writes, and updated tests. Ran `pnpm typecheck`, `pnpm lint --fix`, backend tests (`memoryExtraction`, `memorySystem.integration`, `agent-temporal-grain-queue`, `put-workspace-agent`), and full `pnpm test`.
 - **DuckPGQ graph DB**: Replaced DuckDB dependency with `@duckdb/node-api` + `@duckdb/node-bindings`, added `graphDb` wrapper for per-workspace/agent facts stored as S3 Parquet with DuckPGQ property graph initialization and CRUD/save helpers, updated tests/docs, and ran `pnpm --filter backend test --run graphDb`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Graph DB doc**: Added `docs/graph-database.md` describing DuckPGQ setup, storage layout, schema, env vars, and usage.
@@ -2710,6 +2721,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - **PR deploy E2E workflow trigger**: Switched E2E tests to be invoked directly from `deploy-pr.yml` via `workflow_call`, removed `workflow_run` trigger, and cleaned job gating to avoid skipped runs. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Deploy prod workflow simplification**: Removed redundant PR check + commit SHA verification, dropped per-step gating, and simplified checkout ref to reduce flaky cancellations while keeping the E2E-on-main trigger.
 - **Deploy prod build stability**: Limited backend build concurrency in `scripts/build-backend.ts` to reduce runner shutdowns during workflow execution.
+- **Deploy prod OpenAPI fix**: Repaired YAML OpenAPI annotation in `get-agent-conversation.ts` to stop `generate:openapi` failures during deploy.
 
 ### Slack & Discord Bot Integration (Latest)
 

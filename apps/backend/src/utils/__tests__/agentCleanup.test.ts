@@ -6,11 +6,13 @@ const {
   mockDeleteDiscordCommand,
   mockRemoveAgentDatabases,
   mockDeleteS3Object,
+  mockDeleteGraphFactsFile,
 } = vi.hoisted(() => {
   return {
     mockDeleteDiscordCommand: vi.fn(),
     mockRemoveAgentDatabases: vi.fn(),
     mockDeleteS3Object: vi.fn(),
+    mockDeleteGraphFactsFile: vi.fn(),
   };
 });
 
@@ -24,6 +26,10 @@ vi.mock("../vectordb/agentRemoval", () => ({
 
 vi.mock("../s3", () => ({
   deleteS3Object: mockDeleteS3Object,
+}));
+
+vi.mock("../duckdb/graphDb", () => ({
+  deleteGraphFactsFile: mockDeleteGraphFactsFile,
 }));
 
 function buildAsyncGenerator<T>(items: T[]) {
@@ -125,6 +131,7 @@ describe("removeAgentResources", () => {
       "conversation",
     );
     expect(mockRemoveAgentDatabases).toHaveBeenCalledWith(agentId);
+    expect(mockDeleteGraphFactsFile).toHaveBeenCalledWith(workspaceId, agentId);
     expect(db.agent.delete).toHaveBeenCalledWith(
       `agents/${workspaceId}/${agentId}`,
       "agent",

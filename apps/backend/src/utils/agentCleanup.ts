@@ -4,6 +4,7 @@ import type {
 } from "../tables/schema";
 
 import { deleteDiscordCommand } from "./discordApi";
+import { deleteGraphFactsFile } from "./duckdb/graphDb";
 import { deleteS3Object } from "./s3";
 import { removeAgentDatabases } from "./vectordb/agentRemoval";
 
@@ -252,6 +253,10 @@ export async function removeAgentResources(
       }
       await integrationTable.delete(integration.pk, integration.sk);
     }
+  });
+
+  await safeCleanup("graph-facts", async () => {
+    await deleteGraphFactsFile(workspaceId, agentId);
   });
 
   await safeCleanup("vector-databases", async () => {

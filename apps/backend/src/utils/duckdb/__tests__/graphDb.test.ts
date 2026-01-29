@@ -104,6 +104,11 @@ describe("createGraphDb", () => {
 
     await createGraphDb("workspace-1", "agent-1");
 
+    expect(
+      runStatements.some((statement) =>
+        statement.startsWith("SET home_directory="),
+      ),
+    ).toBe(true);
     expect(runStatements).toContain("INSTALL httpfs;");
     expect(runStatements).toContain("LOAD httpfs;");
     expect(runStatements).toContain("INSTALL duckpgq FROM community;");

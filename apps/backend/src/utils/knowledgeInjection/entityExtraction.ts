@@ -10,6 +10,7 @@ import {
 } from "../../http/utils/requestTimeout";
 import { database } from "../../tables";
 import { validateCreditsAndLimits } from "../creditValidation";
+import { parseJsonWithFallback } from "../jsonParsing";
 
 const EntityExtractionResponseSchema = z
   .object({
@@ -35,7 +36,9 @@ function buildEntityExtractionMessages(prompt: string): ModelMessage[] {
 }
 
 function parseEntityExtractionResponse(text: string): string[] {
-  const parsed = EntityExtractionResponseSchema.parse(JSON.parse(text));
+  const parsed = EntityExtractionResponseSchema.parse(
+    parseJsonWithFallback<unknown>(text),
+  );
   const unique = Array.from(new Set(parsed.entities.map((e) => e.trim())));
   return unique.filter((entity) => entity.length > 0);
 }

@@ -1,4 +1,11 @@
-import { S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { DuckDBInstance } from "@duckdb/node-api";
 
 import { getS3BucketName } from "../vectordb/config";
@@ -102,6 +109,16 @@ function buildFactsS3Location(
   };
 }
 
+function normalizeDuckDbEndpoint(endpoint: string): string {
+  if (endpoint.startsWith("http://")) {
+    return endpoint.slice("http://".length);
+  }
+  if (endpoint.startsWith("https://")) {
+    return endpoint.slice("https://".length);
+  }
+  return endpoint;
+}
+
 function resolveS3Credentials(): {
   accessKeyId: string;
   secretAccessKey: string;
@@ -202,11 +219,29 @@ async function runQuery<T>(
   return reader.getRowObjectsJson() as T[];
 }
 
-async function configureDuckDb(connection: DuckDbConnection) {
+async function configureDuckDb(connection: DuckDbConnection): Promise<boolean> {
+  const homeDirectory =
+    process.env.HELPMATON_DUCKDB_HOME ||
+    process.env.HOME ||
+    path.join("/tmp", "helpmaton-duckdb");
+  await mkdir(homeDirectory, { recursive: true });
+  await runStatement(
+    connection,
+    `SET home_directory='${escapeSingleQuotes(homeDirectory)}';`,
+  );
+
   await runStatement(connection, "INSTALL httpfs;");
   await runStatement(connection, "LOAD httpfs;");
-  await runStatement(connection, "INSTALL duckpgq FROM community;");
-  await runStatement(connection, "LOAD duckpgq;");
+  let duckpgqEnabled = false;
+  try {
+    await runStatement(connection, "INSTALL duckpgq FROM community;");
+    await runStatement(connection, "LOAD duckpgq;");
+    duckpgqEnabled = true;
+  } catch (error) {
+    console.warn("[Graph DB] DuckPGQ extension unavailable:", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   const credentials = resolveS3Credentials();
   if (!credentials.accessKeyId || !credentials.secretAccessKey) {
@@ -230,7 +265,9 @@ async function configureDuckDb(connection: DuckDbConnection) {
   if (credentials.endpoint) {
     await runStatement(
       connection,
-      `SET s3_endpoint='${escapeSingleQuotes(credentials.endpoint)}';`,
+      `SET s3_endpoint='${escapeSingleQuotes(
+        normalizeDuckDbEndpoint(credentials.endpoint),
+      )}';`,
     );
   }
   if (credentials.urlStyle) {
@@ -245,11 +282,14 @@ async function configureDuckDb(connection: DuckDbConnection) {
       `SET s3_use_ssl=${credentials.useSsl ? "true" : "false"};`,
     );
   }
+
+  return duckpgqEnabled;
 }
 
 async function initializeFactsTable(
   connection: DuckDbConnection,
   location: S3Location,
+  duckpgqEnabled: boolean,
 ): Promise<void> {
   const exists = await parquetExists(location);
   const escapedUri = escapeSingleQuotes(location.uri);
@@ -269,11 +309,16 @@ async function initializeFactsTable(
     connection,
     "CREATE OR REPLACE VIEW nodes AS SELECT DISTINCT source_id AS id FROM facts UNION SELECT DISTINCT target_id AS id FROM facts;",
   );
-  await runStatement(connection, "DROP PROPERTY GRAPH IF EXISTS facts_graph;");
-  await runStatement(
-    connection,
-    "CREATE PROPERTY GRAPH facts_graph VERTEX TABLES ( nodes ) EDGE TABLES ( facts SOURCE KEY ( source_id ) REFERENCES nodes ( id ) DESTINATION KEY ( target_id ) REFERENCES nodes ( id ) LABEL label );",
-  );
+  if (duckpgqEnabled) {
+    await runStatement(
+      connection,
+      "DROP PROPERTY GRAPH IF EXISTS facts_graph;",
+    );
+    await runStatement(
+      connection,
+      "CREATE PROPERTY GRAPH facts_graph VERTEX TABLES ( nodes ) EDGE TABLES ( facts SOURCE KEY ( source_id ) REFERENCES nodes ( id ) DESTINATION KEY ( target_id ) REFERENCES nodes ( id ) LABEL label );",
+    );
+  }
 }
 
 async function closeDuckDb(
@@ -292,8 +337,8 @@ export async function createGraphDb(
   const instance = await DuckDBInstance.create(":memory:");
   const connection = await instance.connect();
   try {
-    await configureDuckDb(connection);
-    await initializeFactsTable(connection, location);
+    const duckpgqEnabled = await configureDuckDb(connection);
+    await initializeFactsTable(connection, location, duckpgqEnabled);
   } catch (error) {
     try {
       await closeDuckDb(connection, instance);
@@ -349,4 +394,18 @@ export async function createGraphDb(
     },
     close: async () => closeDuckDb(connection, instance),
   };
+}
+
+export async function deleteGraphFactsFile(
+  workspaceId: string,
+  agentId: string,
+): Promise<void> {
+  const location = buildFactsS3Location(workspaceId, agentId);
+  const client = createS3Client();
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: location.bucket,
+      Key: location.key,
+    }),
+  );
 }
