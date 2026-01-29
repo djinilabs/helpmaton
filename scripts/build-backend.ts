@@ -24,7 +24,7 @@ const backendDist = join(__dirname, "../apps/backend/dist");
  */
 async function findEntryPoints(
   dir: string,
-  baseDir: string = dir
+  baseDir: string = dir,
 ): Promise<string[]> {
   const entries: string[] = [];
   const items = await readdir(dir);
@@ -67,8 +67,9 @@ async function buildBackend() {
   const entryPoints = await findEntryPoints(backendSrc);
   console.log(`Found ${entryPoints.length} entry points\n`);
 
-  // Build each entry point
-  const builds = entryPoints.map(async (entryPoint) => {
+  // Build each entry point with limited concurrency to avoid runner OOM
+  const concurrency = Number(process.env.BUILD_BACKEND_CONCURRENCY || 4);
+  const buildEntryPoint = async (entryPoint: string) => {
     const outputPath = getOutputPath(entryPoint);
     const outputDir = dirname(outputPath);
 
@@ -112,22 +113,32 @@ async function buildBackend() {
       console.log(
         `✅ Built: ${entryPoint.replace(
           backendSrc + "/",
-          ""
-        )} -> ${outputPath.replace(backendDist + "/", "")}`
+          "",
+        )} -> ${outputPath.replace(backendDist + "/", "")}`,
       );
       return { entryPoint, success: true };
     } catch (error) {
       console.error(`❌ Failed to build ${entryPoint}:`, error);
       return { entryPoint, success: false, error };
     }
-  });
+  };
 
-  const results = await Promise.all(builds);
+  const results: Array<{
+    entryPoint: string;
+    success: boolean;
+    error?: unknown;
+  }> = [];
+
+  for (let i = 0; i < entryPoints.length; i += concurrency) {
+    const batch = entryPoints.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(buildEntryPoint));
+    results.push(...batchResults);
+  }
   const successful = results.filter((r) => r.success).length;
   const failed = results.filter((r) => !r.success);
 
   console.log(
-    `\n📊 Build complete: ${successful}/${results.length} successful`
+    `\n📊 Build complete: ${successful}/${results.length} successful`,
   );
 
   if (failed.length > 0) {
