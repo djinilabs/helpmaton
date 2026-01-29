@@ -16,6 +16,8 @@ import type { FC } from "react";
 
 import { useAgentOptional } from "../hooks/useAgents";
 import { apiFetch, getAccessToken } from "../utils/api";
+import { getDefaultAvatar } from "../utils/avatarUtils";
+import { lastAssistantMessageHasText } from "../utils/chatMessageParts";
 
 import { ChatMessage, type ChatMessageProps } from "./ChatMessage";
 
@@ -369,6 +371,11 @@ export const AgentChat: FC<AgentChatProps> = ({
     });
 
   const isLoading = status === "submitted" || status === "streaming";
+  const lastAssistantMessageHasTextPart = useMemo(
+    () => lastAssistantMessageHasText(messages),
+    [messages]
+  );
+  const showTypingIndicator = isLoading && !lastAssistantMessageHasTextPart;
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -699,6 +706,49 @@ export const AgentChat: FC<AgentChatProps> = ({
                 />
               );
             })}
+          </div>
+        )}
+        {showTypingIndicator && (
+          <div className="mt-4 flex items-center gap-2">
+            <img
+              src={agent?.avatar || getDefaultAvatar()}
+              alt="Agent avatar"
+              className="size-6 rounded object-contain"
+            />
+            <svg
+              className="h-4 w-8 text-neutral-500 dark:text-neutral-300"
+              viewBox="0 0 24 8"
+              fill="currentColor"
+              aria-label="Agent is typing"
+              role="img"
+            >
+              <circle cx="4" cy="4" r="2">
+                <animate
+                  attributeName="cy"
+                  values="4;2;4"
+                  dur="0.8s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+              <circle cx="12" cy="4" r="2">
+                <animate
+                  attributeName="cy"
+                  values="4;2;4"
+                  dur="0.8s"
+                  begin="0.15s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+              <circle cx="20" cy="4" r="2">
+                <animate
+                  attributeName="cy"
+                  values="4;2;4"
+                  dur="0.8s"
+                  begin="0.3s"
+                  repeatCount="indefinite"
+                />
+              </circle>
+            </svg>
           </div>
         )}
       </div>

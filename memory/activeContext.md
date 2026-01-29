@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **AgentChat typing indicator (2026-01-29)**: Added assistant waiting state with bot avatar + animated dots when no text part has streamed yet (including tool/reasoning-only chunks), extracted `lastAssistantMessageHasText` helper with unit tests, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Deploy Prod workflow timeout**: Set `deploy-prod.yml` job `timeout-minutes` to 45 and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Prod email OAuth missing connection (2026-01-28)**: Checked `/aws/lambda/HelpmatonProduction-AnyApiEmailOauthProviderCallba-bh1m3fyArgXd` logs around 18:00Z; Gmail OAuth token exchange succeeded twice, but no DynamoDB write logs appear and request ends with “No transactions to commit,” suggesting the connection was not persisted.
 - **Service worker cache scope (2026-01-28)**: Frontend `service-worker.js` explicitly ignores `/api/*` requests and only caches root HTML + static assets.
