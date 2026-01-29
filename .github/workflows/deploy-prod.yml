@@ -17,6 +17,15 @@ on:
 
 jobs:
   deploy:
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_e2e == 'true')
+        || (
+          github.event.workflow_run.event == 'push'
+          && github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.head_branch == 'main'
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # Security: Explicit permissions - only what's needed
@@ -27,15 +36,13 @@ jobs:
     concurrency:
       group: deploy-prod
       cancel-in-progress: false
-    env:
-      NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
 
     steps:
       - uses: actions/checkout@v6
-        # with:
-        #   # For push/workflow_dispatch events, use the current commit SHA
-        #   # For workflow_run events (triggered by E2E Tests), use the commit that was tested
-        #   ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        with:
+          # For push/workflow_dispatch events, use the current commit SHA
+          # For workflow_run events (triggered by E2E Tests), use the commit that was tested
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -99,7 +106,7 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_DIST: "backend"
-          # SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
+          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "false" # IMPORTANT! DISABLED BECAUSE CRASHES ESBUILD
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
@@ -204,7 +211,7 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_DIST: "backend"
-          # SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
+          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "false" # IMPORTANT! DISABLED BECAUSE CRASHES ESBUILD
           VITE_SENTRY_RELEASE: ${{ github.sha }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
@@ -219,26 +226,26 @@ jobs:
           ENABLE_SPENDING_LIMIT_CHECKS: "true"
           DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
           DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
-          # GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
-          # GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
-          # LINEAR_OAUTH_CLIENT_ID: ${{ secrets.LINEAR_OAUTH_CLIENT_ID }}
-          # LINEAR_OAUTH_CLIENT_SECRET: ${{ secrets.LINEAR_OAUTH_CLIENT_SECRET }}
-          # HUBSPOT_OAUTH_CLIENT_ID: ${{ secrets.HUBSPOT_OAUTH_CLIENT_ID }}
-          # HUBSPOT_OAUTH_CLIENT_SECRET: ${{ secrets.HUBSPOT_OAUTH_CLIENT_SECRET }}
-          # SHOPIFY_OAUTH_CLIENT_ID: ${{ secrets.SHOPIFY_OAUTH_CLIENT_ID }}
-          # SHOPIFY_OAUTH_CLIENT_SECRET: ${{ secrets.SHOPIFY_OAUTH_CLIENT_SECRET }}
-          # SALESFORCE_OAUTH_CLIENT_ID: ${{ secrets.SALESFORCE_OAUTH_CLIENT_ID }}
-          # SALESFORCE_OAUTH_CLIENT_SECRET: ${{ secrets.SALESFORCE_OAUTH_CLIENT_SECRET }}
-          # SLACK_OAUTH_CLIENT_ID: ${{ secrets.SLACK_OAUTH_CLIENT_ID }}
-          # SLACK_OAUTH_CLIENT_SECRET: ${{ secrets.SLACK_OAUTH_CLIENT_SECRET }}
-          # INTERCOM_OAUTH_CLIENT_ID: ${{ secrets.INTERCOM_OAUTH_CLIENT_ID }}
-          # INTERCOM_OAUTH_CLIENT_SECRET: ${{ secrets.INTERCOM_OAUTH_CLIENT_SECRET }}
-          # TODOIST_OAUTH_CLIENT_ID: ${{ secrets.TODOIST_OAUTH_CLIENT_ID }}
-          # TODOIST_OAUTH_CLIENT_SECRET: ${{ secrets.TODOIST_OAUTH_CLIENT_SECRET }}
-          # NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
-          # NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
-          # STRIPE_OAUTH_CLIENT_ID: ${{ secrets.STRIPE_OAUTH_CLIENT_ID }}
-          # STRIPE_OAUTH_CLIENT_SECRET: ${{ secrets.STRIPE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          LINEAR_OAUTH_CLIENT_ID: ${{ secrets.LINEAR_OAUTH_CLIENT_ID }}
+          LINEAR_OAUTH_CLIENT_SECRET: ${{ secrets.LINEAR_OAUTH_CLIENT_SECRET }}
+          HUBSPOT_OAUTH_CLIENT_ID: ${{ secrets.HUBSPOT_OAUTH_CLIENT_ID }}
+          HUBSPOT_OAUTH_CLIENT_SECRET: ${{ secrets.HUBSPOT_OAUTH_CLIENT_SECRET }}
+          SHOPIFY_OAUTH_CLIENT_ID: ${{ secrets.SHOPIFY_OAUTH_CLIENT_ID }}
+          SHOPIFY_OAUTH_CLIENT_SECRET: ${{ secrets.SHOPIFY_OAUTH_CLIENT_SECRET }}
+          SALESFORCE_OAUTH_CLIENT_ID: ${{ secrets.SALESFORCE_OAUTH_CLIENT_ID }}
+          SALESFORCE_OAUTH_CLIENT_SECRET: ${{ secrets.SALESFORCE_OAUTH_CLIENT_SECRET }}
+          SLACK_OAUTH_CLIENT_ID: ${{ secrets.SLACK_OAUTH_CLIENT_ID }}
+          SLACK_OAUTH_CLIENT_SECRET: ${{ secrets.SLACK_OAUTH_CLIENT_SECRET }}
+          INTERCOM_OAUTH_CLIENT_ID: ${{ secrets.INTERCOM_OAUTH_CLIENT_ID }}
+          INTERCOM_OAUTH_CLIENT_SECRET: ${{ secrets.INTERCOM_OAUTH_CLIENT_SECRET }}
+          TODOIST_OAUTH_CLIENT_ID: ${{ secrets.TODOIST_OAUTH_CLIENT_ID }}
+          TODOIST_OAUTH_CLIENT_SECRET: ${{ secrets.TODOIST_OAUTH_CLIENT_SECRET }}
+          NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
+          NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
+          STRIPE_OAUTH_CLIENT_ID: ${{ secrets.STRIPE_OAUTH_CLIENT_ID }}
+          STRIPE_OAUTH_CLIENT_SECRET: ${{ secrets.STRIPE_OAUTH_CLIENT_SECRET }}
           GH_APP_ID: ${{ secrets.GH_APP_ID }}
           GH_APP_CLIENT_ID: ${{ secrets.GH_APP_CLIENT_ID }}
           GH_APP_CLIENT_SECRET: ${{ secrets.GH_APP_CLIENT_SECRET }}
@@ -306,6 +313,22 @@ jobs:
           [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
           [ -n "${GOOGLE_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(GOOGLE_OAUTH_CLIENT_ID "${GOOGLE_OAUTH_CLIENT_ID}")
           [ -n "${GOOGLE_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(GOOGLE_OAUTH_CLIENT_SECRET "${GOOGLE_OAUTH_CLIENT_SECRET}")
+          [ -n "${LINEAR_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(LINEAR_OAUTH_CLIENT_ID "${LINEAR_OAUTH_CLIENT_ID}")
+          [ -n "${LINEAR_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(LINEAR_OAUTH_CLIENT_SECRET "${LINEAR_OAUTH_CLIENT_SECRET}")
+          [ -n "${HUBSPOT_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(HUBSPOT_OAUTH_CLIENT_ID "${HUBSPOT_OAUTH_CLIENT_ID}")
+          [ -n "${HUBSPOT_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(HUBSPOT_OAUTH_CLIENT_SECRET "${HUBSPOT_OAUTH_CLIENT_SECRET}")
+          [ -n "${SHOPIFY_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(SHOPIFY_OAUTH_CLIENT_ID "${SHOPIFY_OAUTH_CLIENT_ID}")
+          [ -n "${SHOPIFY_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(SHOPIFY_OAUTH_CLIENT_SECRET "${SHOPIFY_OAUTH_CLIENT_SECRET}")
+          [ -n "${SALESFORCE_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(SALESFORCE_OAUTH_CLIENT_ID "${SALESFORCE_OAUTH_CLIENT_ID}")
+          [ -n "${SALESFORCE_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(SALESFORCE_OAUTH_CLIENT_SECRET "${SALESFORCE_OAUTH_CLIENT_SECRET}")
+          [ -n "${SLACK_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(SLACK_OAUTH_CLIENT_ID "${SLACK_OAUTH_CLIENT_ID}")
+          [ -n "${SLACK_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(SLACK_OAUTH_CLIENT_SECRET "${SLACK_OAUTH_CLIENT_SECRET}")
+          [ -n "${INTERCOM_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(INTERCOM_OAUTH_CLIENT_ID "${INTERCOM_OAUTH_CLIENT_ID}")
+          [ -n "${INTERCOM_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(INTERCOM_OAUTH_CLIENT_SECRET "${INTERCOM_OAUTH_CLIENT_SECRET}")
+          [ -n "${TODOIST_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(TODOIST_OAUTH_CLIENT_ID "${TODOIST_OAUTH_CLIENT_ID}")
+          [ -n "${TODOIST_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(TODOIST_OAUTH_CLIENT_SECRET "${TODOIST_OAUTH_CLIENT_SECRET}")
+          [ -n "${NOTION_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(NOTION_OAUTH_CLIENT_ID "${NOTION_OAUTH_CLIENT_ID}")
+          [ -n "${NOTION_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(NOTION_OAUTH_CLIENT_SECRET "${NOTION_OAUTH_CLIENT_SECRET}")
           [ -n "${GH_APP_ID}" ] && ENV_VARS+=(GH_APP_ID "${GH_APP_ID}")
           [ -n "${GH_APP_CLIENT_ID}" ] && ENV_VARS+=(GH_APP_CLIENT_ID "${GH_APP_CLIENT_ID}")
           [ -n "${GH_APP_CLIENT_SECRET}" ] && ENV_VARS+=(GH_APP_CLIENT_SECRET "${GH_APP_CLIENT_SECRET}")
@@ -378,3 +401,49 @@ jobs:
         run: |
           echo "🚀 Triggering API Gateway deployment to make changes live..."
           bash scripts/deploy-api-gateway.sh HelpmatonProduction
+
+      - name: Register Discord commands
+        env:
+          DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+          DISCORD_CS_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
+        run: |
+          if [ -n "${DISCORD_APPLICATION_ID}" ] && [ -n "${DISCORD_CS_BOT_TOKEN}" ]; then
+            pnpm discord:register-commands
+          else
+            echo "⚠️  Discord credentials not set, skipping command registration"
+          fi
+
+      - name: Upload backend sourcemaps to Sentry (post-deploy)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_DIST: "backend"
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN}" ] || [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ]; then
+            echo "⚠️  Missing Sentry credentials, skipping backend sourcemap upload."
+            exit 0
+          fi
+
+          if [ -d "apps/backend/.arc" ]; then
+            pnpm exec sentry-cli sourcemaps upload "apps/backend/.arc" \
+              --release "${SENTRY_RELEASE}" \
+              --dist "${SENTRY_DIST}" \
+              --url-prefix "app:///var/task" \
+              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/.arc" \
+              --rewrite
+          else
+            echo "⚠️  apps/backend/.arc not found; skipping zip Lambda sourcemaps."
+          fi
+
+          if [ -d "apps/backend/dist" ]; then
+            pnpm exec sentry-cli sourcemaps upload "apps/backend/dist" \
+              --release "${SENTRY_RELEASE}" \
+              --dist "${SENTRY_DIST}" \
+              --url-prefix "app:///var/task" \
+              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/dist" \
+              --rewrite
+          else
+            echo "⚠️  apps/backend/dist not found; skipping container Lambda sourcemaps."
+          fi
