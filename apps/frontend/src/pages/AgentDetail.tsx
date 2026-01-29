@@ -3779,6 +3779,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 e.target.checked
                               )
                             }
+                            aria-label="Inject from memories"
                             className="mt-1 rounded border-2 border-neutral-300"
                           />
                           <div className="flex-1">
@@ -3800,6 +3801,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 e.target.checked
                               )
                             }
+                            aria-label="Inject from documents"
                             className="mt-1 rounded border-2 border-neutral-300"
                           />
                           <div className="flex-1">

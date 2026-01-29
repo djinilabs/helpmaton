@@ -102,10 +102,13 @@ export async function extractEntitiesFromPrompt(params: {
   try {
     return parseEntityExtractionResponse(resultText);
   } catch (error) {
-    console.error("[Entity Extraction] Failed to parse response:", {
-      error: error instanceof Error ? error.message : String(error),
-      responsePreview: resultText.substring(0, 300),
-    });
-    throw error;
+    console.warn(
+      "[Entity Extraction] Failed to parse response, returning no entities:",
+      {
+        error: error instanceof Error ? error.message : String(error),
+        responsePreview: resultText.substring(0, 300),
+      },
+    );
+    return [];
   }
 }

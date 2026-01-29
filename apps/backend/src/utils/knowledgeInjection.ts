@@ -169,15 +169,17 @@ const buildRerankingResultMessage = (params: {
       generationId: params.rerankingResult.generationId,
     }),
     executionTimeMs: params.executionTimeMs,
-    rerankedDocuments: params.rerankingResult.snippets.map((snippet, index) => ({
-      documentName:
-        snippet.source === "document"
-          ? snippet.documentName || `Document ${index + 1}`
-          : snippet.source === "memory"
-            ? `Memory snippet ${index + 1}`
-            : `Graph fact ${index + 1}`,
-      relevanceScore: snippet.similarity,
-    })),
+    rerankedDocuments: params.rerankingResult.snippets.map(
+      (snippet, index) => ({
+        documentName:
+          snippet.source === "document"
+            ? snippet.documentName || `Document ${index + 1}`
+            : snippet.source === "memory"
+              ? `Memory snippet ${index + 1}`
+              : `Graph fact ${index + 1}`,
+        relevanceScore: snippet.similarity,
+      }),
+    ),
   };
 
   const costDisplay = `$${fromNanoDollars(params.costNanoDollars).toFixed(9)}`;
@@ -609,16 +611,18 @@ function formatKnowledgePrompt(results: KnowledgeSnippet[]): string {
   const graphSnippets = results.filter((result) => result.source === "graph");
 
   const sections: string[] = [];
+  let globalIndex = 1;
 
   if (documentSnippets.length > 0) {
     const snippetsText = documentSnippets
-      .map((result, index) => {
+      .map((result) => {
         const folderPathText = result.folderPath
           ? ` (${result.folderPath})`
           : "";
         const similarityPercent = (result.similarity * 100).toFixed(1);
+        const snippetIndex = globalIndex++;
 
-        return `[${index + 1}] Document: ${result.documentName}${folderPathText}
+        return `[${snippetIndex}] Document: ${result.documentName}${folderPathText}
 Similarity: ${similarityPercent}%
 Content:
 ${result.snippet}
@@ -633,11 +637,12 @@ ${snippetsText}`);
 
   if (memorySnippets.length > 0) {
     const snippetsText = memorySnippets
-      .map((result, index) => {
+      .map((result) => {
         const dateLabel = result.date || result.timestamp || "Unknown date";
         const similarityPercent = (result.similarity * 100).toFixed(1);
+        const snippetIndex = globalIndex++;
 
-        return `[${index + 1}] Memory (${dateLabel})
+        return `[${snippetIndex}] Memory (${dateLabel})
 Similarity: ${similarityPercent}%
 Content:
 ${result.snippet}
@@ -652,14 +657,15 @@ ${snippetsText}`);
 
   if (graphSnippets.length > 0) {
     const snippetsText = graphSnippets
-      .map((result, index) => {
+      .map((result) => {
         const similarityPercent = (result.similarity * 100).toFixed(1);
         const triple =
           result.subject && result.predicate && result.object
             ? `Subject: ${result.subject}\nPredicate: ${result.predicate}\nObject: ${result.object}`
             : result.snippet;
+        const snippetIndex = globalIndex++;
 
-        return `[${index + 1}] Fact
+        return `[${snippetIndex}] Fact
 Similarity: ${similarityPercent}%
 ${triple}
 
@@ -767,8 +773,22 @@ export async function injectKnowledgeIntoMessages(
     agent.enableKnowledgeInjectionFromDocuments ?? true;
   const enableKnowledgeInjectionFromMemories =
     agent.enableKnowledgeInjectionFromMemories ?? false;
+  const canInjectFromMemories =
+    enableKnowledgeInjectionFromMemories && !!agentId;
+  if (enableKnowledgeInjectionFromMemories && !agentId) {
+    console.warn(
+      "[knowledgeInjection] Memory injection enabled but agentId is missing; skipping memory and graph search.",
+      {
+        workspaceId,
+        conversationId,
+      },
+    );
+  }
 
-  if (!enableKnowledgeInjectionFromDocuments && !enableKnowledgeInjectionFromMemories) {
+  if (
+    !enableKnowledgeInjectionFromDocuments &&
+    !enableKnowledgeInjectionFromMemories
+  ) {
     return buildEmptyInjectionResult(messages);
   }
 
@@ -801,7 +821,7 @@ export async function injectKnowledgeIntoMessages(
 
       let memorySnippets: KnowledgeSnippet[] = [];
       let graphSnippets: KnowledgeSnippet[] = [];
-      if (enableKnowledgeInjectionFromMemories && agentId) {
+      if (canInjectFromMemories) {
         const memoryResults = await searchMemory({
           agentId,
           workspaceId,

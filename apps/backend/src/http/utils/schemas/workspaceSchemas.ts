@@ -117,7 +117,7 @@ export const updateAgentSchema = z
     knowledgeInjectionMinSimilarity: z.number().min(0).max(1).optional(),
     knowledgeInjectionEntityExtractorModel: z.string().nullable().optional(),
     enableKnowledgeReranking: z.boolean().optional(),
-    knowledgeRerankingModel: z.string().optional(),
+    knowledgeRerankingModel: z.string().nullable().optional(),
     enableSendEmail: z.boolean().optional(),
     enableTavilySearch: z.boolean().optional(),
     searchWebProvider: z.string().optional(),
