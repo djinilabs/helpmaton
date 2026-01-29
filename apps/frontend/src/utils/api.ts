@@ -1879,13 +1879,16 @@ export interface AgentMemoryOptions {
   minimumDaysAgo?: number;
   maximumDaysAgo?: number;
   maxResults?: number;
+  previewLength?: number;
 }
 
 export interface AgentMemoryResult {
+  id: string;
   content: string;
   date: string;
   timestamp: string;
   metadata?: Record<string, unknown>;
+  isTruncated?: boolean;
 }
 
 export interface AgentMemoryResponse {
@@ -1915,8 +1918,35 @@ export async function getAgentMemory(
   if (options.maxResults !== undefined) {
     params.append("maxResults", options.maxResults.toString());
   }
+  if (options.previewLength !== undefined) {
+    params.append("previewLength", options.previewLength.toString());
+  }
   const queryString = params.toString();
   const url = `/api/workspaces/${workspaceId}/agents/${agentId}/memory${
+    queryString ? `?${queryString}` : ""
+  }`;
+  const response = await apiFetch(url);
+  return response.json();
+}
+
+export interface AgentMemoryRecordResponse {
+  workspaceId: string;
+  agentId: string;
+  record: AgentMemoryResult;
+}
+
+export async function getAgentMemoryRecord(
+  workspaceId: string,
+  agentId: string,
+  recordId: string,
+  grain: TemporalGrain = "working"
+): Promise<AgentMemoryRecordResponse> {
+  const params = new URLSearchParams();
+  if (grain) {
+    params.append("grain", grain);
+  }
+  const queryString = params.toString();
+  const url = `/api/workspaces/${workspaceId}/agents/${agentId}/memory/${recordId}${
     queryString ? `?${queryString}` : ""
   }`;
   const response = await apiFetch(url);

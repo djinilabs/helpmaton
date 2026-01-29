@@ -4,6 +4,9 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Memory list preview + expand (2026-01-29)**: Added `previewLength` to agent memory list (returns ids + truncation flag), added record-by-id endpoint for full content, updated memory UI to fetch 120-char previews and load full content on expand, added backend tests, ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Memory list preview tweaks (2026-01-29)**: Escaped newlines in preview text, added top "Show less" option when expanded, added ellipsis for unexpanded previews, ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Memory list copy toast (2026-01-29)**: Added toast feedback when copying memory content, ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Prod AbortError 2026-01-29 01:43:47 (Sentry 90419729)**: Queried `/aws/lambda/HelpmatonProduction-PostApiWebhookWorkspaceIdAgent-a9Q5K16LP1pZ` for SQS message `1424b405-70c0-4a43-8c06-19090849d7d7`. Root cause: **delegation timeout (60s)**. Webhook processed agent `8b459eb0...` which delegated to agent `67afe159...` via `callAgentInternal`; the delegated OpenRouter request was aborted when the 60s timeout fired (`error before LLM call`, `This operation was aborted (code:20)`). No DynamoDB ValidationException in this run; handler completed successfully (refund + adjust + commit). Consider increasing delegation timeout for webhook/queue contexts (parent has 900s) or making it configurable.
 - **Delegation timeout and Sentry (2026-01-29)**: Implemented prod AbortError recommendations: (1) `DELEGATION_TIMEOUT_MS` 5 min in `call-agent-internal.ts`, `buildAbortSignal` combines parent abort signal with timeout (abort on first); (2) `call_agent` tool accepts parent `abortSignal` from AI SDK and passes it to `callAgentInternal` with 5 min cap; (3) Sentry capture for delegation errors tagged `delegation_timeout: "true"` when `isTimeoutError(error)`. Ran `pnpm typecheck` and backend tests (call-agent-internal, agentUtils).
 - **AgentChat typing indicator (2026-01-29)**: Added assistant waiting state with bot avatar + animated dots when no text part has streamed yet (including tool/reasoning-only chunks), extracted `lastAssistantMessageHasText` helper with unit tests, and ran `pnpm typecheck` + `pnpm lint --fix`.
@@ -2706,6 +2709,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 - **PR deploy E2E workflow trigger**: Switched E2E tests to be invoked directly from `deploy-pr.yml` via `workflow_call`, removed `workflow_run` trigger, and cleaned job gating to avoid skipped runs. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Deploy prod workflow simplification**: Removed redundant PR check + commit SHA verification, dropped per-step gating, and simplified checkout ref to reduce flaky cancellations while keeping the E2E-on-main trigger.
+- **Deploy prod build stability**: Limited backend build concurrency in `scripts/build-backend.ts` to reduce runner shutdowns during workflow execution.
 
 ### Slack & Discord Bot Integration (Latest)
 

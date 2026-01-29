@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, type FC } from "react";
 
 import { useAgentMemory } from "../hooks/useAgentMemory";
-import type { TemporalGrain } from "../utils/api";
+import { useToast } from "../hooks/useToast";
+import { getAgentMemoryRecord, type TemporalGrain } from "../utils/api";
 import { trackEvent } from "../utils/tracking";
 
 import { Slider } from "./Slider";
@@ -15,11 +16,23 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
   workspaceId,
   agentId,
 }) => {
+  const toast = useToast();
+  const previewLength = 120;
   const [grain, setGrain] = useState<TemporalGrain>("working");
   const [queryText, setQueryText] = useState("");
   const [minimumDaysAgo, setMinimumDaysAgo] = useState(0);
   const [maximumDaysAgo, setMaximumDaysAgo] = useState(365);
   const [maxResults, setMaxResults] = useState(50);
+  const [expandedRecordIds, setExpandedRecordIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [fullContentById, setFullContentById] = useState<
+    Record<string, string>
+  >({});
+  const [loadingRecordIds, setLoadingRecordIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [recordErrors, setRecordErrors] = useState<Record<string, string>>({});
 
   const { data, isLoading, error, refetch, isRefetching } = useAgentMemory(
     workspaceId,
@@ -30,6 +43,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
       minimumDaysAgo,
       maximumDaysAgo,
       maxResults,
+      previewLength,
     }
   );
 
@@ -56,12 +70,73 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
     }
   }, [data, isLoading, workspaceId, agentId, grain, queryText]);
 
+  useEffect(() => {
+    setExpandedRecordIds({});
+    setFullContentById({});
+    setLoadingRecordIds({});
+    setRecordErrors({});
+  }, [data, grain, queryText, minimumDaysAgo, maximumDaysAgo, maxResults]);
+
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
   };
 
-  const handleCopyContent = (content: string) => {
-    navigator.clipboard.writeText(content);
+  const handleCopyContent = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast.success("Memory copied to clipboard");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to copy memory"
+      );
+    }
+  };
+
+  const formatPreviewContent = (content: string) => {
+    return content.replace(/\r?\n/g, "\\n");
+  };
+
+  const handleToggleRecord = async (
+    recordId: string,
+    shouldLoadFull = false
+  ) => {
+    const isExpanded = Boolean(expandedRecordIds[recordId]);
+    if (isExpanded) {
+      setExpandedRecordIds((prev) => ({ ...prev, [recordId]: false }));
+      return;
+    }
+
+    setExpandedRecordIds((prev) => ({ ...prev, [recordId]: true }));
+
+    if (!shouldLoadFull || fullContentById[recordId]) {
+      return;
+    }
+
+    setLoadingRecordIds((prev) => ({ ...prev, [recordId]: true }));
+    setRecordErrors((prev) => ({ ...prev, [recordId]: "" }));
+
+    try {
+      const response = await getAgentMemoryRecord(
+        workspaceId,
+        agentId,
+        recordId,
+        grain
+      );
+      setFullContentById((prev) => ({
+        ...prev,
+        [recordId]: response.record.content,
+      }));
+    } catch (fetchError) {
+      setRecordErrors((prev) => ({
+        ...prev,
+        [recordId]:
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to load memory record",
+      }));
+    } finally {
+      setLoadingRecordIds((prev) => ({ ...prev, [recordId]: false }));
+    }
   };
 
   const grainOptions: TemporalGrain[] = [
@@ -222,7 +297,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             <div className="space-y-3">
               {data.records.map((record, index) => (
                 <div
-                  key={`${record.timestamp}-${index}`}
+                  key={record.id ?? `${record.timestamp}-${index}`}
                   className="rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
                 >
                   <div className="mb-2 flex items-start justify-between">
@@ -235,9 +310,51 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                           {formatTimestamp(record.timestamp)}
                         </span>
                       </div>
+                      {record.isTruncated && expandedRecordIds[record.id] && (
+                        <div className="mb-2 flex items-center justify-start text-xs text-neutral-600 dark:text-neutral-300">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRecord(record.id, true)}
+                            className="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                          >
+                            Show less
+                          </button>
+                        </div>
+                      )}
                       <div className="whitespace-pre-wrap break-words text-sm text-neutral-900 dark:text-neutral-50">
-                        {record.content}
+                        {expandedRecordIds[record.id] &&
+                        fullContentById[record.id]
+                          ? fullContentById[record.id]
+                          : `${formatPreviewContent(record.content)}${
+                              record.isTruncated ? "..." : ""
+                            }`}
                       </div>
+                      {record.isTruncated && !expandedRecordIds[record.id] && (
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-neutral-600 dark:text-neutral-300">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRecord(record.id, true)}
+                            className="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                          >
+                            Show more
+                          </button>
+                        </div>
+                      )}
+                      {record.isTruncated &&
+                        expandedRecordIds[record.id] &&
+                        (loadingRecordIds[record.id] ||
+                          recordErrors[record.id]) && (
+                          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-neutral-600 dark:text-neutral-300">
+                            {loadingRecordIds[record.id] && (
+                              <span>Loading full memory...</span>
+                            )}
+                            {recordErrors[record.id] && (
+                              <span className="text-red-600 dark:text-red-300">
+                                {recordErrors[record.id]}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       {record.metadata &&
                         Object.keys(record.metadata).length > 0 && (
                           <details className="mt-2">
@@ -251,7 +368,11 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                         )}
                     </div>
                     <button
-                      onClick={() => handleCopyContent(record.content)}
+                      onClick={() =>
+                        handleCopyContent(
+                          fullContentById[record.id] ?? record.content
+                        )
+                      }
                       className="ml-4 whitespace-nowrap rounded-lg bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-white transition-all duration-200 hover:shadow-colored"
                       title="Copy content"
                     >

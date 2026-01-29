@@ -173,6 +173,10 @@ function clampQueryLimit(limit: number): number {
   return Math.min(Math.max(1, limit), MAX_QUERY_LIMIT);
 }
 
+function escapeFilterValue(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 async function openVectorsTable(
   db: Awaited<ReturnType<typeof connect>>,
   dbUri: string,
@@ -447,4 +451,17 @@ export async function query(
       }`
     );
   }
+}
+
+export async function getRecordById(
+  agentId: string,
+  temporalGrain: TemporalGrain,
+  recordId: string
+): Promise<QueryResult | null> {
+  const safeRecordId = escapeFilterValue(recordId);
+  const results = await query(agentId, temporalGrain, {
+    filter: `id = '${safeRecordId}'`,
+    limit: 1,
+  });
+  return results[0] ?? null;
 }

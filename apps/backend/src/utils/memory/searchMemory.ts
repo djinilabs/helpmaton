@@ -1,7 +1,7 @@
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../embedding";
 import { MAX_QUERY_LIMIT } from "../vectordb/config";
-import { query } from "../vectordb/readClient";
+import { getRecordById, query } from "../vectordb/readClient";
 import type { TemporalGrain } from "../vectordb/types";
 
 export interface SearchMemoryOptions {
@@ -15,6 +15,7 @@ export interface SearchMemoryOptions {
 }
 
 export interface SearchMemoryResult {
+  id: string;
   content: string;
   date: string; // Formatted date prefix
   timestamp: string; // ISO timestamp
@@ -126,6 +127,7 @@ export async function searchMemory(
     const similarity =
       result.distance !== undefined ? 1 / (1 + result.distance) : undefined;
     return {
+      id: result.id,
       content: result.content,
       date: datePrefix,
       timestamp: result.timestamp,
@@ -133,6 +135,32 @@ export async function searchMemory(
       similarity,
     };
   });
+}
+
+export async function getMemoryRecord(options: {
+  agentId: string;
+  grain: TemporalGrain;
+  recordId: string;
+}): Promise<SearchMemoryResult | null> {
+  const { agentId, grain, recordId } = options;
+  const record = await getRecordById(agentId, grain, recordId);
+  if (!record) {
+    return null;
+  }
+
+  const timestamp = new Date(record.timestamp);
+  const datePrefix = formatDatePrefix(timestamp);
+  const similarity =
+    record.distance !== undefined ? 1 / (1 + record.distance) : undefined;
+
+  return {
+    id: record.id,
+    content: record.content,
+    date: datePrefix,
+    timestamp: record.timestamp,
+    metadata: record.metadata,
+    similarity,
+  };
 }
 
 /**
@@ -207,6 +235,7 @@ async function searchWorkingMemory(
     const similarity =
       result.distance !== undefined ? 1 / (1 + result.distance) : undefined;
     return {
+      id: result.id,
       content: result.content,
       date: datePrefix,
       timestamp: result.timestamp,
