@@ -17,15 +17,6 @@ on:
 
 jobs:
   deploy:
-    if: >-
-      ${{
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_e2e == 'true')
-        || (
-          github.event.workflow_run.event == 'push'
-          && github.event.workflow_run.conclusion == 'success'
-          && github.event.workflow_run.head_branch == 'main'
-        )
-      }}
     runs-on: ubuntu-latest-m
     timeout-minutes: 45
     # Security: Explicit permissions - only what's needed
@@ -399,53 +390,7 @@ jobs:
           export LAMBDA_IMAGES_ECR_REPOSITORY="helpmaton-lambda-images"
           pnpm arc deploy --production --no-hydrate --verbose
 
-      - name: Upload backend sourcemaps to Sentry (post-deploy)
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          SENTRY_RELEASE: ${{ github.sha }}
-          SENTRY_DIST: "backend"
-        run: |
-          if [ -z "${SENTRY_AUTH_TOKEN}" ] || [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ]; then
-            echo "⚠️  Missing Sentry credentials, skipping backend sourcemap upload."
-            exit 0
-          fi
-
-          if [ -d "apps/backend/.arc" ]; then
-            pnpm exec sentry-cli sourcemaps upload "apps/backend/.arc" \
-              --release "${SENTRY_RELEASE}" \
-              --dist "${SENTRY_DIST}" \
-              --url-prefix "app:///var/task" \
-              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/.arc" \
-              --rewrite
-          else
-            echo "⚠️  apps/backend/.arc not found; skipping zip Lambda sourcemaps."
-          fi
-
-          if [ -d "apps/backend/dist" ]; then
-            pnpm exec sentry-cli sourcemaps upload "apps/backend/dist" \
-              --release "${SENTRY_RELEASE}" \
-              --dist "${SENTRY_DIST}" \
-              --url-prefix "app:///var/task" \
-              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/dist" \
-              --rewrite
-          else
-            echo "⚠️  apps/backend/dist not found; skipping container Lambda sourcemaps."
-          fi
-
       - name: Trigger API Gateway deployment
         run: |
           echo "🚀 Triggering API Gateway deployment to make changes live..."
           bash scripts/deploy-api-gateway.sh HelpmatonProduction
-
-      - name: Register Discord commands
-        env:
-          DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
-          DISCORD_CS_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
-        run: |
-          if [ -n "${DISCORD_APPLICATION_ID}" ] && [ -n "${DISCORD_CS_BOT_TOKEN}" ]; then
-            pnpm discord:register-commands
-          else
-            echo "⚠️  Discord credentials not set, skipping command registration"
-          fi
