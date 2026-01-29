@@ -1059,6 +1059,7 @@ describe("conversationLogger", () => {
         "workspace1",
         "conv1",
         messages,
+        undefined,
       );
     });
 
@@ -1106,9 +1107,12 @@ describe("conversationLogger", () => {
         "workspace1",
         "conv1",
         [
+          { role: "user", content: "Hello" },
+          { role: "assistant", content: "Hi there" },
           { role: "user", content: "How are you?" },
           { role: "assistant", content: "I'm good!" },
         ],
+        undefined,
       );
     });
 
@@ -1195,7 +1199,14 @@ describe("conversationLogger", () => {
         "agent1",
         "workspace1",
         "conv1",
-        [{ role: "user", content: "Goodbye" }],
+        [
+          { role: "user", content: "Hello" },
+          { role: "assistant", content: "Hi there" },
+          { role: "user", content: "How are you?" },
+          { role: "assistant", content: "I'm good!" },
+          { role: "user", content: "Goodbye" },
+        ],
+        undefined,
       );
     });
 

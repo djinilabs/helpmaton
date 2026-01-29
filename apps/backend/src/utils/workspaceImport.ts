@@ -38,7 +38,7 @@ function extractReferenceName(ref: string): string {
  * @returns A map of reference names to generated UUIDs
  */
 function preGenerateReferenceMap(
-  validatedData: WorkspaceExport
+  validatedData: WorkspaceExport,
 ): Map<string, string> {
   const referenceMap = new Map<string, string>();
 
@@ -157,7 +157,7 @@ type ImportCounts = {
 
 async function prepareImportContext(
   exportData: WorkspaceExport,
-  userRef: string
+  userRef: string,
 ): Promise<{
   validatedData: WorkspaceExport;
   context: ImportContext;
@@ -181,7 +181,7 @@ async function prepareImportContext(
       const resolvedId = referenceMap.get(ref);
       if (!resolvedId) {
         throw badRequest(
-          `Reference "${id}" not found. All references must be defined in the export data.`
+          `Reference "${id}" not found. All references must be defined in the export data.`,
         );
       }
       return resolvedId;
@@ -211,7 +211,7 @@ function countImportEntities(validatedData: WorkspaceExport): ImportCounts {
   const agentKeyCount =
     validatedData.agents?.reduce(
       (sum, agent) => sum + (agent.keys?.length ?? 0),
-      0
+      0,
     ) ?? 0;
   const perAgentEvalJudgeCounts =
     validatedData.agents?.map((agent) => agent.evalJudges?.length ?? 0) ?? [];
@@ -229,7 +229,7 @@ async function validateImportLimits(
   subscriptionId: string,
   limits: ReturnType<typeof getPlanLimits>,
   counts: ImportCounts,
-  subscriptionPlan: string
+  subscriptionPlan: string,
 ): Promise<void> {
   await checkSubscriptionLimits(subscriptionId, "workspace", 1);
   if (counts.agentCount > 0) {
@@ -239,28 +239,28 @@ async function validateImportLimits(
     await checkSubscriptionLimits(
       subscriptionId,
       "channel",
-      counts.channelCount
+      counts.channelCount,
     );
   }
   if (counts.mcpServerCount > 0) {
     await checkSubscriptionLimits(
       subscriptionId,
       "mcpServer",
-      counts.mcpServerCount
+      counts.mcpServerCount,
     );
   }
   if (counts.agentKeyCount > 0) {
     await checkSubscriptionLimits(
       subscriptionId,
       "agentKey",
-      counts.agentKeyCount
+      counts.agentKeyCount,
     );
   }
   if (counts.perAgentEvalJudgeCounts.length > 0) {
     const maxEvalJudges = Math.max(...counts.perAgentEvalJudgeCounts);
     if (limits && maxEvalJudges > limits.maxEvalJudgesPerAgent) {
       throw badRequest(
-        `Eval judge limit exceeded. Maximum ${limits.maxEvalJudgesPerAgent} eval judge(s) allowed per agent for ${subscriptionPlan} plan.`
+        `Eval judge limit exceeded. Maximum ${limits.maxEvalJudgesPerAgent} eval judge(s) allowed per agent for ${subscriptionPlan} plan.`,
       );
     }
   }
@@ -269,7 +269,7 @@ async function validateImportLimits(
 async function createWorkspaceAndOwner(
   ctx: ImportContext,
   validatedData: WorkspaceExport,
-  workspaceId: string
+  workspaceId: string,
 ): Promise<void> {
   const workspacePk = `workspaces/${workspaceId}`;
   const workspaceSk = "workspace";
@@ -290,14 +290,14 @@ async function createWorkspaceAndOwner(
     workspacePk,
     ctx.userRef,
     PERMISSION_LEVELS.OWNER,
-    ctx.userRef
+    ctx.userRef,
   );
 }
 
 async function createOutputChannels(
   ctx: ImportContext,
   validatedData: WorkspaceExport,
-  workspaceId: string
+  workspaceId: string,
 ): Promise<Map<string, string>> {
   const channelIdMap = new Map<string, string>();
   if (!validatedData.outputChannels) {
@@ -324,7 +324,7 @@ async function createOutputChannels(
 async function createEmailConnections(
   ctx: ImportContext,
   validatedData: WorkspaceExport,
-  workspaceId: string
+  workspaceId: string,
 ): Promise<Map<string, string>> {
   const emailConnectionIdMap = new Map<string, string>();
   if (!validatedData.emailConnections) {
@@ -354,7 +354,7 @@ async function createEmailConnections(
 async function createMcpServers(
   ctx: ImportContext,
   validatedData: WorkspaceExport,
-  workspaceId: string
+  workspaceId: string,
 ): Promise<Map<string, string>> {
   const mcpServerIdMap = new Map<string, string>();
   if (!validatedData.mcpServers) {
@@ -381,7 +381,7 @@ async function createMcpServers(
 
 function buildAgentIdMap(
   ctx: ImportContext,
-  validatedData: WorkspaceExport
+  validatedData: WorkspaceExport,
 ): Map<string, string> {
   const agentIdMap = new Map<string, string>();
   if (!validatedData.agents) {
@@ -397,14 +397,14 @@ function buildAgentIdMap(
 function resolveNotificationChannelId(
   channelRef: string,
   referenceMap: Map<string, string>,
-  channelIdMap: Map<string, string>
+  channelIdMap: Map<string, string>,
 ): string {
   if (isReference(channelRef)) {
     const refName = extractReferenceName(channelRef);
     const notificationChannelId = referenceMap.get(refName);
     if (!notificationChannelId) {
       throw badRequest(
-        `Notification channel reference "${channelRef}" not found in outputChannels`
+        `Notification channel reference "${channelRef}" not found in outputChannels`,
       );
     }
     return notificationChannelId;
@@ -412,7 +412,7 @@ function resolveNotificationChannelId(
   const notificationChannelId = channelIdMap.get(channelRef);
   if (!notificationChannelId) {
     throw badRequest(
-      `Notification channel "${channelRef}" not found in outputChannels`
+      `Notification channel "${channelRef}" not found in outputChannels`,
     );
   }
   return notificationChannelId;
@@ -421,14 +421,16 @@ function resolveNotificationChannelId(
 function resolveDelegatableAgentIds(
   agentIds: string[],
   referenceMap: Map<string, string>,
-  agentIdMap: Map<string, string>
+  agentIdMap: Map<string, string>,
 ): string[] {
   return agentIds.map((id) => {
     if (isReference(id)) {
       const refName = extractReferenceName(id);
       const resolvedId = referenceMap.get(refName);
       if (!resolvedId) {
-        throw badRequest(`Delegatable agent reference "${id}" not found in agents`);
+        throw badRequest(
+          `Delegatable agent reference "${id}" not found in agents`,
+        );
       }
       return resolvedId;
     }
@@ -443,14 +445,16 @@ function resolveDelegatableAgentIds(
 function resolveMcpServerIds(
   serverIds: string[],
   referenceMap: Map<string, string>,
-  mcpServerIdMap: Map<string, string>
+  mcpServerIdMap: Map<string, string>,
 ): string[] {
   return serverIds.map((id) => {
     if (isReference(id)) {
       const refName = extractReferenceName(id);
       const resolvedId = referenceMap.get(refName);
       if (!resolvedId) {
-        throw badRequest(`MCP server reference "${id}" not found in mcpServers`);
+        throw badRequest(
+          `MCP server reference "${id}" not found in mcpServers`,
+        );
       }
       return resolvedId;
     }
@@ -468,7 +472,7 @@ async function createAgentsAndNestedEntities(
   workspaceId: string,
   channelIdMap: Map<string, string>,
   mcpServerIdMap: Map<string, string>,
-  agentIdMap: Map<string, string>
+  agentIdMap: Map<string, string>,
 ): Promise<void> {
   if (!validatedData.agents) {
     return;
@@ -483,27 +487,27 @@ async function createAgentsAndNestedEntities(
       notificationChannelId = resolveNotificationChannelId(
         agentData.notificationChannelId,
         ctx.referenceMap,
-        channelIdMap
+        channelIdMap,
       );
     }
 
-    const delegatableAgentIds: string[] | undefined =
-      agentData.delegatableAgentIds?.length
-        ? resolveDelegatableAgentIds(
-            agentData.delegatableAgentIds,
-            ctx.referenceMap,
-            agentIdMap
-          )
-        : undefined;
+    const delegatableAgentIds: string[] | undefined = agentData
+      .delegatableAgentIds?.length
+      ? resolveDelegatableAgentIds(
+          agentData.delegatableAgentIds,
+          ctx.referenceMap,
+          agentIdMap,
+        )
+      : undefined;
 
-    const enabledMcpServerIds: string[] | undefined =
-      agentData.enabledMcpServerIds?.length
-        ? resolveMcpServerIds(
-            agentData.enabledMcpServerIds,
-            ctx.referenceMap,
-            mcpServerIdMap
-          )
-        : undefined;
+    const enabledMcpServerIds: string[] | undefined = agentData
+      .enabledMcpServerIds?.length
+      ? resolveMcpServerIds(
+          agentData.enabledMcpServerIds,
+          ctx.referenceMap,
+          mcpServerIdMap,
+        )
+      : undefined;
 
     await ctx.db.agent.create({
       pk: agentPk,
@@ -512,6 +516,9 @@ async function createAgentsAndNestedEntities(
       name: agentData.name,
       systemPrompt: agentData.systemPrompt,
       summarizationPrompts: agentData.summarizationPrompts,
+      memoryExtractionEnabled: agentData.memoryExtractionEnabled ?? false,
+      memoryExtractionModel: agentData.memoryExtractionModel,
+      memoryExtractionPrompt: agentData.memoryExtractionPrompt,
       provider: agentData.provider ?? "openrouter",
       modelName: agentData.modelName,
       notificationChannelId,
@@ -592,7 +599,7 @@ async function createAgentsAndNestedEntities(
       await createStreamServerConfig(
         workspaceId,
         newAgentId,
-        agentData.streamServer.allowedOrigins
+        agentData.streamServer.allowedOrigins,
       );
     }
   }
@@ -615,14 +622,14 @@ function resolveWebhookBaseUrl(): string {
     return "https://staging-api.helpmaton.com";
   }
   throw new Error(
-    "WEBHOOK_BASE_URL or BASE_URL environment variable must be set for non-production/non-staging environments"
+    "WEBHOOK_BASE_URL or BASE_URL environment variable must be set for non-production/non-staging environments",
   );
 }
 
 function resolveIntegrationAgentId(
   agentId: string,
   referenceMap: Map<string, string>,
-  agentIdMap: Map<string, string>
+  agentIdMap: Map<string, string>,
 ): string {
   if (isReference(agentId)) {
     const refName = extractReferenceName(agentId);
@@ -643,7 +650,7 @@ async function createBotIntegrations(
   ctx: ImportContext,
   validatedData: WorkspaceExport,
   workspaceId: string,
-  agentIdMap: Map<string, string>
+  agentIdMap: Map<string, string>,
 ): Promise<void> {
   if (!validatedData.botIntegrations) {
     return;
@@ -654,7 +661,7 @@ async function createBotIntegrations(
     const resolvedAgentId = resolveIntegrationAgentId(
       integrationData.agentId,
       ctx.referenceMap,
-      agentIdMap
+      agentIdMap,
     );
     const webhookUrl = `${baseUrl}/api/webhooks/${integrationData.platform}/${workspaceId}/${newIntegrationId}`;
     const integrationPk = `bot-integrations/${workspaceId}/${newIntegrationId}`;
@@ -686,11 +693,11 @@ async function createBotIntegrations(
  */
 export async function importWorkspace(
   exportData: WorkspaceExport,
-  userRef: string
+  userRef: string,
 ): Promise<string> {
   const { validatedData, context } = await prepareImportContext(
     exportData,
-    userRef
+    userRef,
   );
 
   const counts = countImportEntities(validatedData);
@@ -698,7 +705,7 @@ export async function importWorkspace(
     context.subscriptionId,
     context.limits,
     counts,
-    context.subscriptionPlan
+    context.subscriptionPlan,
   );
 
   const workspaceId = context.resolveId(validatedData.id);
@@ -707,13 +714,13 @@ export async function importWorkspace(
   const channelIdMap = await createOutputChannels(
     context,
     validatedData,
-    workspaceId
+    workspaceId,
   );
   await createEmailConnections(context, validatedData, workspaceId);
   const mcpServerIdMap = await createMcpServers(
     context,
     validatedData,
-    workspaceId
+    workspaceId,
   );
 
   const agentIdMap = buildAgentIdMap(context, validatedData);
@@ -723,7 +730,7 @@ export async function importWorkspace(
     workspaceId,
     channelIdMap,
     mcpServerIdMap,
-    agentIdMap
+    agentIdMap,
   );
 
   await createBotIntegrations(context, validatedData, workspaceId, agentIdMap);

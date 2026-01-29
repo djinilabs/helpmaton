@@ -66,6 +66,9 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
           name: agent.name,
           systemPrompt: agent.systemPrompt,
           summarizationPrompts: agent.summarizationPrompts,
+          memoryExtractionEnabled: agent.memoryExtractionEnabled ?? false,
+          memoryExtractionModel: agent.memoryExtractionModel ?? null,
+          memoryExtractionPrompt: agent.memoryExtractionPrompt ?? null,
           notificationChannelId: agent.notificationChannelId,
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
@@ -85,6 +88,6 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
       } catch (error) {
         handleError(error, next, "GET /api/workspaces/:workspaceId/agents");
       }
-    }
+    },
   );
 };

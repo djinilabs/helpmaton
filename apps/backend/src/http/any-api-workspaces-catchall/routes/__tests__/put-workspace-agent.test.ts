@@ -2,7 +2,6 @@ import { badRequest } from "@hapi/boom";
 import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
- 
 import { isValidAvatar } from "../../../../utils/avatarUtils";
 import * as summarizeMemory from "../../../../utils/memory/summarizeMemory";
 import {
@@ -22,6 +21,7 @@ import {
   validateDelegatableAgentIds,
   validateImageGenerationConfig,
   validateKnowledgeConfig,
+  validateMemoryExtractionModel,
   validateModelName,
   validateModelTuning,
   validateNotificationChannelId,
@@ -30,13 +30,14 @@ import {
 } from "../agentUpdate";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockDatabase, mockGetModelPricing, mockIsImageCapableModel } = vi.hoisted(() => {
-  return {
-    mockDatabase: vi.fn(),
-    mockGetModelPricing: vi.fn(),
-    mockIsImageCapableModel: vi.fn(),
-  };
-});
+const { mockDatabase, mockGetModelPricing, mockIsImageCapableModel } =
+  vi.hoisted(() => {
+    return {
+      mockDatabase: vi.fn(),
+      mockGetModelPricing: vi.fn(),
+      mockIsImageCapableModel: vi.fn(),
+    };
+  });
 
 // Mock the modules
 vi.mock("../../../../tables", () => ({
@@ -56,13 +57,13 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
   async function callRouteHandler(
     req: Partial<express.Request>,
     res: Partial<express.Response>,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) {
     // Extract the handler logic directly - simplified version focusing on key validations
     const handler = async (
       req: express.Request,
       res: express.Response,
-      next: express.NextFunction
+      next: express.NextFunction,
     ) => {
       try {
         const body = req.body;
@@ -120,6 +121,11 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
           modelName: body.modelName,
           getModelPricing: mockGetModelPricing,
         });
+        const resolvedMemoryExtractionModel =
+          await validateMemoryExtractionModel({
+            memoryExtractionModel: body.memoryExtractionModel,
+            getModelPricing: mockGetModelPricing,
+          });
         validateImageGenerationConfig({
           enableImageGeneration: body.enableImageGeneration,
           imageGenerationModel: body.imageGenerationModel,
@@ -139,7 +145,9 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
         });
 
         const normalizedSummarizationPrompts =
-          summarizeMemory.normalizeSummarizationPrompts(body.summarizationPrompts);
+          summarizeMemory.normalizeSummarizationPrompts(
+            body.summarizationPrompts,
+          );
 
         const updated = await db.agent.update({
           ...buildAgentUpdateParams({
@@ -152,6 +160,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
             resolvedSearchWebProvider,
             resolvedFetchWebProvider,
             resolvedModelName,
+            resolvedMemoryExtractionModel,
             updatedBy: (req as { userRef?: string }).userRef || "",
           }),
         });
@@ -213,20 +222,20 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
 
     expect(mockAgentGet).toHaveBeenCalledWith(
       "agents/workspace-123/agent-456",
-      "agent"
+      "agent",
     );
     expect(mockAgentUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "New Name",
         systemPrompt: "New Prompt",
-      })
+      }),
     );
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "agent-456",
         name: "New Name",
         systemPrompt: "New Prompt",
-      })
+      }),
     );
   });
 
@@ -257,7 +266,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
 
     const normalizeSpy = vi.spyOn(
       summarizeMemory,
-      "normalizeSummarizationPrompts"
+      "normalizeSummarizationPrompts",
     );
 
     const req = createMockRequest({
@@ -292,7 +301,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         summarizationPrompts: { daily: "Custom daily prompt" },
-      })
+      }),
     );
   });
 
@@ -364,11 +373,11 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     const error = next.mock.calls[0][0];
     expect(error).toBeInstanceOf(Error);
     expect(
-      (error as { output?: { statusCode: number } }).output?.statusCode
+      (error as { output?: { statusCode: number } }).output?.statusCode,
     ).toBe(400);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("Workspace resource not found");
   });
 
@@ -399,11 +408,11 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     const error = next.mock.calls[0][0];
     expect(error).toBeInstanceOf(Error);
     expect(
-      (error as { output?: { statusCode: number } }).output?.statusCode
+      (error as { output?: { statusCode: number } }).output?.statusCode,
     ).toBe(410);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("Agent not found");
   });
 
@@ -461,12 +470,12 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
 
     expect(mockChannelGet).toHaveBeenCalledWith(
       "output-channels/workspace-123/channel-789",
-      "channel"
+      "channel",
     );
     expect(mockAgentUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         notificationChannelId: "channel-789",
-      })
+      }),
     );
   });
 
@@ -510,11 +519,11 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     const error = next.mock.calls[0][0];
     expect(error).toBeInstanceOf(Error);
     expect(
-      (error as { output?: { statusCode: number } }).output?.statusCode
+      (error as { output?: { statusCode: number } }).output?.statusCode,
     ).toBe(410);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("Notification channel not found");
   });
 
@@ -564,11 +573,11 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     const error = next.mock.calls[0][0];
     expect(error).toBeInstanceOf(Error);
     expect(
-      (error as { output?: { statusCode: number } }).output?.statusCode
+      (error as { output?: { statusCode: number } }).output?.statusCode,
     ).toBe(403);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("Notification channel does not belong to this workspace");
   });
 
@@ -623,7 +632,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(mockAgentUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         spendingLimits: [{ timeFrame: "daily", amount: 100 }],
-      })
+      }),
     );
   });
 
@@ -670,7 +679,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(error).toBeInstanceOf(Error);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("valid timeFrame");
   });
 
@@ -715,7 +724,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(error).toBeInstanceOf(Error);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("MCP server missing-server not found");
   });
 
@@ -757,7 +766,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(error).toBeInstanceOf(Error);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("cannot delegate to itself");
   });
 
@@ -830,7 +839,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(mockAgentUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         delegatableAgentIds: ["agent-789"],
-      })
+      }),
     );
   });
 
@@ -872,7 +881,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(error).toBeInstanceOf(Error);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("temperature must be a number between 0 and 2");
   });
 
@@ -926,12 +935,12 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
 
     expect(mockGetModelPricing).toHaveBeenCalledWith(
       "openrouter",
-      "gemini-2.5-flash"
+      "gemini-2.5-flash",
     );
     expect(mockAgentUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         modelName: "gemini-2.5-flash",
-      })
+      }),
     );
   });
 
@@ -975,7 +984,110 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(error).toBeInstanceOf(Error);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
+    ).toContain("is not available");
+  });
+
+  it("should validate memoryExtractionModel against pricing config", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "Test Prompt",
+      provider: "google",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.get = mockAgentGet;
+
+    mockGetModelPricing.mockReturnValue({
+      inputPrice: 0.001,
+      outputPrice: 0.002,
+    });
+
+    const mockUpdatedAgent = {
+      ...mockAgent,
+      memoryExtractionModel: "gemini-2.5-flash",
+      updatedBy: "users/user-123",
+      updatedAt: "2024-01-02T00:00:00Z",
+    };
+
+    const mockAgentUpdate = vi.fn().mockResolvedValue(mockUpdatedAgent);
+    mockDb.agent.update = mockAgentUpdate;
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      body: {
+        memoryExtractionModel: "gemini-2.5-flash",
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockGetModelPricing).toHaveBeenCalledWith(
+      "openrouter",
+      "gemini-2.5-flash",
+    );
+    expect(mockAgentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        memoryExtractionModel: "gemini-2.5-flash",
+      }),
+    );
+  });
+
+  it("should throw badRequest when memoryExtractionModel is invalid", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "Test Prompt",
+      provider: "google",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.get = mockAgentGet;
+
+    mockGetModelPricing.mockReturnValue(null);
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      body: {
+        memoryExtractionModel: "invalid-model",
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    const error = next.mock.calls[0][0];
+    expect(error).toBeInstanceOf(Error);
+    expect(
+      (error as { output?: { payload: { message: string } } }).output?.payload
+        .message,
     ).toContain("is not available");
   });
 
@@ -1018,7 +1130,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(error).toBeInstanceOf(Error);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("imageGenerationModel is required");
   });
 
@@ -1062,7 +1174,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(error).toBeInstanceOf(Error);
     expect(
       (error as { output?: { payload: { message: string } } }).output?.payload
-        .message
+        .message,
     ).toContain("not image-capable");
   });
 
@@ -1113,7 +1225,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
     expect(mockAgentUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         notificationChannelId: undefined,
-      })
+      }),
     );
   });
 });

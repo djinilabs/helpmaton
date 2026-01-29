@@ -1042,6 +1042,33 @@ async function main() {
     );
     const delegatorAgentId = delegatorAgentResponse.data.id;
 
+    logStep("Queueing temporal grain test message");
+    const temporalFactId = crypto.randomUUID();
+    const temporalFactContent = `staging test fact ${temporalFactId}`;
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrls.temporal,
+        MessageBody: JSON.stringify({
+          operation: "insert",
+          agentId: helloAgentId,
+          temporalGrain: "working",
+          workspaceId,
+          data: {
+            rawFacts: [
+              {
+                id: temporalFactId,
+                content: temporalFactContent,
+                timestamp: new Date().toISOString(),
+                metadata: { source: "staging-test" },
+              },
+            ],
+          },
+        }),
+        MessageGroupId: `${helloAgentId}-working`,
+        MessageDeduplicationId: crypto.randomUUID(),
+      }),
+    );
+
     logStep("Enabling delegation");
     await fetchJson(
       `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${delegatorAgentId}`,
@@ -1442,39 +1469,13 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       );
     }
 
-    logStep("Testing temporal grain queue via direct SQS message");
-    const factId = crypto.randomUUID();
-    await sqsClient.send(
-      new SendMessageCommand({
-        QueueUrl: queueUrls.temporal,
-        MessageBody: JSON.stringify({
-          operation: "insert",
-          agentId: helloAgentId,
-          temporalGrain: "working",
-          workspaceId,
-          data: {
-            rawFacts: [
-              {
-                id: factId,
-                content: "staging test fact",
-                timestamp: new Date().toISOString(),
-                metadata: { source: "staging-test" },
-              },
-            ],
-          },
-        }),
-        MessageGroupId: `${helloAgentId}-working`,
-        MessageDeduplicationId: crypto.randomUUID(),
-      }),
-    );
-
     logStep("Verifying memory write via API");
     await waitForMemoryRecord(
       apiBaseUrl,
       authHeader,
       workspaceId,
       helloAgentId,
-      "staging test fact",
+      temporalFactContent,
       timeoutMs,
     );
 

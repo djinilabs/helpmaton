@@ -385,7 +385,26 @@ async function executeUpdate(
     const connectionOptions = getLanceDBConnectionOptions();
     const db = await connect(uri, connectionOptions);
 
-    const table = await db.openTable("vectors");
+    let table;
+    try {
+      table = await db.openTable("vectors");
+    } catch {
+      const initialRecords = records.map((r) => normalizeRecordSchema(r));
+      if (initialRecords.length === 0) {
+        console.log(
+          `[Write Server] No records to update after normalization for agent ${agentId}, grain ${temporalGrain}`,
+        );
+        return;
+      }
+      table = await db.createTable("vectors", [initialRecords[0]]);
+      if (initialRecords.length > 1) {
+        await table.add(initialRecords.slice(1));
+      }
+      console.log(
+        `[Write Server] Created table "vectors" while updating for agent ${agentId}, grain ${temporalGrain}`,
+      );
+      return;
+    }
 
     // For updates, we delete the old records and insert new ones
     // This is a simple approach - LanceDB may have better update methods
@@ -579,10 +598,17 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
       break;
 
     case "update":
-      if (!data.records) {
-        throw new Error("Update operation requires records");
+      if (data.rawFacts && data.rawFacts.length > 0) {
+        await executeUpdate(
+          agentId,
+          temporalGrain,
+          await generateEmbeddingsForFacts(data.rawFacts),
+        );
+      } else if (data.records && data.records.length > 0) {
+        await executeUpdate(agentId, temporalGrain, data.records);
+      } else {
+        throw new Error("Update operation requires records or rawFacts");
       }
-      await executeUpdate(agentId, temporalGrain, data.records);
       break;
 
     case "delete":

@@ -4,18 +4,18 @@ import { database } from "../tables";
 
 /**
  * Generate a refName from an entity name, handling duplicates by appending numbers.
- * 
+ *
  * @param name - The entity name
  * @param nameCounts - Map tracking how many times each name has been used
  * @returns A refName in the format "{name}" or "{name 2}", "{name 3}", etc. for duplicates
  */
 function generateRefName(
   name: string,
-  nameCounts: Map<string, number>
+  nameCounts: Map<string, number>,
 ): string {
   const count = (nameCounts.get(name) ?? 0) + 1;
   nameCounts.set(name, count);
-  
+
   if (count === 1) {
     return `{${name}}`;
   }
@@ -25,12 +25,12 @@ function generateRefName(
 /**
  * Filter out sensitive authentication credentials from MCP server config.
  * Removes fields like accessToken, refreshToken, password, headerValue, etc.
- * 
+ *
  * @param config - The MCP server config object
  * @returns A new config object with sensitive fields removed
  */
 function filterMcpServerCredentials(
-  config: Record<string, unknown>
+  config: Record<string, unknown>,
 ): Record<string, unknown> {
   const sensitiveFields = [
     "accessToken",
@@ -57,17 +57,17 @@ function filterMcpServerCredentials(
 
 /**
  * Export a complete workspace configuration
- * 
+ *
  * Fetches all workspace-related entities and transforms them into the export schema format.
  * All IDs are replaced with refNames in the format "{name}", with duplicate names
  * disambiguated by appending numbers (e.g., "{name 2}", "{name 3}").
- * 
+ *
  * @param workspaceId - The workspace ID to export
  * @returns The workspace export data validated against the schema
  * @throws If workspace is not found or validation fails
  */
 export async function exportWorkspace(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<WorkspaceExport> {
   const db = await database();
   const workspacePk = `workspaces/${workspaceId}`;
@@ -144,10 +144,9 @@ export async function exportWorkspace(
   // Map email connection IDs to refNames
   const emailConnectionIdToRefNameMap = new Map<string, string>();
   for (const connection of emailConnectionsResult.items) {
-    const connectionId = connection.pk.replace(
-      `email-connections/${workspaceId}`,
-      ""
-    ) || "connection";
+    const connectionId =
+      connection.pk.replace(`email-connections/${workspaceId}`, "") ||
+      "connection";
     const refName = generateRefName(connection.name, nameCounts);
     idToRefNameMap.set(connectionId, refName);
     emailConnectionIdToRefNameMap.set(connectionId, refName);
@@ -156,10 +155,7 @@ export async function exportWorkspace(
   // Map MCP server IDs to refNames
   const mcpServerIdToRefNameMap = new Map<string, string>();
   for (const server of mcpServersResult.items) {
-    const serverId = server.pk.replace(
-      `mcp-servers/${workspaceId}/`,
-      ""
-    );
+    const serverId = server.pk.replace(`mcp-servers/${workspaceId}/`, "");
     const refName = generateRefName(server.name, nameCounts);
     idToRefNameMap.set(serverId, refName);
     mcpServerIdToRefNameMap.set(serverId, refName);
@@ -167,8 +163,8 @@ export async function exportWorkspace(
 
   // Map agent IDs to refNames (need to fetch nested entities first)
   const agentIdToRefNameMap = new Map<string, string>();
-  const agentIdToAgentMap = new Map<string, typeof agentsResult.items[0]>();
-  
+  const agentIdToAgentMap = new Map<string, (typeof agentsResult.items)[0]>();
+
   for (const agent of agentsResult.items) {
     const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
     agentIdToAgentMap.set(agentId, agent);
@@ -182,7 +178,7 @@ export async function exportWorkspace(
   for (const integration of botIntegrationsResult.items) {
     const integrationId = integration.pk.replace(
       `bot-integrations/${workspaceId}/`,
-      ""
+      "",
     );
     const refName = generateRefName(integration.name, nameCounts);
     idToRefNameMap.set(integrationId, refName);
@@ -218,7 +214,7 @@ export async function exportWorkspace(
       const streamServerPk = `stream-servers/${workspaceId}/${agentId}`;
       const streamServer = await db["agent-stream-servers"].get(
         streamServerPk,
-        "config"
+        "config",
       );
 
       // Map agent keys to refNames
@@ -226,7 +222,7 @@ export async function exportWorkspace(
       for (const key of agentKeysResult.items) {
         const keyId = key.pk.replace(
           `agent-keys/${workspaceId}/${agentId}/`,
-          ""
+          "",
         );
         const keyName = key.name || `${agent.name} Key`;
         const refName = generateRefName(keyName, nameCounts);
@@ -249,9 +245,15 @@ export async function exportWorkspace(
         ? (() => {
             // Extract channel ID from full path if needed
             const actualChannelId = agent.notificationChannelId.includes("/")
-              ? agent.notificationChannelId.replace(`output-channels/${workspaceId}/`, "")
+              ? agent.notificationChannelId.replace(
+                  `output-channels/${workspaceId}/`,
+                  "",
+                )
               : agent.notificationChannelId;
-            return channelIdToRefNameMap.get(actualChannelId) || agent.notificationChannelId;
+            return (
+              channelIdToRefNameMap.get(actualChannelId) ||
+              agent.notificationChannelId
+            );
           })()
         : undefined;
 
@@ -259,7 +261,7 @@ export async function exportWorkspace(
       const delegatableAgentRefNames = agent.delegatableAgentIds
         ? agent.delegatableAgentIds.map((id) => {
             // Extract agent ID from full path if needed
-            const actualAgentId = id.includes("/") 
+            const actualAgentId = id.includes("/")
               ? id.replace(`agents/${workspaceId}/`, "")
               : id;
             return agentIdToRefNameMap.get(actualAgentId) || id;
@@ -283,6 +285,15 @@ export async function exportWorkspace(
         systemPrompt: agent.systemPrompt,
         ...(agent.summarizationPrompts
           ? { summarizationPrompts: agent.summarizationPrompts }
+          : {}),
+        ...(agent.memoryExtractionEnabled !== undefined
+          ? { memoryExtractionEnabled: agent.memoryExtractionEnabled }
+          : {}),
+        ...(agent.memoryExtractionModel
+          ? { memoryExtractionModel: agent.memoryExtractionModel }
+          : {}),
+        ...(agent.memoryExtractionPrompt
+          ? { memoryExtractionPrompt: agent.memoryExtractionPrompt }
           : {}),
         notificationChannelId: notificationChannelRefName,
         delegatableAgentIds: delegatableAgentRefNames,
@@ -319,7 +330,7 @@ export async function exportWorkspace(
             ? agentKeysResult.items.map((key) => {
                 const keyId = key.pk.replace(
                   `agent-keys/${workspaceId}/${agentId}/`,
-                  ""
+                  "",
                 );
                 return {
                   id: keyIdToRefNameMap.get(keyId) || keyId,
@@ -331,23 +342,25 @@ export async function exportWorkspace(
             : undefined,
         evalJudges:
           evalJudgesResult.items.length > 0
-            ? evalJudgesResult.items.map((judge: {
-                judgeId: string;
-                name: string;
-                enabled: boolean;
-                samplingProbability?: number;
-                provider: "openrouter";
-                modelName: string;
-                evalPrompt: string;
-              }) => ({
-                id: judgeIdToRefNameMap.get(judge.judgeId) || judge.judgeId,
-                name: judge.name,
-                enabled: judge.enabled,
-                samplingProbability: judge.samplingProbability ?? 100,
-                provider: judge.provider,
-                modelName: judge.modelName,
-                evalPrompt: judge.evalPrompt,
-              }))
+            ? evalJudgesResult.items.map(
+                (judge: {
+                  judgeId: string;
+                  name: string;
+                  enabled: boolean;
+                  samplingProbability?: number;
+                  provider: "openrouter";
+                  modelName: string;
+                  evalPrompt: string;
+                }) => ({
+                  id: judgeIdToRefNameMap.get(judge.judgeId) || judge.judgeId,
+                  name: judge.name,
+                  enabled: judge.enabled,
+                  samplingProbability: judge.samplingProbability ?? 100,
+                  provider: judge.provider,
+                  modelName: judge.modelName,
+                  evalPrompt: judge.evalPrompt,
+                }),
+              )
             : undefined,
         streamServer: streamServer
           ? {
@@ -356,7 +369,7 @@ export async function exportWorkspace(
             }
           : undefined,
       };
-    })
+    }),
   );
 
   // Build export object
@@ -371,7 +384,8 @@ export async function exportWorkspace(
     outputChannels:
       outputChannelsResult.items.length > 0
         ? outputChannelsResult.items.map((channel) => ({
-            id: channelIdToRefNameMap.get(channel.channelId) || channel.channelId,
+            id:
+              channelIdToRefNameMap.get(channel.channelId) || channel.channelId,
             channelId: channel.channelId,
             type: channel.type,
             name: channel.name,
@@ -381,12 +395,12 @@ export async function exportWorkspace(
     emailConnections:
       emailConnectionsResult.items.length > 0
         ? emailConnectionsResult.items.map((connection) => {
-            const connectionId = connection.pk.replace(
-              `email-connections/${workspaceId}`,
-              ""
-            ) || "connection";
+            const connectionId =
+              connection.pk.replace(`email-connections/${workspaceId}`, "") ||
+              "connection";
             return {
-              id: emailConnectionIdToRefNameMap.get(connectionId) || connectionId,
+              id:
+                emailConnectionIdToRefNameMap.get(connectionId) || connectionId,
               type: connection.type,
               name: connection.name,
               config: connection.config,
@@ -398,13 +412,13 @@ export async function exportWorkspace(
         ? mcpServersResult.items.map((server) => {
             const serverId = server.pk.replace(
               `mcp-servers/${workspaceId}/`,
-              ""
+              "",
             );
             // Filter out sensitive credentials from config
             // Always return an object, even if empty after filtering
             const filteredConfig = server.config
               ? filterMcpServerCredentials(
-                  server.config as Record<string, unknown>
+                  server.config as Record<string, unknown>,
                 )
               : {};
             return {
@@ -422,16 +436,19 @@ export async function exportWorkspace(
         ? botIntegrationsResult.items.map((integration) => {
             const integrationId = integration.pk.replace(
               `bot-integrations/${workspaceId}/`,
-              ""
+              "",
             );
             // Resolve agentId to refName
             const agentId = integration.agentId.includes("/")
               ? integration.agentId.replace(`agents/${workspaceId}/`, "")
               : integration.agentId;
-            const agentRefName = agentIdToRefNameMap.get(agentId) || integration.agentId;
-            
+            const agentRefName =
+              agentIdToRefNameMap.get(agentId) || integration.agentId;
+
             return {
-              id: botIntegrationIdToRefNameMap.get(integrationId) || integrationId,
+              id:
+                botIntegrationIdToRefNameMap.get(integrationId) ||
+                integrationId,
               agentId: agentRefName,
               platform: integration.platform,
               name: integration.name,

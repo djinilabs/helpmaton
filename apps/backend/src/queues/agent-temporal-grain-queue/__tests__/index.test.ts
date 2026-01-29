@@ -272,6 +272,57 @@ describe("agent-temporal-grain-queue handler", () => {
         ]);
         expect(result).toEqual({ batchItemFailures: [] });
       });
+
+      it("should process update operation with rawFacts", async () => {
+        const { connect } = await import("@lancedb/lancedb");
+        const mockConnect = vi.mocked(connect);
+
+        const mockAdd = vi.fn().mockResolvedValue(undefined);
+        const mockDelete = vi.fn().mockResolvedValue(undefined);
+        const mockOpenTable = vi.fn().mockResolvedValue({
+          add: mockAdd,
+          delete: mockDelete,
+        });
+
+        mockConnect.mockResolvedValue({
+          openTable: mockOpenTable,
+          createTable: vi.fn(),
+        } as unknown as Awaited<ReturnType<typeof connect>>);
+
+        const message: WriteOperationMessage = {
+          operation: "update",
+          agentId: "agent-123",
+          temporalGrain: "daily",
+          workspaceId: "workspace-1",
+          data: {
+            rawFacts: [
+              {
+                id: "record-raw-1",
+                content: "Raw content update",
+                timestamp: "2024-01-02T00:00:00Z",
+                metadata: {
+                  conversationId: "conversation-1",
+                  workspaceId: "workspace-1",
+                  agentId: "agent-123",
+                },
+              },
+            ],
+          },
+        };
+
+        const event = createSQSEvent([message]);
+
+        const result = await handler(event);
+
+        expect(mockDelete).toHaveBeenCalledWith("id = 'record-raw-1'");
+        expect(mockAdd).toHaveBeenCalledWith([
+          expect.objectContaining({
+            id: "record-raw-1",
+            content: "Raw content update",
+          }),
+        ]);
+        expect(result).toEqual({ batchItemFailures: [] });
+      });
     });
 
     describe("delete operation", () => {

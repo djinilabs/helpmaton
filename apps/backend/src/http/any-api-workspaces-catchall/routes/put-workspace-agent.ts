@@ -21,6 +21,7 @@ import {
   validateDelegatableAgentIds,
   validateImageGenerationConfig,
   validateKnowledgeConfig,
+  validateMemoryExtractionModel,
   validateModelName,
   validateModelTuning,
   validateNotificationChannelId,
@@ -123,8 +124,9 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           throw badRequest("Workspace resource not found");
         }
 
-        const normalizedSummarizationPrompts =
-          normalizeSummarizationPrompts(body.summarizationPrompts);
+        const normalizedSummarizationPrompts = normalizeSummarizationPrompts(
+          body.summarizationPrompts,
+        );
         const workspaceId = req.params.workspaceId;
         const agentId = req.params.agentId;
         const agentPk = `agents/${workspaceId}/${agentId}`;
@@ -168,6 +170,10 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         const resolvedModelName = await validateModelName({
           modelName: body.modelName,
         });
+        const resolvedMemoryExtractionModel =
+          await validateMemoryExtractionModel({
+            memoryExtractionModel: body.memoryExtractionModel,
+          });
         validateImageGenerationConfig({
           enableImageGeneration: body.enableImageGeneration,
           imageGenerationModel: body.imageGenerationModel,
@@ -198,8 +204,9 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             resolvedSearchWebProvider,
             resolvedFetchWebProvider,
             resolvedModelName,
+            resolvedMemoryExtractionModel,
             updatedBy: req.userRef || "",
-          })
+          }),
         );
 
         const response = buildAgentResponse({ agentId, updated });
@@ -214,7 +221,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             provider: updated.provider,
             model_name: updated.modelName || undefined,
           },
-          req
+          req,
         );
 
         res.json(response);
@@ -222,9 +229,9 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         handleError(
           error,
           next,
-          "PUT /api/workspaces/:workspaceId/agents/:agentId"
+          "PUT /api/workspaces/:workspaceId/agents/:agentId",
         );
       }
-    }
+    },
   );
 };

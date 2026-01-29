@@ -96,6 +96,9 @@ export interface Agent {
   name: string;
   systemPrompt: string;
   summarizationPrompts?: SummarizationPrompts;
+  memoryExtractionEnabled?: boolean;
+  memoryExtractionModel?: string;
+  memoryExtractionPrompt?: string;
   notificationChannelId?: string;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
@@ -144,6 +147,9 @@ export interface CreateAgentInput {
   imageGenerationModel?: string | null;
   avatar?: string | null;
   summarizationPrompts?: SummarizationPromptsInput;
+  memoryExtractionEnabled?: boolean;
+  memoryExtractionModel?: string | null;
+  memoryExtractionPrompt?: string | null;
 }
 
 export interface UpdateAgentInput {
@@ -168,6 +174,9 @@ export interface UpdateAgentInput {
   imageGenerationModel?: string | null;
   clientTools?: ClientTool[];
   summarizationPrompts?: SummarizationPromptsInput;
+  memoryExtractionEnabled?: boolean;
+  memoryExtractionModel?: string | null;
+  memoryExtractionPrompt?: string | null;
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;
   topP?: number | null;
@@ -359,7 +368,7 @@ async function refreshAccessToken(): Promise<string | null> {
           : false,
         refreshTokenPreview: refreshToken
           ? `${refreshToken.substring(0, 20)}...${refreshToken.substring(
-              refreshToken.length - 10
+              refreshToken.length - 10,
             )}`
           : null,
       });
@@ -398,7 +407,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
 async function apiFetch(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> {
   // For FormData, don't set Content-Type - let the browser set it with boundary
   const isFormData = options.body instanceof FormData;
@@ -422,7 +431,7 @@ async function apiFetch(
     // Network error (no internet, server down, etc.)
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       throw new Error(
-        "Network error: Unable to connect to the server. Please check your internet connection."
+        "Network error: Unable to connect to the server. Please check your internet connection.",
       );
     }
     throw error;
@@ -477,15 +486,15 @@ export function setupGlobalFetchOverride(): void {
   // Override global fetch
   window.fetch = async (
     input: RequestInfo | URL,
-    init?: RequestInit
+    init?: RequestInit,
   ): Promise<Response> => {
     // Convert input to URL string
     const urlString =
       typeof input === "string"
         ? input
         : input instanceof URL
-        ? input.toString()
-        : input.url;
+          ? input.toString()
+          : input.url;
 
     // Parse URL to check origin (for security - only send tokens to same origin)
     let requestUrl: URL;
@@ -540,9 +549,8 @@ export function setupGlobalFetchOverride(): void {
     if (!skipAuth) {
       const accessToken = getAccessToken();
       if (accessToken) {
-        (
-          headers as Record<string, string>
-        ).Authorization = `Bearer ${accessToken}`;
+        (headers as Record<string, string>).Authorization =
+          `Bearer ${accessToken}`;
       }
     }
 
@@ -559,7 +567,7 @@ export function setupGlobalFetchOverride(): void {
       // Network error (no internet, server down, etc.)
       if (error instanceof TypeError && error.message === "Failed to fetch") {
         throw new Error(
-          "Network error: Unable to connect to the server. Please check your internet connection."
+          "Network error: Unable to connect to the server. Please check your internet connection.",
         );
       }
       throw error;
@@ -582,9 +590,8 @@ export function setupGlobalFetchOverride(): void {
         const newAccessToken = await refreshAccessToken();
         if (newAccessToken) {
           // Retry the original request with new token
-          (
-            headers as Record<string, string>
-          ).Authorization = `Bearer ${newAccessToken}`;
+          (headers as Record<string, string>).Authorization =
+            `Bearer ${newAccessToken}`;
           response = await originalFetch(input, {
             ...init,
             headers,
@@ -616,7 +623,7 @@ export function setupGlobalFetchOverride(): void {
       } else {
         // Streaming endpoint: generic administrator message
         throw new Error(
-          "There was an error. Please contact your administrator."
+          "There was an error. Please contact your administrator.",
         );
       }
     }
@@ -639,7 +646,7 @@ export async function getWorkspace(id: string): Promise<Workspace> {
 }
 
 export async function createWorkspace(
-  input: CreateWorkspaceInput
+  input: CreateWorkspaceInput,
 ): Promise<Workspace> {
   const response = await apiFetch("/api/workspaces", {
     method: "POST",
@@ -650,7 +657,7 @@ export async function createWorkspace(
 
 export async function updateWorkspace(
   id: string,
-  input: UpdateWorkspaceInput
+  input: UpdateWorkspaceInput,
 ): Promise<Workspace> {
   const response = await apiFetch(`/api/workspaces/${id}`, {
     method: "PUT",
@@ -798,7 +805,7 @@ export async function exportWorkspace(workspaceId: string): Promise<void> {
  * Import a workspace from an exported configuration JSON
  */
 export async function importWorkspace(
-  exportData: WorkspaceExport
+  exportData: WorkspaceExport,
 ): Promise<Workspace> {
   const response = await apiFetch("/api/workspaces/import", {
     method: "POST",
@@ -811,7 +818,7 @@ export async function setWorkspaceApiKey(
   workspaceId: string,
   key: string | null,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _provider: string = "openrouter"
+  _provider: string = "openrouter",
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/api-key`, {
     method: "PUT",
@@ -822,16 +829,16 @@ export async function setWorkspaceApiKey(
 export async function getWorkspaceApiKeyStatus(
   workspaceId: string,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _provider: string = "openrouter"
+  _provider: string = "openrouter",
 ): Promise<{ hasKey: boolean }> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/api-key?provider=openrouter`
+    `/api/workspaces/${workspaceId}/api-key?provider=openrouter`,
   );
   return response.json();
 }
 
 export async function getWorkspaceApiKeys(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ keys: Array<{ provider: string; hasKey: boolean }> }> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/api-keys`);
   return response.json();
@@ -840,7 +847,7 @@ export async function getWorkspaceApiKeys(
 export async function deleteWorkspaceApiKey(
   workspaceId: string,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _provider: string = "openrouter"
+  _provider: string = "openrouter",
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/api-key?provider=openrouter`, {
     method: "DELETE",
@@ -858,7 +865,7 @@ export interface TrialStatus {
 
 export async function requestTrialCredits(
   workspaceId: string,
-  captchaToken: string
+  captchaToken: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/trial-credit-request`, {
     method: "POST",
@@ -867,16 +874,16 @@ export async function requestTrialCredits(
 }
 
 export async function getTrialStatus(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<TrialStatus> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/trial-status`
+    `/api/workspaces/${workspaceId}/trial-status`,
   );
   return response.json();
 }
 
 export async function listAgents(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ agents: Agent[] }> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/agents`);
   return response.json();
@@ -884,10 +891,10 @@ export async function listAgents(
 
 export async function getAgent(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<Agent> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}`
+    `/api/workspaces/${workspaceId}/agents/${agentId}`,
   );
   return response.json();
 }
@@ -915,17 +922,17 @@ export interface GroupedToolMetadata {
 
 export async function getAgentTools(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<GroupedToolMetadata[]> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/tools`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/tools`,
   );
   return response.json();
 }
 
 export async function createAgent(
   workspaceId: string,
-  input: CreateAgentInput
+  input: CreateAgentInput,
 ): Promise<Agent> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/agents`, {
     method: "POST",
@@ -936,14 +943,14 @@ export async function createAgent(
 
 export async function generatePrompt(
   workspaceId: string,
-  input: { goal: string; agentId?: string }
+  input: { goal: string; agentId?: string },
 ): Promise<{ prompt: string }> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/generate-prompt`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -951,21 +958,21 @@ export async function generatePrompt(
 export async function updateAgent(
   workspaceId: string,
   agentId: string,
-  input: UpdateAgentInput
+  input: UpdateAgentInput,
 ): Promise<Agent> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
 
 export async function deleteAgent(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/agents/${agentId}`, {
     method: "DELETE",
@@ -974,10 +981,10 @@ export async function deleteAgent(
 
 export async function getAgentKeys(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<{ keys: AgentKey[] }> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/keys`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/keys`,
   );
   return response.json();
 }
@@ -985,14 +992,14 @@ export async function getAgentKeys(
 export async function createAgentKey(
   workspaceId: string,
   agentId: string,
-  input: CreateAgentKeyInput
+  input: CreateAgentKeyInput,
 ): Promise<AgentKey> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/keys`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -1000,13 +1007,13 @@ export async function createAgentKey(
 export async function deleteAgentKey(
   workspaceId: string,
   agentId: string,
-  keyId: string
+  keyId: string,
 ): Promise<void> {
   await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/keys/${keyId}`,
     {
       method: "DELETE",
-    }
+    },
   );
 }
 
@@ -1065,7 +1072,7 @@ export async function listAgentConversations(
   workspaceId: string,
   agentId: string,
   limit?: number,
-  cursor?: string
+  cursor?: string,
 ): Promise<ListConversationsResponse> {
   const params = new URLSearchParams();
   if (limit !== undefined) {
@@ -1106,7 +1113,7 @@ export interface ListTransactionsResponse {
 export async function listWorkspaceTransactions(
   workspaceId: string,
   limit?: number,
-  cursor?: string
+  cursor?: string,
 ): Promise<ListTransactionsResponse> {
   const params = new URLSearchParams();
   if (limit !== undefined) {
@@ -1127,7 +1134,7 @@ export async function listAgentTransactions(
   workspaceId: string,
   agentId: string,
   limit?: number,
-  cursor?: string
+  cursor?: string,
 ): Promise<ListTransactionsResponse> {
   const params = new URLSearchParams();
   if (limit !== undefined) {
@@ -1147,22 +1154,22 @@ export async function listAgentTransactions(
 export async function getAgentConversation(
   workspaceId: string,
   agentId: string,
-  conversationId: string
+  conversationId: string,
 ): Promise<ConversationDetail> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`,
   );
   return response.json();
 }
 
 export async function listDocuments(
   workspaceId: string,
-  folderPath?: string
+  folderPath?: string,
 ): Promise<{ documents: Document[] }> {
   const url =
     folderPath !== undefined
       ? `/api/workspaces/${workspaceId}/documents?folder=${encodeURIComponent(
-          folderPath
+          folderPath,
         )}`
       : `/api/workspaces/${workspaceId}/documents`;
   const response = await apiFetch(url);
@@ -1170,10 +1177,10 @@ export async function listDocuments(
 }
 
 export async function listFolders(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ folders: string[] }> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/documents/folders`
+    `/api/workspaces/${workspaceId}/documents/folders`,
   );
   return response.json();
 }
@@ -1181,7 +1188,7 @@ export async function listFolders(
 export async function uploadDocument(
   workspaceId: string,
   file: File | CreateDocumentInput,
-  folderPath?: string
+  folderPath?: string,
 ): Promise<Document> {
   const formData = new FormData();
 
@@ -1208,7 +1215,7 @@ export async function uploadDocument(
 export async function uploadDocuments(
   workspaceId: string,
   files: File[],
-  folderPath?: string
+  folderPath?: string,
 ): Promise<Document[]> {
   const formData = new FormData();
 
@@ -1231,10 +1238,10 @@ export async function uploadDocuments(
 
 export async function getDocument(
   workspaceId: string,
-  documentId: string
+  documentId: string,
 ): Promise<DocumentWithContent> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/documents/${documentId}`
+    `/api/workspaces/${workspaceId}/documents/${documentId}`,
   );
   return response.json();
 }
@@ -1242,14 +1249,14 @@ export async function getDocument(
 export async function updateDocument(
   workspaceId: string,
   documentId: string,
-  input: UpdateDocumentInput
+  input: UpdateDocumentInput,
 ): Promise<Document> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/documents/${documentId}`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -1257,21 +1264,21 @@ export async function updateDocument(
 export async function renameDocument(
   workspaceId: string,
   documentId: string,
-  name: string
+  name: string,
 ): Promise<Document> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/documents/${documentId}/rename`,
     {
       method: "PATCH",
       body: JSON.stringify({ name }),
-    }
+    },
   );
   return response.json();
 }
 
 export async function deleteDocument(
   workspaceId: string,
-  documentId: string
+  documentId: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
     method: "DELETE",
@@ -1281,7 +1288,7 @@ export async function deleteDocument(
 export async function searchDocuments(
   workspaceId: string,
   query: string,
-  limit?: number
+  limit?: number,
 ): Promise<{ results: DocumentSearchResult[] }> {
   const params = new URLSearchParams();
   params.append("q", query);
@@ -1289,13 +1296,13 @@ export async function searchDocuments(
     params.append("limit", limit.toString());
   }
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/documents/search?${params.toString()}`
+    `/api/workspaces/${workspaceId}/documents/search?${params.toString()}`,
   );
   return response.json();
 }
 
 export async function listChannels(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ channels: Channel[] }> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/channels`);
   return response.json();
@@ -1303,17 +1310,17 @@ export async function listChannels(
 
 export async function getChannel(
   workspaceId: string,
-  channelId: string
+  channelId: string,
 ): Promise<Channel> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/channels/${channelId}`
+    `/api/workspaces/${workspaceId}/channels/${channelId}`,
   );
   return response.json();
 }
 
 export async function createChannel(
   workspaceId: string,
-  input: CreateChannelInput
+  input: CreateChannelInput,
 ): Promise<Channel> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/channels`, {
     method: "POST",
@@ -1325,21 +1332,21 @@ export async function createChannel(
 export async function updateChannel(
   workspaceId: string,
   channelId: string,
-  input: UpdateChannelInput
+  input: UpdateChannelInput,
 ): Promise<Channel> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/channels/${channelId}`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
 
 export async function deleteChannel(
   workspaceId: string,
-  channelId: string
+  channelId: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/channels/${channelId}`, {
     method: "DELETE",
@@ -1348,13 +1355,13 @@ export async function deleteChannel(
 
 export async function testChannel(
   workspaceId: string,
-  channelId: string
+  channelId: string,
 ): Promise<{ success: boolean; message: string }> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/channels/${channelId}/test`,
     {
       method: "POST",
-    }
+    },
   );
   return response.json();
 }
@@ -1378,11 +1385,11 @@ export interface UpdateEmailConnectionInput {
 }
 
 export async function getEmailConnection(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<EmailConnection | null> {
   try {
     const response = await apiFetch(
-      `/api/workspaces/${workspaceId}/email-connection`
+      `/api/workspaces/${workspaceId}/email-connection`,
     );
 
     return response.json();
@@ -1402,34 +1409,34 @@ export async function getEmailConnection(
 
 export async function createOrUpdateEmailConnection(
   workspaceId: string,
-  input: CreateEmailConnectionInput
+  input: CreateEmailConnectionInput,
 ): Promise<EmailConnection> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/email-connection`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
 
 export async function updateEmailConnection(
   workspaceId: string,
-  input: UpdateEmailConnectionInput
+  input: UpdateEmailConnectionInput,
 ): Promise<EmailConnection> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/email-connection`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
 
 export async function deleteEmailConnection(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/email-connection`, {
     method: "DELETE",
@@ -1437,13 +1444,13 @@ export async function deleteEmailConnection(
 }
 
 export async function testEmailConnection(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ success: boolean; message: string }> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/email-connection/test`,
     {
       method: "POST",
-    }
+    },
   );
   return response.json();
 }
@@ -1542,7 +1549,7 @@ export interface UpdateMcpServerInput {
 }
 
 export async function listMcpServers(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ servers: McpServer[] }> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/mcp-servers`);
   return response.json();
@@ -1550,34 +1557,34 @@ export async function listMcpServers(
 
 export async function getMcpServer(
   workspaceId: string,
-  serverId: string
+  serverId: string,
 ): Promise<McpServer> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}`
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}`,
   );
   return response.json();
 }
 
 export async function getMcpServerTools(
   workspaceId: string,
-  serverId: string
+  serverId: string,
 ): Promise<GroupedToolMetadata[]> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/tools`
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/tools`,
   );
   return response.json();
 }
 
 export async function createMcpServer(
   workspaceId: string,
-  input: CreateMcpServerInput
+  input: CreateMcpServerInput,
 ): Promise<McpServer> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/mcp-servers`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -1585,21 +1592,21 @@ export async function createMcpServer(
 export async function updateMcpServer(
   workspaceId: string,
   serverId: string,
-  input: UpdateMcpServerInput
+  input: UpdateMcpServerInput,
 ): Promise<McpServer> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/mcp-servers/${serverId}`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
 
 export async function deleteMcpServer(
   workspaceId: string,
-  serverId: string
+  serverId: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/mcp-servers/${serverId}`, {
     method: "DELETE",
@@ -1613,42 +1620,42 @@ export interface McpOAuthStatus {
 
 export async function getMcpOAuthStatus(
   workspaceId: string,
-  serverId: string
+  serverId: string,
 ): Promise<McpOAuthStatus> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/status`
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/status`,
   );
   return response.json();
 }
 
 export async function initiateMcpOAuthFlow(
   workspaceId: string,
-  serverId: string
+  serverId: string,
 ): Promise<{ authUrl: string }> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/authorize`
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/authorize`,
   );
   return response.json();
 }
 
 export async function disconnectMcpOAuth(
   workspaceId: string,
-  serverId: string
+  serverId: string,
 ): Promise<void> {
   await apiFetch(
     `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/disconnect`,
     {
       method: "POST",
-    }
+    },
   );
 }
 
 export async function initiateOAuthFlow(
   workspaceId: string,
-  provider: "gmail" | "outlook"
+  provider: "gmail" | "outlook",
 ): Promise<{ authUrl: string }> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/email/oauth/${provider}/authorize`
+    `/api/workspaces/${workspaceId}/email/oauth/${provider}/authorize`,
   );
   return response.json();
 }
@@ -1774,7 +1781,7 @@ export interface UsageOptions {
 
 export async function getWorkspaceUsage(
   workspaceId: string,
-  options: UsageOptions = {}
+  options: UsageOptions = {},
 ): Promise<WorkspaceUsageResponse> {
   const params = new URLSearchParams();
   if (options.startDate) {
@@ -1793,7 +1800,7 @@ export async function getWorkspaceUsage(
 
 export async function getWorkspaceDailyUsage(
   workspaceId: string,
-  options: UsageOptions = {}
+  options: UsageOptions = {},
 ): Promise<WorkspaceDailyUsageResponse> {
   const params = new URLSearchParams();
   if (options.startDate) {
@@ -1813,7 +1820,7 @@ export async function getWorkspaceDailyUsage(
 export async function getAgentUsage(
   workspaceId: string,
   agentId: string,
-  options: UsageOptions = {}
+  options: UsageOptions = {},
 ): Promise<AgentUsageResponse> {
   const params = new URLSearchParams();
   if (options.startDate) {
@@ -1833,7 +1840,7 @@ export async function getAgentUsage(
 export async function getAgentDailyUsage(
   workspaceId: string,
   agentId: string,
-  options: UsageOptions = {}
+  options: UsageOptions = {},
 ): Promise<AgentDailyUsageResponse> {
   const params = new URLSearchParams();
   if (options.startDate) {
@@ -1884,7 +1891,7 @@ export interface AgentMemoryResponse {
 export async function getAgentMemory(
   workspaceId: string,
   agentId: string,
-  options: AgentMemoryOptions = {}
+  options: AgentMemoryOptions = {},
 ): Promise<AgentMemoryResponse> {
   const params = new URLSearchParams();
   if (options.grain) {
@@ -1969,7 +1976,7 @@ export async function getModelPricing(): Promise<ModelPricingResponse> {
 }
 
 export async function getUserUsage(
-  options: UsageOptions = {}
+  options: UsageOptions = {},
 ): Promise<UserUsageResponse> {
   const params = new URLSearchParams();
   if (options.startDate) {
@@ -1985,7 +1992,7 @@ export async function getUserUsage(
 }
 
 export async function getUserDailyUsage(
-  options: UsageOptions = {}
+  options: UsageOptions = {},
 ): Promise<UserDailyUsageResponse> {
   const params = new URLSearchParams();
   if (options.startDate) {
@@ -2004,14 +2011,14 @@ export async function getUserDailyUsage(
 
 export async function addWorkspaceSpendingLimit(
   workspaceId: string,
-  limit: SpendingLimit
+  limit: SpendingLimit,
 ): Promise<Workspace> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/spending-limits`,
     {
       method: "POST",
       body: JSON.stringify(limit),
-    }
+    },
   );
   return response.json();
 }
@@ -2019,27 +2026,27 @@ export async function addWorkspaceSpendingLimit(
 export async function updateWorkspaceSpendingLimit(
   workspaceId: string,
   timeFrame: "daily" | "weekly" | "monthly",
-  amount: number
+  amount: number,
 ): Promise<Workspace> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/spending-limits/${timeFrame}`,
     {
       method: "PUT",
       body: JSON.stringify({ amount }),
-    }
+    },
   );
   return response.json();
 }
 
 export async function removeWorkspaceSpendingLimit(
   workspaceId: string,
-  timeFrame: "daily" | "weekly" | "monthly"
+  timeFrame: "daily" | "weekly" | "monthly",
 ): Promise<Workspace> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/spending-limits/${timeFrame}`,
     {
       method: "DELETE",
-    }
+    },
   );
   return response.json();
 }
@@ -2047,14 +2054,14 @@ export async function removeWorkspaceSpendingLimit(
 export async function addAgentSpendingLimit(
   workspaceId: string,
   agentId: string,
-  limit: SpendingLimit
+  limit: SpendingLimit,
 ): Promise<Agent> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/spending-limits`,
     {
       method: "POST",
       body: JSON.stringify(limit),
-    }
+    },
   );
   return response.json();
 }
@@ -2063,14 +2070,14 @@ export async function updateAgentSpendingLimit(
   workspaceId: string,
   agentId: string,
   timeFrame: "daily" | "weekly" | "monthly",
-  amount: number
+  amount: number,
 ): Promise<Agent> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/spending-limits/${timeFrame}`,
     {
       method: "PUT",
       body: JSON.stringify({ amount }),
-    }
+    },
   );
   return response.json();
 }
@@ -2078,13 +2085,13 @@ export async function updateAgentSpendingLimit(
 export async function removeAgentSpendingLimit(
   workspaceId: string,
   agentId: string,
-  timeFrame: "daily" | "weekly" | "monthly"
+  timeFrame: "daily" | "weekly" | "monthly",
 ): Promise<Agent> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/spending-limits/${timeFrame}`,
     {
       method: "DELETE",
-    }
+    },
   );
   return response.json();
 }
@@ -2176,7 +2183,7 @@ export async function removeSubscriptionManager(userId: string): Promise<void> {
 }
 
 export async function createSubscriptionCheckout(
-  plan: "starter" | "pro"
+  plan: "starter" | "pro",
 ): Promise<{
   checkoutUrl?: string;
   success?: boolean;
@@ -2197,7 +2204,7 @@ export async function cancelSubscription(): Promise<void> {
 }
 
 export async function changeSubscriptionPlan(
-  plan: "starter" | "pro"
+  plan: "starter" | "pro",
 ): Promise<{ success: boolean; message: string }> {
   const response = await apiFetch("/api/subscription/change-plan", {
     method: "POST",
@@ -2228,21 +2235,21 @@ export async function syncSubscription(): Promise<{
 
 export async function purchaseCredits(
   workspaceId: string,
-  amount: number
+  amount: number,
 ): Promise<{ checkoutUrl: string }> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/credits/purchase`,
     {
       method: "POST",
       body: JSON.stringify({ amount }),
-    }
+    },
   );
   return response.json();
 }
 
 // Workspace member management
 export async function getWorkspaceMembers(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ members: Member[] }> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/members`);
   return response.json();
@@ -2251,21 +2258,21 @@ export async function getWorkspaceMembers(
 export async function inviteWorkspaceMember(
   workspaceId: string,
   email: string,
-  permissionLevel: number
+  permissionLevel: number,
 ): Promise<WorkspaceInvite> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/members/invite`,
     {
       method: "POST",
       body: JSON.stringify({ email, permissionLevel }),
-    }
+    },
   );
   return response.json();
 }
 
 export async function removeWorkspaceMember(
   workspaceId: string,
-  userId: string
+  userId: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/members/${userId}`, {
     method: "DELETE",
@@ -2275,17 +2282,17 @@ export async function removeWorkspaceMember(
 // Workspace invite management
 export async function getWorkspaceInvite(
   workspaceId: string,
-  token: string
+  token: string,
 ): Promise<WorkspaceInviteDetails> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/invites/${token}`
+    `/api/workspaces/${workspaceId}/invites/${token}`,
   );
   return response.json();
 }
 
 export async function acceptWorkspaceInvite(
   workspaceId: string,
-  token: string
+  token: string,
 ): Promise<{
   success: boolean;
   workspaceId: string;
@@ -2296,13 +2303,13 @@ export async function acceptWorkspaceInvite(
     `/api/workspaces/${workspaceId}/invites/${token}/accept`,
     {
       method: "POST",
-    }
+    },
   );
   return response.json();
 }
 
 export async function getWorkspaceInvites(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<{ invites: WorkspaceInviteListItem[] }> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/invites`);
   return response.json();
@@ -2316,7 +2323,7 @@ export interface WorkspaceUserLimit {
 }
 
 export async function getWorkspaceUserLimit(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<WorkspaceUserLimit> {
   const response = await apiFetch(`/api/workspaces/${workspaceId}/user-limit`);
   return response.json();
@@ -2324,7 +2331,7 @@ export async function getWorkspaceUserLimit(
 
 export async function cancelWorkspaceInvite(
   workspaceId: string,
-  inviteId: string
+  inviteId: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/invites/${inviteId}`, {
     method: "DELETE",
@@ -2378,7 +2385,7 @@ export async function getStreamUrl(): Promise<{ url: string } | null> {
 
 export async function getStreamServer(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<StreamServerConfig | null> {
   try {
     const response = await apiFetch(
@@ -2388,7 +2395,7 @@ export async function getStreamServer(
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     return response.json();
@@ -2409,14 +2416,14 @@ export async function getStreamServer(
 export async function createStreamServer(
   workspaceId: string,
   agentId: string,
-  input: CreateStreamServerInput
+  input: CreateStreamServerInput,
 ): Promise<CreateStreamServerResponse> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/stream-servers`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -2424,27 +2431,27 @@ export async function createStreamServer(
 export async function updateStreamServer(
   workspaceId: string,
   agentId: string,
-  input: UpdateStreamServerInput
+  input: UpdateStreamServerInput,
 ): Promise<StreamServerConfig> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/stream-servers`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
 
 export async function deleteStreamServer(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<void> {
   await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/stream-servers`,
     {
       method: "DELETE",
-    }
+    },
   );
 }
 
@@ -2496,34 +2503,34 @@ export interface SlackManifestResponse {
 }
 
 export async function listIntegrations(
-  workspaceId: string
+  workspaceId: string,
 ): Promise<BotIntegration[]> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/integrations`
+    `/api/workspaces/${workspaceId}/integrations`,
   );
   return response.json();
 }
 
 export async function getIntegration(
   workspaceId: string,
-  integrationId: string
+  integrationId: string,
 ): Promise<BotIntegration> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/integrations/${integrationId}`
+    `/api/workspaces/${workspaceId}/integrations/${integrationId}`,
   );
   return response.json();
 }
 
 export async function createIntegration(
   workspaceId: string,
-  input: CreateIntegrationInput
+  input: CreateIntegrationInput,
 ): Promise<BotIntegration> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/integrations`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -2531,41 +2538,41 @@ export async function createIntegration(
 export async function updateIntegration(
   workspaceId: string,
   integrationId: string,
-  input: UpdateIntegrationInput
+  input: UpdateIntegrationInput,
 ): Promise<BotIntegration> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/integrations/${integrationId}`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
 
 export async function deleteIntegration(
   workspaceId: string,
-  integrationId: string
+  integrationId: string,
 ): Promise<void> {
   await apiFetch(
     `/api/workspaces/${workspaceId}/integrations/${integrationId}`,
     {
       method: "DELETE",
-    }
+    },
   );
 }
 
 export async function registerDiscordCommand(
   workspaceId: string,
   integrationId: string,
-  commandName: string
+  commandName: string,
 ): Promise<BotIntegration> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/integrations/${integrationId}/discord-command`,
     {
       method: "POST",
       body: JSON.stringify({ commandName }),
-    }
+    },
   );
   return response.json();
 }
@@ -2573,14 +2580,14 @@ export async function registerDiscordCommand(
 export async function generateSlackManifest(
   workspaceId: string,
   agentId: string,
-  agentName?: string
+  agentName?: string,
 ): Promise<SlackManifestResponse> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/integrations/slack/manifest`,
     {
       method: "POST",
       body: JSON.stringify({ agentId, agentName }),
-    }
+    },
   );
   return response.json();
 }
@@ -2614,7 +2621,7 @@ export async function listUserApiKeys(): Promise<UserApiKey[]> {
 }
 
 export async function createUserApiKey(
-  input: CreateUserApiKeyInput
+  input: CreateUserApiKeyInput,
 ): Promise<CreateUserApiKeyResponse> {
   const response = await apiFetch("/api/user/api-keys", {
     method: "POST",
@@ -2728,10 +2735,10 @@ export interface GetAgentEvalResultsParams {
 
 export async function listEvalJudges(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<EvalJudge[]> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges`,
   );
   return response.json();
 }
@@ -2739,10 +2746,10 @@ export async function listEvalJudges(
 export async function getEvalJudge(
   workspaceId: string,
   agentId: string,
-  judgeId: string
+  judgeId: string,
 ): Promise<EvalJudge> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`,
   );
   return response.json();
 }
@@ -2750,14 +2757,14 @@ export async function getEvalJudge(
 export async function createEvalJudge(
   workspaceId: string,
   agentId: string,
-  input: CreateEvalJudgeInput
+  input: CreateEvalJudgeInput,
 ): Promise<EvalJudge> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -2766,14 +2773,14 @@ export async function updateEvalJudge(
   workspaceId: string,
   agentId: string,
   judgeId: string,
-  input: UpdateEvalJudgeInput
+  input: UpdateEvalJudgeInput,
 ): Promise<EvalJudge> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -2781,22 +2788,22 @@ export async function updateEvalJudge(
 export async function deleteEvalJudge(
   workspaceId: string,
   agentId: string,
-  judgeId: string
+  judgeId: string,
 ): Promise<void> {
   await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`,
     {
       method: "DELETE",
-    }
+    },
   );
 }
 
 export async function listAgentSchedules(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<AgentSchedule[]> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules`,
   );
   return response.json();
 }
@@ -2804,10 +2811,10 @@ export async function listAgentSchedules(
 export async function getAgentSchedule(
   workspaceId: string,
   agentId: string,
-  scheduleId: string
+  scheduleId: string,
 ): Promise<AgentSchedule> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules/${scheduleId}`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules/${scheduleId}`,
   );
   return response.json();
 }
@@ -2815,14 +2822,14 @@ export async function getAgentSchedule(
 export async function createAgentSchedule(
   workspaceId: string,
   agentId: string,
-  input: CreateAgentScheduleInput
+  input: CreateAgentScheduleInput,
 ): Promise<AgentSchedule> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/schedules`,
     {
       method: "POST",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -2831,14 +2838,14 @@ export async function updateAgentSchedule(
   workspaceId: string,
   agentId: string,
   scheduleId: string,
-  input: UpdateAgentScheduleInput
+  input: UpdateAgentScheduleInput,
 ): Promise<AgentSchedule> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/schedules/${scheduleId}`,
     {
       method: "PUT",
       body: JSON.stringify(input),
-    }
+    },
   );
   return response.json();
 }
@@ -2846,20 +2853,20 @@ export async function updateAgentSchedule(
 export async function deleteAgentSchedule(
   workspaceId: string,
   agentId: string,
-  scheduleId: string
+  scheduleId: string,
 ): Promise<void> {
   await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/schedules/${scheduleId}`,
     {
       method: "DELETE",
-    }
+    },
   );
 }
 
 export async function getAgentEvalResults(
   workspaceId: string,
   agentId: string,
-  params?: GetAgentEvalResultsParams
+  params?: GetAgentEvalResultsParams,
 ): Promise<EvalResultsResponse> {
   const queryParams = new URLSearchParams();
   if (params?.startDate) {
@@ -2888,10 +2895,10 @@ export async function getAgentEvalResults(
 export async function getConversationEvalResults(
   workspaceId: string,
   agentId: string,
-  conversationId: string
+  conversationId: string,
 ): Promise<EvalResult[]> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}/eval-results`
+    `/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}/eval-results`,
   );
   return response.json();
 }

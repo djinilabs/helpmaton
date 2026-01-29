@@ -4,7 +4,10 @@ import type { DatabaseSchema } from "../tables/schema";
 
 import type { ConversationErrorInfo } from "./conversationErrorInfo";
 import { expandMessagesWithToolCalls } from "./conversationMessageExpander";
-import { writeToWorkingMemory } from "./memory/writeMemory";
+import {
+  writeToWorkingMemory,
+  type MemoryExtractionConfig,
+} from "./memory/writeMemory";
 import { getMessageCost } from "./messageCostCalculation";
 import type { UIMessage } from "./messageTypes";
 import { Sentry, ensureError } from "./sentry";
@@ -71,7 +74,10 @@ export interface ConversationLogData {
   awsRequestId?: string; // AWS Lambda/API Gateway request ID for this message addition
 }
 
-export { buildConversationErrorInfo, extractErrorMessage } from "./conversationErrorInfo";
+export {
+  buildConversationErrorInfo,
+  extractErrorMessage,
+} from "./conversationErrorInfo";
 export type { ConversationErrorInfo } from "./conversationErrorInfo";
 
 /**
@@ -81,6 +87,34 @@ export function calculateTTL(): number {
   return Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
 }
 
+async function resolveMemoryExtractionConfig(
+  db: DatabaseSchema,
+  workspaceId: string,
+  agentId: string,
+): Promise<MemoryExtractionConfig | undefined> {
+  try {
+    const agentPk = `agents/${workspaceId}/${agentId}`;
+    const agent = await db.agent.get(agentPk, "agent");
+    if (!agent) {
+      return undefined;
+    }
+    return {
+      enabled: agent.memoryExtractionEnabled ?? false,
+      modelName: agent.memoryExtractionModel ?? undefined,
+      prompt: agent.memoryExtractionPrompt ?? undefined,
+    };
+  } catch (error) {
+    console.warn(
+      "[Conversation Logger] Failed to resolve memory extraction config:",
+      {
+        workspaceId,
+        agentId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
+    return undefined;
+  }
+}
 
 /**
  * Extract tool calls from messages
@@ -131,7 +165,7 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
                 ? Object.keys(item)
                 : [],
           })),
-        }
+        },
       );
 
       for (const item of message.content) {
@@ -165,7 +199,7 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
                     ? typeof (item as { toolName?: unknown }).toolName
                     : "missing",
                 item,
-              }
+              },
             );
           }
         }
@@ -216,7 +250,8 @@ function normalizeContentForComparison(content: UIMessage["content"]): string {
         // This prevents deduplication of messages with the same text but different files
         else if (part.type === "file" && "file" in part) {
           const filePart = part as { file?: unknown; mediaType?: unknown };
-          const fileUrl = typeof filePart.file === "string" ? filePart.file : "";
+          const fileUrl =
+            typeof filePart.file === "string" ? filePart.file : "";
           const mediaType =
             typeof filePart.mediaType === "string" ? filePart.mediaType : "";
           textParts.push(`[file:${fileUrl}:${mediaType}]`);
@@ -229,8 +264,8 @@ function normalizeContentForComparison(content: UIMessage["content"]): string {
           };
           textParts.push(
             `[tool-call:${String(toolPart.toolName || "")}:${JSON.stringify(
-              toolPart.args || {}
-            )}]`
+              toolPart.args || {},
+            )}]`,
           );
         } else if (part.type === "tool-result") {
           const toolPart = part as {
@@ -239,8 +274,8 @@ function normalizeContentForComparison(content: UIMessage["content"]): string {
           };
           textParts.push(
             `[tool-result:${String(toolPart.toolName || "")}:${String(
-              toolPart.toolCallId || ""
-            )}]`
+              toolPart.toolCallId || "",
+            )}]`,
           );
         }
       }
@@ -317,11 +352,11 @@ export function getMessageKey(message: UIMessage): string {
  */
 export function findNewMessages(
   existingMessages: UIMessage[],
-  incomingMessages: UIMessage[]
+  incomingMessages: UIMessage[],
 ): UIMessage[] {
   // Create a set of keys for existing messages for O(1) lookup
   const existingKeys = new Set(
-    existingMessages.map((msg) => getMessageKey(msg))
+    existingMessages.map((msg) => getMessageKey(msg)),
   );
 
   // Filter incoming messages to only those not in existing
@@ -331,7 +366,7 @@ export function findNewMessages(
   });
 
   console.log(
-    `[findNewMessages] Found ${newMessages.length} new messages out of ${incomingMessages.length} incoming messages (${existingMessages.length} existing messages)`
+    `[findNewMessages] Found ${newMessages.length} new messages out of ${incomingMessages.length} incoming messages (${existingMessages.length} existing messages)`,
   );
 
   return newMessages;
@@ -343,7 +378,7 @@ export function findNewMessages(
  */
 function deduplicateMessages(
   existingMessages: UIMessage[],
-  newMessages: UIMessage[]
+  newMessages: UIMessage[],
 ): UIMessage[] {
   // Start with existing messages
   const deduplicated: UIMessage[] = [...existingMessages];
@@ -366,7 +401,7 @@ function deduplicateMessages(
     } else {
       // Duplicate found - check if we should update the existing one
       const existingIndex = deduplicated.findIndex(
-        (msg) => getMessageKey(msg) === key
+        (msg) => getMessageKey(msg) === key,
       );
 
       if (existingIndex >= 0) {
@@ -457,7 +492,7 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
         ) {
           console.log(
             "[extractToolResults] Found tool result in assistant message:",
-            item
+            item,
           );
           // Validate tool result has required fields
           if (
@@ -482,7 +517,7 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
                     ? typeof (item as { toolName?: unknown }).toolName
                     : "missing",
                 item,
-              }
+              },
             );
           }
         }
@@ -497,7 +532,7 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
         ) {
           console.log(
             "[extractToolResults] Found tool result in tool message:",
-            item
+            item,
           );
           // Validate tool result has required fields
           if (
@@ -522,7 +557,7 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
                     ? typeof (item as { toolName?: unknown }).toolName
                     : "missing",
                 item,
-              }
+              },
             );
           }
         }
@@ -590,7 +625,7 @@ export function extractTokenUsage(
   result:
     | GenerateTextResultWithTotalUsage
     | StreamTextResultWithResolvedUsage
-    | unknown
+    | unknown,
 ): TokenUsage | undefined {
   if (!result || typeof result !== "object") {
     return undefined;
@@ -615,7 +650,7 @@ export function extractTokenUsage(
   // Last resort: try to aggregate from steps (for older formats or edge cases)
   if (!usage || typeof usage !== "object") {
     const steps = Array.isArray(
-      (typedResult as GenerateTextResultWithTotalUsage).steps
+      (typedResult as GenerateTextResultWithTotalUsage).steps,
     )
       ? (typedResult as GenerateTextResultWithTotalUsage).steps
       : (typedResult as GenerateTextResultWithTotalUsage)._steps?.status?.value;
@@ -661,7 +696,7 @@ export function extractTokenUsage(
           {
             stepsCount: steps.length,
             aggregatedUsage: usage,
-          }
+          },
         );
       }
     }
@@ -789,7 +824,7 @@ export async function startConversation(
     "conversationId" | "startedAt" | "lastMessageAt"
   > & {
     conversationId?: string; // Optional: if provided, use it; otherwise generate one
-  }
+  },
 ): Promise<string> {
   const conversationId = data.conversationId || randomUUID();
   const now = new Date().toISOString();
@@ -809,7 +844,7 @@ export async function startConversation(
   // Use messagesWithRequestId to ensure request IDs are included in expanded messages
   const expandedMessages = expandMessagesWithToolCalls(
     messagesWithRequestId,
-    data.awsRequestId
+    data.awsRequestId,
   );
 
   // Calculate costs from per-message model/provider data
@@ -840,7 +875,7 @@ export async function startConversation(
             {
               costUsd: messageCost.costUsd,
               totalRerankingCostUsd: rerankingCostUsd,
-            }
+            },
           );
         } else {
           totalCostUsd += messageCost.costUsd;
@@ -870,13 +905,10 @@ export async function startConversation(
   // Add them to totalCostUsd for the conversation total
   if (rerankingCostUsd > 0) {
     totalCostUsd += rerankingCostUsd;
-    console.log(
-      "[startConversation] Final reranking cost and total cost:",
-      {
-        rerankingCostUsd,
-        totalCostUsd,
-      }
-    );
+    console.log("[startConversation] Final reranking cost and total cost:", {
+      rerankingCostUsd,
+      totalCostUsd,
+    });
   }
 
   // Initialize awsRequestIds array if awsRequestId is provided
@@ -908,17 +940,23 @@ export async function startConversation(
   // Write to working memory - await to ensure it completes before Lambda finishes
   // This prevents Lambda from freezing the execution context before SQS message is sent
   console.log(
-    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, workspace ${data.workspaceId}, ${data.messages.length} messages`
+    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, workspace ${data.workspaceId}, ${data.messages.length} messages`,
   );
   console.log(
-    `[Conversation Logger] Parameter values being passed - agentId: "${data.agentId}", workspaceId: "${data.workspaceId}", conversationId: "${conversationId}"`
+    `[Conversation Logger] Parameter values being passed - agentId: "${data.agentId}", workspaceId: "${data.workspaceId}", conversationId: "${conversationId}"`,
   );
   try {
+    const memoryExtractionConfig = await resolveMemoryExtractionConfig(
+      db,
+      data.workspaceId,
+      data.agentId,
+    );
     await writeToWorkingMemory(
       data.agentId,
       data.workspaceId,
       conversationId,
-      expandedMessages
+      expandedMessages,
+      memoryExtractionConfig,
     );
   } catch (error) {
     // Log error but don't throw - memory writes should not block conversation logging
@@ -930,7 +968,7 @@ export async function startConversation(
             stack: error.stack,
             name: error.name,
           }
-        : String(error)
+        : String(error),
     );
     Sentry.captureException(ensureError(error), {
       tags: {
@@ -988,11 +1026,15 @@ async function upsertConversationWithRetry(
   db: DatabaseSchema,
   conversationRecord: Parameters<
     DatabaseSchema["agent-conversations"]["upsert"]
-  >[0]
+  >[0],
 ): Promise<void> {
   let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt < CONVERSATION_UPSERT_MAX_ATTEMPTS; attempt += 1) {
+  for (
+    let attempt = 0;
+    attempt < CONVERSATION_UPSERT_MAX_ATTEMPTS;
+    attempt += 1
+  ) {
     try {
       await db["agent-conversations"].upsert(conversationRecord);
       return;
@@ -1013,7 +1055,7 @@ async function upsertConversationWithRetry(
             workspaceId: conversationRecord.workspaceId,
             agentId: conversationRecord.agentId,
             error: lastError.message,
-          }
+          },
         );
         await sleep(backoffMs);
         continue;
@@ -1025,7 +1067,7 @@ async function upsertConversationWithRetry(
   throw new Error(
     `Failed to upsert conversation after ${CONVERSATION_UPSERT_MAX_ATTEMPTS} attempts due to concurrent updates: ${
       lastError?.message || "Unknown error"
-    }`
+    }`,
   );
 }
 
@@ -1043,7 +1085,7 @@ export async function trackDelegation(
     targetConversationId?: string;
     taskId?: string;
     status: "completed" | "failed" | "cancelled";
-  }
+  },
 ): Promise<void> {
   try {
     const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
@@ -1055,7 +1097,7 @@ export async function trackDelegation(
     if (!existing) {
       console.log(
         "[Delegation Tracking] Conversation not found, creating it with delegation:",
-        { workspaceId, agentId, conversationId }
+        { workspaceId, agentId, conversationId },
       );
       // Create conversation with just the delegation
       // updateConversation will fill in the rest later
@@ -1090,7 +1132,7 @@ export async function trackDelegation(
             taskId: delegation.taskId,
             status: delegation.status,
           },
-        }
+        },
       );
       return;
     }
@@ -1104,7 +1146,7 @@ export async function trackDelegation(
           // Return existing object to maintain type safety (we know it exists from check above)
           console.warn(
             "[Delegation Tracking] Conversation disappeared before update, skipping delegation tracking:",
-            { workspaceId, agentId, conversationId }
+            { workspaceId, agentId, conversationId },
           );
           return existing;
         }
@@ -1129,27 +1171,24 @@ export async function trackDelegation(
         };
 
         const updatedDelegations = [...existingDelegations, newDelegation];
-        console.log(
-          "[trackDelegation] Adding delegation to conversation:",
-          {
-            workspaceId,
-            agentId,
-            conversationId,
-            delegationCount: updatedDelegations.length,
-            newDelegation: {
-              callingAgentId: delegation.callingAgentId,
-              targetAgentId: delegation.targetAgentId,
-              targetConversationId: delegation.targetConversationId,
-              taskId: delegation.taskId,
-              status: delegation.status,
-            },
-          }
-        );
+        console.log("[trackDelegation] Adding delegation to conversation:", {
+          workspaceId,
+          agentId,
+          conversationId,
+          delegationCount: updatedDelegations.length,
+          newDelegation: {
+            callingAgentId: delegation.callingAgentId,
+            targetAgentId: delegation.targetAgentId,
+            targetConversationId: delegation.targetConversationId,
+            taskId: delegation.taskId,
+            status: delegation.status,
+          },
+        });
         return {
           pk: current.pk,
           delegations: updatedDelegations,
         };
-      }
+      },
     );
   } catch (error) {
     // Log but don't fail - delegation tracking is best-effort
@@ -1189,7 +1228,7 @@ export async function updateConversation(
   usesByok?: boolean,
   error?: ConversationErrorInfo,
   awsRequestId?: string,
-  conversationType?: "test" | "webhook" | "stream" | "scheduled"
+  conversationType?: "test" | "webhook" | "stream" | "scheduled",
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -1205,6 +1244,7 @@ export async function updateConversation(
   // Track truly new messages (not duplicates) to send to queue
   // This will be set inside atomicUpdate callback
   let trulyNewMessages: UIMessage[] = [];
+  let expandedAllMessagesForMemory: UIMessage[] = [];
   // Use atomicUpdate to ensure thread-safe conversation updates
   await db["agent-conversations"].atomicUpdate(
     pk,
@@ -1217,9 +1257,10 @@ export async function updateConversation(
         // Expand messages to include separate tool call and tool result messages
         const expandedMessages = expandMessagesWithToolCalls(
           newMessages,
-          awsRequestId
+          awsRequestId,
         );
         trulyNewMessages = expandedMessages;
+        expandedAllMessagesForMemory = expandedMessages;
         // Calculate costs and generation times from per-message model/provider data
         // IMPORTANT: Calculate from 0 based on ALL expanded messages
         // Use getMessageCost() helper to get best available cost for each message
@@ -1244,7 +1285,7 @@ export async function updateConversation(
                   {
                     costUsd: messageCost.costUsd,
                     totalRerankingCostUsd: rerankingCostUsd,
-                  }
+                  },
                 );
               } else {
                 totalCostUsd += messageCost.costUsd;
@@ -1279,7 +1320,7 @@ export async function updateConversation(
             {
               rerankingCostUsd,
               totalCostUsd,
-            }
+            },
           );
         }
 
@@ -1319,13 +1360,13 @@ export async function updateConversation(
       // This comparison is based on role and content only (ignores metadata like tokenUsage, awsRequestId)
       const trulyNewWithoutRequestId = findNewMessages(
         existingMessages,
-        newMessages
+        newMessages,
       );
       // Expand truly new messages to include separate tool call and tool result messages
       // This ensures tool calls appear as separate messages in conversation history
       const expandedTrulyNewMessages = expandMessagesWithToolCalls(
         trulyNewWithoutRequestId,
-        awsRequestId
+        awsRequestId,
       );
       trulyNewMessages = expandedTrulyNewMessages;
 
@@ -1334,7 +1375,7 @@ export async function updateConversation(
       // New messages should have request IDs, existing ones keep their original request IDs (if any)
       const allMessages = deduplicateMessages(
         existingMessages,
-        messagesWithRequestId
+        messagesWithRequestId,
       );
 
       // Expand messages to include separate tool call and tool result messages
@@ -1342,13 +1383,14 @@ export async function updateConversation(
       // Expand after deduplication to avoid expanding duplicates
       const expandedAllMessages = expandMessagesWithToolCalls(
         allMessages,
-        awsRequestId
+        awsRequestId,
       );
+      expandedAllMessagesForMemory = expandedAllMessages;
       // Aggregate token usage
       const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
       const aggregatedTokenUsage = aggregateTokenUsage(
         existingTokenUsage,
-        additionalTokenUsage
+        additionalTokenUsage,
       );
 
       // Calculate costs from per-message model/provider data
@@ -1376,7 +1418,7 @@ export async function updateConversation(
                 {
                   costUsd: messageCost.costUsd,
                   totalExtractedRerankingCostUsd: extractedRerankingCostUsd,
-                }
+                },
               );
             } else {
               totalCostUsd += messageCost.costUsd;
@@ -1405,23 +1447,20 @@ export async function updateConversation(
       // Use extracted reranking cost from messages, or preserve existing if already set (from cost verification)
       // Prefer existing rerankingCostUsd if it exists (may be from cost verification queue with final cost)
       // Otherwise use extracted cost from messages
-      const existingRerankingCost =
-        (existing as { rerankingCostUsd?: number }).rerankingCostUsd;
+      const existingRerankingCost = (existing as { rerankingCostUsd?: number })
+        .rerankingCostUsd;
       const finalRerankingCostUsd =
         existingRerankingCost !== undefined
           ? existingRerankingCost
           : extractedRerankingCostUsd > 0
-          ? extractedRerankingCostUsd
-          : undefined;
+            ? extractedRerankingCostUsd
+            : undefined;
 
-      console.log(
-        "[updateConversation] Reranking cost calculation:",
-        {
-          existingRerankingCost,
-          extractedRerankingCostUsd,
-          finalRerankingCostUsd,
-        }
-      );
+      console.log("[updateConversation] Reranking cost calculation:", {
+        existingRerankingCost,
+        extractedRerankingCostUsd,
+        finalRerankingCostUsd,
+      });
 
       // Include re-ranking costs in total (stored separately since re-ranking happens before LLM call)
       if (finalRerankingCostUsd !== undefined && finalRerankingCostUsd > 0) {
@@ -1434,8 +1473,8 @@ export async function updateConversation(
       const updatedRequestIds = awsRequestId
         ? [...existingRequestIds, awsRequestId]
         : existingRequestIds.length > 0
-        ? existingRequestIds
-        : undefined;
+          ? existingRequestIds
+          : undefined;
 
       // Preserve delegations from existing conversation
       // IMPORTANT: Always preserve delegations if they exist, even if empty array
@@ -1443,25 +1482,24 @@ export async function updateConversation(
       // Note: We read delegations from the 'existing' parameter which is the current state
       // at the time atomicUpdate reads it. If trackDelegation wrote after this read but before
       // this write, atomicUpdate will retry and we'll read the latest state with delegations.
-      const existingDelegations =
-        (
-          existing as {
-            delegations?: Array<{
-              callingAgentId: string;
-              targetAgentId: string;
-              taskId?: string;
-              timestamp: string;
-              status: "completed" | "failed" | "cancelled";
-            }>;
-          }
-        ).delegations;
+      const existingDelegations = (
+        existing as {
+          delegations?: Array<{
+            callingAgentId: string;
+            targetAgentId: string;
+            taskId?: string;
+            timestamp: string;
+            status: "completed" | "failed" | "cancelled";
+          }>;
+        }
+      ).delegations;
 
       // Log for debugging delegation preservation
       if (existingDelegations && existingDelegations.length > 0) {
         console.log(
           "[updateConversation] Preserving delegations:",
           existingDelegations.length,
-          "delegation(s)"
+          "delegation(s)",
         );
       }
 
@@ -1493,7 +1531,7 @@ export async function updateConversation(
       };
 
       return conversationRecord;
-    }
+    },
   );
 
   // Write to working memory - await to ensure it completes before Lambda finishes
@@ -1502,17 +1540,23 @@ export async function updateConversation(
   // This prevents duplicate fact extraction and embedding generation
   if (trulyNewMessages.length > 0) {
     console.log(
-      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${trulyNewMessages.length} truly new messages (out of ${newMessages.length} messages)`
+      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${trulyNewMessages.length} truly new messages (out of ${newMessages.length} messages)`,
     );
     console.log(
-      `[Conversation Logger] Parameter values being passed - agentId: "${agentId}", workspaceId: "${workspaceId}", conversationId: "${conversationId}"`
+      `[Conversation Logger] Parameter values being passed - agentId: "${agentId}", workspaceId: "${workspaceId}", conversationId: "${conversationId}"`,
     );
     try {
+      const memoryExtractionConfig = await resolveMemoryExtractionConfig(
+        db,
+        workspaceId,
+        agentId,
+      );
       await writeToWorkingMemory(
         agentId,
         workspaceId,
         conversationId,
-        trulyNewMessages
+        expandedAllMessagesForMemory,
+        memoryExtractionConfig,
       );
     } catch (error) {
       // Log error but don't throw - memory writes should not block conversation logging
@@ -1524,12 +1568,12 @@ export async function updateConversation(
               stack: error.stack,
               name: error.name,
             }
-          : String(error)
+          : String(error),
       );
     }
   } else {
     console.log(
-      `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no truly new messages (${newMessages.length} messages were all duplicates)`
+      `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no truly new messages (${newMessages.length} messages were all duplicates)`,
     );
   }
 

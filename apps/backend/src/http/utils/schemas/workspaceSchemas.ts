@@ -27,7 +27,7 @@ const clientToolSchema = z
       .min(1)
       .regex(
         /^[a-zA-Z_$][a-zA-Z0-9_$]*$/,
-        "Tool name must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)"
+        "Tool name must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)",
       ),
     description: z.string().min(1),
     parameters: z.record(z.string(), z.unknown()),
@@ -94,6 +94,9 @@ export const createAgentSchema = z
     imageGenerationModel: z.string().nullable().optional(),
     avatar: z.string().nullable().optional(),
     summarizationPrompts: summarizationPromptsSchema.optional(),
+    memoryExtractionEnabled: z.boolean().optional(),
+    memoryExtractionModel: z.string().nullable().optional(),
+    memoryExtractionPrompt: z.string().nullable().optional(),
   })
   .strict();
 
@@ -141,6 +144,9 @@ export const updateAgentSchema = z
     stopSequences: z.array(z.string()).nullable().optional(),
     maxToolRoundtrips: z.number().int().positive().nullable().optional(),
     modelName: z.string().nullable().optional(),
+    memoryExtractionEnabled: z.boolean().optional(),
+    memoryExtractionModel: z.string().nullable().optional(),
+    memoryExtractionPrompt: z.string().nullable().optional(),
     avatar: z.string().nullable().optional(),
   })
   .strict();
@@ -298,7 +304,7 @@ export const createSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (nano-dollars)"
+        "amount is required and must be a non-negative integer (nano-dollars)",
       ),
   })
   .strict();
@@ -309,7 +315,7 @@ export const updateSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (nano-dollars)"
+        "amount is required and must be a non-negative integer (nano-dollars)",
       ),
   })
   .strict();
@@ -321,7 +327,7 @@ export const createAgentSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (nano-dollars)"
+        "amount is required and must be a non-negative integer (nano-dollars)",
       ),
   })
   .strict();
@@ -332,7 +338,7 @@ export const updateAgentSpendingLimitSchema = z
       .number()
       .int()
       .nonnegative(
-        "amount is required and must be a non-negative integer (nano-dollars)"
+        "amount is required and must be a non-negative integer (nano-dollars)",
       ),
   })
   .strict();
@@ -380,7 +386,7 @@ export const createMcpServerSchema = z
     },
     {
       message: "url is required when authType is not 'oauth'",
-    }
+    },
   );
 
 export const updateMcpServerSchema = z
@@ -518,10 +524,18 @@ export const createEvalJudgeSchema = z
   .object({
     name: z.string().min(1, "name is required and must be a string"),
     enabled: z.boolean().optional().default(true),
-    samplingProbability: z.number().int().min(0).max(100).optional().default(100),
+    samplingProbability: z
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .optional()
+      .default(100),
     provider: z.enum(["openrouter"]).default("openrouter"), // Only openrouter is supported for eval judges
     modelName: z.string().min(1, "modelName is required and must be a string"),
-    evalPrompt: z.string().min(1, "evalPrompt is required and must be a string"),
+    evalPrompt: z
+      .string()
+      .min(1, "evalPrompt is required and must be a string"),
   })
   .strict();
 

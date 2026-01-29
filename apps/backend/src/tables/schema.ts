@@ -20,7 +20,7 @@ const TableBaseSchema = z.object({
         updatedAt: z.iso.datetime().optional(),
         updatedBy: z.string().optional(),
         newProps: z.record(z.string(), z.unknown()).optional(),
-      })
+      }),
     )
     .optional(),
 });
@@ -56,7 +56,7 @@ export const tableSchemas = {
         z.object({
           timeFrame: z.enum(["daily", "weekly", "monthly"]),
           amount: z.number().int(), // nano-dollars
-        })
+        }),
       )
       .optional(),
     // Trial credit fields (internal only - not exposed to users)
@@ -94,6 +94,9 @@ export const tableSchemas = {
         yearly: z.string().min(1).optional(),
       })
       .optional(),
+    memoryExtractionEnabled: z.boolean().optional(),
+    memoryExtractionModel: z.string().optional(),
+    memoryExtractionPrompt: z.string().optional(),
     notificationChannelId: z.string().optional(), // reference to output_channel
     delegatableAgentIds: z.array(z.string()).optional(), // list of agent IDs this agent can delegate to
     enabledMcpServerIds: z.array(z.string()).optional(), // list of MCP server IDs enabled for this agent
@@ -117,7 +120,7 @@ export const tableSchemas = {
         z.object({
           timeFrame: z.enum(["daily", "weekly", "monthly"]),
           amount: z.number().int(), // nano-dollars
-        })
+        }),
       )
       .optional(),
     temperature: z.number().min(0).max(2).optional(), // model temperature (0-2, controls randomness)
@@ -138,7 +141,7 @@ export const tableSchemas = {
           name: z.string(), // Tool name and function name (must be valid JavaScript identifier)
           description: z.string(), // Tool description for AI
           parameters: z.record(z.string(), z.unknown()), // JSON Schema for parameters (compatible with AI SDK)
-        })
+        }),
       )
       .optional(), // User-defined client-side tools
     widgetConfig: z
@@ -248,7 +251,7 @@ export const tableSchemas = {
           // ISO 8601 datetime string (accepts any precision: seconds, milliseconds, microseconds)
           timestamp: z.iso.datetime(),
           status: z.enum(["completed", "failed", "cancelled"]),
-        })
+        }),
       )
       .optional(), // array of delegation calls made during this conversation
     startedAt: z.iso.datetime(), // when conversation started
@@ -709,43 +712,43 @@ export type TableAPI<
   TTableName extends TableName,
   TTableRecord extends z.infer<TableSchemas[TTableName]> = z.infer<
     TableSchemas[TTableName]
-  >
+  >,
 > = {
   delete: (
     key: string,
     sk?: string,
-    version?: string | null
+    version?: string | null,
   ) => Promise<TTableRecord>;
   deleteIfExists: (
     key: string,
     sk?: string,
-    version?: string | null
+    version?: string | null,
   ) => Promise<TTableRecord | undefined>;
   deleteAll: (key: string, version?: string | null) => Promise<void>;
   get: (
     pk: string,
     sk?: string,
-    version?: string | null
+    version?: string | null,
   ) => Promise<TTableRecord | undefined>;
   batchGet: (
     keys: string[],
-    version?: string | null
+    version?: string | null,
   ) => Promise<TTableRecord[]>;
   update: (
     item: Partial<TTableRecord>,
-    version?: string | null
+    version?: string | null,
   ) => Promise<TTableRecord>;
   upsert: (
     item: Omit<TTableRecord, "version">,
-    version?: string | null
+    version?: string | null,
   ) => Promise<TTableRecord>;
   create: (
     item: Omit<TTableRecord, "version" | "createdAt">,
-    version?: string | null
+    version?: string | null,
   ) => Promise<TTableRecord>;
   query: (
     query: Query,
-    version?: string | null
+    version?: string | null,
   ) => Promise<QueryResponse<TTableRecord>>;
   queryPaginated: (
     query: Query,
@@ -753,32 +756,32 @@ export type TableAPI<
       limit: number;
       cursor?: string | null;
       version?: string | null;
-    }
+    },
   ) => Promise<{
     items: TTableRecord[];
     nextCursor: string | null;
   }>;
   queryAsync: (
     query: Query,
-    version?: string | null
+    version?: string | null,
   ) => AsyncGenerator<TTableRecord, void, unknown>;
   merge: (
     pk: string,
     sk: string,
-    version: string | null
+    version: string | null,
   ) => Promise<TTableRecord>;
   revert: (
     pk: string,
     sk: string | undefined,
-    version: string
+    version: string,
   ) => Promise<TTableRecord>;
   atomicUpdate: (
     pk: string,
     sk: string | undefined,
     updater: (
-      current: TTableRecord | undefined
+      current: TTableRecord | undefined,
     ) => Promise<Partial<TTableRecord> & { pk: string }>,
-    options?: { maxRetries?: number }
+    options?: { maxRetries?: number },
   ) => Promise<TTableRecord>;
 };
 
@@ -860,7 +863,7 @@ export type TableRecord =
  * an array of TableRecords to put in the transaction
  */
 export type AtomicUpdateCallback = (
-  records: Map<string, TableRecord | undefined>
+  records: Map<string, TableRecord | undefined>,
 ) => Promise<TableRecord[]> | TableRecord[];
 
 /**
@@ -869,6 +872,6 @@ export type AtomicUpdateCallback = (
 export type DatabaseSchemaWithAtomicUpdate = DatabaseSchema & {
   atomicUpdate: (
     recordSpec: AtomicUpdateRecordSpec,
-    callback: AtomicUpdateCallback
+    callback: AtomicUpdateCallback,
   ) => Promise<TableRecord[]>;
 };

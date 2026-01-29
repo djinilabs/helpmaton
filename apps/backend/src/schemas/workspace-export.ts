@@ -2,21 +2,21 @@ import { z } from "zod";
 
 /**
  * Workspace Export/Import Schema
- * 
+ *
  * This schema defines the complete structure of a workspace configuration for export and import.
  * It uses a hierarchical GraphQL-style structure with the workspace at the root level.
- * 
+ *
  * ## Reference System
- * 
+ *
  * The schema supports two types of references:
- * 
+ *
  * 1. **Actual IDs**: Real database IDs from existing workspaces (e.g., "agent-123", "channel-456")
  * 2. **Named References**: Template placeholders using the format "{refName}" (e.g., "{agentId}", "{channelId}")
- * 
+ *
  * ### Reference Fields
- * 
+ *
  * The following fields support references:
- * 
+ *
  * - `workspace.id` - Workspace ID or reference
  * - `agent.id` - Agent ID or reference
  * - `agent.notificationChannelId` - References `outputChannels[].id`
@@ -29,9 +29,9 @@ import { z } from "zod";
  * - `mcpServers[].id` - MCP server ID or reference
  * - `botIntegrations[].id` - Bot integration ID or reference
  * - `botIntegrations[].agentId` - References `agents[].id`
- * 
+ *
  * ### Example: Template with References
- * 
+ *
  * ```json
  * {
  *   "id": "{workspaceId}",
@@ -62,9 +62,9 @@ import { z } from "zod";
  *   ]
  * }
  * ```
- * 
+ *
  * ### Example: Actual Workspace Export
- * 
+ *
  * ```json
  * {
  *   "id": "workspaces/abc123",
@@ -86,9 +86,9 @@ import { z } from "zod";
  *   ]
  * }
  * ```
- * 
+ *
  * ### Import Process
- * 
+ *
  * When importing a workspace configuration:
  * 1. Validate the structure against this schema
  * 2. For templates: Replace all `"{refName}"` references with actual IDs
@@ -100,7 +100,7 @@ import { z } from "zod";
 /**
  * Helper type for reference fields that can be either actual IDs or named references.
  * Named references use the format "{refName}" for templates.
- * 
+ *
  * Examples:
  * - Actual ID: "agents/workspace-123/agent-456"
  * - Named reference: "{mainAgent}"
@@ -108,12 +108,12 @@ import { z } from "zod";
 const referenceString = z
   .string()
   .describe(
-    'Reference to another entity. Can be an actual ID or a named reference like "{refName}" for templates.'
+    'Reference to another entity. Can be an actual ID or a named reference like "{refName}" for templates.',
   );
 
 /**
  * Spending limit configuration
- * 
+ *
  * Example:
  * ```json
  * {
@@ -126,17 +126,21 @@ const spendingLimitSchema = z
   .object({
     timeFrame: z
       .enum(["daily", "weekly", "monthly"])
-      .describe("Time frame for the spending limit (daily, weekly, or monthly)"),
+      .describe(
+        "Time frame for the spending limit (daily, weekly, or monthly)",
+      ),
     amount: z
       .number()
       .int()
-      .describe("Spending limit amount in nano-dollars of USD (e.g., 1000000000 = $1.00)"),
+      .describe(
+        "Spending limit amount in nano-dollars of USD (e.g., 1000000000 = $1.00)",
+      ),
   })
   .describe("Spending limit configuration");
 
 /**
  * Client tool definition
- * 
+ *
  * Example:
  * ```json
  * {
@@ -158,11 +162,13 @@ const clientToolSchema = z
     name: z
       .string()
       .describe(
-        "Tool name and function name (must be valid JavaScript identifier, e.g., 'getWeather')"
+        "Tool name and function name (must be valid JavaScript identifier, e.g., 'getWeather')",
       ),
     description: z
       .string()
-      .describe("Tool description for AI (e.g., 'Get the current weather for a location')"),
+      .describe(
+        "Tool description for AI (e.g., 'Get the current weather for a location')",
+      ),
     parameters: z
       .record(z.string(), z.unknown())
       .describe("JSON Schema for parameters (compatible with AI SDK)"),
@@ -188,10 +194,7 @@ const summarizationPromptsSchema = z
  */
 const widgetConfigSchema = z
   .object({
-    enabled: z
-      .boolean()
-      .default(false)
-      .describe("Whether widget is enabled"),
+    enabled: z.boolean().default(false).describe("Whether widget is enabled"),
     allowedOrigins: z
       .array(z.string())
       .optional()
@@ -248,12 +251,12 @@ const evalJudgeSchema = z
     provider: z
       .enum(["openrouter"])
       .default("openrouter")
-      .describe(
-        "LLM provider for the judge (only 'openrouter' is supported)"
-      ),
+      .describe("LLM provider for the judge (only 'openrouter' is supported)"),
     modelName: z
       .string()
-      .describe("Model name for the judge (e.g., 'gpt-4o', 'claude-3-5-sonnet')"),
+      .describe(
+        "Model name for the judge (e.g., 'gpt-4o', 'claude-3-5-sonnet')",
+      ),
     evalPrompt: z.string().describe("The evaluation prompt template"),
   })
   .describe("Evaluation judge configuration for an agent");
@@ -266,13 +269,11 @@ const agentStreamServerSchema = z
     secret: z
       .string()
       .describe(
-        "Secret used in path parameter (stored as plain text; encrypted at rest by DynamoDB table-level encryption)"
+        "Secret used in path parameter (stored as plain text; encrypted at rest by DynamoDB table-level encryption)",
       ),
     allowedOrigins: z
       .array(z.string())
-      .describe(
-        "Array of allowed origins or ['*'] for wildcard"
-      ),
+      .describe("Array of allowed origins or ['*'] for wildcard"),
   })
   .optional()
   .describe("Stream server configuration for an agent");
@@ -286,6 +287,18 @@ const agentSchema = z
     name: z.string().describe("Agent name"),
     systemPrompt: z.string().describe("System prompt defining agent behavior"),
     summarizationPrompts: summarizationPromptsSchema,
+    memoryExtractionEnabled: z
+      .boolean()
+      .optional()
+      .describe("Enable memory extraction for this agent (default: false)"),
+    memoryExtractionModel: z
+      .string()
+      .optional()
+      .describe("Model name to use for memory extraction"),
+    memoryExtractionPrompt: z
+      .string()
+      .optional()
+      .describe("Prompt to use for memory extraction"),
     notificationChannelId: referenceString
       .optional()
       .describe("Reference to output channel"),
@@ -293,13 +306,13 @@ const agentSchema = z
       .array(referenceString)
       .optional()
       .describe(
-        "List of agent IDs this agent can delegate to (can use references)"
+        "List of agent IDs this agent can delegate to (can use references)",
       ),
     enabledMcpServerIds: z
       .array(referenceString)
       .optional()
       .describe(
-        "List of MCP server IDs enabled for this agent (can use references)"
+        "List of MCP server IDs enabled for this agent (can use references)",
       ),
     enableMemorySearch: z
       .boolean()
@@ -313,7 +326,7 @@ const agentSchema = z
       .boolean()
       .optional()
       .describe(
-        "Enable knowledge injection from workspace documents (default: false)"
+        "Enable knowledge injection from workspace documents (default: false)",
       ),
     knowledgeInjectionSnippetCount: z
       .number()
@@ -327,7 +340,7 @@ const agentSchema = z
       .max(1)
       .optional()
       .describe(
-        "Minimum similarity score (0-1) required for snippets to be included (default: 0)"
+        "Minimum similarity score (0-1) required for snippets to be included (default: 0)",
       ),
     enableKnowledgeReranking: z
       .boolean()
@@ -337,37 +350,37 @@ const agentSchema = z
       .string()
       .optional()
       .describe(
-        "Re-ranking model name from OpenRouter (required if enableKnowledgeReranking is true)"
+        "Re-ranking model name from OpenRouter (required if enableKnowledgeReranking is true)",
       ),
     enableSendEmail: z
       .boolean()
       .optional()
       .describe(
-        "Enable email sending tool for this agent (default: false, requires workspace email connection)"
+        "Enable email sending tool for this agent (default: false, requires workspace email connection)",
       ),
     enableTavilySearch: z
       .boolean()
       .optional()
       .describe(
-        "@deprecated Use searchWebProvider instead. Legacy field for backward compatibility (default: false)"
+        "@deprecated Use searchWebProvider instead. Legacy field for backward compatibility (default: false)",
       ),
     searchWebProvider: z
       .enum(["tavily", "jina"])
       .optional()
       .describe(
-        "Web search provider: 'tavily' uses Tavily search API, 'jina' uses Jina DeepSearch API (default: undefined, no search tool)"
+        "Web search provider: 'tavily' uses Tavily search API, 'jina' uses Jina DeepSearch API (default: undefined, no search tool)",
       ),
     enableTavilyFetch: z
       .boolean()
       .optional()
       .describe(
-        "@deprecated Use fetchWebProvider instead. Legacy field for backward compatibility (default: false)"
+        "@deprecated Use fetchWebProvider instead. Legacy field for backward compatibility (default: false)",
       ),
     fetchWebProvider: z
       .enum(["tavily", "jina", "scrape"])
       .optional()
       .describe(
-        "Web fetch provider: 'tavily' uses Tavily extract API, 'jina' uses Jina Reader API, 'scrape' uses Puppeteer with residential proxies (default: undefined, no fetch tool)"
+        "Web fetch provider: 'tavily' uses Tavily extract API, 'jina' uses Jina Reader API, 'scrape' uses Puppeteer with residential proxies (default: undefined, no fetch tool)",
       ),
     enableExaSearch: z
       .boolean()
@@ -381,7 +394,7 @@ const agentSchema = z
       .string()
       .optional()
       .describe(
-        "Image generation model name from OpenRouter (required if enableImageGeneration is true)"
+        "Image generation model name from OpenRouter (required if enableImageGeneration is true)",
       ),
     spendingLimits: z
       .array(spendingLimitSchema)
@@ -425,12 +438,14 @@ const agentSchema = z
       .enum(["google", "openai", "anthropic", "openrouter"])
       .default("openrouter")
       .describe(
-        "Provider name (only 'openrouter' supported, but legacy values accepted)"
+        "Provider name (only 'openrouter' supported, but legacy values accepted)",
       ),
     modelName: z
       .string()
       .optional()
-      .describe("Model name (e.g., 'gemini-2.5-flash', 'gpt-4o', 'claude-3-5-sonnet')"),
+      .describe(
+        "Model name (e.g., 'gemini-2.5-flash', 'gpt-4o', 'claude-3-5-sonnet')",
+      ),
     clientTools: z
       .array(clientToolSchema)
       .optional()
@@ -458,9 +473,7 @@ const agentSchema = z
 const outputChannelSchema = z
   .object({
     id: referenceString.describe("Output channel ID or reference"),
-    channelId: z
-      .string()
-      .describe("Unique identifier for the channel"),
+    channelId: z.string().describe("Unique identifier for the channel"),
     type: z
       .string()
       .describe("Discriminator: 'discord', future: 'slack', 'email', etc."),
@@ -477,12 +490,8 @@ const outputChannelSchema = z
 const emailConnectionSchema = z
   .object({
     id: referenceString.describe("Email connection ID or reference"),
-    type: z
-      .enum(["gmail", "outlook", "smtp"])
-      .describe("Provider type"),
-    name: z
-      .string()
-      .describe("User-friendly name for the connection"),
+    type: z.enum(["gmail", "outlook", "smtp"]).describe("Provider type"),
+    name: z.string().describe("User-friendly name for the connection"),
     config: z
       .record(z.string(), z.unknown())
       .describe("Type-specific configuration, encrypted"),
@@ -525,12 +534,12 @@ const mcpServerSchema = z
       ])
       .optional()
       .describe(
-        "Service type (defaults to 'external' for backward compatibility)"
+        "Service type (defaults to 'external' for backward compatibility)",
       ),
     config: z
       .record(z.string(), z.unknown())
       .describe(
-        "Authentication configuration, encrypted. For OAuth: contains accessToken, refreshToken, expiresAt, email?"
+        "Authentication configuration, encrypted. For OAuth: contains accessToken, refreshToken, expiresAt, email?",
       ),
   })
   .describe("MCP server configuration");
@@ -542,18 +551,14 @@ const botIntegrationSchema = z
   .object({
     id: referenceString.describe("Bot integration ID or reference"),
     agentId: referenceString.describe(
-      "Agent ID this bot is connected to (can use reference)"
+      "Agent ID this bot is connected to (can use reference)",
     ),
-    platform: z
-      .enum(["slack", "discord"])
-      .describe("Platform type"),
-    name: z
-      .string()
-      .describe("User-friendly name for the integration"),
+    platform: z.enum(["slack", "discord"]).describe("Platform type"),
+    name: z.string().describe("User-friendly name for the integration"),
     config: z
       .record(z.string(), z.unknown())
       .describe(
-        "Platform-specific config (encrypted). Slack: { botToken, signingSecret, teamId?, teamName?, botUserId?, messageHistoryCount? }. Discord: { botToken, publicKey, applicationId? }"
+        "Platform-specific config (encrypted). Slack: { botToken, signingSecret, teamId?, teamName?, botUserId?, messageHistoryCount? }. Discord: { botToken, publicKey, applicationId? }",
       ),
     webhookUrl: z
       .string()
@@ -573,14 +578,14 @@ const botIntegrationSchema = z
 
 /**
  * Workspace export schema
- * 
+ *
  * This schema describes a complete workspace configuration in a hierarchical structure.
  * It supports both actual workspace exports (with real IDs) and templates (with named references like "{refName}").
- * 
+ *
  * When importing a template, references will be resolved to actual IDs.
- * 
+ *
  * ## Structure
- * 
+ *
  * The schema follows a GraphQL-style hierarchy:
  * - Workspace is the root object
  * - Agents are nested under workspace, each containing:
@@ -589,9 +594,9 @@ const botIntegrationSchema = z
  *   - `evalJudges[]` - Evaluation judges
  *   - `streamServer` - Stream server configuration (optional)
  * - Output channels, email connections, MCP servers, and bot integrations are at workspace level
- * 
+ *
  * ## Excluded Entities
- * 
+ *
  * The following entities are NOT included in exports:
  * - Workspace API keys (excluded for security)
  * - Workspace documents (excluded - S3 file references)
@@ -635,7 +640,7 @@ export const workspaceExportSchema = z
       .describe("Array of bot integrations (Slack, Discord)"),
   })
   .describe(
-    "Complete workspace configuration schema for export/import. Supports both actual IDs and named references (like '{refName}') for templates."
+    "Complete workspace configuration schema for export/import. Supports both actual IDs and named references (like '{refName}') for templates.",
   );
 
 /**

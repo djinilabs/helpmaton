@@ -158,6 +158,10 @@ import {
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import {
+  DEFAULT_MEMORY_EXTRACTION_PROMPT,
+  getEffectiveMemoryExtractionPrompt,
+} from "../utils/memoryExtractionPrompt";
+import {
   DEFAULT_SUMMARIZATION_PROMPTS,
   getEffectiveSummarizationPrompts,
 } from "../utils/memoryPrompts";
@@ -720,6 +724,16 @@ function useAgentDetailState({
     Record<SummarizationPromptGrain, string>
   >(() => getEffectiveSummarizationPrompts(agent?.summarizationPrompts));
 
+  const [memoryExtractionEnabled, setMemoryExtractionEnabled] =
+    useState<boolean>(() => agent?.memoryExtractionEnabled ?? false);
+  const [memoryExtractionModel, setMemoryExtractionModel] = useState<
+    string | null
+  >(() => agent?.memoryExtractionModel || null);
+  const [memoryExtractionPrompt, setMemoryExtractionPrompt] =
+    useState<string>(() =>
+      getEffectiveMemoryExtractionPrompt(agent?.memoryExtractionPrompt)
+    );
+
   // Use agent prop directly for enableSearchDocuments, with local state for editing
   const [enableSearchDocuments, setEnableSearchDocuments] = useState<boolean>(
     () => agent?.enableSearchDocuments ?? false
@@ -1014,6 +1028,35 @@ function useAgentDetailState({
       setSummarizationPrompts(getEffectiveSummarizationPrompts(currentValue));
     }
   }, [agent?.id, agent?.summarizationPrompts]);
+
+  const prevMemoryExtractionRef = useRef({
+    enabled: agent?.memoryExtractionEnabled ?? false,
+    model: agent?.memoryExtractionModel ?? null,
+    prompt: agent?.memoryExtractionPrompt ?? null,
+  });
+  useEffect(() => {
+    const current = {
+      enabled: agent?.memoryExtractionEnabled ?? false,
+      model: agent?.memoryExtractionModel ?? null,
+      prompt: agent?.memoryExtractionPrompt ?? null,
+    };
+    const prev = prevMemoryExtractionRef.current;
+    if (
+      current.enabled !== prev.enabled ||
+      current.model !== prev.model ||
+      current.prompt !== prev.prompt
+    ) {
+      prevMemoryExtractionRef.current = current;
+      setMemoryExtractionEnabled(current.enabled);
+      setMemoryExtractionModel(current.model);
+      setMemoryExtractionPrompt(getEffectiveMemoryExtractionPrompt(current.prompt));
+    }
+  }, [
+    agent?.id,
+    agent?.memoryExtractionEnabled,
+    agent?.memoryExtractionModel,
+    agent?.memoryExtractionPrompt,
+  ]);
 
   // Synchronize enableSearchDocuments state with agent prop using useEffect
   const prevEnableSearchDocumentsRef = useRef<boolean | undefined>(
@@ -1435,6 +1478,37 @@ function useAgentDetailState({
     }
   };
 
+  const handleSaveMemoryExtraction = async () => {
+    try {
+      const trimmedPrompt = memoryExtractionPrompt.trim();
+      const defaultPrompt = DEFAULT_MEMORY_EXTRACTION_PROMPT.trim();
+      const resolvedModel =
+        memoryExtractionModel && memoryExtractionModel.trim().length > 0
+          ? memoryExtractionModel.trim()
+          : null;
+      const updated = await updateAgent.mutateAsync({
+        memoryExtractionEnabled,
+        memoryExtractionModel: resolvedModel,
+        memoryExtractionPrompt:
+          trimmedPrompt && trimmedPrompt !== defaultPrompt
+            ? trimmedPrompt
+            : null,
+      });
+      prevMemoryExtractionRef.current = {
+        enabled: updated.memoryExtractionEnabled ?? false,
+        model: updated.memoryExtractionModel ?? null,
+        prompt: updated.memoryExtractionPrompt ?? null,
+      };
+      setMemoryExtractionEnabled(updated.memoryExtractionEnabled ?? false);
+      setMemoryExtractionModel(updated.memoryExtractionModel ?? null);
+      setMemoryExtractionPrompt(
+        getEffectiveMemoryExtractionPrompt(updated.memoryExtractionPrompt)
+      );
+    } catch {
+      // Error is handled by toast in the hook
+    }
+  };
+
   const handleSummarizationPromptChange = (
     grain: SummarizationPromptGrain,
     value: string
@@ -1844,6 +1918,12 @@ function useAgentDetailState({
     enableMemorySearch,
     setEnableMemorySearch,
     summarizationPrompts,
+    memoryExtractionEnabled,
+    setMemoryExtractionEnabled,
+    memoryExtractionModel,
+    setMemoryExtractionModel,
+    memoryExtractionPrompt,
+    setMemoryExtractionPrompt,
     enableSearchDocuments,
     setEnableSearchDocuments,
     enableSendEmail,
@@ -1925,6 +2005,7 @@ function useAgentDetailState({
     handleMcpServerToggle,
     handleSaveMcpServers,
     handleSaveMemorySearch,
+    handleSaveMemoryExtraction,
     handleSummarizationPromptChange,
     handleResetSummarizationPrompt,
     handleSaveSummarizationPrompts,
@@ -2727,6 +2808,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     enableMemorySearch,
     setEnableMemorySearch,
     summarizationPrompts,
+    memoryExtractionEnabled,
+    setMemoryExtractionEnabled,
+    memoryExtractionModel,
+    setMemoryExtractionModel,
+    memoryExtractionPrompt,
+    setMemoryExtractionPrompt,
     enableSearchDocuments,
     setEnableSearchDocuments,
     enableSendEmail,
@@ -2807,6 +2894,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     handleMcpServerToggle,
     handleSaveMcpServers,
     handleSaveMemorySearch,
+    handleSaveMemoryExtraction,
     handleSummarizationPromptChange,
     handleResetSummarizationPrompt,
     handleSaveSummarizationPrompts,
@@ -3320,6 +3408,121 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           >
             <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
           </AgentAccordionSection>
+
+          {canEdit && (
+            <AgentAccordionSection
+              id="memory-extraction"
+              title={
+                <>
+                  <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
+                  MEMORY EXTRACTION
+                </>
+              }
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
+            >
+              <div className="space-y-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300">
+                  Summarize each conversation and extract long-term facts into the
+                  graph database. When enabled, this will update the working
+                  memory record for the conversation on every update.
+                </p>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                  <input
+                    type="checkbox"
+                    checked={memoryExtractionEnabled}
+                    onChange={(e) =>
+                      setMemoryExtractionEnabled(e.target.checked)
+                    }
+                    className="mt-1 rounded border-2 border-neutral-300"
+                  />
+                  <div className="flex-1">
+                    <div className="font-bold">Enable Memory Extraction</div>
+                    <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                      Generate a summary and structured memory operations for
+                      each conversation update.
+                    </div>
+                  </div>
+                </label>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold dark:text-neutral-300">
+                    Extraction model
+                  </label>
+                  <select
+                    value={memoryExtractionModel ?? ""}
+                    onChange={(e) =>
+                      setMemoryExtractionModel(
+                        e.target.value.length > 0 ? e.target.value : null
+                      )
+                    }
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  >
+                    <option value="">
+                      {defaultModel
+                        ? `Default (${defaultModel})`
+                        : "Default model"}
+                    </option>
+                    {availableModels.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                  {isLoadingModels && (
+                    <p className="text-xs opacity-75 dark:text-neutral-300">
+                      Loading models...
+                    </p>
+                  )}
+                  {modelLoadError && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {modelLoadError}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-sm font-semibold dark:text-neutral-300">
+                      Extraction prompt
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full border border-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+                        {memoryExtractionPrompt.trim() ===
+                        DEFAULT_MEMORY_EXTRACTION_PROMPT.trim()
+                          ? "Default"
+                          : "Customized"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setMemoryExtractionPrompt(
+                            DEFAULT_MEMORY_EXTRACTION_PROMPT
+                          )
+                        }
+                        className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        Use default
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={memoryExtractionPrompt}
+                    onChange={(e) => setMemoryExtractionPrompt(e.target.value)}
+                    rows={8}
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  />
+                </div>
+                <button
+                  onClick={handleSaveMemoryExtraction}
+                  disabled={updateAgent.isPending}
+                  className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {updateAgent.isPending
+                    ? "Saving..."
+                    : "Save Memory Extraction Settings"}
+                </button>
+              </div>
+            </AgentAccordionSection>
+          )}
 
           {canEdit && (
             <AgentAccordionSection
