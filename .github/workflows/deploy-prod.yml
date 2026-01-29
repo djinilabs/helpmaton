@@ -38,54 +38,7 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Check if E2E Tests was for a PR
-        id: check-pr
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Handle workflow_dispatch trigger (no workflow_run in context)
-            if (context.eventName === 'workflow_dispatch') {
-              console.log('Workflow triggered via workflow_dispatch - not a PR');
-              core.setOutput('is_pr', 'false');
-              return;
-            }
-
-            const workflowRun = context.payload.workflow_run;
-            if (!workflowRun) {
-              console.log('No workflow_run in context - not a PR');
-              core.setOutput('is_pr', 'false');
-              return;
-            }
-
-            const hasPullRequests = workflowRun.pull_requests && workflowRun.pull_requests.length > 0;
-            const event = workflowRun.event;
-            const headBranch = workflowRun.head_branch || '';
-
-            console.log(`E2E Tests workflow event: ${event}`);
-            console.log(`E2E Tests workflow head_branch: ${headBranch}`);
-            console.log(`Has pull requests: ${hasPullRequests}`);
-            console.log(`Pull requests: ${JSON.stringify(workflowRun.pull_requests || [])}`);
-
-            // Determine if this was a PR test:
-            // 1. If event is 'pull_request', it was triggered by a PR
-            // 2. If it has pull_requests associated, it's a PR test
-            // 3. If head_branch is not 'main', it's likely a PR branch (though workflow_run always runs on main)
-            // Only deploy if: event is 'push' AND head_branch is 'main' AND no pull_requests
-            const isPRTest = event === 'pull_request' || 
-                            hasPullRequests || 
-                            (headBranch !== 'main' && headBranch !== '');
-
-            if (isPRTest) {
-              console.log('❌ E2E Tests was for a PR, skipping production deploy');
-              core.setOutput('is_pr', 'true');
-            } else {
-              console.log('✅ E2E Tests was for main branch, proceeding with production deploy');
-              core.setOutput('is_pr', 'false');
-            }
-
       - name: Configure AWS credentials
-        if: steps.check-pr.outputs.is_pr != 'true'
         uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -93,69 +46,25 @@ jobs:
           aws-region: eu-west-2
 
       - uses: actions/checkout@v6
-        if: steps.check-pr.outputs.is_pr != 'true'
         with:
           # For push/workflow_dispatch events, use the current commit SHA
           # For workflow_run events (triggered by E2E Tests), use the commit that was tested
-          ref: ${{ github.event_name == 'push' && github.sha || (github.event_name == 'workflow_dispatch' && github.sha) || github.event.workflow_run.head_sha }}
-
-      - name: Verify commit SHA
-        if: steps.check-pr.outputs.is_pr != 'true'
-        run: |
-          CURRENT_COMMIT=$(git rev-parse HEAD)
-          echo "Deploying commit: ${CURRENT_COMMIT}"
-
-          if [ "${{ github.event_name }}" == "push" ]; then
-            EXPECTED_COMMIT="${{ github.sha }}"
-            echo "Expected commit (from push): ${EXPECTED_COMMIT}"
-            if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
-              echo "❌ Error: Commit mismatch detected - aborting deployment"
-              echo "Current: ${CURRENT_COMMIT}"
-              echo "Expected: ${EXPECTED_COMMIT}"
-              exit 1
-            fi
-            echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from push"
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            EXPECTED_COMMIT="${{ github.sha }}"
-            echo "Expected commit (from workflow_dispatch): ${EXPECTED_COMMIT}"
-            if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
-              echo "❌ Error: Commit mismatch detected - aborting deployment"
-              echo "Current: ${CURRENT_COMMIT}"
-              echo "Expected: ${EXPECTED_COMMIT}"
-              exit 1
-            fi
-            echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from workflow_dispatch"
-          else
-            # workflow_run event - verify we're deploying the same commit that was tested
-            TESTED_COMMIT="${{ github.event.workflow_run.head_sha }}"
-            echo "Tested commit (from E2E Tests workflow_run): ${TESTED_COMMIT}"
-            if [ "${CURRENT_COMMIT}" != "${TESTED_COMMIT}" ]; then
-              echo "❌ Error: Commit mismatch detected - aborting deployment"
-              echo "Current: ${CURRENT_COMMIT}"
-              echo "Expected (tested): ${TESTED_COMMIT}"
-              exit 1
-            fi
-            echo "✅ Commit verified - deploying tested commit ${CURRENT_COMMIT}"
-          fi
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Enable pnpm corepack
-        if: steps.check-pr.outputs.is_pr != 'true'
         run: corepack enable
 
       - name: Setup pnpm
-        if: steps.check-pr.outputs.is_pr != 'true'
         uses: pnpm/action-setup@v4
         with:
           version: 10.28.1
 
       - name: Get pnpm store directory
-        if: steps.check-pr.outputs.is_pr != 'true'
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
-        if: steps.check-pr.outputs.is_pr != 'true'
         uses: actions/cache@v5
         with:
           path: ${{ env.STORE_PATH }}
@@ -164,18 +73,15 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Use Node.js
-        if: steps.check-pr.outputs.is_pr != 'true'
         uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.check-pr.outputs.is_pr != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build backend (for Docker images)
-        if: steps.check-pr.outputs.is_pr != 'true'
         env:
           NODE_ENV: "production"
           VITE_ENV: "production"
@@ -264,13 +170,11 @@ jobs:
           pnpm build:backend
 
       - name: Set up Docker Buildx
-        if: steps.check-pr.outputs.is_pr != 'true'
         uses: docker/setup-buildx-action@v3
         with:
           platforms: linux/amd64,linux/arm64
 
       - name: Build and push Lambda container images
-        if: steps.check-pr.outputs.is_pr != 'true'
         env:
           AWS_REGION: eu-west-2
           LAMBDA_IMAGES_ECR_REPOSITORY: helpmaton-lambda-images
@@ -279,7 +183,6 @@ jobs:
           bash scripts/build-and-push-lambda-images.sh
 
       - name: Deploy to production
-        if: steps.check-pr.outputs.is_pr != 'true'
         env:
           NODE_ENV: "production"
           VITE_ENV: "production"
@@ -497,7 +400,6 @@ jobs:
           pnpm arc deploy --production --no-hydrate --verbose
 
       - name: Upload backend sourcemaps to Sentry (post-deploy)
-        if: steps.check-pr.outputs.is_pr != 'true'
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -533,13 +435,11 @@ jobs:
           fi
 
       - name: Trigger API Gateway deployment
-        if: steps.check-pr.outputs.is_pr != 'true'
         run: |
           echo "🚀 Triggering API Gateway deployment to make changes live..."
           bash scripts/deploy-api-gateway.sh HelpmatonProduction
 
       - name: Register Discord commands
-        if: steps.check-pr.outputs.is_pr != 'true'
         env:
           DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
           DISCORD_CS_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}

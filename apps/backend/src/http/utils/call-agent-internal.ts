@@ -18,6 +18,7 @@ import type { UIMessage } from "../../utils/messageTypes";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
 
+
 import { MODEL_NAME } from "./agent-constants";
 import { getWorkspaceApiKey } from "./agent-keys";
 import { buildGenerateTextOptions, createAgentModel } from "./agent-model";
@@ -37,6 +38,7 @@ import {
 } from "./modelCapabilities";
 import { getDefaultModel } from "./modelFactory";
 import type { Provider } from "./modelFactory";
+import { isTimeoutError } from "./requestTimeout";
 
 type CreditContext = Awaited<
   ReturnType<
@@ -271,22 +273,45 @@ const fetchExistingConversationMessages = async (params: {
   return undefined;
 };
 
+/** Max time for a single delegation call when parent has long timeout (e.g. webhook/queue 900s). 5 min. */
+export const DELEGATION_TIMEOUT_MS = 5 * 60 * 1000;
+
 const buildAbortSignal = (params: {
   abortSignal?: AbortSignal;
   timeoutMs: number;
-}): { signal?: AbortSignal; timeoutHandle?: NodeJS.Timeout } => {
+}): { signal?: AbortSignal; cleanup?: () => void } => {
   const { abortSignal, timeoutMs } = params;
-  if (abortSignal) {
+  if (abortSignal && timeoutMs <= 0) {
     return { signal: abortSignal };
   }
-  if (timeoutMs <= 0) {
+  if (!abortSignal && timeoutMs <= 0) {
     return {};
   }
-  const timeoutController = new AbortController();
-  const timeoutHandle = setTimeout(() => {
-    timeoutController.abort();
-  }, timeoutMs);
-  return { signal: timeoutController.signal, timeoutHandle };
+  if (!abortSignal) {
+    const timeoutController = new AbortController();
+    const timeoutHandle = setTimeout(() => {
+      timeoutController.abort();
+    }, timeoutMs);
+    return {
+      signal: timeoutController.signal,
+      cleanup: () => clearTimeout(timeoutHandle),
+    };
+  }
+  // Both parent signal and timeout: abort on whichever comes first
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+  const onAbort = (): void => controller.abort();
+  abortSignal.addEventListener("abort", onAbort);
+  if (abortSignal.aborted) {
+    controller.abort();
+  }
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeoutHandle);
+      abortSignal.removeEventListener("abort", onAbort);
+    },
+  };
 };
 
 type GenerateTextResult = Awaited<ReturnType<typeof generateText>>;
@@ -316,7 +341,7 @@ const executeGenerateTextWithTimeout = async (params: {
   abortSignal?: AbortSignal;
   timeoutMs: number;
 }): Promise<GenerateTextResult> => {
-  const { signal: effectiveSignal, timeoutHandle } = buildAbortSignal({
+  const { signal: effectiveSignal, cleanup } = buildAbortSignal({
     abortSignal: params.abortSignal,
     timeoutMs: params.timeoutMs,
   });
@@ -331,9 +356,7 @@ const executeGenerateTextWithTimeout = async (params: {
       ...(effectiveSignal && { abortSignal: effectiveSignal }),
     });
   } finally {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle);
-    }
+    cleanup?.();
   }
 };
 
@@ -783,7 +806,7 @@ export async function callAgentInternal(
   callDepth: number,
   maxDepth: number,
   context?: CreditContext,
-  timeoutMs: number = 60000,
+  timeoutMs: number = DELEGATION_TIMEOUT_MS,
   conversationId?: string,
   conversationOwnerAgentId?: string,
   abortSignal?: AbortSignal
@@ -1113,6 +1136,7 @@ export async function callAgentInternal(
       tags: {
         context: "agent-delegation",
         operation: "call-agent-internal",
+        ...(isTimeoutError(error) && { delegation_timeout: "true" }),
       },
       extra: {
         workspaceId,
