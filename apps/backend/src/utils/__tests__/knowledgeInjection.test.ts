@@ -4,6 +4,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
   mockSearchDocuments,
+  mockSearchMemory,
+  mockExtractEntitiesFromPrompt,
+  mockSearchGraphByEntities,
   mockRerankSnippets,
   mockReserveRerankingCredits,
   mockAdjustRerankingCreditReservation,
@@ -13,6 +16,9 @@ const {
 } = vi.hoisted(() => {
   return {
     mockSearchDocuments: vi.fn(),
+    mockSearchMemory: vi.fn(),
+    mockExtractEntitiesFromPrompt: vi.fn(),
+    mockSearchGraphByEntities: vi.fn(),
     mockRerankSnippets: vi.fn(),
     mockReserveRerankingCredits: vi.fn(),
     mockAdjustRerankingCreditReservation: vi.fn(),
@@ -25,6 +31,18 @@ const {
 // Mock documentSearch
 vi.mock("../documentSearch", () => ({
   searchDocuments: mockSearchDocuments,
+}));
+
+vi.mock("../memory/searchMemory", () => ({
+  searchMemory: mockSearchMemory,
+}));
+
+vi.mock("../knowledgeInjection/entityExtraction", () => ({
+  extractEntitiesFromPrompt: mockExtractEntitiesFromPrompt,
+}));
+
+vi.mock("../knowledgeInjection/graphSearch", () => ({
+  searchGraphByEntities: mockSearchGraphByEntities,
 }));
 
 // Mock knowledgeReranking
@@ -60,13 +78,14 @@ describe("knowledgeInjection", () => {
     vi.useRealTimers();
   });
 
-  const mockSearchResults: SearchResult[] = [
+  const mockSearchResults: Array<SearchResult & { source: "document" }> = [
     {
       snippet: "First relevant snippet",
       documentName: "Document 1",
       documentId: "doc-1",
       folderPath: "/folder1",
       similarity: 0.9,
+      source: "document",
     },
     {
       snippet: "Second relevant snippet",
@@ -74,6 +93,7 @@ describe("knowledgeInjection", () => {
       documentId: "doc-2",
       folderPath: "",
       similarity: 0.8,
+      source: "document",
     },
   ];
 
@@ -134,6 +154,62 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).not.toHaveBeenCalled();
     });
 
+    it("should inject memory and graph snippets when configured", async () => {
+      const agent = {
+        enableKnowledgeInjection: true,
+        enableKnowledgeInjectionFromMemories: true,
+        enableKnowledgeInjectionFromDocuments: false,
+      };
+
+      mockSearchMemory.mockResolvedValue([
+        {
+          content: "User prefers TypeScript",
+          date: "2026-01-01",
+          timestamp: "2026-01-01T12:00:00.000Z",
+          similarity: 0.9,
+        },
+      ]);
+      mockExtractEntitiesFromPrompt.mockResolvedValue(["User"]);
+      mockSearchGraphByEntities.mockResolvedValue([
+        {
+          snippet: "Subject: User\nPredicate: likes\nObject: React",
+          similarity: 1,
+          subject: "User",
+          predicate: "likes",
+          object: "React",
+        },
+      ]);
+
+      const messages: ModelMessage[] = [
+        { role: "user", content: "What tools does the user like?" },
+      ];
+
+      const result = await injectKnowledgeIntoMessages(
+        "workspace-1",
+        agent,
+        messages,
+        undefined,
+        undefined,
+        "agent-1",
+      );
+
+      expect(mockSearchDocuments).not.toHaveBeenCalled();
+      expect(mockSearchMemory).toHaveBeenCalled();
+      expect(mockExtractEntitiesFromPrompt).toHaveBeenCalled();
+      expect(mockSearchGraphByEntities).toHaveBeenCalled();
+      expect(result.knowledgeInjectionMessage).toBeDefined();
+      const snippets =
+        result.knowledgeInjectionMessage &&
+        result.knowledgeInjectionMessage.role === "user" &&
+        "knowledgeSnippets" in result.knowledgeInjectionMessage
+          ? (result.knowledgeInjectionMessage.knowledgeSnippets ?? [])
+          : [];
+      expect(snippets).toHaveLength(2);
+      expect(
+        snippets.map((snippet: { source?: string }) => snippet.source),
+      ).toEqual(expect.arrayContaining(["memory", "graph"]));
+    });
+
     it("should return original messages when no search results found", async () => {
       const agent = {
         enableKnowledgeInjection: true,
@@ -156,7 +232,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        5,
+        10,
       );
     });
 
@@ -186,7 +262,7 @@ describe("knowledgeInjection", () => {
       // Knowledge injection message should be before the original user message
       expect(typeof result.modelMessages[1].content).toBe("string");
       expect(result.modelMessages[1].content).toContain(
-        "Relevant Knowledge from Workspace Documents",
+        "Knowledge from Workspace Documents",
       );
       expect(result.modelMessages[1].content).toContain(
         "First relevant snippet",
@@ -215,7 +291,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        5,
+        10,
       );
     });
 
@@ -236,7 +312,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        10,
+        20,
       );
     });
 
@@ -278,7 +354,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
-        1,
+        2,
       );
     });
 
@@ -298,7 +374,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "What is the meaning of life?",
-        5,
+        10,
       );
     });
 
@@ -324,7 +400,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query from array",
-        5,
+        10,
       );
     });
 
@@ -366,13 +442,14 @@ describe("knowledgeInjection", () => {
     });
 
     it("should re-rank when re-ranking is enabled and model is specified", async () => {
-      const rerankedResults: SearchResult[] = [
+      const rerankedResults: Array<SearchResult & { source: "document" }> = [
         {
           snippet: "Second relevant snippet",
           documentName: "Document 2",
           documentId: "doc-2",
           folderPath: "",
           similarity: 0.95, // Re-ranked higher
+          source: "document",
         },
         {
           snippet: "First relevant snippet",
@@ -380,6 +457,7 @@ describe("knowledgeInjection", () => {
           documentId: "doc-1",
           folderPath: "/folder1",
           similarity: 0.85, // Re-ranked lower
+          source: "document",
         },
       ];
 
@@ -636,7 +714,7 @@ describe("knowledgeInjection", () => {
 
       const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain(
-        "## Relevant Knowledge from Workspace Documents",
+        "## Knowledge from Workspace Documents",
       );
       expect(knowledgeContent).toContain("[1] Document: Document 1 (/folder1)");
       expect(knowledgeContent).toContain("Similarity: 90.0%");
@@ -777,7 +855,7 @@ describe("knowledgeInjection", () => {
 
       // Knowledge should be injected before the FIRST user message
       expect(result.modelMessages[1].role).toBe("user");
-      expect(result.modelMessages[1].content).toContain("Relevant Knowledge");
+      expect(result.modelMessages[1].content).toContain("Knowledge from");
       expect(result.modelMessages[2].role).toBe("user");
       expect(result.modelMessages[2].content).toBe("First query");
     });
@@ -1186,7 +1264,7 @@ describe("knowledgeInjection", () => {
         );
 
         // Should still inject knowledge
-        expect(result.modelMessages[0].content).toContain("Relevant Knowledge");
+        expect(result.modelMessages[0].content).toContain("Knowledge from");
       });
 
       it("should continue even if refund fails", async () => {

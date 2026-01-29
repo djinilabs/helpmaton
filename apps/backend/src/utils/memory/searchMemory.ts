@@ -19,6 +19,7 @@ export interface SearchMemoryResult {
   date: string; // Formatted date prefix
   timestamp: string; // ISO timestamp
   metadata?: Record<string, unknown>;
+  similarity?: number;
 }
 
 /**
@@ -122,11 +123,14 @@ export async function searchMemory(
   return results.map((result) => {
     const timestamp = new Date(result.timestamp);
     const datePrefix = formatDatePrefix(timestamp);
+    const similarity =
+      result.distance !== undefined ? 1 / (1 + result.distance) : undefined;
     return {
       content: result.content,
       date: datePrefix,
       timestamp: result.timestamp,
       metadata: result.metadata,
+      similarity,
     };
   });
 }
@@ -200,11 +204,14 @@ async function searchWorkingMemory(
   return orderedResults.map((result) => {
     const timestamp = new Date(result.timestamp);
     const datePrefix = formatDatePrefix(timestamp);
+    const similarity =
+      result.distance !== undefined ? 1 / (1 + result.distance) : undefined;
     return {
       content: result.content,
       date: datePrefix,
       timestamp: result.timestamp,
       metadata: result.metadata,
+      similarity,
     };
   });
 }

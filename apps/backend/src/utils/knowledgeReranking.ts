@@ -1,7 +1,6 @@
 import { getWorkspaceApiKey } from "../http/utils/agentUtils";
 import { getDefined } from "../utils";
 
-import type { SearchResult } from "./documentSearch";
 import { getModelPricing } from "./pricing";
 import { Sentry, ensureError } from "./sentry";
 
@@ -21,10 +20,15 @@ export function getRerankingModels(availableModels: string[]): string[] {
 /**
  * Result from re-ranking API call
  */
-export interface RerankingResult {
-  snippets: SearchResult[];
+export interface RerankingResult<T extends RerankableSnippet = RerankableSnippet> {
+  snippets: T[];
   costUsd?: number; // Provisional cost from API response (in USD)
   generationId?: string; // Generation ID for async cost verification
+}
+
+export interface RerankableSnippet {
+  snippet: string;
+  similarity: number;
 }
 
 /**
@@ -35,12 +39,12 @@ export interface RerankingResult {
  * @param workspaceId - Workspace ID for API key lookup (optional)
  * @returns Re-ranked snippets with cost and generationId information
  */
-export async function rerankSnippets(
+export async function rerankSnippets<T extends RerankableSnippet>(
   query: string,
-  snippets: SearchResult[],
+  snippets: T[],
   model: string,
   workspaceId?: string
-): Promise<RerankingResult> {
+): Promise<RerankingResult<T>> {
   if (snippets.length === 0) {
     return {
       snippets: [],
@@ -192,7 +196,7 @@ export async function rerankSnippets(
 
     // Re-order snippets based on re-ranking results
     // Results are sorted by relevance_score in descending order
-    const rerankedSnippets: SearchResult[] = [];
+    const rerankedSnippets: T[] = [];
     for (const result of data.results) {
       const originalIndex = result.index;
       if (originalIndex >= 0 && originalIndex < snippets.length) {

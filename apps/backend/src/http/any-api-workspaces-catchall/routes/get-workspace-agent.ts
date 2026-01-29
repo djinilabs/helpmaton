@@ -125,10 +125,16 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           enableMemorySearch: agent.enableMemorySearch ?? false,
           enableSearchDocuments: agent.enableSearchDocuments ?? false,
           enableKnowledgeInjection: agent.enableKnowledgeInjection ?? false,
+          enableKnowledgeInjectionFromMemories:
+            agent.enableKnowledgeInjectionFromMemories ?? false,
+          enableKnowledgeInjectionFromDocuments:
+            agent.enableKnowledgeInjectionFromDocuments ?? true,
           knowledgeInjectionSnippetCount:
             agent.knowledgeInjectionSnippetCount ?? undefined,
           knowledgeInjectionMinSimilarity:
             agent.knowledgeInjectionMinSimilarity ?? undefined,
+          knowledgeInjectionEntityExtractorModel:
+            agent.knowledgeInjectionEntityExtractorModel ?? undefined,
           enableKnowledgeReranking: agent.enableKnowledgeReranking ?? false,
           knowledgeRerankingModel: agent.knowledgeRerankingModel ?? undefined,
           enableSendEmail: agent.enableSendEmail ?? false,

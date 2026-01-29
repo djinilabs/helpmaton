@@ -791,6 +791,14 @@ function useAgentDetailState({
   // Knowledge injection state
   const [enableKnowledgeInjection, setEnableKnowledgeInjection] =
     useState<boolean>(() => agent?.enableKnowledgeInjection ?? false);
+  const [
+    enableKnowledgeInjectionFromMemories,
+    setEnableKnowledgeInjectionFromMemories,
+  ] = useState<boolean>(() => agent?.enableKnowledgeInjectionFromMemories ?? false);
+  const [
+    enableKnowledgeInjectionFromDocuments,
+    setEnableKnowledgeInjectionFromDocuments,
+  ] = useState<boolean>(() => agent?.enableKnowledgeInjectionFromDocuments ?? true);
   const [knowledgeInjectionSnippetCount, setKnowledgeInjectionSnippetCount] =
     useState<number>(
       () =>
@@ -802,6 +810,12 @@ function useAgentDetailState({
         agent?.knowledgeInjectionMinSimilarity ??
         DEFAULT_KNOWLEDGE_MIN_SIMILARITY
     );
+  const [
+    knowledgeInjectionEntityExtractorModel,
+    setKnowledgeInjectionEntityExtractorModel,
+  ] = useState<string | null>(
+    () => agent?.knowledgeInjectionEntityExtractorModel || null
+  );
   const [enableKnowledgeReranking, setEnableKnowledgeReranking] =
     useState<boolean>(() => agent?.enableKnowledgeReranking ?? false);
   const [knowledgeRerankingModel, setKnowledgeRerankingModel] = useState<
@@ -1087,19 +1101,31 @@ function useAgentDetailState({
   // Synchronize knowledge injection state with agent prop
   useEffect(() => {
     setEnableKnowledgeInjection(agent?.enableKnowledgeInjection ?? false);
+    setEnableKnowledgeInjectionFromMemories(
+      agent?.enableKnowledgeInjectionFromMemories ?? false
+    );
+    setEnableKnowledgeInjectionFromDocuments(
+      agent?.enableKnowledgeInjectionFromDocuments ?? true
+    );
     setKnowledgeInjectionSnippetCount(
       agent?.knowledgeInjectionSnippetCount ?? DEFAULT_KNOWLEDGE_SNIPPET_COUNT
     );
     setKnowledgeInjectionMinSimilarity(
       agent?.knowledgeInjectionMinSimilarity ?? DEFAULT_KNOWLEDGE_MIN_SIMILARITY
     );
+    setKnowledgeInjectionEntityExtractorModel(
+      agent?.knowledgeInjectionEntityExtractorModel ?? null
+    );
     setEnableKnowledgeReranking(agent?.enableKnowledgeReranking ?? false);
     setKnowledgeRerankingModel(agent?.knowledgeRerankingModel || null);
   }, [
     agent?.id,
     agent?.enableKnowledgeInjection,
+    agent?.enableKnowledgeInjectionFromMemories,
+    agent?.enableKnowledgeInjectionFromDocuments,
     agent?.knowledgeInjectionSnippetCount,
     agent?.knowledgeInjectionMinSimilarity,
+    agent?.knowledgeInjectionEntityExtractorModel,
     agent?.enableKnowledgeReranking,
     agent?.knowledgeRerankingModel,
   ]);
@@ -1568,14 +1594,26 @@ function useAgentDetailState({
 
   const handleSaveKnowledgeInjection = async () => {
     try {
+      const trimmedEntityModel =
+        knowledgeInjectionEntityExtractorModel?.trim() || null;
       const updated = await updateAgent.mutateAsync({
         enableKnowledgeInjection,
+        enableKnowledgeInjectionFromMemories: enableKnowledgeInjection
+          ? enableKnowledgeInjectionFromMemories
+          : false,
+        enableKnowledgeInjectionFromDocuments: enableKnowledgeInjection
+          ? enableKnowledgeInjectionFromDocuments
+          : false,
         knowledgeInjectionSnippetCount: enableKnowledgeInjection
           ? Math.max(1, Math.min(50, knowledgeInjectionSnippetCount))
           : undefined,
         knowledgeInjectionMinSimilarity: enableKnowledgeInjection
           ? Math.max(0, Math.min(1, knowledgeInjectionMinSimilarity))
           : undefined,
+        knowledgeInjectionEntityExtractorModel:
+          enableKnowledgeInjection && enableKnowledgeInjectionFromMemories
+            ? trimmedEntityModel
+            : null,
         enableKnowledgeReranking: enableKnowledgeInjection
           ? enableKnowledgeReranking
           : false,
@@ -1586,12 +1624,21 @@ function useAgentDetailState({
       });
       // Sync local state with updated agent data
       setEnableKnowledgeInjection(updated.enableKnowledgeInjection ?? false);
+      setEnableKnowledgeInjectionFromMemories(
+        updated.enableKnowledgeInjectionFromMemories ?? false
+      );
+      setEnableKnowledgeInjectionFromDocuments(
+        updated.enableKnowledgeInjectionFromDocuments ?? true
+      );
       setKnowledgeInjectionSnippetCount(
         updated.knowledgeInjectionSnippetCount ?? DEFAULT_KNOWLEDGE_SNIPPET_COUNT
       );
       setKnowledgeInjectionMinSimilarity(
         updated.knowledgeInjectionMinSimilarity ??
           DEFAULT_KNOWLEDGE_MIN_SIMILARITY
+      );
+      setKnowledgeInjectionEntityExtractorModel(
+        updated.knowledgeInjectionEntityExtractorModel ?? null
       );
       setEnableKnowledgeReranking(updated.enableKnowledgeReranking ?? false);
       setKnowledgeRerankingModel(updated.knowledgeRerankingModel || null);
@@ -1936,10 +1983,16 @@ function useAgentDetailState({
     setEnableExaSearch,
     enableKnowledgeInjection,
     setEnableKnowledgeInjection,
+    enableKnowledgeInjectionFromMemories,
+    setEnableKnowledgeInjectionFromMemories,
+    enableKnowledgeInjectionFromDocuments,
+    setEnableKnowledgeInjectionFromDocuments,
     knowledgeInjectionSnippetCount,
     setKnowledgeInjectionSnippetCount,
     knowledgeInjectionMinSimilarity,
     setKnowledgeInjectionMinSimilarity,
+    knowledgeInjectionEntityExtractorModel,
+    setKnowledgeInjectionEntityExtractorModel,
     enableKnowledgeReranking,
     setEnableKnowledgeReranking,
     knowledgeRerankingModel,
@@ -2826,10 +2879,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     setEnableExaSearch,
     enableKnowledgeInjection,
     setEnableKnowledgeInjection,
+    enableKnowledgeInjectionFromMemories,
+    setEnableKnowledgeInjectionFromMemories,
+    enableKnowledgeInjectionFromDocuments,
+    setEnableKnowledgeInjectionFromDocuments,
     knowledgeInjectionSnippetCount,
     setKnowledgeInjectionSnippetCount,
     knowledgeInjectionMinSimilarity,
     setKnowledgeInjectionMinSimilarity,
+    knowledgeInjectionEntityExtractorModel,
+    setKnowledgeInjectionEntityExtractorModel,
     enableKnowledgeReranking,
     setEnableKnowledgeReranking,
     knowledgeRerankingModel,
@@ -3673,22 +3732,20 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
             >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable knowledge injection to automatically retrieve and
-                    inject relevant document snippets from your workspace
-                    documents into user prompts before they are sent to the
-                    agent.
+                    Enable knowledge injection to retrieve and inject relevant
+                    knowledge from agent memories and workspace documents into
+                    user prompts before they are sent to the agent.
                   </p>
                   <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                     <p className="text-sm font-semibold dark:text-neutral-300">
                       What are snippets?
                     </p>
                     <p className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                      Snippets are chunks of text extracted from your uploaded
-                      documents. When documents are uploaded, they are
-                      automatically split into smaller pieces (snippets) and
-                      indexed in the vector database. Each snippet typically
-                      contains 100-300 words and represents a meaningful portion
-                      of the document content.
+                      Snippets are chunks of knowledge retrieved from workspace
+                      documents and agent memories. Document snippets are
+                      extracted from uploaded files and indexed in the vector
+                      database. Memory snippets are pulled from the agent’s
+                      working memory and knowledge graph.
                     </p>
                   </div>
                   <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
@@ -3712,6 +3769,94 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                   </label>
                   {enableKnowledgeInjection && (
                     <>
+                      <div className="space-y-3">
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                          <input
+                            type="checkbox"
+                            checked={enableKnowledgeInjectionFromMemories}
+                            onChange={(e) =>
+                              setEnableKnowledgeInjectionFromMemories(
+                                e.target.checked
+                              )
+                            }
+                            aria-label="Inject from memories"
+                            className="mt-1 rounded border-2 border-neutral-300"
+                          />
+                          <div className="flex-1">
+                            <div className="font-bold">
+                              Inject from memories
+                            </div>
+                            <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                              Use the agent’s working memory and knowledge graph
+                              to inject relevant facts.
+                            </div>
+                          </div>
+                        </label>
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                          <input
+                            type="checkbox"
+                            checked={enableKnowledgeInjectionFromDocuments}
+                            onChange={(e) =>
+                              setEnableKnowledgeInjectionFromDocuments(
+                                e.target.checked
+                              )
+                            }
+                            aria-label="Inject from documents"
+                            className="mt-1 rounded border-2 border-neutral-300"
+                          />
+                          <div className="flex-1">
+                            <div className="font-bold">
+                              Inject from documents
+                            </div>
+                            <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                              Retrieve relevant snippets from workspace documents.
+                            </div>
+                          </div>
+                        </label>
+                        {!enableKnowledgeInjectionFromDocuments &&
+                          !enableKnowledgeInjectionFromMemories && (
+                            <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                              Select at least one source to inject knowledge.
+                            </p>
+                          )}
+                      </div>
+                      {enableKnowledgeInjectionFromMemories && (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold dark:text-neutral-300">
+                            Entity extractor model
+                          </label>
+                          <select
+                            value={knowledgeInjectionEntityExtractorModel ?? ""}
+                            onChange={(e) =>
+                              setKnowledgeInjectionEntityExtractorModel(
+                                e.target.value.length > 0 ? e.target.value : null
+                              )
+                            }
+                            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                          >
+                            <option value="">
+                              {defaultModel
+                                ? `Default (${defaultModel})`
+                                : "Default model"}
+                            </option>
+                            {availableModels.map((model) => (
+                              <option key={model} value={model}>
+                                {model}
+                              </option>
+                            ))}
+                          </select>
+                          {isLoadingModels && (
+                            <p className="text-xs opacity-75 dark:text-neutral-300">
+                              Loading models...
+                            </p>
+                          )}
+                          {modelLoadError && (
+                            <p className="text-xs text-red-600 dark:text-red-400">
+                              {modelLoadError}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Slider
                           label="Number of Snippets to Inject"
@@ -3726,7 +3871,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           }
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
-                          Number of document snippets to retrieve and inject
+                          Number of knowledge snippets to retrieve and inject
                           (1-50, default: 5)
                         </p>
                       </div>
@@ -3845,6 +3990,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     onClick={handleSaveKnowledgeInjection}
                     disabled={
                       updateAgent.isPending ||
+                      (enableKnowledgeInjection &&
+                        !enableKnowledgeInjectionFromDocuments &&
+                        !enableKnowledgeInjectionFromMemories) ||
                       (enableKnowledgeInjection &&
                         enableKnowledgeReranking &&
                         ((!knowledgeRerankingModel &&

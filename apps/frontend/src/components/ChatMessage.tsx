@@ -434,14 +434,42 @@ export const ChatMessage = memo<ChatMessageProps>(
         knowledgeInjection?: boolean;
         knowledgeSnippets?: Array<{
           snippet: string;
-          documentName: string;
-          documentId: string;
-          folderPath: string;
           similarity: number;
+          source?: "document" | "memory" | "graph";
+          documentName?: string;
+          documentId?: string;
+          folderPath?: string;
+          timestamp?: string;
+          date?: string;
+          subject?: string;
+          predicate?: string;
+          object?: string;
         }>;
       };
 
       const snippets = knowledgeMessage.knowledgeSnippets || [];
+      const hasDocuments = snippets.some(
+        (snippet) => (snippet.source ?? "document") === "document"
+      );
+      const hasMemories = snippets.some(
+        (snippet) => snippet.source === "memory"
+      );
+      const hasGraphFacts = snippets.some(
+        (snippet) => snippet.source === "graph"
+      );
+      const sourceLabels = [
+        hasDocuments ? "workspace documents" : null,
+        hasMemories ? "agent memories" : null,
+        hasGraphFacts ? "agent graph facts" : null,
+      ].filter(Boolean) as string[];
+      const knowledgeSourceLabel =
+        sourceLabels.length > 0
+          ? sourceLabels.length === 1
+            ? sourceLabels[0]
+            : `${sourceLabels.slice(0, -1).join(", ")} and ${
+                sourceLabels[sourceLabels.length - 1]
+              }`
+          : "workspace documents";
 
       return (
         <div className="max-w-[80%] overflow-x-auto">
@@ -450,7 +478,7 @@ export const ChatMessage = memo<ChatMessageProps>(
               <div className="flex items-center gap-2">
                 <span className="text-lg">📚</span>
                 <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                  Knowledge from workspace documents
+                  Knowledge from {knowledgeSourceLabel}
                   {snippetCount > 0 &&
                     ` (${snippetCount} snippet${
                       snippetCount !== 1 ? "s" : ""
@@ -465,6 +493,15 @@ export const ChatMessage = memo<ChatMessageProps>(
                     const similarityPercent = (
                       snippet.similarity * 100
                     ).toFixed(1);
+                    const source = snippet.source ?? "document";
+                    const headerLabel =
+                      source === "document"
+                        ? snippet.documentName || `Document ${snippetIndex + 1}`
+                        : source === "memory"
+                          ? `Memory (${snippet.date || snippet.timestamp || "Unknown date"})`
+                          : snippet.subject && snippet.predicate && snippet.object
+                            ? `${snippet.subject} -> ${snippet.predicate} -> ${snippet.object}`
+                            : "Graph fact";
                     return (
                       <details
                         key={snippetIndex}
@@ -474,8 +511,8 @@ export const ChatMessage = memo<ChatMessageProps>(
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1">
                               <div className="text-xs font-semibold text-purple-800 dark:text-purple-200">
-                                {snippet.documentName}
-                                {snippet.folderPath && (
+                                {headerLabel}
+                                {source === "document" && snippet.folderPath && (
                                   <span className="ml-2 font-normal text-purple-600 dark:text-purple-400">
                                     ({snippet.folderPath})
                                   </span>

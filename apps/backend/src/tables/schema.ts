@@ -103,8 +103,11 @@ export const tableSchemas = {
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
     enableKnowledgeInjection: z.boolean().optional(), // enable knowledge injection from workspace documents (default: false)
+    enableKnowledgeInjectionFromMemories: z.boolean().optional(), // enable knowledge injection from agent memories (default: false)
+    enableKnowledgeInjectionFromDocuments: z.boolean().optional(), // include workspace documents when injecting knowledge (default: true)
     knowledgeInjectionSnippetCount: z.number().int().positive().optional(), // number of document snippets to inject (default: 5)
     knowledgeInjectionMinSimilarity: z.number().min(0).max(1).optional(), // minimum similarity score (0-1) required for snippets to be included (default: 0)
+    knowledgeInjectionEntityExtractorModel: z.string().optional(), // model used to extract entities from prompt for graph search
     enableKnowledgeReranking: z.boolean().optional(), // enable re-ranking of injected snippets (default: false)
     knowledgeRerankingModel: z.string().optional(), // re-ranking model name from OpenRouter (required if enableKnowledgeReranking is true)
     enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)

@@ -105,8 +105,11 @@ export interface Agent {
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;
+  enableKnowledgeInjectionFromMemories?: boolean;
+  enableKnowledgeInjectionFromDocuments?: boolean;
   knowledgeInjectionSnippetCount?: number;
   knowledgeInjectionMinSimilarity?: number;
+  knowledgeInjectionEntityExtractorModel?: string;
   enableKnowledgeReranking?: boolean;
   knowledgeRerankingModel?: string;
   enableSendEmail?: boolean;
@@ -161,8 +164,11 @@ export interface UpdateAgentInput {
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;
+  enableKnowledgeInjectionFromMemories?: boolean;
+  enableKnowledgeInjectionFromDocuments?: boolean;
   knowledgeInjectionSnippetCount?: number;
   knowledgeInjectionMinSimilarity?: number;
+  knowledgeInjectionEntityExtractorModel?: string | null;
   enableKnowledgeReranking?: boolean;
   knowledgeRerankingModel?: string | null;
   enableSendEmail?: boolean;

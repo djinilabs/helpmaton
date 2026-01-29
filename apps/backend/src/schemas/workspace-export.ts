@@ -328,6 +328,16 @@ const agentSchema = z
       .describe(
         "Enable knowledge injection from workspace documents (default: false)",
       ),
+    enableKnowledgeInjectionFromMemories: z
+      .boolean()
+      .optional()
+      .describe("Enable knowledge injection from agent memories (default: false)"),
+    enableKnowledgeInjectionFromDocuments: z
+      .boolean()
+      .optional()
+      .describe(
+        "Include workspace documents when injecting knowledge (default: true)",
+      ),
     knowledgeInjectionSnippetCount: z
       .number()
       .int()
@@ -342,6 +352,10 @@ const agentSchema = z
       .describe(
         "Minimum similarity score (0-1) required for snippets to be included (default: 0)",
       ),
+    knowledgeInjectionEntityExtractorModel: z
+      .string()
+      .optional()
+      .describe("Model used to extract entities from prompt for graph search"),
     enableKnowledgeReranking: z
       .boolean()
       .optional()

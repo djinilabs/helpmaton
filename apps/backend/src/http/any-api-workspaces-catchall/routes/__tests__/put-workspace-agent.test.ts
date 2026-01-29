@@ -143,6 +143,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
           enableTavilyFetch: body.enableTavilyFetch,
           currentProvider: agent.fetchWebProvider,
         });
+        const resolvedKnowledgeInjectionEntityExtractorModel = undefined;
 
         const normalizedSummarizationPrompts =
           summarizeMemory.normalizeSummarizationPrompts(
@@ -161,6 +162,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
             resolvedFetchWebProvider,
             resolvedModelName,
             resolvedMemoryExtractionModel,
+            resolvedKnowledgeInjectionEntityExtractorModel,
             updatedBy: (req as { userRef?: string }).userRef || "",
           }),
         });
