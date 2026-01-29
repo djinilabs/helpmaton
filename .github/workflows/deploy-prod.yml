@@ -27,6 +27,8 @@ jobs:
     concurrency:
       group: deploy-prod
       cancel-in-progress: false
+    env:
+      NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
 
     steps:
       - uses: actions/checkout@v6
@@ -78,6 +80,7 @@ jobs:
           VITE_ENV: "production"
           ARC_ENV: "production"
           NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
+          BUILD_BACKEND_CONCURRENCY: "2"
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
@@ -96,7 +99,7 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_DIST: "backend"
-          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
+          # SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
@@ -201,7 +204,7 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_DIST: "backend"
-          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
+          # SENTRY_ENABLE_BACKEND_SOURCEMAPS: "true"
           VITE_SENTRY_RELEASE: ${{ github.sha }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
