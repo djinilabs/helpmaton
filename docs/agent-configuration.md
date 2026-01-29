@@ -95,6 +95,36 @@ Enable the `search_documents` tool to allow agents to search workspace documents
 
 Enable the `search_memory` tool to allow agents to recall past conversations and information from their memory system.
 
+## Inject Knowledge
+
+Inject Knowledge lets you automatically add relevant context to user prompts at the beginning of a conversation. It combines:
+
+- **Workspace documents** (vector search over document snippets)
+- **Agent memories** (vector search over working memory + graph facts)
+- **Graph facts** (subject–predicate–object tuples stored for the agent)
+
+### Configuration
+
+In the Agent Detail page, enable **Inject Knowledge** and configure:
+
+- **Inject from memories**: Pulls working memory snippets and graph facts.
+- **Entity extractor model**: Model used to extract entities from the user’s prompt before graph search. If empty, the default model is used.
+- **Inject from documents**: Includes workspace document snippets in the injected knowledge.
+- **Snippet count**: Total number of snippets to inject after merging and re-ranking (1–50).
+- **Minimum similarity**: Filter threshold for snippet relevance.
+- **Re-ranking** (optional): Re-rank all retrieved snippets (documents + memories + graph facts) using a rerank model.
+
+If both **memories** and **documents** are disabled while Inject Knowledge is enabled, the settings are invalid and won’t save.
+
+### How it works
+
+1. Extract the query from the first user message.
+2. If **Inject from documents** is on, search workspace documents via vector similarity.
+3. If **Inject from memories** is on:
+   - Search working memory via vector similarity.
+   - Extract entities from the prompt, then fetch matching graph facts.
+4. Merge all snippets, optionally re-rank, then inject the top results as a new user message before the first user prompt.
+
 ### Email Sending
 
 Enable the `send_email` tool to allow agents to send emails using the workspace email connection (requires email connection configuration).
