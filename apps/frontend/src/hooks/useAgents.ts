@@ -43,16 +43,16 @@ export function useAgent(workspaceId: string, agentId: string) {
  * Optional version of useAgent that uses useQuery instead of useSuspenseQuery.
  * This allows the query to be disabled or fail without throwing, which is useful
  * in widget contexts where authentication may not be available.
- * 
+ *
  * Note: This hook always uses useQuery (not useSuspenseQuery) to avoid throwing errors
  * in widget contexts. For normal app usage where suspense is desired, use useAgent instead.
- * 
+ *
  * @param skip - If true, the query will be disabled and won't execute (widget context)
  */
 export function useAgentOptional(
   workspaceId: string,
   agentId: string,
-  skip: boolean = false
+  skip: boolean = false,
 ) {
   return useQuery({
     queryKey: ["workspaces", workspaceId, "agents", agentId],
@@ -74,7 +74,7 @@ export function useCreateAgent(workspaceId: string) {
       });
       queryClient.setQueryData(
         ["workspaces", workspaceId, "agents", data.id],
-        data
+        data,
       );
       toast.success("Agent created successfully");
     },
@@ -96,7 +96,7 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
       // This ensures the UI immediately reflects the update without waiting for a refetch
       queryClient.setQueryData(
         ["workspaces", workspaceId, "agents", agentId],
-        data
+        data,
       );
       // Invalidate only the list query (not the specific agent query) to ensure it reflects the update
       // We use a predicate to only match the exact list query key, not the specific agent query
@@ -110,6 +110,20 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
             queryKey[0] === "workspaces" &&
             queryKey[1] === workspaceId &&
             queryKey[2] === "agents"
+          );
+        },
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["agent-tools", workspaceId, agentId],
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          return (
+            Array.isArray(queryKey) &&
+            queryKey.length >= 2 &&
+            queryKey[0] === "mcp-server-tools" &&
+            queryKey[1] === workspaceId
           );
         },
       });
@@ -174,7 +188,7 @@ export function useCreateAgentKey(workspaceId: string, agentId: string) {
 export function useDeleteAgentKey(
   workspaceId: string,
   agentId: string,
-  keyId: string
+  keyId: string,
 ) {
   const queryClient = useQueryClient();
   const toast = useToast();

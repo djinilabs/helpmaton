@@ -13,6 +13,15 @@ import {
 
 import { useToast } from "./useToast";
 
+export const clearEmailConnectionCache = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  workspaceId: string,
+) => {
+  queryClient.removeQueries({
+    queryKey: ["workspaces", workspaceId, "email-connection"],
+  });
+};
+
 export function useEmailConnection(workspaceId: string) {
   return useQuery({
     queryKey: ["workspaces", workspaceId, "email-connection"],
@@ -31,7 +40,7 @@ export function useCreateOrUpdateEmailConnection(workspaceId: string) {
     onSuccess: (data) => {
       queryClient.setQueryData(
         ["workspaces", workspaceId, "email-connection"],
-        data
+        data,
       );
       toast.success("Email connection saved successfully");
     },
@@ -51,7 +60,7 @@ export function useUpdateEmailConnection(workspaceId: string) {
     onSuccess: (data) => {
       queryClient.setQueryData(
         ["workspaces", workspaceId, "email-connection"],
-        data
+        data,
       );
       toast.success("Email connection updated successfully");
     },
@@ -68,10 +77,7 @@ export function useDeleteEmailConnection(workspaceId: string) {
   return useMutation({
     mutationFn: () => deleteEmailConnection(workspaceId),
     onSuccess: () => {
-      queryClient.setQueryData(
-        ["workspaces", workspaceId, "email-connection"],
-        null
-      );
+      clearEmailConnectionCache(queryClient, workspaceId);
       toast.success("Email connection deleted successfully");
     },
     onError: (error: Error) => {
@@ -109,4 +115,3 @@ export function useInitiateOAuthFlow(workspaceId: string) {
     },
   });
 }
-

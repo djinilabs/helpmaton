@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Email connection cache clear (2026-01-29)**: Clearing React Query cache for workspace email connection on delete via helper, added unit test, ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter frontend test`.
 - **Memory list preview + expand (2026-01-29)**: Added `previewLength` to agent memory list (returns ids + truncation flag), added record-by-id endpoint for full content, updated memory UI to fetch 120-char previews and load full content on expand, added backend tests, ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Memory list preview tweaks (2026-01-29)**: Escaped newlines in preview text, added top "Show less" option when expanded, added ellipsis for unexpanded previews, ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Memory list copy toast (2026-01-29)**: Added toast feedback when copying memory content, ran `pnpm typecheck` and `pnpm lint --fix`.
@@ -32,6 +33,7 @@
 
 **Latest Work**:
 
+- **Agent options tool cache clear**: Invalidate `agent-tools` and `mcp-server-tools` react-query caches after agent updates so tool dialogs refetch when options change. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 237 review fixes**: Added jsonParsing unit tests, improved knowledge graph endpoint coverage (agent missing, maxResults bounds, query escaping), fixed SVG marker ID collisions, added accessible search label + reset view control, and stabilized LIKE escape string handling. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for knowledge graph/jsonParsing.
 - **Knowledge graph panels visibility**: Adjusted the graph container to scroll internally without forcing column width and ensured facts list uses min-height-safe flex overflow so the overview stays visible. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Knowledge graph fixed height**: Locked the graph and facts overview panels to a fixed height with internal scrolling to avoid layout jumps when selecting nodes. Ran `pnpm typecheck` and `pnpm lint --fix`.
