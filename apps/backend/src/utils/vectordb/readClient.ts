@@ -17,7 +17,7 @@ export const connectionCache = new Map<
  */
 async function getDatabaseConnection(
   agentId: string,
-  temporalGrain: TemporalGrain
+  temporalGrain: TemporalGrain,
 ): Promise<Awaited<ReturnType<typeof connect>>> {
   const uri = getDatabaseUri(agentId, temporalGrain);
   const cacheKey = uri;
@@ -81,11 +81,11 @@ async function getDatabaseConnection(
               ? "true"
               : "false";
             console.log(
-              `[Read Client] Using custom S3 endpoint: ${customEndpoint}, region: ${region}`
+              `[Read Client] Using custom S3 endpoint: ${customEndpoint}, region: ${region}`,
             );
           } else {
             console.log(
-              `[Read Client] Using AWS S3 with explicit credentials, region: ${region}`
+              `[Read Client] Using AWS S3 with explicit credentials, region: ${region}`,
             );
           }
 
@@ -146,7 +146,7 @@ type QueryBuilder = {
  */
 function applyTemporalFilter(
   results: QueryResult[],
-  temporalFilter?: QueryOptions["temporalFilter"]
+  temporalFilter?: QueryOptions["temporalFilter"],
 ): QueryResult[] {
   if (!temporalFilter) {
     return results;
@@ -181,25 +181,25 @@ async function openVectorsTable(
   db: Awaited<ReturnType<typeof connect>>,
   dbUri: string,
   agentId: string,
-  temporalGrain: TemporalGrain
+  temporalGrain: TemporalGrain,
 ): Promise<{ query: () => QueryBuilder } | null> {
   const table = await db.openTable("vectors").catch(async (error) => {
     console.warn(
       `[Read Client] Table "vectors" not found in database ${dbUri}:`,
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     return null;
   });
 
   if (!table) {
     console.log(
-      `[Read Client] No table found, returning empty results for agent ${agentId}, grain ${temporalGrain}`
+      `[Read Client] No table found, returning empty results for agent ${agentId}, grain ${temporalGrain}`,
     );
     return null;
   }
 
   console.log(
-    `[Read Client] Table opened successfully for agent ${agentId}, grain ${temporalGrain}`
+    `[Read Client] Table opened successfully for agent ${agentId}, grain ${temporalGrain}`,
   );
 
   return table as unknown as { query: () => QueryBuilder };
@@ -211,7 +211,7 @@ function buildQueryBuilder(
     vector?: number[];
     filter?: string;
     limit: number;
-  }
+  },
 ): QueryBuilder {
   let queryBuilder = table.query();
 
@@ -231,13 +231,13 @@ function buildQueryBuilder(
 }
 
 async function collectRowsFromQuery(
-  queryBuilder: QueryBuilder
+  queryBuilder: QueryBuilder,
 ): Promise<LanceDBRow[]> {
   if (queryBuilder.toArray) {
     const rows = await queryBuilder.toArray();
     logSampleRowMetadata(rows);
     console.log(
-      `[Read Client] Retrieved ${rows.length} rows, logging all metadata:`
+      `[Read Client] Retrieved ${rows.length} rows, logging all metadata:`,
     );
     return rows;
   }
@@ -250,15 +250,17 @@ async function collectRowsFromQuery(
       rows.push(row);
     }
     console.log(
-      `[Read Client] Retrieved ${rows.length} rows total via execute()`
+      `[Read Client] Retrieved ${rows.length} rows total via execute()`,
     );
     return rows;
   }
 
   console.log(`[Read Client] Using fallback method to retrieve rows...`);
-  const rows = await (queryBuilder as unknown as () => Promise<Array<LanceDBRow>>)();
+  const rows = await (
+    queryBuilder as unknown as () => Promise<Array<LanceDBRow>>
+  )();
   console.log(
-    `[Read Client] Retrieved ${rows.length} rows via fallback, logging all metadata:`
+    `[Read Client] Retrieved ${rows.length} rows via fallback, logging all metadata:`,
   );
   return rows;
 }
@@ -270,12 +272,12 @@ function logSampleRowMetadata(rows: LanceDBRow[]): void {
   console.log(
     `[Read Client] Sample row metadata type:`,
     typeof rows[0].metadata,
-    Array.isArray(rows[0].metadata)
+    Array.isArray(rows[0].metadata),
   );
   if (rows[0].metadata) {
     console.log(
       `[Read Client] Sample row metadata value:`,
-      JSON.stringify(rows[0].metadata, null, 2)
+      JSON.stringify(rows[0].metadata, null, 2),
     );
   }
 }
@@ -293,7 +295,7 @@ function buildMetadataFromRow(row: LanceDBRow): Record<string, unknown> {
 
 function logRowMetadata(row: LanceDBRow, index: number, total: number): void {
   console.log(
-    `[Read Client] Row ${index + 1}/${total} - ID: ${row.id.substring(0, 20)}...`
+    `[Read Client] Row ${index + 1}/${total} - ID: ${row.id.substring(0, 20)}...`,
   );
   console.log(`  Content: ${row.content.substring(0, 60)}...`);
   console.log(`  Timestamp: ${row.timestamp}`);
@@ -309,16 +311,13 @@ function logRowMetadata(row: LanceDBRow, index: number, total: number): void {
         folderPath: row.folderPath,
       },
       null,
-      4
-    )
+      4,
+    ),
   );
 
   if (row.metadata) {
     console.log(`  Raw metadata type: ${typeof row.metadata}`);
-    console.log(
-      `  Raw metadata value:`,
-      JSON.stringify(row.metadata, null, 4)
-    );
+    console.log(`  Raw metadata value:`, JSON.stringify(row.metadata, null, 4));
   }
 }
 
@@ -354,32 +353,33 @@ function logMetadataSummary(options: {
   const { results, filteredResults, agentId, temporalGrain } = options;
   const metadataStats = {
     total: results.length,
-    withConversationId: results.filter((r) => r.metadata?.conversationId).length,
+    withConversationId: results.filter((r) => r.metadata?.conversationId)
+      .length,
     withWorkspaceId: results.filter((r) => r.metadata?.workspaceId).length,
     withAgentId: results.filter((r) => r.metadata?.agentId).length,
     withAllMetadata: results.filter(
       (r) =>
         r.metadata?.conversationId &&
         r.metadata?.workspaceId &&
-        r.metadata?.agentId
+        r.metadata?.agentId,
     ).length,
     withNullMetadata: results.filter(
       (r) =>
         !r.metadata?.conversationId ||
         !r.metadata?.workspaceId ||
-        !r.metadata?.agentId
+        !r.metadata?.agentId,
     ).length,
   };
 
   console.log(
-    `[Read Client] Query completed for agent ${agentId}, grain ${temporalGrain}: ${results.length} raw results, ${filteredResults.length} after temporal filter`
+    `[Read Client] Query completed for agent ${agentId}, grain ${temporalGrain}: ${results.length} raw results, ${filteredResults.length} after temporal filter`,
   );
   console.log(
     `[Read Client] Metadata summary:`,
-    JSON.stringify(metadataStats, null, 2)
+    JSON.stringify(metadataStats, null, 2),
   );
   console.log(
-    `[Read Client] Returning ${filteredResults.length} filtered results`
+    `[Read Client] Returning ${filteredResults.length} filtered results`,
   );
 }
 
@@ -394,7 +394,7 @@ function logMetadataSummary(options: {
 export async function query(
   agentId: string,
   temporalGrain: TemporalGrain,
-  options: QueryOptions = {}
+  options: QueryOptions = {},
 ): Promise<QueryResult[]> {
   const {
     vector,
@@ -409,7 +409,7 @@ export async function query(
   try {
     const dbUri = getDatabaseUri(agentId, temporalGrain);
     console.log(
-      `[Read Client] Querying database ${dbUri} for agent ${agentId}, grain ${temporalGrain}`
+      `[Read Client] Querying database ${dbUri} for agent ${agentId}, grain ${temporalGrain}`,
     );
     const db = await getDatabaseConnection(agentId, temporalGrain);
 
@@ -443,12 +443,12 @@ export async function query(
   } catch (error) {
     console.error(
       `[Read Client] Query failed for agent ${agentId}, grain ${temporalGrain}:`,
-      error
+      error,
     );
     throw new Error(
       `Vector database query failed: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
 }
@@ -456,7 +456,7 @@ export async function query(
 export async function getRecordById(
   agentId: string,
   temporalGrain: TemporalGrain,
-  recordId: string
+  recordId: string,
 ): Promise<QueryResult | null> {
   const safeRecordId = escapeFilterValue(recordId);
   const results = await query(agentId, temporalGrain, {

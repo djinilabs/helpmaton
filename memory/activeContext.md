@@ -32,6 +32,7 @@
 
 **Latest Work**:
 
+- **PR 237 review fixes**: Added jsonParsing unit tests, improved knowledge graph endpoint coverage (agent missing, maxResults bounds, query escaping), fixed SVG marker ID collisions, added accessible search label + reset view control, and stabilized LIKE escape string handling. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for knowledge graph/jsonParsing.
 - **Knowledge graph panels visibility**: Adjusted the graph container to scroll internally without forcing column width and ensured facts list uses min-height-safe flex overflow so the overview stays visible. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Knowledge graph fixed height**: Locked the graph and facts overview panels to a fixed height with internal scrolling to avoid layout jumps when selecting nodes. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Knowledge graph pan/zoom**: Added mouse drag panning and wheel zooming to the knowledge graph SVG with viewBox updates for local navigation. Ran `pnpm typecheck` and `pnpm lint --fix`.

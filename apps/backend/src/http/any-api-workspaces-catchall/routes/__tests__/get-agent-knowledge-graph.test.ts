@@ -101,4 +101,117 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/knowledge-graph", () 
     });
     expect(mockClose).toHaveBeenCalled();
   });
+
+  it("returns 410 when agent is missing", async () => {
+    const mockDb = createMockDatabase();
+    mockDb.agent.get = vi.fn().mockResolvedValue(null);
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const { app, getHandler } = createTestAppWithHandlerCapture();
+    registerGetAgentKnowledgeGraph(app);
+    const handler = getHandler(
+      "/api/workspaces/:workspaceId/agents/:agentId/knowledge-graph",
+    );
+
+    const req = createMockRequest({
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+    }) as express.Request;
+
+    const res = createMockResponse() as express.Response;
+    const next = vi.fn();
+
+    await handler?.(req, res, next);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(next).toHaveBeenCalled();
+    const error = next.mock.calls[0]?.[0] as {
+      output?: { statusCode?: number };
+    };
+    expect(error?.output?.statusCode).toBe(410);
+  });
+
+  it("rejects invalid maxResults values", async () => {
+    const mockDb = createMockDatabase();
+    mockDb.agent.get = vi.fn().mockResolvedValue({
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+    });
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const { app, getHandler } = createTestAppWithHandlerCapture();
+    registerGetAgentKnowledgeGraph(app);
+    const handler = getHandler(
+      "/api/workspaces/:workspaceId/agents/:agentId/knowledge-graph",
+    );
+
+    const req = createMockRequest({
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      query: {
+        maxResults: "999",
+      },
+    }) as express.Request;
+
+    const res = createMockResponse() as express.Response;
+    const next = vi.fn();
+
+    await handler?.(req, res, next);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(next).toHaveBeenCalled();
+    const error = next.mock.calls[0]?.[0] as {
+      output?: { statusCode?: number };
+    };
+    expect(error?.output?.statusCode).toBe(400);
+  });
+
+  it("escapes queryText when building the SQL", async () => {
+    const mockDb = createMockDatabase();
+    mockDb.agent.get = vi.fn().mockResolvedValue({
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+    });
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockQueryGraph = vi.fn().mockResolvedValue([]);
+    const mockClose = vi.fn().mockResolvedValue(undefined);
+
+    mockCreateGraphDb.mockResolvedValue({
+      queryGraph: mockQueryGraph,
+      close: mockClose,
+    });
+
+    const { app, getHandler } = createTestAppWithHandlerCapture();
+    registerGetAgentKnowledgeGraph(app);
+    const handler = getHandler(
+      "/api/workspaces/:workspaceId/agents/:agentId/knowledge-graph",
+    );
+
+    const req = createMockRequest({
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      query: {
+        queryText: "guitar%_\"'",
+        maxResults: "10",
+      },
+    }) as express.Request;
+
+    const res = createMockResponse() as express.Response;
+    const next = createMockNext();
+
+    await handler?.(req, res, next);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(mockQueryGraph).toHaveBeenCalledWith(
+      expect.stringContaining("LIKE '%guitar\\%\\_\"''%' ESCAPE '\\'"),
+    );
+    expect(mockClose).toHaveBeenCalled();
+  });
 });

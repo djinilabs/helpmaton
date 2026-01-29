@@ -149,7 +149,7 @@ export const registerGetAgentMemory = (app: express.Application) => {
       ];
       if (!validGrains.includes(grainStr as TemporalGrain)) {
         throw badRequest(
-          `Invalid grain. Must be one of: ${validGrains.join(", ")}`
+          `Invalid grain. Must be one of: ${validGrains.join(", ")}`,
         );
       }
       const grain = grainStr as TemporalGrain;
@@ -174,7 +174,7 @@ export const registerGetAgentMemory = (app: express.Application) => {
         (previewLength !== undefined && isNaN(previewLength))
       ) {
         throw badRequest(
-          "Invalid numeric parameter. minimumDaysAgo, maximumDaysAgo, and maxResults must be valid numbers."
+          "Invalid numeric parameter. minimumDaysAgo, maximumDaysAgo, and maxResults must be valid numbers.",
         );
       }
 
@@ -185,13 +185,13 @@ export const registerGetAgentMemory = (app: express.Application) => {
         (previewLength !== undefined && previewLength < 1)
       ) {
         throw badRequest(
-          "minimumDaysAgo and maximumDaysAgo must be non-negative, maxResults must be at least 1, and previewLength must be at least 1 when provided."
+          "minimumDaysAgo and maximumDaysAgo must be non-negative, maxResults must be at least 1, and previewLength must be at least 1 when provided.",
         );
       }
 
       if (minimumDaysAgo > maximumDaysAgo) {
         throw badRequest(
-          "minimumDaysAgo must be less than or equal to maximumDaysAgo."
+          "minimumDaysAgo must be less than or equal to maximumDaysAgo.",
         );
       }
 
@@ -222,7 +222,7 @@ export const registerGetAgentMemory = (app: express.Application) => {
         agentId,
         records: responseRecords,
       });
-    })
+    }),
   );
 };
 
@@ -338,7 +338,7 @@ export const registerGetAgentMemoryRecord = (app: express.Application) => {
       ];
       if (!validGrains.includes(grainStr as TemporalGrain)) {
         throw badRequest(
-          `Invalid grain. Must be one of: ${validGrains.join(", ")}`
+          `Invalid grain. Must be one of: ${validGrains.join(", ")}`,
         );
       }
       const grain = grainStr as TemporalGrain;
@@ -363,10 +363,6 @@ export const registerGetAgentMemoryRecord = (app: express.Application) => {
         agentId,
         record,
       });
-    })
+    }),
   );
 };
-
-
-
-

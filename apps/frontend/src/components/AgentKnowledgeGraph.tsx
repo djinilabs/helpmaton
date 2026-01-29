@@ -1,4 +1,11 @@
-import { useMemo, useRef, useState, type FC, type MouseEvent } from "react";
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+  type MouseEvent,
+} from "react";
 
 import { useAgentKnowledgeGraph } from "../hooks/useAgentKnowledgeGraph";
 import type { KnowledgeGraphFact } from "../utils/api";
@@ -35,6 +42,11 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
   const [hoveredNode, setHoveredNode] = useState<HoveredNode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const markerIdRaw = useId();
+  const markerId = useMemo(
+    () => `arrow-${markerIdRaw.replace(/:/g, "-")}`,
+    [markerIdRaw],
+  );
   const panStateRef = useRef({
     isPanning: false,
     lastX: 0,
@@ -105,6 +117,11 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
     void refetch();
   };
 
+  const handleResetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
   const handleNodeHover = (
     event: MouseEvent<SVGCircleElement>,
     node: KnowledgeGraphNode,
@@ -150,10 +167,14 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
       <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
+            <label
+              htmlFor="knowledge-graph-search"
+              className="mb-2 block text-sm font-semibold dark:text-neutral-300"
+            >
               Search facts (optional)
             </label>
             <input
+              id="knowledge-graph-search"
               type="text"
               value={queryText}
               onChange={(event) => setQueryText(event.target.value)}
@@ -214,6 +235,15 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
             ref={containerRef}
             className="relative h-[520px] overflow-auto rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
           >
+            <div className="absolute right-4 top-4 z-10">
+              <button
+                type="button"
+                onClick={handleResetView}
+                className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              >
+                Reset view
+              </button>
+            </div>
             <svg
               ref={svgRef}
               width={layout.width}
@@ -284,7 +314,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
                 />
                 <defs>
                   <marker
-                    id="arrow"
+                  id={markerId}
                     viewBox="0 0 10 10"
                     refX="8"
                     refY="5"
@@ -315,7 +345,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
                         stroke="currentColor"
                         strokeWidth={isActive ? 2 : 1}
                         className={strokeClass}
-                        markerEnd="url(#arrow)"
+                      markerEnd={`url(#${markerId})`}
                         opacity={isActive ? 1 : 0.7}
                       />
                       {isActive && (
