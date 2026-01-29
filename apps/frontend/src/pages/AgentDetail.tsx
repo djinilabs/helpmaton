@@ -24,6 +24,7 @@ import {
   ClockIcon,
   ChevronRightIcon,
   PhotoIcon,
+  ShareIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -73,6 +74,11 @@ const UsageDashboard = lazy(() =>
 const AgentMemoryRecords = lazy(() =>
   import("../components/AgentMemoryRecords").then((module) => ({
     default: module.AgentMemoryRecords,
+  }))
+);
+const AgentKnowledgeGraph = lazy(() =>
+  import("../components/AgentKnowledgeGraph").then((module) => ({
+    default: module.AgentKnowledgeGraph,
   }))
 );
 const TransactionTable = lazy(() =>
@@ -3466,6 +3472,24 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
             onToggle={toggleSection}
           >
             <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
+          </AgentAccordionSection>
+
+          <AgentAccordionSection
+            id="knowledge-graph"
+            title={
+              <>
+                <ShareIcon className="mr-2 inline-block size-5" />
+                KNOWLEDGE GRAPH
+              </>
+            }
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
+          >
+            <AgentKnowledgeGraph
+              workspaceId={workspaceId}
+              agentId={agentId}
+              memoryExtractionEnabled={memoryExtractionEnabled}
+            />
           </AgentAccordionSection>
 
           {canEdit && (

@@ -13,6 +13,7 @@ import {
 import { database } from "../../tables";
 import { validateCreditsAndLimits } from "../creditValidation";
 import { createGraphDb } from "../duckdb/graphDb";
+import { parseJsonWithFallback } from "../jsonParsing";
 
 import {
   getEffectiveMemoryExtractionPrompt,
@@ -72,7 +73,7 @@ function buildExtractionMessages(conversationText: string): ModelMessage[] {
 }
 
 function parseExtractionResponse(text: string): MemoryExtractionResult {
-  const parsed = JSON.parse(text);
+  const parsed = parseJsonWithFallback<unknown>(text);
   const result = MemoryExtractionResponseSchema.parse(parsed);
   const summary = result.summary.trim();
   const memoryOperations = result.memory_operations.map((operation) => ({
@@ -83,6 +84,52 @@ function parseExtractionResponse(text: string): MemoryExtractionResult {
     confidence: operation.confidence ?? 1,
   }));
   return { summary, memoryOperations };
+}
+
+async function requestJsonRepair(params: {
+  model: Parameters<typeof generateText>[0]["model"];
+  modelName: string;
+  workspaceId: string;
+  agentId: string;
+  usesByok: boolean;
+  rawResponse: string;
+  errorMessage: string;
+}): Promise<string> {
+  const repairSystemPrompt =
+    "You are a JSON repair assistant. Return ONLY valid JSON for the schema: " +
+    '{ "summary": string, "memory_operations": Array<{ "operation": "ADD"|"UPDATE"|"DELETE", "subject": string, "predicate": string, "object": string, "confidence"?: number }> }';
+  const repairMessages: ModelMessage[] = [
+    {
+      role: "user",
+      content: `The previous response failed to parse as JSON.\nError: ${params.errorMessage}\n\nResponse:\n${params.rawResponse}\n\nFix the JSON and return only valid JSON, no markdown.`,
+    },
+  ];
+
+  const db = await database();
+  await validateCreditsAndLimits(
+    db,
+    params.workspaceId,
+    params.agentId,
+    "openrouter",
+    params.modelName,
+    repairMessages,
+    repairSystemPrompt,
+    undefined,
+    params.usesByok,
+  );
+
+  const requestTimeout = createRequestTimeout();
+  try {
+    const result = await generateText({
+      model: params.model,
+      system: repairSystemPrompt,
+      messages: repairMessages,
+      abortSignal: requestTimeout.signal,
+    });
+    return result.text.trim();
+  } finally {
+    cleanupRequestTimeout(requestTimeout);
+  }
 }
 
 export async function extractConversationMemory(params: {
@@ -169,11 +216,34 @@ export async function extractConversationMemory(params: {
   try {
     return parseExtractionResponse(resultText);
   } catch (error) {
-    console.error("[Memory Extraction] Failed to parse response:", {
-      error: error instanceof Error ? error.message : String(error),
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn("[Memory Extraction] Failed to parse response, retrying:", {
+      error: errorMessage,
       responsePreview: resultText.substring(0, 300),
     });
-    throw error;
+
+    const repairedText = await requestJsonRepair({
+      model: model as unknown as Parameters<typeof generateText>[0]["model"],
+      modelName: resolvedModelName,
+      workspaceId,
+      agentId,
+      usesByok,
+      rawResponse: resultText,
+      errorMessage,
+    });
+
+    try {
+      return parseExtractionResponse(repairedText);
+    } catch (repairError) {
+      console.error("[Memory Extraction] Failed to parse repaired response:", {
+        error:
+          repairError instanceof Error
+            ? repairError.message
+            : String(repairError),
+        responsePreview: repairedText.substring(0, 300),
+      });
+      throw repairError;
+    }
   }
 }
 

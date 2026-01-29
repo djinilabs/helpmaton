@@ -1929,6 +1929,45 @@ export async function getAgentMemory(
   return response.json();
 }
 
+export interface KnowledgeGraphFact {
+  id: string;
+  source_id: string;
+  target_id: string;
+  label: string;
+  properties?: Record<string, unknown> | null;
+}
+
+export interface AgentKnowledgeGraphOptions {
+  queryText?: string;
+  maxResults?: number;
+}
+
+export interface AgentKnowledgeGraphResponse {
+  workspaceId: string;
+  agentId: string;
+  facts: KnowledgeGraphFact[];
+}
+
+export async function getAgentKnowledgeGraph(
+  workspaceId: string,
+  agentId: string,
+  options: AgentKnowledgeGraphOptions = {},
+): Promise<AgentKnowledgeGraphResponse> {
+  const params = new URLSearchParams();
+  if (options.queryText && options.queryText.trim().length > 0) {
+    params.append("queryText", options.queryText.trim());
+  }
+  if (options.maxResults !== undefined) {
+    params.append("maxResults", options.maxResults.toString());
+  }
+  const queryString = params.toString();
+  const url = `/api/workspaces/${workspaceId}/agents/${agentId}/knowledge-graph${
+    queryString ? `?${queryString}` : ""
+  }`;
+  const response = await apiFetch(url);
+  return response.json();
+}
+
 export interface AgentMemoryRecordResponse {
   workspaceId: string;
   agentId: string;
@@ -1939,7 +1978,7 @@ export async function getAgentMemoryRecord(
   workspaceId: string,
   agentId: string,
   recordId: string,
-  grain: TemporalGrain = "working"
+  grain: TemporalGrain = "working",
 ): Promise<AgentMemoryRecordResponse> {
   const params = new URLSearchParams();
   if (grain) {

@@ -26,6 +26,7 @@ import { registerGetAgentEvalJudge } from "./routes/get-agent-eval-judge";
 import { registerGetAgentEvalJudges } from "./routes/get-agent-eval-judges";
 import { registerGetAgentEvalResults } from "./routes/get-agent-eval-results";
 import { registerGetAgentKeys } from "./routes/get-agent-keys";
+import { registerGetAgentKnowledgeGraph } from "./routes/get-agent-knowledge-graph";
 import {
   registerGetAgentMemory,
   registerGetAgentMemoryRecord,
@@ -190,6 +191,7 @@ export const createApp: () => express.Application = () => {
   registerGetAgentKeys(app);
   registerDeleteAgentKey(app);
   registerDeleteAgentSchedule(app);
+  registerGetAgentKnowledgeGraph(app);
   registerGetAgentMemory(app);
   registerGetAgentMemoryRecord(app);
   registerPutWorkspaceApiKey(app);
