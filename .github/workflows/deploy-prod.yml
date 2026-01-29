@@ -17,7 +17,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest-m
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     # Security: Explicit permissions - only what's needed
     permissions:
