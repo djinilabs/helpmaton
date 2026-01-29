@@ -382,6 +382,32 @@
             "type": "boolean",
             "description": "Enable the email sending tool for this agent (requires workspace email connection)"
           },
+          "enableImageGeneration": {
+            "type": "boolean",
+            "description": "Enable the image generation tool for this agent"
+          },
+          "imageGenerationModel": {
+            "type": "string",
+            "description": "Image generation model name from OpenRouter",
+            "nullable": true
+          },
+          "memoryExtractionEnabled": {
+            "type": "boolean",
+            "description": "Enable memory extraction for this agent"
+          },
+          "memoryExtractionModel": {
+            "type": "string",
+            "description": "Model name to use for memory extraction",
+            "nullable": true
+          },
+          "memoryExtractionPrompt": {
+            "type": "string",
+            "description": "Prompt to use for memory extraction",
+            "nullable": true
+          },
+          "summarizationPrompts": {
+            "$ref": "#/components/schemas/SummarizationPrompts"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -409,6 +435,37 @@
             "type": "object",
             "description": "JSON Schema for tool parameters",
             "additionalProperties": true
+          }
+        }
+      },
+      "SummarizationPrompts": {
+        "type": "object",
+        "description": "Optional summarization prompt overrides per temporal grain",
+        "properties": {
+          "daily": {
+            "type": "string",
+            "description": "Override prompt for daily summaries",
+            "nullable": true
+          },
+          "weekly": {
+            "type": "string",
+            "description": "Override prompt for weekly summaries",
+            "nullable": true
+          },
+          "monthly": {
+            "type": "string",
+            "description": "Override prompt for monthly summaries",
+            "nullable": true
+          },
+          "quarterly": {
+            "type": "string",
+            "description": "Override prompt for quarterly summaries",
+            "nullable": true
+          },
+          "yearly": {
+            "type": "string",
+            "description": "Override prompt for yearly summaries",
+            "nullable": true
           }
         }
       },
@@ -516,6 +573,32 @@
           "enableSendEmail": {
             "type": "boolean",
             "description": "Enable the email sending tool for this agent (requires workspace email connection)"
+          },
+          "enableImageGeneration": {
+            "type": "boolean",
+            "description": "Enable the image generation tool for this agent"
+          },
+          "imageGenerationModel": {
+            "type": "string",
+            "description": "Image generation model name from OpenRouter",
+            "nullable": true
+          },
+          "summarizationPrompts": {
+            "$ref": "#/components/schemas/SummarizationPrompts"
+          },
+          "memoryExtractionEnabled": {
+            "type": "boolean",
+            "description": "Enable memory extraction for this agent"
+          },
+          "memoryExtractionModel": {
+            "type": "string",
+            "description": "Model name to use for memory extraction",
+            "nullable": true
+          },
+          "memoryExtractionPrompt": {
+            "type": "string",
+            "description": "Prompt to use for memory extraction",
+            "nullable": true
           }
         }
       },
@@ -564,43 +647,35 @@
             "type": "boolean",
             "description": "Enable the document search tool for this agent"
           },
-          "enableKnowledgeInjection": {
-            "type": "boolean",
-            "description": "Enable knowledge injection for this agent"
-          },
-          "enableKnowledgeInjectionFromMemories": {
-            "type": "boolean",
-            "description": "Inject knowledge from agent memories"
-          },
-          "enableKnowledgeInjectionFromDocuments": {
-            "type": "boolean",
-            "description": "Inject knowledge from workspace documents"
-          },
-          "knowledgeInjectionSnippetCount": {
-            "type": "integer",
-            "description": "Number of knowledge snippets to inject"
-          },
-          "knowledgeInjectionMinSimilarity": {
-            "type": "number",
-            "description": "Minimum similarity score for injected snippets"
-          },
-          "knowledgeInjectionEntityExtractorModel": {
-            "type": "string",
-            "description": "Model used to extract entities from prompts",
-            "nullable": true
-          },
-          "enableKnowledgeReranking": {
-            "type": "boolean",
-            "description": "Enable re-ranking of injected snippets"
-          },
-          "knowledgeRerankingModel": {
-            "type": "string",
-            "description": "Re-ranking model name from OpenRouter",
-            "nullable": true
-          },
           "enableSendEmail": {
             "type": "boolean",
             "description": "Enable the email sending tool for this agent (requires workspace email connection)"
+          },
+          "enableImageGeneration": {
+            "type": "boolean",
+            "description": "Enable the image generation tool for this agent"
+          },
+          "imageGenerationModel": {
+            "type": "string",
+            "description": "Image generation model name from OpenRouter",
+            "nullable": true
+          },
+          "summarizationPrompts": {
+            "$ref": "#/components/schemas/SummarizationPrompts"
+          },
+          "memoryExtractionEnabled": {
+            "type": "boolean",
+            "description": "Enable memory extraction for this agent"
+          },
+          "memoryExtractionModel": {
+            "type": "string",
+            "description": "Model name to use for memory extraction",
+            "nullable": true
+          },
+          "memoryExtractionPrompt": {
+            "type": "string",
+            "description": "Prompt to use for memory extraction",
+            "nullable": true
           }
         }
       },
@@ -675,6 +750,14 @@
               "cost": {
                 "type": "integer",
                 "description": "Total cost in specified currency (nano-dollars)"
+              },
+              "rerankingCostUsd": {
+                "type": "integer",
+                "description": "Reranking costs in USD (nano-dollars)"
+              },
+              "evalCostUsd": {
+                "type": "integer",
+                "description": "Eval judge costs in USD (nano-dollars)"
               },
               "byModel": {
                 "type": "array",
@@ -778,7 +861,60 @@
             },
             "defaultModel": {
               "type": "string"
+            },
+            "imageModels": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "capabilities": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/ModelCapabilities"
+              }
             }
+          }
+        }
+      },
+      "ModelCapabilities": {
+        "type": "object",
+        "properties": {
+          "input_modalities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "output_modalities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supported_parameters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "text_generation": {
+            "type": "boolean"
+          },
+          "image_generation": {
+            "type": "boolean"
+          },
+          "rerank": {
+            "type": "boolean"
+          },
+          "tool_calling": {
+            "type": "boolean"
+          },
+          "structured_output": {
+            "type": "boolean"
+          },
+          "image": {
+            "type": "boolean"
           }
         }
       },
@@ -810,6 +946,69 @@
     }
   },
   "paths": {
+    "/api/user/verify-gate": {
+      "post": {
+        "summary": "Verify CAPTCHA and TOS acceptance for new users",
+        "description": "Validates Cloudflare Turnstile and requires Terms acceptance before allowing new user sign-in.",
+        "tags": [
+          "User"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "captchaToken",
+                  "acceptedTerms",
+                  "callbackUrl"
+                ],
+                "properties": {
+                  "captchaToken": {
+                    "type": "string",
+                    "description": "Cloudflare Turnstile CAPTCHA token"
+                  },
+                  "acceptedTerms": {
+                    "type": "boolean",
+                    "description": "User accepted terms of service"
+                  },
+                  "callbackUrl": {
+                    "type": "string",
+                    "description": "Auth callback URL from email link"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gate verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "gateToken": {
+                      "type": "string",
+                      "description": "Short-lived token proving verification"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/user/api-keys": {
       "post": {
         "summary": "Create user API key",
@@ -3858,6 +4057,439 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/schedules/{scheduleId}": {
+      "put": {
+        "summary": "Update a schedule",
+        "description": "Updates an existing schedule configuration",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "description": "Schedule ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "cronExpression": {
+                    "type": "string"
+                  },
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedule updated successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Schedule not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get a schedule",
+        "description": "Returns a single schedule configuration for an agent",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "description": "Schedule ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule details"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Schedule not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a schedule",
+        "description": "Deletes a schedule configuration",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "description": "Schedule ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Schedule deleted successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Schedule not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/eval-judges/{judgeId}": {
+      "put": {
+        "summary": "Update an eval judge",
+        "description": "Updates an existing eval judge configuration",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "judgeId",
+            "in": "path",
+            "required": true,
+            "description": "Judge ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "samplingProbability": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Probability percent for evaluating conversations"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "google",
+                      "openai",
+                      "anthropic",
+                      "openrouter"
+                    ]
+                  },
+                  "modelName": {
+                    "type": "string"
+                  },
+                  "evalPrompt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Eval judge updated successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Eval judge not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get an eval judge",
+        "description": "Returns details for a specific eval judge",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "judgeId",
+            "in": "path",
+            "required": true,
+            "description": "Judge ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eval judge details"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Eval judge not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an eval judge",
+        "description": "Deletes an eval judge configuration",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "judgeId",
+            "in": "path",
+            "required": true,
+            "description": "Judge ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Eval judge deleted successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Eval judge not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces": {
       "post": {
         "summary": "Create a new workspace",
@@ -4475,6 +5107,89 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/workspaces/import": {
+      "post": {
+        "summary": "Import workspace configuration",
+        "description": "Creates a new workspace from an exported workspace configuration JSON. Includes all agents, output channels, email connections, MCP servers, and bot integrations. All IDs will be regenerated as new UUIDs.",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceExport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Workspace imported successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The created workspace ID"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "permissionLevel": {
+                      "type": "string",
+                      "enum": [
+                        "owner",
+                        "admin",
+                        "write",
+                        "read"
+                      ]
+                    },
+                    "creditBalance": {
+                      "type": "number"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "spendingLimits": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -5263,159 +5978,6 @@
         }
       }
     },
-    "/api/streams/{workspaceId}/{agentId}/test": {
-      "post": {
-        "summary": "Test agent with streaming response",
-        "description": "Tests an agent by sending messages and receiving a streaming AI response. Handles credit validation, spending limits, and conversation logging.",
-        "tags": [
-          "Agents"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "workspaceId",
-            "in": "path",
-            "required": true,
-            "description": "Workspace ID",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "agentId",
-            "in": "path",
-            "required": true,
-            "description": "Agent ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "messages"
-                ],
-                "properties": {
-                  "messages": {
-                    "type": "array",
-                    "description": "Array of messages in ai-sdk UIMessage format",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "role": {
-                          "type": "string",
-                          "enum": [
-                            "user",
-                            "assistant",
-                            "system",
-                            "tool"
-                          ]
-                        },
-                        "content": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Streaming response (Server-Sent Events format)",
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "type": "string",
-                  "description": "SSE stream with UI message chunks"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "402": {
-            "description": "Insufficient credits",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "workspaceId": {
-                      "type": "string"
-                    },
-                    "required": {
-                      "type": "number"
-                    },
-                    "available": {
-                      "type": "number"
-                    },
-                    "currency": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "410": {
-            "description": "Agent not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Spending limit exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "failedLimits": {
-                      "type": "array",
-                      "items": {
-                        "type": "object"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
     "/api/workspaces/{workspaceId}/mcp-servers": {
       "post": {
         "summary": "Create workspace MCP server",
@@ -5979,6 +6541,140 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/schedules": {
+      "post": {
+        "summary": "Create a schedule for an agent",
+        "description": "Creates a new schedule configuration for an agent (UTC cron)",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "cronExpression",
+                  "prompt"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Schedule name"
+                  },
+                  "cronExpression": {
+                    "type": "string",
+                    "description": "Cron expression (UTC)"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "description": "First user message for scheduled run"
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether the schedule is enabled"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Schedule created successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "get": {
+        "summary": "List schedules for an agent",
+        "description": "Returns all schedules configured for an agent",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of schedules"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/keys": {
       "post": {
         "summary": "Create agent key",
@@ -6202,6 +6898,198 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/eval-judges": {
+      "post": {
+        "summary": "Create an eval judge for an agent",
+        "description": "Creates a new evaluation judge configuration for an agent",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "modelName",
+                  "evalPrompt"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Judge name"
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Whether the judge is enabled"
+                  },
+                  "samplingProbability": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 100,
+                    "description": "Probability percent for evaluating conversations"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "google",
+                      "openai",
+                      "anthropic",
+                      "openrouter"
+                    ],
+                    "default": "openrouter",
+                    "description": "LLM provider for the judge"
+                  },
+                  "modelName": {
+                    "type": "string",
+                    "description": "Model name for the judge"
+                  },
+                  "evalPrompt": {
+                    "type": "string",
+                    "description": "Evaluation prompt template"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Eval judge created successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "get": {
+        "summary": "List eval judges for an agent",
+        "description": "Returns all evaluation judges configured for an agent",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of eval judges",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "samplingProbability": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Probability percent for evaluating conversations"
+                      },
+                      "provider": {
+                        "type": "string"
+                      },
+                      "modelName": {
+                        "type": "string"
+                      },
+                      "evalPrompt": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -6727,6 +7615,26 @@
                           },
                           "cost": {
                             "type": "number"
+                          },
+                          "rerankingCostUsd": {
+                            "type": "number",
+                            "description": "Reranking costs in USD (nano-dollars)"
+                          },
+                          "evalCostUsd": {
+                            "type": "number",
+                            "description": "Eval judge costs in USD (nano-dollars)"
+                          },
+                          "conversationCount": {
+                            "type": "integer"
+                          },
+                          "messagesIn": {
+                            "type": "integer"
+                          },
+                          "messagesOut": {
+                            "type": "integer"
+                          },
+                          "totalMessages": {
+                            "type": "integer"
                           }
                         }
                       }
@@ -7056,6 +7964,77 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/export": {
+      "get": {
+        "summary": "Export workspace configuration",
+        "description": "Exports a complete workspace configuration as a downloadable JSON file. Includes all agents, output channels, email connections, MCP servers, and bot integrations. Requires READ permission or higher.",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace export file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceExport"
+                },
+                "encoding": {
+                  "contentType": "application/json"
+                }
+              }
+            },
+            "headers": {
+              "Content-Disposition": {
+                "description": "Attachment header with filename",
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"workspace-export-abc123.json\""
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Workspace not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/documents/search": {
       "get": {
         "summary": "Search workspace documents",
@@ -7344,6 +8323,125 @@
           },
           "410": {
             "description": "Workspace not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/mcp-servers/{serverId}/tools": {
+      "get": {
+        "summary": "Get MCP server tools",
+        "description": "Returns the tools provided by a single MCP server, including parameters and descriptions",
+        "tags": [
+          "MCP Servers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serverId",
+            "in": "path",
+            "required": true,
+            "description": "MCP server ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tools grouped by category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "category": {
+                        "type": "string"
+                      },
+                      "tools": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "category": {
+                              "type": "string"
+                            },
+                            "alwaysAvailable": {
+                              "type": "boolean"
+                            },
+                            "condition": {
+                              "type": "string"
+                            },
+                            "parameters": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "required": {
+                                    "type": "boolean"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "MCP server not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -7878,6 +8976,26 @@
                           },
                           "cost": {
                             "type": "number"
+                          },
+                          "rerankingCostUsd": {
+                            "type": "number",
+                            "description": "Reranking costs in USD (nano-dollars)"
+                          },
+                          "evalCostUsd": {
+                            "type": "number",
+                            "description": "Eval judge costs in USD (nano-dollars)"
+                          },
+                          "conversationCount": {
+                            "type": "integer"
+                          },
+                          "messagesIn": {
+                            "type": "integer"
+                          },
+                          "messagesOut": {
+                            "type": "integer"
+                          },
+                          "totalMessages": {
+                            "type": "integer"
                           }
                         }
                       }
@@ -8067,6 +9185,125 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/tools": {
+      "get": {
+        "summary": "Get agent tools",
+        "description": "Returns a list of all tools available to the agent, grouped by category",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tools grouped by category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "category": {
+                        "type": "string"
+                      },
+                      "tools": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "category": {
+                              "type": "string"
+                            },
+                            "alwaysAvailable": {
+                              "type": "boolean"
+                            },
+                            "condition": {
+                              "type": "string"
+                            },
+                            "parameters": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "required": {
+                                    "type": "boolean"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/memory": {
       "get": {
         "summary": "Get agent memory records",
@@ -8150,6 +9387,14 @@
               "type": "integer",
               "default": 50
             }
+          },
+          {
+            "name": "previewLength",
+            "in": "query",
+            "description": "If set, truncates content to the first N characters",
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -8171,6 +9416,9 @@
                       "items": {
                         "type": "object",
                         "properties": {
+                          "id": {
+                            "type": "string"
+                          },
                           "content": {
                             "type": "string"
                           },
@@ -8181,6 +9429,259 @@
                             "type": "string"
                           },
                           "metadata": {
+                            "type": "object"
+                          },
+                          "isTruncated": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/memory/{recordId}": {
+      "get": {
+        "summary": "Get an agent memory record by ID",
+        "description": "Returns a full memory record for a specific agent by record ID.",
+        "tags": [
+          "Agents",
+          "Memory"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordId",
+            "in": "path",
+            "required": true,
+            "description": "Memory record ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grain",
+            "in": "query",
+            "description": "Temporal grain to search (working, daily, weekly, monthly, quarterly, yearly)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "working",
+                "daily",
+                "weekly",
+                "monthly",
+                "quarterly",
+                "yearly"
+              ],
+              "default": "working"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent memory record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspaceId": {
+                      "type": "string"
+                    },
+                    "agentId": {
+                      "type": "string"
+                    },
+                    "record": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "content": {
+                          "type": "string"
+                        },
+                        "date": {
+                          "type": "string"
+                        },
+                        "timestamp": {
+                          "type": "string"
+                        },
+                        "metadata": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "Memory record not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/knowledge-graph": {
+      "get": {
+        "summary": "Get agent knowledge graph facts",
+        "description": "Returns knowledge graph facts for an agent with optional text filtering",
+        "tags": [
+          "Agents",
+          "Memory"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "queryText",
+            "in": "query",
+            "description": "Optional text filter for graph facts",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxResults",
+            "in": "query",
+            "description": "Maximum number of facts to return (default: 200, max: 500)",
+            "schema": {
+              "type": "integer",
+              "default": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent knowledge graph facts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspaceId": {
+                      "type": "string"
+                    },
+                    "agentId": {
+                      "type": "string"
+                    },
+                    "facts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "source_id": {
+                            "type": "string"
+                          },
+                          "target_id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "properties": {
                             "type": "object"
                           }
                         }
@@ -8209,6 +9710,149 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/eval-results": {
+      "get": {
+        "summary": "Get aggregated evaluation results for an agent",
+        "description": "Returns aggregated evaluation results for an agent, optionally filtered by time span. Results are paginated.",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Start date for filtering (ISO 8601)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "End date for filtering (ISO 8601)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "judgeId",
+            "in": "query",
+            "required": false,
+            "description": "Filter by specific judge ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of results to return (default 50, max 100)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Pagination cursor for fetching next page",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregated evaluation results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalEvaluations": {
+                      "type": "integer",
+                      "description": "Total number of evaluations matching filters (across all pages)"
+                    },
+                    "averageScores": {
+                      "type": "object",
+                      "properties": {
+                        "goalCompletion": {
+                          "type": "number"
+                        },
+                        "toolEfficiency": {
+                          "type": "number"
+                        },
+                        "faithfulness": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "criticalFailures": {
+                      "type": "integer",
+                      "description": "Total number of critical failures (across all pages)"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Cursor for fetching next page, null if no more pages"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -8423,6 +10067,11 @@
                           "targetAgentId": {
                             "type": "string"
                           },
+                          "targetConversationId": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Conversation ID of the target agent's conversation"
+                          },
                           "taskId": {
                             "type": "string",
                             "nullable": true
@@ -8465,6 +10114,131 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/conversations/{conversationId}/eval-results": {
+      "get": {
+        "summary": "Get evaluation results for a conversation",
+        "description": "Returns all evaluation results for a specific conversation",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "description": "Conversation ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of evaluation results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "judgeId": {
+                        "type": "string"
+                      },
+                      "judgeName": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "completed",
+                          "failed"
+                        ]
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "scoreGoalCompletion": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "scoreToolEfficiency": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "scoreFaithfulness": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "criticalFailureDetected": {
+                        "type": "boolean"
+                      },
+                      "reasoningTrace": {
+                        "type": "string"
+                      },
+                      "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "errorDetails": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "costUsd": {
+                        "type": "number",
+                        "nullable": true
+                      },
+                      "evaluatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -8593,10 +10367,39 @@
         }
       }
     },
-    "/api/usage": {
+    "/api/version": {
       "get": {
-        "summary": "Get usage statistics",
-        "description": "Returns aggregated usage statistics across all workspaces the authenticated user has access to",
+        "summary": "Get current product version",
+        "description": "Returns the current product version of the frontend bundle",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "Current product version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/usage/daily": {
+      "get": {
+        "summary": "Get user daily usage statistics",
+        "description": "Returns daily breakdown of usage statistics across all workspaces the authenticated user has access to",
         "tags": [
           "Usage"
         ],
@@ -8613,9 +10416,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "usd",
-                "eur",
-                "gbp"
+                "usd"
               ],
               "default": "usd"
             }
@@ -8641,11 +10442,71 @@
         ],
         "responses": {
           "200": {
-            "description": "Usage statistics",
+            "description": "Daily usage statistics",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UsageResponse"
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "daily": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "inputTokens": {
+                            "type": "integer"
+                          },
+                          "outputTokens": {
+                            "type": "integer"
+                          },
+                          "totalTokens": {
+                            "type": "integer"
+                          },
+                          "cost": {
+                            "type": "number"
+                          },
+                          "rerankingCostUsd": {
+                            "type": "number",
+                            "description": "Reranking costs in USD (nano-dollars)"
+                          },
+                          "evalCostUsd": {
+                            "type": "number",
+                            "description": "Eval judge costs in USD (nano-dollars)"
+                          },
+                          "conversationCount": {
+                            "type": "integer"
+                          },
+                          "messagesIn": {
+                            "type": "integer"
+                          },
+                          "messagesOut": {
+                            "type": "integer"
+                          },
+                          "totalMessages": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -8715,6 +10576,75 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/usage": {
+      "get": {
+        "summary": "Get usage statistics",
+        "description": "Returns aggregated usage statistics across all workspaces the authenticated user has access to",
+        "tags": [
+          "Usage"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "description": "Currency for cost calculations",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "usd",
+                "eur",
+                "gbp"
+              ],
+              "default": "usd"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "description": "Start date for usage statistics (YYYY-MM-DD format)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "description": "End date for usage statistics (YYYY-MM-DD format). Defaults to today.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }

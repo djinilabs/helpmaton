@@ -59,28 +59,28 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *                 lastMessageAt:
  *                   type: string
  *                   format: date-time
- *                                  delegations:
-                 *                   type: array
-                 *                   items:
-                 *                     type: object
-                 *                     properties:
-                 *                       callingAgentId:
-                 *                         type: string
-                 *                       targetAgentId:
-                 *                         type: string
-                 *                       targetConversationId:
-                 *                         type: string
-                 *                         nullable: true
-                 *                         description: Conversation ID of the target agent's conversation
-                 *                       taskId:
-                 *                         type: string
-                 *                         nullable: true
-                 *                       timestamp:
-                 *                         type: string
-                 *                         format: date-time
-                 *                       status:
-                 *                         type: string
-                 *                         enum: [completed, failed, cancelled]
+ *                 delegations:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       callingAgentId:
+ *                         type: string
+ *                       targetAgentId:
+ *                         type: string
+ *                       targetConversationId:
+ *                         type: string
+ *                         nullable: true
+ *                         description: Conversation ID of the target agent's conversation
+ *                       taskId:
+ *                         type: string
+ *                         nullable: true
+ *                       timestamp:
+ *                         type: string
+ *                         format: date-time
+ *                       status:
+ *                         type: string
+ *                         enum: [completed, failed, cancelled]
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -147,6 +147,6 @@ export const registerGetAgentConversation = (app: express.Application) => {
         provider: conversation.provider ?? null,
         rerankingCostUsd: conversation.rerankingCostUsd ?? null,
       });
-    })
+    }),
   );
 };
