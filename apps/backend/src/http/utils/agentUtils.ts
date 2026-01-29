@@ -17,12 +17,14 @@ import {
   buildGenerateTextOptions as buildGenerateTextOptionsImpl,
   createAgentModel as createAgentModelImpl,
 } from "./agent-model";
-import { callAgentInternal as callAgentInternalImpl } from "./call-agent-internal";
+import {
+  callAgentInternal as callAgentInternalImpl,
+  DELEGATION_TIMEOUT_MS,
+} from "./call-agent-internal";
 import type { LlmObserver } from "./llmObserver";
 import type { Provider } from "./modelFactory";
 
 export { MODEL_NAME };
-
 
 /**
  * Cache for agent metadata to avoid repeated database queries
@@ -87,14 +89,14 @@ function cleanupExpiredCacheEntries(force: boolean = false): void {
 
   if (cleaned > 0) {
     console.log(
-      `[Agent Cache] Cleaned up ${cleaned} expired entries (cache size: ${agentMetadataCache.size})`
+      `[Agent Cache] Cleaned up ${cleaned} expired entries (cache size: ${agentMetadataCache.size})`,
     );
   }
 }
 
 function getCachedAgent(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): CachedAgent | null {
   const key = `${workspaceId}:${agentId}`;
   const cached = agentMetadataCache.get(key);
@@ -111,7 +113,7 @@ function getCachedAgent(
 function setCachedAgent(
   workspaceId: string,
   agentId: string,
-  agent: CachedAgent
+  agent: CachedAgent,
 ): void {
   const key = `${workspaceId}:${agentId}`;
   agentMetadataCache.set(key, { agent, timestamp: Date.now() });
@@ -145,7 +147,7 @@ export interface WorkspaceAndAgent {
  */
 export async function getWorkspaceApiKey(
   workspaceId: string,
-  provider: Provider = "openrouter"
+  provider: Provider = "openrouter",
 ): Promise<string | null> {
   return getWorkspaceApiKeyImpl(workspaceId, provider);
 }
@@ -170,7 +172,7 @@ export async function createAgentModel(
     stopSequences?: string[] | null;
     [key: string]: unknown;
   },
-  llmObserver?: LlmObserver
+  llmObserver?: LlmObserver,
 ) {
   return createAgentModelImpl(
     referer,
@@ -182,7 +184,7 @@ export async function createAgentModel(
     userId,
     provider,
     agentConfig,
-    llmObserver
+    llmObserver,
   );
 }
 
@@ -206,7 +208,7 @@ export function buildGenerateTextOptions(agent: {
  */
 export async function validateWorkspaceAndAgent(
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<WorkspaceAndAgent> {
   const db = await database();
 
@@ -242,10 +244,10 @@ export function createSearchDocumentsTool(
         documentId: string;
         folderPath: string;
         similarity: number;
-      }>
+      }>,
     ) => string;
     messages?: unknown[];
-  }
+  },
 ) {
   const searchDocumentsParamsSchema = z.object({
     query: z
@@ -253,7 +255,7 @@ export function createSearchDocumentsTool(
       .min(1, "Query parameter is required and cannot be empty")
       .describe(
         options?.queryDescription ||
-          "MANDATORY: The search terms to look for in the documents. Extract this directly from the user's request. If user says 'search for X', use query='X'. If user says 'find Y', use query='Y'. Always use the exact terms or keywords the user mentioned. This parameter is REQUIRED - you must always provide it when calling this tool."
+          "MANDATORY: The search terms to look for in the documents. Extract this directly from the user's request. If user says 'search for X', use query='X'. If user says 'find Y', use query='Y'. Always use the exact terms or keywords the user mentioned. This parameter is REQUIRED - you must always provide it when calling this tool.",
       ),
     topN: z
       .number()
@@ -274,7 +276,7 @@ export function createSearchDocumentsTool(
       documentId: string;
       folderPath: string;
       similarity: number;
-    }>
+    }>,
   ) => {
     return results.map((result) => result.snippet).join("\n\n---\n\n");
   };
@@ -313,13 +315,13 @@ export function createSearchDocumentsTool(
               typeof lastMessage === "object" && "content" in lastMessage
                 ? String(lastMessage.content)
                 : typeof lastMessage === "string"
-                ? lastMessage
-                : "";
+                  ? lastMessage
+                  : "";
 
             if (messageText) {
               // Try to extract search terms from the message
               const searchMatch = messageText.match(
-                /(?:search|find|look).*?(?:for|about)\s+(.+?)(?:\s|$|and|tell)/i
+                /(?:search|find|look).*?(?:for|about)\s+(.+?)(?:\s|$|and|tell)/i,
               );
               if (searchMatch && searchMatch[1]) {
                 query = searchMatch[1].trim();
@@ -370,17 +372,17 @@ export function createSearchDocumentsTool(
           error: error instanceof Error ? error.message : String(error),
           arguments: { query: typedArgs.query, topN: typedArgs.topN },
         });
-    Sentry.captureException(ensureError(error), {
-      tags: {
-        context: "agent-tool",
-        tool: "search_documents",
-      },
-      extra: {
-        workspaceId,
-        query: typedArgs.query,
-        topN: typedArgs.topN,
-      },
-    });
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "search_documents",
+          },
+          extra: {
+            workspaceId,
+            query: typedArgs.query,
+            topN: typedArgs.topN,
+          },
+        });
         return errorMessage;
       }
     },
@@ -392,14 +394,14 @@ export function createSearchDocumentsTool(
  */
 export function createSendNotificationTool(
   workspaceId: string,
-  channelId: string
+  channelId: string,
 ) {
   const sendNotificationParamsSchema = z.object({
     content: z
       .string()
       .min(1, "Content parameter is required and cannot be empty")
       .describe(
-        "REQUIRED: The notification message text to send. This MUST be a non-empty string containing the actual message content. This is the ONLY parameter required. The channel is pre-configured - you do NOT need and CANNOT provide a channel ID. Just put the message text here. Example: If user wants to send 'hello world', use content='hello world'. The message will be sent to the pre-configured channel automatically. NEVER call this tool with an empty string or without the content parameter."
+        "REQUIRED: The notification message text to send. This MUST be a non-empty string containing the actual message content. This is the ONLY parameter required. The channel is pre-configured - you do NOT need and CANNOT provide a channel ID. Just put the message text here. Example: If user wants to send 'hello world', use content='hello world'. The message will be sent to the pre-configured channel automatically. NEVER call this tool with an empty string or without the content parameter.",
       ),
   });
 
@@ -439,7 +441,7 @@ export function createSendNotificationTool(
       if (!("content" in args)) {
         console.error(
           "[send_notification] Missing 'content' parameter in args:",
-          args
+          args,
         );
         return "Error: The send_notification tool requires a 'content' parameter with the notification message. Please provide the message text in the 'content' parameter. Example: { content: 'Your message here' }";
       }
@@ -506,16 +508,16 @@ export function createSendNotificationTool(
               : undefined,
           },
         });
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          context: "agent-tool",
-          tool: "send_notification",
-        },
-        extra: {
-          workspaceId,
-          channelId,
-        },
-      });
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "send_notification",
+          },
+          extra: {
+            workspaceId,
+            channelId,
+          },
+        });
         return errorMessage;
       }
     },
@@ -568,12 +570,12 @@ export function createGetDatetimeTool() {
           toolName: "get_datetime",
           error: error instanceof Error ? error.message : String(error),
         });
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          context: "agent-tool",
-          tool: "get_datetime",
-        },
-      });
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "get_datetime",
+          },
+        });
         return errorMessage;
       }
     },
@@ -589,32 +591,32 @@ export function createSendEmailTool(workspaceId: string) {
       .string()
       .email("to must be a valid email address")
       .describe(
-        "REQUIRED: The recipient email address. This MUST be a valid email address. Example: 'user@example.com'"
+        "REQUIRED: The recipient email address. This MUST be a valid email address. Example: 'user@example.com'",
       ),
     subject: z
       .string()
       .min(1, "subject is required and cannot be empty")
       .describe(
-        "REQUIRED: The email subject line. This MUST be a non-empty string. Example: 'Hello from Helpmaton'"
+        "REQUIRED: The email subject line. This MUST be a non-empty string. Example: 'Hello from Helpmaton'",
       ),
     text: z
       .string()
       .min(1, "text is required and cannot be empty")
       .describe(
-        "REQUIRED: The plain text email body. This MUST be a non-empty string containing the email message content."
+        "REQUIRED: The plain text email body. This MUST be a non-empty string containing the email message content.",
       ),
     html: z
       .string()
       .optional()
       .describe(
-        "OPTIONAL: The HTML email body. If provided, this will be used instead of the plain text version for email clients that support HTML."
+        "OPTIONAL: The HTML email body. If provided, this will be used instead of the plain text version for email clients that support HTML.",
       ),
     from: z
       .string()
       .email("from must be a valid email address")
       .optional()
       .describe(
-        "OPTIONAL: The sender email address. If not provided, the email connection's default sender will be used."
+        "OPTIONAL: The sender email address. If not provided, the email connection's default sender will be used.",
       ),
   });
 
@@ -682,16 +684,16 @@ export function createSendEmailTool(workspaceId: string) {
             }`,
           },
         });
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          context: "agent-tool",
-          tool: "send_email",
-        },
-        extra: {
-          workspaceId,
-          to,
-        },
-      });
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "send_email",
+          },
+          extra: {
+            workspaceId,
+            to,
+          },
+        });
         return errorMessage;
       }
     },
@@ -714,10 +716,10 @@ export async function callAgentInternal(
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
   >,
-  timeoutMs: number = 60000, // Default 60 seconds (deprecated, use abortSignal instead)
+  timeoutMs: number = DELEGATION_TIMEOUT_MS, // Default 5 min; use abortSignal to tie to parent (e.g. webhook/queue)
   conversationId?: string,
   conversationOwnerAgentId?: string, // Agent ID that owns the conversation (for delegation tracking)
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
 ): Promise<{
   response: string;
   targetAgentConversationId: string;
@@ -733,9 +735,8 @@ export async function callAgentInternal(
     timeoutMs,
     conversationId,
     conversationOwnerAgentId,
-    abortSignal
+    abortSignal,
   );
-
 }
 
 /**
@@ -887,7 +888,7 @@ function buildAgentCapabilities(agent: CachedAgent): string[] {
 
   if (agent.enabledMcpServerIds && agent.enabledMcpServerIds.length > 0) {
     capabilities.push(
-      `mcp_tools (${agent.enabledMcpServerIds.length} servers)`
+      `mcp_tools (${agent.enabledMcpServerIds.length} servers)`,
     );
   }
 
@@ -897,7 +898,7 @@ function buildAgentCapabilities(agent: CachedAgent): string[] {
 
   if (agent.delegatableAgentIds && agent.delegatableAgentIds.length > 0) {
     capabilities.push(
-      `delegation (${agent.delegatableAgentIds.length} agents)`
+      `delegation (${agent.delegatableAgentIds.length} agents)`,
     );
   }
 
@@ -912,7 +913,7 @@ function buildAgentCapabilities(agent: CachedAgent): string[] {
 export async function findAgentByQuery(
   workspaceId: string,
   query: string,
-  delegatableAgentIds: string[]
+  delegatableAgentIds: string[],
 ): Promise<{ agentId: string; agentName: string; score: number } | null> {
   const db = await database();
   const queryLower = query.toLowerCase().trim();
@@ -925,12 +926,12 @@ export async function findAgentByQuery(
   // Get all delegatable agents (with caching)
   const agents = await Promise.all(
     delegatableAgentIds.map((agentId) =>
-      fetchAndCacheAgent(db, workspaceId, agentId)
-    )
+      fetchAndCacheAgent(db, workspaceId, agentId),
+    ),
   );
 
   const validAgents = agents.filter(
-    (agent): agent is CachedAgent => agent !== null
+    (agent): agent is CachedAgent => agent !== null,
   );
 
   if (validAgents.length === 0) {
@@ -975,7 +976,7 @@ export async function findAgentByQuery(
     const capabilitiesStr = capabilities.join(" ").toLowerCase();
     const capabilitiesSimilarity = calculateStringSimilarity(
       queryLower,
-      capabilitiesStr
+      capabilitiesStr,
     );
     score += capabilitiesSimilarity * SCORE_WEIGHTS.CAPABILITIES_SIMILARITY;
 
@@ -988,7 +989,7 @@ export async function findAgentByQuery(
     for (const queryToken of queryTokensForKeywords) {
       // Check exact keyword matches
       for (const [keyword, relatedCapabilities] of Object.entries(
-        capabilityKeywords
+        capabilityKeywords,
       )) {
         if (
           queryToken === keyword ||
@@ -1071,7 +1072,7 @@ function formatAgentList(agents: CachedAgent[], workspaceId: string): string {
 async function fetchAndCacheAgent(
   db: Awaited<ReturnType<typeof database>>,
   workspaceId: string,
-  agentId: string
+  agentId: string,
 ): Promise<CachedAgent | null> {
   // Check cache first
   const cached = getCachedAgent(workspaceId, agentId);
@@ -1114,15 +1115,15 @@ async function fetchAndCacheAgent(
  */
 async function fetchDelegatableAgents(
   workspaceId: string,
-  delegatableAgentIds: string[]
+  delegatableAgentIds: string[],
 ): Promise<CachedAgent[]> {
   const db = await database();
 
   // Get all delegatable agents (with caching)
   const agents = await Promise.all(
     delegatableAgentIds.map((agentId) =>
-      fetchAndCacheAgent(db, workspaceId, agentId)
-    )
+      fetchAndCacheAgent(db, workspaceId, agentId),
+    ),
   );
 
   // Filter out any null results (agents that don't exist)
@@ -1134,7 +1135,7 @@ async function fetchDelegatableAgents(
  */
 export function createListAgentsTool(
   workspaceId: string,
-  delegatableAgentIds: string[]
+  delegatableAgentIds: string[],
 ) {
   const listAgentsParamsSchema = z.object({});
 
@@ -1151,7 +1152,7 @@ export function createListAgentsTool(
       try {
         const validAgents = await fetchDelegatableAgents(
           workspaceId,
-          delegatableAgentIds
+          delegatableAgentIds,
         );
 
         return formatAgentList(validAgents, workspaceId);
@@ -1189,7 +1190,7 @@ export function createCallAgentTool(
     >
   >,
   conversationId?: string,
-  conversationOwnerAgentId?: string // Agent ID that owns the conversation (for delegation tracking)
+  conversationOwnerAgentId?: string, // Agent ID that owns the conversation (for delegation tracking)
 ) {
   const callAgentParamsSchema = z
     .object({
@@ -1198,27 +1199,27 @@ export function createCallAgentTool(
         .min(1, "agentId parameter is required")
         .optional()
         .describe(
-          "The exact agent ID to delegate to. You can get this by calling list_agents first, or use the query parameter to find an agent by description."
+          "The exact agent ID to delegate to. You can get this by calling list_agents first, or use the query parameter to find an agent by description.",
         ),
       agent_id: z
         .string()
         .min(1, "agent_id parameter is required")
         .optional()
         .describe(
-          "The exact agent ID to delegate to (alternative to agentId). You can get this by calling list_agents first, or use the query parameter to find an agent by description."
+          "The exact agent ID to delegate to (alternative to agentId). You can get this by calling list_agents first, or use the query parameter to find an agent by description.",
         ),
       query: z
         .string()
         .min(1, "query parameter is required")
         .optional()
         .describe(
-          "Semantic query to find an agent (e.g., 'find an agent that can search documents' or 'agent that handles email'). Mutually exclusive with agentId/agent_id. The system will match your query against agent names, descriptions, and capabilities."
+          "Semantic query to find an agent (e.g., 'find an agent that can search documents' or 'agent that handles email'). Mutually exclusive with agentId/agent_id. The system will match your query against agent names, descriptions, and capabilities.",
         ),
       message: z
         .string()
         .min(1, "message parameter is required")
         .describe(
-          "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle."
+          "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle.",
         ),
     })
     .refine((data) => data.agentId || data.agent_id || data.query, {
@@ -1240,9 +1241,12 @@ export function createCallAgentTool(
     parameters: callAgentParamsSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+    execute: async (
+      args: unknown,
+      toolOptions?: { abortSignal?: AbortSignal },
+    ) => {
       const typedArgs = args as CallAgentArgs;
+      const parentAbortSignal = toolOptions?.abortSignal;
       // Normalize: accept both agentId and agent_id, prefer agentId
       let agentId = typedArgs.agentId || typedArgs.agent_id;
       const { message, query } = typedArgs;
@@ -1271,7 +1275,7 @@ export function createCallAgentTool(
           const match = await findAgentByQuery(
             workspaceId,
             query,
-            delegatableAgentIds
+            delegatableAgentIds,
           );
           if (match) {
             agentId = match.agentId;
@@ -1286,11 +1290,11 @@ export function createCallAgentTool(
             // No match found above threshold - fetch and include agent list in error
             const validAgents = await fetchDelegatableAgents(
               workspaceId,
-              delegatableAgentIds
+              delegatableAgentIds,
             );
             const formattedAgentList = formatAgentList(
               validAgents,
-              workspaceId
+              workspaceId,
             );
             const errorMessage = `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
             console.error("[Tool Error] call_agent", {
@@ -1412,7 +1416,7 @@ export function createCallAgentTool(
         const targetAgentName = targetAgent.name;
 
         // Call the agent internally
-        // Pass conversationId and conversationOwnerAgentId through to nested delegations
+        // Pass parent abort signal when available (e.g. from webhook/stream) so delegation aborts with parent; cap at DELEGATION_TIMEOUT_MS
         const delegationResult = await callAgentInternal(
           workspaceId,
           agentId,
@@ -1420,13 +1424,15 @@ export function createCallAgentTool(
           callDepth,
           maxDepth,
           context,
-          60000, // timeoutMs
+          DELEGATION_TIMEOUT_MS,
           conversationId,
-          conversationOwnerAgentId || currentAgentId
+          conversationOwnerAgentId || currentAgentId,
+          parentAbortSignal,
         );
 
         const response = delegationResult.response;
-        const targetAgentConversationId = delegationResult.targetAgentConversationId;
+        const targetAgentConversationId =
+          delegationResult.targetAgentConversationId;
 
         // Wrap response with metadata
         let result = `Agent ${targetAgentName} responded: ${response}`;
@@ -1471,15 +1477,18 @@ export function createCallAgentTool(
         // otherwise use currentAgentId (for tracking in calling agent's conversation)
         const ownerAgentId = conversationOwnerAgentId || currentAgentId;
         if (conversationId) {
-          console.log("[Delegation Tracking] Tracking sync delegation with targetConversationId:", {
-            workspaceId,
-            ownerAgentId,
-            conversationId,
-            callingAgentId: currentAgentId,
-            targetAgentId: agentId,
-            targetConversationId: targetAgentConversationId,
-            status: "completed",
-          });
+          console.log(
+            "[Delegation Tracking] Tracking sync delegation with targetConversationId:",
+            {
+              workspaceId,
+              ownerAgentId,
+              conversationId,
+              callingAgentId: currentAgentId,
+              targetAgentId: agentId,
+              targetConversationId: targetAgentConversationId,
+              status: "completed",
+            },
+          );
           await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
             callingAgentId: currentAgentId,
             targetAgentId: agentId,
@@ -1487,11 +1496,14 @@ export function createCallAgentTool(
             status: "completed",
           });
         } else {
-          console.warn("[Delegation Tracking] Skipping delegation tracking - no conversationId:", {
-            workspaceId,
-            currentAgentId,
-            targetAgentId: agentId,
-          });
+          console.warn(
+            "[Delegation Tracking] Skipping delegation tracking - no conversationId:",
+            {
+              workspaceId,
+              currentAgentId,
+              targetAgentId: agentId,
+            },
+          );
         }
 
         return result;
@@ -1580,7 +1592,7 @@ export function createCallAgentAsyncTool(
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
   >,
-  conversationId?: string
+  conversationId?: string,
   // Note: conversationOwnerAgentId is not yet used for async delegations
   // as it requires updating the message schema. For now, async delegations
   // use callingAgentId from the message for tracking.
@@ -1594,13 +1606,13 @@ export function createCallAgentAsyncTool(
         .min(1)
         .optional()
         .describe(
-          "Semantic query to find an agent (e.g., 'find an agent that can search documents'). Mutually exclusive with agentId/agent_id."
+          "Semantic query to find an agent (e.g., 'find an agent that can search documents'). Mutually exclusive with agentId/agent_id.",
         ),
       message: z
         .string()
         .min(1, "message parameter is required")
         .describe(
-          "The message or query to send to the delegated agent. This will be processed asynchronously."
+          "The message or query to send to the delegated agent. This will be processed asynchronously.",
         ),
     })
     .refine((data) => data.agentId || data.agent_id || data.query, {
@@ -1634,7 +1646,7 @@ export function createCallAgentAsyncTool(
           const match = await findAgentByQuery(
             workspaceId,
             query,
-            delegatableAgentIds
+            delegatableAgentIds,
           );
           if (match) {
             agentId = match.agentId;
@@ -1647,11 +1659,11 @@ export function createCallAgentAsyncTool(
             // No match found above threshold - fetch and include agent list in error
             const validAgents = await fetchDelegatableAgents(
               workspaceId,
-              delegatableAgentIds
+              delegatableAgentIds,
             );
             const formattedAgentList = formatAgentList(
               validAgents,
-              workspaceId
+              workspaceId,
             );
             return `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
           }
@@ -1752,7 +1764,7 @@ export function createCallAgentAsyncTool(
               workspaceId,
               callingAgentId: currentAgentId,
               targetAgentId: agentId,
-            }
+            },
           );
           Sentry.captureException(ensureError(publishError), {
             tags: {
