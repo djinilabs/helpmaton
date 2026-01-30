@@ -64,19 +64,24 @@ export async function sendWorkspaceCreditNotifications({
   const oldBalanceDisplay = formatAmount(oldBalance);
   const newBalanceDisplay = formatAmount(newBalance);
   const currencyDisplay = currency.toUpperCase();
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const workspaceUrl = new URL(`/workspaces/${workspaceId}`, frontendUrl)
+    .toString();
   const trialNote = trialRequestId
     ? "This credit was linked to a trial request approval."
-    : "This credit was applied manually via the Discord /credit command.";
+    : "";
+  const trialSection = trialNote ? `\n${trialNote}\n` : "";
 
   const subject = `Workspace credit applied: ${workspace.name}`;
   const text = `Workspace credit applied
 
 Workspace: ${workspace.name} (${workspaceId})
+Workspace link: ${workspaceUrl}
 Amount credited: ${amountDisplay} ${currencyDisplay}
 Previous balance: ${oldBalanceDisplay} ${currencyDisplay}
 New balance: ${newBalanceDisplay} ${currencyDisplay}
 
-${trialNote}
+${trialSection}
 
 If you have any questions, reply to this email.`;
 
@@ -103,10 +108,11 @@ If you have any questions, reply to this email.`;
       <p class="summary">
         <span class="label">Workspace:</span> ${workspace.name} (${workspaceId})
       </p>
+      <p><span class="label">Workspace link:</span> <a href="${workspaceUrl}">${workspaceUrl}</a></p>
       <p><span class="label">Amount credited:</span> ${amountDisplay} ${currencyDisplay}</p>
       <p><span class="label">Previous balance:</span> ${oldBalanceDisplay} ${currencyDisplay}</p>
       <p><span class="label">New balance:</span> ${newBalanceDisplay} ${currencyDisplay}</p>
-      <p>${trialNote}</p>
+      ${trialNote ? `<p>${trialNote}</p>` : ""}
       <p>If you have any questions, reply to this email.</p>
     </div>
   </div>

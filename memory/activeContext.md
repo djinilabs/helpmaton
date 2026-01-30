@@ -5,6 +5,7 @@
 **Status**: Nano-dollar pricing conversion complete ✅
 
 - **Suppress stream credit error reports (2026-01-30)**: Skip Sentry capture for credit user errors in stream internal handler, rely on `isCreditUserError` in early failures, added unit test `internalHandler-credit-errors`, ran `pnpm --filter backend test --run internalHandler-credit-errors`, `pnpm typecheck`, and `pnpm lint --fix`.
+- **Credit applied email link (2026-01-30)**: Removed Discord /credit mention, added workspace link to credit applied email (text + HTML), ran `pnpm typecheck` and `pnpm lint --fix`.
 - **OpenRouter embedding timeout (2026-01-30)**: Sentry issue 92157436 in staging `agent-temporal-grain-queue` shows OpenRouter embeddings request timing out on headers (undici `HeadersTimeoutError` → `TypeError: fetch failed` → `ConnectionError`). No code changes yet.
 - **Trial credit request reason (2026-01-30)**: Added required reason input for trial credit requests, enforced backend validation/storage, and included reason in Discord notifications; updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Prod agent memory missing (2026-01-30)**: Verified S3 `helpmaton-vectordbs` contains LanceDB data for agent `8b459eb0-db6f-4b01-87a8-b03e879e4716` under `vectordb/{agentId}/working`, `daily`, `weekly` (latest object Jan 1). Likely memory API reads empty bucket because `HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION` is not set in prod Lambda envs (falls back to `vectordb.staging`).
