@@ -11,6 +11,15 @@ interface ShopifyApiError {
   errors?: string | string[];
 }
 
+interface ShopifyGraphqlError {
+  message: string;
+}
+
+interface ShopifyGraphqlResponse<T> {
+  data?: T;
+  errors?: ShopifyGraphqlError[];
+}
+
 async function getShopifyShopDomain(
   workspaceId: string,
   serverId: string
@@ -37,6 +46,34 @@ async function getShopifyShopDomain(
 
 function buildShopifyApiBase(shopDomain: string): string {
   return `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}`;
+}
+
+async function makeShopifyGraphqlRequest<T>(
+  workspaceId: string,
+  serverId: string,
+  query: string,
+  variables: Record<string, unknown>
+): Promise<T> {
+  const result = await makeShopifyApiRequest<ShopifyGraphqlResponse<T>>(
+    workspaceId,
+    serverId,
+    "/graphql.json",
+    {
+      method: "POST",
+      body: JSON.stringify({ query, variables }),
+    }
+  );
+
+  if (result.errors?.length) {
+    const messages = result.errors.map((error) => error.message).join(", ");
+    throw new Error(`Shopify GraphQL error: ${messages}`);
+  }
+
+  if (!result.data) {
+    throw new Error("Shopify GraphQL response missing data");
+  }
+
+  return result.data;
 }
 
 async function makeShopifyApiRequest<T>(
@@ -149,14 +186,64 @@ export async function searchProductsByTitle(
   serverId: string,
   query: string
 ) {
-  const params = new URLSearchParams({
-    title: query,
-  });
-  return makeShopifyApiRequest(
-    workspaceId,
-    serverId,
-    `/products.json?${params.toString()}`
-  );
+  const sanitized = sanitizeShopifySearchTerm(query);
+  const searchQuery = buildShopifyProductSearchQuery(sanitized);
+  const graphqlQuery = `
+    query SearchProducts($query: String!, $first: Int!) {
+      products(first: $first, query: $query) {
+        nodes {
+          id
+          title
+          handle
+          status
+          publishedAt
+        }
+      }
+    }
+  `;
+
+  const data = await makeShopifyGraphqlRequest<{
+    products?: {
+      nodes?: Array<{
+        id: string;
+        title: string;
+        handle: string;
+        status: string;
+        publishedAt: string | null;
+      }>;
+    };
+  }>(workspaceId, serverId, graphqlQuery, { query: searchQuery, first: 20 });
+
+  return {
+    products: data.products?.nodes ?? [],
+  };
+}
+
+function sanitizeShopifySearchTerm(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  const strippedOperators = trimmed.replace(/[():]/g, " ");
+  const escaped = strippedOperators.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return escaped.replace(/\s+/g, " ").trim();
+}
+
+function buildShopifyProductSearchQuery(term: string): string {
+  const base = "status:active AND published_status:published";
+  if (!term) {
+    return base;
+  }
+
+  const quoted = `"${term}"`;
+  const fields = [
+    `title:${quoted}`,
+    `body_html:${quoted}`,
+    `tag:${quoted}`,
+    `handle:${quoted}`,
+  ];
+
+  return `${base} AND (${fields.join(" OR ")})`;
 }
 
 export async function getSalesReport(

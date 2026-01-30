@@ -2841,7 +2841,7 @@ function getMcpServerToolMetadata(
     tools.push({
       name: `shopify_search_products${suffix}`,
       description:
-        "Searches for products by title to check inventory levels and pricing.",
+        "Searches active, published products by keyword to check inventory levels and pricing.",
       category: "MCP Server Tools",
       alwaysAvailable: false,
       condition,

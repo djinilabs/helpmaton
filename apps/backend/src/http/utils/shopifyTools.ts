@@ -93,7 +93,7 @@ export function createShopifySearchProductsTool(
 
   return tool({
     description:
-      "Searches for products by title to check inventory levels and pricing.",
+      "Searches active, published products by keyword to check inventory levels and pricing.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime

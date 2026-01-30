@@ -68,7 +68,7 @@ describe("Shopify API Client", () => {
   });
 
   it("should search products by title", async () => {
-    const mockResponse = { products: [] };
+    const mockResponse = { data: { products: { nodes: [] } } };
 
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -83,11 +83,18 @@ describe("Shopify API Client", () => {
       "Hoodie"
     );
 
-    expect(result).toEqual(mockResponse);
+    expect(result).toEqual({ products: [] });
     expect(fetch).toHaveBeenCalledWith(
-      "https://cool-store.myshopify.com/admin/api/2024-01/products.json?title=Hoodie",
-      expect.anything()
+      "https://cool-store.myshopify.com/admin/api/2024-01/graphql.json",
+      expect.objectContaining({
+        method: "POST",
+      })
     );
+
+    const [, requestInit] = vi.mocked(fetch).mock.calls[0] ?? [];
+    const payload = JSON.parse(String(requestInit?.body ?? "{}"));
+    expect(payload.variables?.query).toContain("status:active");
+    expect(payload.variables?.query).toContain("published_status:published");
   });
 
   it("should compute sales report totals", async () => {
