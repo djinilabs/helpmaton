@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as githubClient from "../../utils/github/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 /**
  * Check if MCP server has OAuth connection
  */
@@ -33,10 +35,8 @@ export function createGithubListRepositoriesTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List repositories accessible to the authenticated user. Returns a list of repositories with their metadata (name, description, language, stars, etc.). Supports filtering and pagination.",
-    parameters: z.object({
+  const schema = z
+    .object({
       type: z
         .enum(["all", "owner", "member"])
         .optional()
@@ -62,20 +62,31 @@ export function createGithubListRepositoriesTool(
         .min(1)
         .optional()
         .describe("Page number (default: 1)"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List repositories accessible to the authenticated user. Returns a list of repositories with their metadata (name, description, language, stars, etc.). Supports filtering and pagination.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.listRepositories(
           workspaceId,
           serverId,
-          args
+          parsed.data
         );
 
         return JSON.stringify(result, null, 2);
@@ -96,27 +107,36 @@ export function createGithubGetRepositoryTool(
   workspaceId: string,
   serverId: string
 ) {
+  const schema = z
+    .object({
+      owner: z.string().describe("Repository owner (username or organization)"),
+      repo: z.string().describe("Repository name"),
+    })
+    .strict();
+
   return tool({
     description:
       "Get detailed information about a specific repository. Returns repository metadata including description, language, stars, forks, and more.",
-    parameters: z.object({
-      owner: z.string().describe("Repository owner (username or organization)"),
-      repo: z.string().describe("Repository name"),
-    }),
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.getRepository(
           workspaceId,
           serverId,
-          args.owner,
-          args.repo
+          parsed.data.owner,
+          parsed.data.repo
         );
 
         return JSON.stringify(result, null, 2);
@@ -137,10 +157,8 @@ export function createGithubListIssuesTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List issues in a repository. Returns a list of issues with their metadata (title, state, labels, etc.). Supports filtering by state and pagination.",
-    parameters: z.object({
+  const schema = z
+    .object({
       owner: z.string().describe("Repository owner (username or organization)"),
       repo: z.string().describe("Repository name"),
       state: z
@@ -168,22 +186,33 @@ export function createGithubListIssuesTool(
         .min(1)
         .optional()
         .describe("Page number (default: 1)"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List issues in a repository. Returns a list of issues with their metadata (title, state, labels, etc.). Supports filtering by state and pagination.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.listIssues(
           workspaceId,
           serverId,
-          args.owner,
-          args.repo,
-          args
+          parsed.data.owner,
+          parsed.data.repo,
+          parsed.data
         );
 
         return JSON.stringify(result, null, 2);
@@ -201,10 +230,8 @@ export function createGithubListIssuesTool(
  * Create GitHub get issue tool
  */
 export function createGithubGetIssueTool(workspaceId: string, serverId: string) {
-  return tool({
-    description:
-      "Get detailed information about a specific issue. Returns issue metadata including title, body, state, labels, comments count, and more.",
-    parameters: z.object({
+  const schema = z
+    .object({
       owner: z.string().describe("Repository owner (username or organization)"),
       repo: z.string().describe("Repository name"),
       issueNumber: z
@@ -212,22 +239,33 @@ export function createGithubGetIssueTool(workspaceId: string, serverId: string) 
         .int()
         .min(1)
         .describe("Issue number"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Get detailed information about a specific issue. Returns issue metadata including title, body, state, labels, comments count, and more.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.getIssue(
           workspaceId,
           serverId,
-          args.owner,
-          args.repo,
-          args.issueNumber
+          parsed.data.owner,
+          parsed.data.repo,
+          parsed.data.issueNumber
         );
 
         return JSON.stringify(result, null, 2);
@@ -248,10 +286,8 @@ export function createGithubListPullRequestsTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List pull requests in a repository. Returns a list of pull requests with their metadata (title, state, merge status, etc.). Supports filtering by state and pagination.",
-    parameters: z.object({
+  const schema = z
+    .object({
       owner: z.string().describe("Repository owner (username or organization)"),
       repo: z.string().describe("Repository name"),
       state: z
@@ -279,22 +315,33 @@ export function createGithubListPullRequestsTool(
         .min(1)
         .optional()
         .describe("Page number (default: 1)"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List pull requests in a repository. Returns a list of pull requests with their metadata (title, state, merge status, etc.). Supports filtering by state and pagination.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.listPullRequests(
           workspaceId,
           serverId,
-          args.owner,
-          args.repo,
-          args
+          parsed.data.owner,
+          parsed.data.repo,
+          parsed.data
         );
 
         return JSON.stringify(result, null, 2);
@@ -315,10 +362,8 @@ export function createGithubGetPullRequestTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Get detailed information about a specific pull request. Returns PR metadata including title, body, state, merge status, additions, deletions, and more.",
-    parameters: z.object({
+  const schema = z
+    .object({
       owner: z.string().describe("Repository owner (username or organization)"),
       repo: z.string().describe("Repository name"),
       prNumber: z
@@ -326,22 +371,33 @@ export function createGithubGetPullRequestTool(
         .int()
         .min(1)
         .describe("Pull request number"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Get detailed information about a specific pull request. Returns PR metadata including title, body, state, merge status, additions, deletions, and more.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.getPullRequest(
           workspaceId,
           serverId,
-          args.owner,
-          args.repo,
-          args.prNumber
+          parsed.data.owner,
+          parsed.data.repo,
+          parsed.data.prNumber
         );
 
         return JSON.stringify(result, null, 2);
@@ -359,34 +415,45 @@ export function createGithubGetPullRequestTool(
  * Create GitHub read file tool
  */
 export function createGithubReadFileTool(workspaceId: string, serverId: string) {
-  return tool({
-    description:
-      "Read the contents of a file from a repository. Returns the file content, metadata, and URL. Supports reading from specific branches or commits.",
-    parameters: z.object({
+  const schema = z
+    .object({
       owner: z.string().describe("Repository owner (username or organization)"),
       repo: z.string().describe("Repository name"),
-      path: z.string().describe("File path in the repository (e.g., 'src/index.ts' or 'README.md')"),
+      path: z
+        .string()
+        .describe("File path in the repository (e.g., 'src/index.ts' or 'README.md')"),
       ref: z
         .string()
         .optional()
         .describe("Branch, tag, or commit SHA (default: repository's default branch)"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Read the contents of a file from a repository. Returns the file content, metadata, and URL. Supports reading from specific branches or commits.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.getFileContents(
           workspaceId,
           serverId,
-          args.owner,
-          args.repo,
-          args.path,
-          args.ref
+          parsed.data.owner,
+          parsed.data.repo,
+          parsed.data.path,
+          parsed.data.ref
         );
 
         return JSON.stringify(result, null, 2);
@@ -407,10 +474,8 @@ export function createGithubListCommitsTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List commits in a repository. Returns a list of commits with their metadata (message, author, date, etc.). Supports filtering by author, path, date range, and pagination.",
-    parameters: z.object({
+  const schema = z
+    .object({
       owner: z.string().describe("Repository owner (username or organization)"),
       repo: z.string().describe("Repository name"),
       sha: z
@@ -446,17 +511,28 @@ export function createGithubListCommitsTool(
         .min(1)
         .optional()
         .describe("Page number (default: 1)"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List commits in a repository. Returns a list of commits with their metadata (message, author, date, etc.). Supports filtering by author, path, date range, and pagination.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
-        const { owner, repo, ...options } = args;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const { owner, repo, ...options } = parsed.data;
         const result = await githubClient.listCommits(
           workspaceId,
           serverId,
@@ -480,29 +556,38 @@ export function createGithubListCommitsTool(
  * Create GitHub get commit tool
  */
 export function createGithubGetCommitTool(workspaceId: string, serverId: string) {
-  return tool({
-    description:
-      "Get detailed information about a specific commit. Returns commit metadata including message, author, date, stats (additions, deletions), and changed files.",
-    parameters: z.object({
+  const schema = z
+    .object({
       owner: z.string().describe("Repository owner (username or organization)"),
       repo: z.string().describe("Repository name"),
       sha: z.string().describe("Commit SHA"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Get detailed information about a specific commit. Returns commit metadata including message, author, date, stats (additions, deletions), and changed files.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: GitHub is not connected. Please connect your GitHub account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await githubClient.getCommit(
           workspaceId,
           serverId,
-          args.owner,
-          args.repo,
-          args.sha
+          parsed.data.owner,
+          parsed.data.repo,
+          parsed.data.sha
         );
 
         return JSON.stringify(result, null, 2);

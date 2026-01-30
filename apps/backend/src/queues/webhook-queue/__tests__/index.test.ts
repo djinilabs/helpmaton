@@ -23,6 +23,7 @@ vi.mock("../../../utils/sentry", () => ({
   Sentry: {
     captureException: vi.fn(),
   },
+  initSentry: vi.fn(),
 }));
 
 import { handler } from "../index";

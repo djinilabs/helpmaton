@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as gmailClient from "../../utils/gmail/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 /**
  * Check if MCP server has OAuth connection
  */
@@ -33,10 +35,8 @@ export function createGmailListTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List emails in Gmail. Returns a list of messages with their metadata (id, threadId, snippet). Supports pagination with pageToken and optional search query.",
-    parameters: z.object({
+  const schema = z
+    .object({
       query: z
         .string()
         .optional()
@@ -46,25 +46,34 @@ export function createGmailListTool(
       pageToken: z
         .string()
         .optional()
-        .describe(
-          "Optional page token for pagination (from previous list response)"
-        ),
-    }),
+        .describe("Optional page token for pagination (from previous list response)"),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List emails in Gmail. Returns a list of messages with their metadata (id, threadId, snippet). Supports pagination with pageToken and optional search query.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Gmail is not connected. Please connect your Gmail account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await gmailClient.listMessages(
           workspaceId,
           serverId,
-          args.query,
-          args.pageToken
+          parsed.data.query,
+          parsed.data.pageToken
         );
 
         // Get message details for each message ID
@@ -128,10 +137,8 @@ export function createGmailSearchTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Search for emails in Gmail using Gmail search syntax. Returns a list of matching messages with their metadata. REQUIRES a 'query' parameter with the search term. Examples: 'from:example@gmail.com', 'subject:meeting', 'is:unread', 'has:attachment'.",
-    parameters: z.object({
+  const schema = z
+    .object({
       query: z
         .string()
         .min(1, "Search query cannot be empty")
@@ -141,37 +148,35 @@ export function createGmailSearchTool(
       pageToken: z
         .string()
         .optional()
-        .describe(
-          "Optional page token for pagination (from previous search response)"
-        ),
-    }),
+        .describe("Optional page token for pagination (from previous search response)"),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Search for emails in Gmail using Gmail search syntax. Returns a list of matching messages with their metadata. REQUIRES a 'query' parameter with the search term. Examples: 'from:example@gmail.com', 'subject:meeting', 'is:unread', 'has:attachment'.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Gmail is not connected. Please connect your Gmail account first.";
         }
 
-        // Validate args structure
-        if (!args || typeof args !== "object") {
-          return "Error: Search requires a 'query' parameter. Please provide a search query string.";
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
-        // Extract and validate query parameter
-        const query = args.query;
-        if (!query || typeof query !== "string" || query.trim().length === 0) {
-          return "Error: Search requires a non-empty 'query' parameter. Please provide a search query string. Example: {query: 'from:example@gmail.com'}";
-        }
-
-        const pageToken = args.pageToken;
+        const pageToken = parsed.data.pageToken;
 
         // Log tool call for debugging
         console.log("[Tool Call] gmail_search", {
           toolName: "gmail_search",
-          arguments: { query, pageToken },
+          arguments: { query: parsed.data.query, pageToken },
           workspaceId,
           serverId,
         });
@@ -179,7 +184,7 @@ export function createGmailSearchTool(
         const result = await gmailClient.searchMessages(
           workspaceId,
           serverId,
-          query,
+          parsed.data.query,
           pageToken
         );
 
@@ -244,30 +249,45 @@ export function createGmailReadTool(
   workspaceId: string,
   serverId: string
 ) {
+  const schema = z
+    .object({
+      messageId: z.string().optional().describe("The Gmail message ID to read"),
+      message_id: z.string().optional().describe("Alias for messageId"),
+    })
+    .strict()
+    .refine((data) => data.messageId || data.message_id, {
+      message:
+        "messageId parameter is required and must be a non-empty string. Provide the message ID as 'messageId'.",
+      path: ["messageId"],
+    });
+
   return tool({
     description:
       "Read the full content of an email from Gmail. Returns the complete email with headers, body (text and HTML), and attachment information.",
-    parameters: z.object({
-      messageId: z.string().describe("The Gmail message ID to read"),
-    }),
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Gmail is not connected. Please connect your Gmail account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         // Extract messageId - handle both camelCase and snake_case
-        const messageId = args.messageId || args.message_id;
+        const messageId = parsed.data.messageId || parsed.data.message_id;
         if (!messageId || typeof messageId !== "string" || messageId.trim().length === 0) {
           console.error("[Gmail Read Tool] Missing or invalid messageId:", {
-            args,
+            args: parsed.data,
             messageId,
-            hasMessageId: !!args.messageId,
-            hasMessage_id: !!args.message_id,
+            hasMessageId: !!parsed.data.messageId,
+            hasMessage_id: !!parsed.data.message_id,
           });
           return "Error: messageId parameter is required and must be a non-empty string. Please provide the message ID as 'messageId' (not 'message_id').";
         }

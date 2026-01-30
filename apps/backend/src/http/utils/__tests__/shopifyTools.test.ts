@@ -79,6 +79,21 @@ describe("Shopify Tools", () => {
     expect(result).toContain("products");
   });
 
+  it("should return validation error when product query is missing", async () => {
+    mockDb["mcp-server"].get.mockResolvedValue({
+      pk: `mcp-servers/${workspaceId}/${serverId}`,
+      sk: "server",
+      authType: "oauth",
+      config: { accessToken: "token-123", shopDomain: "cool-store.myshopify.com" },
+    });
+
+    const tool = createShopifySearchProductsTool(workspaceId, serverId);
+    const result = await (tool as any).execute({});
+
+    expect(result).toContain("Invalid tool arguments");
+    expect(shopifyClient.searchProductsByTitle).not.toHaveBeenCalled();
+  });
+
   it("should return error if not connected", async () => {
     mockDb["mcp-server"].get.mockResolvedValue({
       pk: `mcp-servers/${workspaceId}/${serverId}`,

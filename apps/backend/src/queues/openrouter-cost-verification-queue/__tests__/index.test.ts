@@ -67,6 +67,7 @@ vi.mock("../../../utils/posthog", () => ({
 vi.mock("../../../utils/sentry", () => ({
   flushSentry: vi.fn().mockResolvedValue(undefined),
   ensureError: vi.fn((error) => error),
+  initSentry: vi.fn(),
   Sentry: {
     captureException: vi.fn(),
     startSpan: vi.fn(async (_config, callback) => callback?.()),

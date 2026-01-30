@@ -887,6 +887,12 @@ function getMcpServerToolMetadata(
           description: "The Google Drive file ID to read",
         },
         {
+          name: "file_id",
+          type: "string",
+          required: false,
+          description: "Alias for fileId",
+        },
+        {
           name: "mimeType",
           type: "string",
           required: false,
@@ -989,6 +995,12 @@ function getMcpServerToolMetadata(
           required: true,
           description: "The Gmail message ID to read",
         },
+        {
+          name: "message_id",
+          type: "string",
+          required: false,
+          description: "Alias for messageId",
+        },
       ],
     });
   } else if (serviceType === "google-calendar") {
@@ -1055,6 +1067,12 @@ function getMcpServerToolMetadata(
           type: "string",
           required: true,
           description: "The Google Calendar event ID to read",
+        },
+        {
+          name: "event_id",
+          type: "string",
+          required: false,
+          description: "Alias for eventId",
         },
         {
           name: "calendarId",
@@ -1170,6 +1188,12 @@ function getMcpServerToolMetadata(
             "REQUIRED: The Google Calendar event ID to update",
         },
         {
+          name: "event_id",
+          type: "string",
+          required: false,
+          description: "Alias for eventId",
+        },
+        {
           name: "summary",
           type: "string",
           required: false,
@@ -1216,6 +1240,12 @@ function getMcpServerToolMetadata(
           required: true,
           description:
             "REQUIRED: The Google Calendar event ID to delete",
+        },
+        {
+          name: "event_id",
+          type: "string",
+          required: false,
+          description: "Alias for eventId",
         },
         {
           name: "calendarId",
@@ -1960,6 +1990,12 @@ function getMcpServerToolMetadata(
           required: true,
           description: "Linear issue ID to retrieve",
         },
+        {
+          name: "issue_id",
+          type: "string",
+          required: false,
+          description: "Alias for issueId",
+        },
       ],
     });
 
@@ -2069,6 +2105,30 @@ function getMcpServerToolMetadata(
           description: "Contact ID to retrieve",
         },
         {
+          name: "contact_id",
+          type: "string",
+          required: false,
+          description: "Alias for contactId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for contactId",
+        },
+        {
+          name: "contact_id",
+          type: "string",
+          required: false,
+          description: "Alias for contactId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for contactId",
+        },
+        {
           name: "properties",
           type: "string[]",
           required: false,
@@ -2170,6 +2230,18 @@ function getMcpServerToolMetadata(
           type: "string",
           required: true,
           description: "Company ID to retrieve",
+        },
+        {
+          name: "company_id",
+          type: "string",
+          required: false,
+          description: "Alias for companyId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for companyId",
         },
         {
           name: "properties",
@@ -2275,6 +2347,18 @@ function getMcpServerToolMetadata(
           description: "Deal ID to retrieve",
         },
         {
+          name: "deal_id",
+          type: "string",
+          required: false,
+          description: "Alias for dealId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for dealId",
+        },
+        {
           name: "properties",
           type: "string[]",
           required: false,
@@ -2369,6 +2453,18 @@ function getMcpServerToolMetadata(
           type: "string",
           required: true,
           description: "Owner ID to retrieve",
+        },
+        {
+          name: "owner_id",
+          type: "string",
+          required: false,
+          description: "Alias for ownerId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for ownerId",
         },
       ],
     });
@@ -2481,6 +2577,18 @@ function getMcpServerToolMetadata(
           description: "Contact ID to update",
         },
         {
+          name: "contact_id",
+          type: "string",
+          required: false,
+          description: "Alias for contactId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for contactId",
+        },
+        {
           name: "updates",
           type: "object",
           required: true,
@@ -2524,6 +2632,18 @@ function getMcpServerToolMetadata(
           required: true,
           description: "Conversation ID to retrieve",
         },
+        {
+          name: "conversation_id",
+          type: "string",
+          required: false,
+          description: "Alias for conversationId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for conversationId",
+        },
       ],
     });
 
@@ -2565,10 +2685,28 @@ function getMcpServerToolMetadata(
           description: "Conversation ID to reply to",
         },
         {
+          name: "conversation_id",
+          type: "string",
+          required: false,
+          description: "Alias for conversationId",
+        },
+        {
+          name: "id",
+          type: "string",
+          required: false,
+          description: "Alias for conversationId",
+        },
+        {
           name: "messageType",
           type: "string (enum)",
           required: false,
           description: "comment, note, open, close, or assignment (default: comment)",
+        },
+        {
+          name: "message_type",
+          type: "string (enum)",
+          required: false,
+          description: "Alias for messageType",
         },
         {
           name: "body",
@@ -2583,10 +2721,22 @@ function getMcpServerToolMetadata(
           description: "Admin ID to assign the conversation to",
         },
         {
+          name: "assignee_id",
+          type: "string",
+          required: false,
+          description: "Alias for assigneeId",
+        },
+        {
           name: "adminId",
           type: "string",
           required: false,
           description: "Admin ID to send the reply as (defaults to OAuth admin)",
+        },
+        {
+          name: "admin_id",
+          type: "string",
+          required: false,
+          description: "Alias for adminId",
         },
       ],
     });
@@ -2773,7 +2923,20 @@ function getMcpServerToolMetadata(
           name: "channel_id",
           type: "string",
           required: true,
-          description: "Slack channel ID (e.g., C12345)",
+          description:
+            "Slack channel ID (e.g., C12345). One of channel_id, channelId, or channel is required.",
+        },
+        {
+          name: "channelId",
+          type: "string",
+          required: false,
+          description: "Alias for channel_id",
+        },
+        {
+          name: "channel",
+          type: "string",
+          required: false,
+          description: "Alias for channel_id",
         },
         {
           name: "limit",
@@ -2801,7 +2964,20 @@ function getMcpServerToolMetadata(
           name: "channel_id",
           type: "string",
           required: true,
-          description: "Slack channel ID (e.g., C12345)",
+          description:
+            "Slack channel ID (e.g., C12345). One of channel_id, channelId, or channel is required.",
+        },
+        {
+          name: "channelId",
+          type: "string",
+          required: false,
+          description: "Alias for channel_id",
+        },
+        {
+          name: "channel",
+          type: "string",
+          required: false,
+          description: "Alias for channel_id",
         },
         {
           name: "text",
@@ -2898,6 +3074,12 @@ function getMcpServerToolMetadata(
           type: "string",
           required: true,
           description: "Salesforce object name (e.g., Account, Opportunity)",
+        },
+        {
+          name: "object_name",
+          type: "string",
+          required: false,
+          description: "Alias for objectName",
         },
       ],
     });
@@ -3024,6 +3206,18 @@ function getMcpServerToolMetadata(
           required: true,
           description: "PostHog project ID",
         },
+        {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
+        },
+        {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
+        },
       ],
     });
 
@@ -3040,6 +3234,12 @@ function getMcpServerToolMetadata(
           type: "string",
           required: true,
           description: "PostHog project ID",
+        },
+        {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
         },
         {
           name: "after",
@@ -3066,10 +3266,28 @@ function getMcpServerToolMetadata(
           description: "Filter by distinct_id",
         },
         {
+          name: "distinct_id",
+          type: "string",
+          required: false,
+          description: "Alias for distinctId",
+        },
+        {
+          name: "distinct_id",
+          type: "string",
+          required: false,
+          description: "Alias for distinctId",
+        },
+        {
           name: "personId",
           type: "number",
           required: false,
           description: "Filter by person id",
+        },
+        {
+          name: "person_id",
+          type: "number",
+          required: false,
+          description: "Alias for personId",
         },
         {
           name: "limit",
@@ -3099,6 +3317,12 @@ function getMcpServerToolMetadata(
           type: "string",
           required: true,
           description: "PostHog project ID",
+        },
+        {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
         },
         {
           name: "search",
@@ -3135,10 +3359,22 @@ function getMcpServerToolMetadata(
           description: "PostHog project ID",
         },
         {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
+        },
+        {
           name: "featureFlagId",
           type: "string",
           required: true,
           description: "Feature flag ID",
+        },
+        {
+          name: "feature_flag_id",
+          type: "string",
+          required: false,
+          description: "Alias for featureFlagId",
         },
       ],
     });
@@ -3156,6 +3392,12 @@ function getMcpServerToolMetadata(
           type: "string",
           required: true,
           description: "PostHog project ID",
+        },
+        {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
         },
         {
           name: "saved",
@@ -3192,10 +3434,22 @@ function getMcpServerToolMetadata(
           description: "PostHog project ID",
         },
         {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
+        },
+        {
           name: "insightId",
           type: "string",
           required: true,
           description: "Insight ID",
+        },
+        {
+          name: "insight_id",
+          type: "string",
+          required: false,
+          description: "Alias for insightId",
         },
       ],
     });
@@ -3255,10 +3509,22 @@ function getMcpServerToolMetadata(
           description: "PostHog project ID",
         },
         {
+          name: "project_id",
+          type: "string",
+          required: false,
+          description: "Alias for projectId",
+        },
+        {
           name: "personId",
           type: "string",
           required: true,
           description: "Person ID",
+        },
+        {
+          name: "person_id",
+          type: "string",
+          required: false,
+          description: "Alias for personId",
         },
       ],
     });

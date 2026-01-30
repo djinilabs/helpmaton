@@ -58,6 +58,21 @@ describe("Zendesk Tools", () => {
     expect(result).toContain("Need help");
   });
 
+  it("should return validation error when query is missing", async () => {
+    mockDb["mcp-server"].get.mockResolvedValue({
+      pk: `mcp-servers/${workspaceId}/${serverId}`,
+      sk: "server",
+      authType: "oauth",
+      config: { accessToken: "token-123", subdomain: "acme" },
+    });
+
+    const tool = createZendeskSearchTicketsTool(workspaceId, serverId);
+    const result = await (tool as any).execute({});
+
+    expect(result).toContain("Invalid tool arguments");
+    expect(zendeskClient.searchZendeskTickets).not.toHaveBeenCalled();
+  });
+
   it("should return error if not connected", async () => {
     mockDb["mcp-server"].get.mockResolvedValue({
       pk: `mcp-servers/${workspaceId}/${serverId}`,

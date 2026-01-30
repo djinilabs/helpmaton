@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as stripeClient from "../../utils/stripe/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 async function hasOAuthConnection(
   workspaceId: string,
   serverId: string
@@ -49,7 +51,8 @@ export function createStripeSearchChargesTool(
   workspaceId: string,
   serverId: string
 ) {
-  const schema = z.object({
+  const schema = z
+    .object({
     query: z
       .string()
       .optional()
@@ -61,7 +64,8 @@ export function createStripeSearchChargesTool(
       .email()
       .optional()
       .describe("Optional email address to search charges by"),
-  });
+    })
+    .strict();
 
   return tool({
     description:
@@ -69,15 +73,20 @@ export function createStripeSearchChargesTool(
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Stripe is not connected. Please connect your Stripe account first.";
         }
 
-        const query = typeof args.query === "string" ? args.query.trim() : "";
-        const email = typeof args.email === "string" ? args.email.trim() : "";
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const query = typeof parsed.data.query === "string" ? parsed.data.query.trim() : "";
+        const email = typeof parsed.data.email === "string" ? parsed.data.email.trim() : "";
 
         if (!query && !email) {
           return "Error: Provide a Stripe search query or an email address.";
@@ -109,7 +118,8 @@ export function createStripeGetMetricsTool(
   workspaceId: string,
   serverId: string
 ) {
-  const schema = z.object({
+  const schema = z
+    .object({
     startDate: z
       .union([z.string(), z.number()])
       .describe("Start date (ISO 8601 or Unix timestamp in seconds)"),
@@ -123,7 +133,8 @@ export function createStripeGetMetricsTool(
       .max(100)
       .optional()
       .describe("Maximum number of refunds to return (default: 20, max: 100)"),
-  });
+    })
+    .strict();
 
   return tool({
     description:
@@ -131,15 +142,20 @@ export function createStripeGetMetricsTool(
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Stripe is not connected. Please connect your Stripe account first.";
         }
 
-        const start = parseDateInput(args.startDate);
-        const end = parseDateInput(args.endDate);
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const start = parseDateInput(parsed.data.startDate);
+        const end = parseDateInput(parsed.data.endDate);
         if (start === null || end === null) {
           return "Error: startDate and endDate must be valid ISO dates or Unix timestamps.";
         }
@@ -152,7 +168,7 @@ export function createStripeGetMetricsTool(
           stripeClient.listRefunds(workspaceId, serverId, {
             createdGte: start,
             createdLte: end,
-            limit: args.limit,
+            limit: parsed.data.limit,
           }),
         ]);
 

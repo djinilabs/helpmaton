@@ -61,6 +61,14 @@ describe("PostHog Tools", () => {
     );
   });
 
+  it("should return validation error when projectId is missing", async () => {
+    const tool = createPosthogListEventsTool(workspaceId, serverId);
+    const result = await (tool as any).execute({ event: "pageview" });
+
+    expect(result).toContain("Invalid tool arguments");
+    expect(getPosthogJson).not.toHaveBeenCalled();
+  });
+
   it("should handle get tool errors", async () => {
     vi.mocked(getPosthogJson).mockRejectedValue(
       new Error("PostHog API error")

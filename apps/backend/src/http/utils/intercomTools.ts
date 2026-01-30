@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as intercomClient from "../../utils/intercom/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 async function getIntercomConfig(
   workspaceId: string,
   serverId: string
@@ -27,19 +29,21 @@ async function hasOAuthConnection(
   return !!config?.accessToken;
 }
 
-const paginationSchema = z.object({
-  perPage: z
-    .number()
-    .int()
-    .min(1)
-    .max(150)
-    .optional()
-    .describe("Number of results to return per page (default: 20, max: 150)"),
-  startingAfter: z
-    .string()
-    .optional()
-    .describe("Pagination cursor from a previous response"),
-});
+const paginationSchema = z
+  .object({
+    perPage: z
+      .number()
+      .int()
+      .min(1)
+      .max(150)
+      .optional()
+      .describe("Number of results to return per page (default: 20, max: 150)"),
+    startingAfter: z
+      .string()
+      .optional()
+      .describe("Pagination cursor from a previous response"),
+  })
+  .strict();
 
 const searchQuerySchema = z
   .record(z.string(), z.unknown())
@@ -55,19 +59,27 @@ export function createIntercomListContactsTool(
     parameters: paginationSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
+        }
+
+        const parsed = validateToolArgs<z.infer<typeof paginationSchema>>(
+          paginationSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         const result = await intercomClient.listContacts(
           workspaceId,
           serverId,
           {
-            perPage: args.perPage,
-            startingAfter: args.startingAfter,
+            perPage: parsed.data.perPage,
+            startingAfter: parsed.data.startingAfter,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -85,23 +97,36 @@ export function createIntercomGetContactTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "Get an Intercom contact by ID.",
-    parameters: z.object({
+  const schema = z
+    .object({
       contactId: z.string().optional().describe("Contact ID to retrieve"),
       id: z.string().optional().describe("Alias for contactId"),
       contact_id: z.string().optional().describe("Alias for contactId"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.contactId || data.id || data.contact_id, {
+      message: "contactId parameter is required.",
+      path: ["contactId"],
+    });
+
+  return tool({
+    description: "Get an Intercom contact by ID.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
         }
 
-        const contactId = args.contactId || args.id || args.contact_id;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const contactId = parsed.data.contactId || parsed.data.id || parsed.data.contact_id;
         if (!contactId || typeof contactId !== "string") {
           return "Error: contactId parameter is required. Please provide the Intercom contact ID as 'contactId'.";
         }
@@ -126,28 +151,37 @@ export function createIntercomSearchContactsTool(
   workspaceId: string,
   serverId: string
 ) {
+  const schema = z
+    .object({
+      query: searchQuerySchema,
+      pagination: paginationSchema.optional(),
+    })
+    .strict();
+
   return tool({
     description:
       "Search Intercom contacts using the Intercom search query format.",
-    parameters: z.object({
-      query: searchQuerySchema,
-      pagination: paginationSchema.optional(),
-    }),
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
+        }
+
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         const result = await intercomClient.searchContacts(
           workspaceId,
           serverId,
           {
-            query: args.query,
-            pagination: args.pagination,
+            query: parsed.data.query,
+            pagination: parsed.data.pagination,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -165,27 +199,38 @@ export function createIntercomUpdateContactTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Update an Intercom contact by ID with the provided fields.",
-    parameters: z.object({
+  const schema = z
+    .object({
       contactId: z.string().optional().describe("Contact ID to update"),
       id: z.string().optional().describe("Alias for contactId"),
       contact_id: z.string().optional().describe("Alias for contactId"),
-      updates: z
-        .record(z.string(), z.unknown())
-        .describe("Fields to update on the contact"),
-    }),
+      updates: z.record(z.string(), z.unknown()).describe("Fields to update on the contact"),
+    })
+    .strict()
+    .refine((data) => data.contactId || data.id || data.contact_id, {
+      message: "contactId parameter is required.",
+      path: ["contactId"],
+    });
+
+  return tool({
+    description:
+      "Update an Intercom contact by ID with the provided fields.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
         }
 
-        const contactId = args.contactId || args.id || args.contact_id;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const contactId = parsed.data.contactId || parsed.data.id || parsed.data.contact_id;
         if (!contactId || typeof contactId !== "string") {
           return "Error: contactId parameter is required. Please provide the Intercom contact ID as 'contactId'.";
         }
@@ -194,7 +239,7 @@ export function createIntercomUpdateContactTool(
           workspaceId,
           serverId,
           contactId,
-          args.updates
+          parsed.data.updates
         );
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -217,19 +262,27 @@ export function createIntercomListConversationsTool(
     parameters: paginationSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
+        }
+
+        const parsed = validateToolArgs<z.infer<typeof paginationSchema>>(
+          paginationSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         const result = await intercomClient.listConversations(
           workspaceId,
           serverId,
           {
-            perPage: args.perPage,
-            startingAfter: args.startingAfter,
+            perPage: parsed.data.perPage,
+            startingAfter: parsed.data.startingAfter,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -247,27 +300,40 @@ export function createIntercomGetConversationTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "Get an Intercom conversation by ID.",
-    parameters: z.object({
+  const schema = z
+    .object({
       conversationId: z
         .string()
         .optional()
         .describe("Conversation ID to retrieve"),
       id: z.string().optional().describe("Alias for conversationId"),
       conversation_id: z.string().optional().describe("Alias for conversationId"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.conversationId || data.id || data.conversation_id, {
+      message: "conversationId parameter is required.",
+      path: ["conversationId"],
+    });
+
+  return tool({
+    description: "Get an Intercom conversation by ID.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const conversationId =
-          args.conversationId || args.id || args.conversation_id;
+          parsed.data.conversationId || parsed.data.id || parsed.data.conversation_id;
         if (!conversationId || typeof conversationId !== "string") {
           return "Error: conversationId parameter is required. Please provide the Intercom conversation ID as 'conversationId'.";
         }
@@ -292,28 +358,37 @@ export function createIntercomSearchConversationsTool(
   workspaceId: string,
   serverId: string
 ) {
+  const schema = z
+    .object({
+      query: searchQuerySchema,
+      pagination: paginationSchema.optional(),
+    })
+    .strict();
+
   return tool({
     description:
       "Search Intercom conversations using the Intercom search query format.",
-    parameters: z.object({
-      query: searchQuerySchema,
-      pagination: paginationSchema.optional(),
-    }),
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
+        }
+
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         const result = await intercomClient.searchConversations(
           workspaceId,
           serverId,
           {
-            query: args.query,
-            pagination: args.pagination,
+            query: parsed.data.query,
+            pagination: parsed.data.pagination,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -331,10 +406,8 @@ export function createIntercomReplyConversationTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Reply to an Intercom conversation as an admin. Supports comment, note, open, close, or assignment actions.",
-    parameters: z.object({
+  const schema = z
+    .object({
       conversationId: z
         .string()
         .optional()
@@ -357,25 +430,40 @@ export function createIntercomReplyConversationTool(
       admin_id: z.string().optional().describe("Alias for adminId"),
       assigneeId: z.string().optional().describe("Admin ID to assign to"),
       assignee_id: z.string().optional().describe("Alias for assigneeId"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.conversationId || data.id || data.conversation_id, {
+      message: "conversationId parameter is required.",
+      path: ["conversationId"],
+    });
+
+  return tool({
+    description:
+      "Reply to an Intercom conversation as an admin. Supports comment, note, open, close, or assignment actions.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Intercom is not connected. Please connect your Intercom account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const conversationId =
-          args.conversationId || args.id || args.conversation_id;
+          parsed.data.conversationId || parsed.data.id || parsed.data.conversation_id;
         if (!conversationId || typeof conversationId !== "string") {
           return "Error: conversationId parameter is required. Please provide the Intercom conversation ID as 'conversationId'.";
         }
 
         const messageType =
-          args.messageType || args.message_type || "comment";
-        const body = args.body;
+          parsed.data.messageType || parsed.data.message_type || "comment";
+        const body = parsed.data.body;
 
         if (
           (messageType === "comment" || messageType === "note") &&
@@ -384,13 +472,13 @@ export function createIntercomReplyConversationTool(
           return "Error: body parameter is required for comment or note replies.";
         }
 
-        const assigneeId = args.assigneeId || args.assignee_id;
+        const assigneeId = parsed.data.assigneeId || parsed.data.assignee_id;
         if (messageType === "assignment" && !assigneeId) {
           return "Error: assigneeId parameter is required for assignment replies.";
         }
 
         const config = await getIntercomConfig(workspaceId, serverId);
-        let adminId = args.adminId || args.admin_id || config?.adminId;
+        let adminId = parsed.data.adminId || parsed.data.admin_id || config?.adminId;
 
         if (!adminId) {
           const admin = await intercomClient.getCurrentAdmin(

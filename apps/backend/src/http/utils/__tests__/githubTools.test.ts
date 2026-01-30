@@ -191,6 +191,26 @@ describe("GitHub Tools", () => {
       expect(result).toContain("GitHub is not connected");
       expect(githubClient.getRepository).not.toHaveBeenCalled();
     });
+
+    it("should return validation error for unknown fields", async () => {
+      mockDb["mcp-server"].get.mockResolvedValue({
+        pk: `mcp-servers/${workspaceId}/${serverId}`,
+        sk: "server",
+        authType: "oauth",
+        config: { accessToken: "token-123" },
+      });
+
+      const tool = createGithubGetRepositoryTool(workspaceId, serverId);
+      const result = await (tool as any).execute({
+        owner: "owner",
+        repo: "repo-1",
+        extra: "nope",
+      });
+
+      expect(result).toContain("Invalid tool arguments");
+      expect(result).toContain("Unknown field");
+      expect(githubClient.getRepository).not.toHaveBeenCalled();
+    });
   });
 
   describe("createGithubListIssuesTool", () => {

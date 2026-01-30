@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as googleCalendarClient from "../../utils/googleCalendar/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 /**
  * Check if MCP server has OAuth connection
  */
@@ -33,10 +35,8 @@ export function createGoogleCalendarListTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List events from Google Calendar. Returns a list of events with their metadata (id, summary, start, end, etc.). Supports pagination with pageToken and optional time range filtering.",
-    parameters: z.object({
+  const schema = z
+    .object({
       calendarId: z
         .string()
         .optional()
@@ -79,28 +79,39 @@ export function createGoogleCalendarListTool(
         .describe(
           "Whether to expand recurring events into instances (default: false)"
         ),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List events from Google Calendar. Returns a list of events with their metadata (id, summary, start, end, etc.). Supports pagination with pageToken and optional time range filtering.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Google Calendar is not connected. Please connect your Google Calendar account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await googleCalendarClient.listEvents(
           workspaceId,
           serverId,
-          args.calendarId || "primary",
+          parsed.data.calendarId || "primary",
           {
-            timeMin: args.timeMin,
-            timeMax: args.timeMax,
-            maxResults: args.maxResults,
-            pageToken: args.pageToken,
-            orderBy: args.orderBy,
-            singleEvents: args.singleEvents,
+            timeMin: parsed.data.timeMin,
+            timeMax: parsed.data.timeMax,
+            maxResults: parsed.data.maxResults,
+            pageToken: parsed.data.pageToken,
+            orderBy: parsed.data.orderBy,
+            singleEvents: parsed.data.singleEvents,
           }
         );
 
@@ -131,35 +142,50 @@ export function createGoogleCalendarReadTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Read the full details of an event from Google Calendar. Returns the complete event with all metadata including summary, description, start/end times, attendees, location, etc.",
-    parameters: z.object({
-      eventId: z.string().describe("The Google Calendar event ID to read"),
+  const schema = z
+    .object({
+      eventId: z.string().optional().describe("The Google Calendar event ID to read"),
+      event_id: z.string().optional().describe("Alias for eventId"),
       calendarId: z
         .string()
         .optional()
         .default("primary")
         .describe("Calendar ID (default: 'primary' for user's primary calendar)"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.eventId || data.event_id, {
+      message:
+        "eventId parameter is required and must be a non-empty string. Provide the event ID as 'eventId'.",
+      path: ["eventId"],
+    });
+
+  return tool({
+    description:
+      "Read the full details of an event from Google Calendar. Returns the complete event with all metadata including summary, description, start/end times, attendees, location, etc.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Google Calendar is not connected. Please connect your Google Calendar account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         // Extract eventId - handle both camelCase and snake_case
-        const eventId = args.eventId || args.event_id;
+        const eventId = parsed.data.eventId || parsed.data.event_id;
         if (!eventId || typeof eventId !== "string" || eventId.trim().length === 0) {
           console.error("[Google Calendar Read Tool] Missing or invalid eventId:", {
-            args,
+            args: parsed.data,
             eventId,
-            hasEventId: !!args.eventId,
-            hasEvent_id: !!args.event_id,
+            hasEventId: !!parsed.data.eventId,
+            hasEvent_id: !!parsed.data.event_id,
           });
           return "Error: eventId parameter is required and must be a non-empty string. Please provide the event ID as 'eventId' (not 'event_id').";
         }
@@ -167,7 +193,10 @@ export function createGoogleCalendarReadTool(
         // Log tool call for debugging
         console.log("[Tool Call] google_calendar_read", {
           toolName: "google_calendar_read",
-          arguments: { eventId, calendarId: args.calendarId || "primary" },
+          arguments: {
+            eventId,
+            calendarId: parsed.data.calendarId || "primary",
+          },
           workspaceId,
           serverId,
         });
@@ -176,7 +205,7 @@ export function createGoogleCalendarReadTool(
         const event = await googleCalendarClient.readEvent(
           workspaceId,
           serverId,
-          args.calendarId || "primary",
+          parsed.data.calendarId || "primary",
           eventId
         );
 
@@ -204,10 +233,8 @@ export function createGoogleCalendarSearchTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Search for events in Google Calendar by query string. Returns a list of matching events with their metadata. REQUIRES a 'query' parameter with the search term. The query searches in event summary, description, and location fields.",
-    parameters: z.object({
+  const schema = z
+    .object({
       query: z
         .string()
         .min(1, "Search query cannot be empty")
@@ -256,32 +283,35 @@ export function createGoogleCalendarSearchTool(
         .describe(
           "Whether to expand recurring events into instances (default: false)"
         ),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Search for events in Google Calendar by query string. Returns a list of matching events with their metadata. REQUIRES a 'query' parameter with the search term. The query searches in event summary, description, and location fields.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Google Calendar is not connected. Please connect your Google Calendar account first.";
         }
 
-        // Validate args structure
-        if (!args || typeof args !== "object") {
-          return "Error: Search requires a 'query' parameter. Please provide a search query string.";
-        }
-
-        // Extract and validate query parameter
-        const query = args.query;
-        if (!query || typeof query !== "string" || query.trim().length === 0) {
-          return "Error: Search requires a non-empty 'query' parameter. Please provide a search query string. Example: {query: 'meeting'}";
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         // Log tool call for debugging
         console.log("[Tool Call] google_calendar_search", {
           toolName: "google_calendar_search",
-          arguments: { query, calendarId: args.calendarId || "primary" },
+          arguments: {
+            query: parsed.data.query,
+            calendarId: parsed.data.calendarId || "primary",
+          },
           workspaceId,
           serverId,
         });
@@ -289,15 +319,15 @@ export function createGoogleCalendarSearchTool(
         const result = await googleCalendarClient.searchEvents(
           workspaceId,
           serverId,
-          query,
-          args.calendarId || "primary",
+          parsed.data.query,
+          parsed.data.calendarId || "primary",
           {
-            timeMin: args.timeMin,
-            timeMax: args.timeMax,
-            maxResults: args.maxResults,
-            pageToken: args.pageToken,
-            orderBy: args.orderBy,
-            singleEvents: args.singleEvents,
+            timeMin: parsed.data.timeMin,
+            timeMax: parsed.data.timeMax,
+            maxResults: parsed.data.maxResults,
+            pageToken: parsed.data.pageToken,
+            orderBy: parsed.data.orderBy,
+            singleEvents: parsed.data.singleEvents,
           }
         );
 
@@ -328,10 +358,32 @@ export function createGoogleCalendarCreateTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Create a new event in Google Calendar. Returns the created event with all metadata including the event ID.",
-    parameters: z.object({
+  const eventTimeSchema = z
+    .object({
+      dateTime: z
+        .string()
+        .optional()
+        .describe("Start time in RFC3339 format (e.g., '2024-01-01T10:00:00Z')"),
+      date: z
+        .string()
+        .optional()
+        .describe("Start date in YYYY-MM-DD format (for all-day events)"),
+      timeZone: z
+        .string()
+        .optional()
+        .describe("IANA timezone (e.g., 'America/New_York')"),
+    })
+    .strict();
+
+  const attendeeSchema = z
+    .object({
+      email: z.string().email().describe("Attendee email address"),
+      displayName: z.string().optional().describe("Attendee display name"),
+    })
+    .strict();
+
+  const schema = z
+    .object({
       calendarId: z
         .string()
         .optional()
@@ -343,71 +395,38 @@ export function createGoogleCalendarCreateTool(
         .describe("REQUIRED: Event title/summary"),
       description: z.string().optional().describe("Event description"),
       location: z.string().optional().describe("Event location"),
-      start: z
-        .object({
-          dateTime: z
-            .string()
-            .optional()
-            .describe("Start time in RFC3339 format (e.g., '2024-01-01T10:00:00Z')"),
-          date: z
-            .string()
-            .optional()
-            .describe("Start date in YYYY-MM-DD format (for all-day events)"),
-          timeZone: z
-            .string()
-            .optional()
-            .describe("IANA timezone (e.g., 'America/New_York')"),
-        })
-        .describe("REQUIRED: Event start time"),
-      end: z
-        .object({
-          dateTime: z
-            .string()
-            .optional()
-            .describe("End time in RFC3339 format (e.g., '2024-01-01T11:00:00Z')"),
-          date: z
-            .string()
-            .optional()
-            .describe("End date in YYYY-MM-DD format (for all-day events)"),
-          timeZone: z
-            .string()
-            .optional()
-            .describe("IANA timezone (e.g., 'America/New_York')"),
-        })
-        .describe("REQUIRED: Event end time"),
-      attendees: z
-        .array(
-          z.object({
-            email: z.string().email().describe("Attendee email address"),
-            displayName: z.string().optional().describe("Attendee display name"),
-          })
-        )
-        .optional()
-        .describe("List of event attendees"),
-    }),
+      start: eventTimeSchema.describe("REQUIRED: Event start time"),
+      end: eventTimeSchema.describe("REQUIRED: Event end time"),
+      attendees: z.array(attendeeSchema).optional().describe("List of event attendees"),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Create a new event in Google Calendar. Returns the created event with all metadata including the event ID.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Google Calendar is not connected. Please connect your Google Calendar account first.";
         }
 
-        // Validate required fields
-        if (!args.summary || typeof args.summary !== "string" || args.summary.trim().length === 0) {
-          return "Error: 'summary' parameter is required and must be a non-empty string.";
-        }
-
-        if (!args.start || !args.end) {
-          return "Error: Both 'start' and 'end' parameters are required.";
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         // Log tool call for debugging
         console.log("[Tool Call] google_calendar_create", {
           toolName: "google_calendar_create",
-          arguments: { summary: args.summary, calendarId: args.calendarId || "primary" },
+          arguments: {
+            summary: parsed.data.summary,
+            calendarId: parsed.data.calendarId || "primary",
+          },
           workspaceId,
           serverId,
         });
@@ -415,14 +434,14 @@ export function createGoogleCalendarCreateTool(
         const event = await googleCalendarClient.createEvent(
           workspaceId,
           serverId,
-          args.calendarId || "primary",
+          parsed.data.calendarId || "primary",
           {
-            summary: args.summary,
-            description: args.description,
-            location: args.location,
-            start: args.start,
-            end: args.end,
-            attendees: args.attendees,
+            summary: parsed.data.summary,
+            description: parsed.data.description,
+            location: parsed.data.location,
+            start: parsed.data.start,
+            end: parsed.data.end,
+            attendees: parsed.data.attendees,
           }
         );
 
@@ -451,11 +470,37 @@ export function createGoogleCalendarUpdateTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Update an existing event in Google Calendar. Returns the updated event with all metadata. Only provide fields that should be updated.",
-    parameters: z.object({
-      eventId: z.string().describe("REQUIRED: The Google Calendar event ID to update"),
+  const eventTimeSchema = z
+    .object({
+      dateTime: z
+        .string()
+        .optional()
+        .describe("Start time in RFC3339 format (e.g., '2024-01-01T10:00:00Z')"),
+      date: z
+        .string()
+        .optional()
+        .describe("Start date in YYYY-MM-DD format (for all-day events)"),
+      timeZone: z
+        .string()
+        .optional()
+        .describe("IANA timezone (e.g., 'America/New_York')"),
+    })
+    .strict();
+
+  const attendeeSchema = z
+    .object({
+      email: z.string().email().describe("Attendee email address"),
+      displayName: z.string().optional().describe("Attendee display name"),
+    })
+    .strict();
+
+  const schema = z
+    .object({
+      eventId: z
+        .string()
+        .optional()
+        .describe("REQUIRED: The Google Calendar event ID to update"),
+      event_id: z.string().optional().describe("Alias for eventId"),
       calendarId: z
         .string()
         .optional()
@@ -464,68 +509,44 @@ export function createGoogleCalendarUpdateTool(
       summary: z.string().optional().describe("Event title/summary"),
       description: z.string().optional().describe("Event description"),
       location: z.string().optional().describe("Event location"),
-      start: z
-        .object({
-          dateTime: z
-            .string()
-            .optional()
-            .describe("Start time in RFC3339 format (e.g., '2024-01-01T10:00:00Z')"),
-          date: z
-            .string()
-            .optional()
-            .describe("Start date in YYYY-MM-DD format (for all-day events)"),
-          timeZone: z
-            .string()
-            .optional()
-            .describe("IANA timezone (e.g., 'America/New_York')"),
-        })
-        .optional()
-        .describe("Event start time"),
-      end: z
-        .object({
-          dateTime: z
-            .string()
-            .optional()
-            .describe("End time in RFC3339 format (e.g., '2024-01-01T11:00:00Z')"),
-          date: z
-            .string()
-            .optional()
-            .describe("End date in YYYY-MM-DD format (for all-day events)"),
-          timeZone: z
-            .string()
-            .optional()
-            .describe("IANA timezone (e.g., 'America/New_York')"),
-        })
-        .optional()
-        .describe("Event end time"),
-      attendees: z
-        .array(
-          z.object({
-            email: z.string().email().describe("Attendee email address"),
-            displayName: z.string().optional().describe("Attendee display name"),
-          })
-        )
-        .optional()
-        .describe("List of event attendees"),
-    }),
+      start: eventTimeSchema.optional().describe("Event start time"),
+      end: eventTimeSchema.optional().describe("Event end time"),
+      attendees: z.array(attendeeSchema).optional().describe("List of event attendees"),
+    })
+    .strict()
+    .refine((data) => data.eventId || data.event_id, {
+      message:
+        "eventId parameter is required and must be a non-empty string. Provide the event ID as 'eventId'.",
+      path: ["eventId"],
+    });
+
+  return tool({
+    description:
+      "Update an existing event in Google Calendar. Returns the updated event with all metadata. Only provide fields that should be updated.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Google Calendar is not connected. Please connect your Google Calendar account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         // Extract eventId - handle both camelCase and snake_case
-        const eventId = args.eventId || args.event_id;
+        const eventId = parsed.data.eventId || parsed.data.event_id;
         if (!eventId || typeof eventId !== "string" || eventId.trim().length === 0) {
           console.error("[Google Calendar Update Tool] Missing or invalid eventId:", {
-            args,
+            args: parsed.data,
             eventId,
-            hasEventId: !!args.eventId,
-            hasEvent_id: !!args.event_id,
+            hasEventId: !!parsed.data.eventId,
+            hasEvent_id: !!parsed.data.event_id,
           });
           return "Error: eventId parameter is required and must be a non-empty string. Please provide the event ID as 'eventId' (not 'event_id').";
         }
@@ -533,24 +554,26 @@ export function createGoogleCalendarUpdateTool(
         // Log tool call for debugging
         console.log("[Tool Call] google_calendar_update", {
           toolName: "google_calendar_update",
-          arguments: { eventId, calendarId: args.calendarId || "primary" },
+          arguments: { eventId, calendarId: parsed.data.calendarId || "primary" },
           workspaceId,
           serverId,
         });
 
         // Build update object with only provided fields
         const updateData: Record<string, unknown> = {};
-        if (args.summary !== undefined) updateData.summary = args.summary;
-        if (args.description !== undefined) updateData.description = args.description;
-        if (args.location !== undefined) updateData.location = args.location;
-        if (args.start !== undefined) updateData.start = args.start;
-        if (args.end !== undefined) updateData.end = args.end;
-        if (args.attendees !== undefined) updateData.attendees = args.attendees;
+        if (parsed.data.summary !== undefined) updateData.summary = parsed.data.summary;
+        if (parsed.data.description !== undefined)
+          updateData.description = parsed.data.description;
+        if (parsed.data.location !== undefined) updateData.location = parsed.data.location;
+        if (parsed.data.start !== undefined) updateData.start = parsed.data.start;
+        if (parsed.data.end !== undefined) updateData.end = parsed.data.end;
+        if (parsed.data.attendees !== undefined)
+          updateData.attendees = parsed.data.attendees;
 
         const event = await googleCalendarClient.updateEvent(
           workspaceId,
           serverId,
-          args.calendarId || "primary",
+          parsed.data.calendarId || "primary",
           eventId,
           updateData
         );
@@ -580,35 +603,53 @@ export function createGoogleCalendarDeleteTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Delete an event from Google Calendar. Returns a success message if the event was deleted.",
-    parameters: z.object({
-      eventId: z.string().describe("REQUIRED: The Google Calendar event ID to delete"),
+  const schema = z
+    .object({
+      eventId: z
+        .string()
+        .optional()
+        .describe("REQUIRED: The Google Calendar event ID to delete"),
+      event_id: z.string().optional().describe("Alias for eventId"),
       calendarId: z
         .string()
         .optional()
         .default("primary")
         .describe("Calendar ID (default: 'primary' for user's primary calendar)"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.eventId || data.event_id, {
+      message:
+        "eventId parameter is required and must be a non-empty string. Provide the event ID as 'eventId'.",
+      path: ["eventId"],
+    });
+
+  return tool({
+    description:
+      "Delete an event from Google Calendar. Returns a success message if the event was deleted.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         // Check OAuth connection
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Google Calendar is not connected. Please connect your Google Calendar account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         // Extract eventId - handle both camelCase and snake_case
-        const eventId = args.eventId || args.event_id;
+        const eventId = parsed.data.eventId || parsed.data.event_id;
         if (!eventId || typeof eventId !== "string" || eventId.trim().length === 0) {
           console.error("[Google Calendar Delete Tool] Missing or invalid eventId:", {
-            args,
+            args: parsed.data,
             eventId,
-            hasEventId: !!args.eventId,
-            hasEvent_id: !!args.event_id,
+            hasEventId: !!parsed.data.eventId,
+            hasEvent_id: !!parsed.data.event_id,
           });
           return "Error: eventId parameter is required and must be a non-empty string. Please provide the event ID as 'eventId' (not 'event_id').";
         }
@@ -616,7 +657,7 @@ export function createGoogleCalendarDeleteTool(
         // Log tool call for debugging
         console.log("[Tool Call] google_calendar_delete", {
           toolName: "google_calendar_delete",
-          arguments: { eventId, calendarId: args.calendarId || "primary" },
+          arguments: { eventId, calendarId: parsed.data.calendarId || "primary" },
           workspaceId,
           serverId,
         });
@@ -624,7 +665,7 @@ export function createGoogleCalendarDeleteTool(
         await googleCalendarClient.deleteEvent(
           workspaceId,
           serverId,
-          args.calendarId || "primary",
+          parsed.data.calendarId || "primary",
           eventId
         );
 

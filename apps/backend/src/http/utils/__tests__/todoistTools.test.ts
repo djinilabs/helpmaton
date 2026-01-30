@@ -57,6 +57,21 @@ describe("Todoist Tools", () => {
     expect(result).toContain("task-1");
   });
 
+  it("should return validation error when content is missing", async () => {
+    mockDb["mcp-server"].get.mockResolvedValue({
+      pk: `mcp-servers/${workspaceId}/${serverId}`,
+      sk: "server",
+      authType: "oauth",
+      config: { accessToken: "token-123" },
+    });
+
+    const tool = createTodoistAddTaskTool(workspaceId, serverId);
+    const result = await (tool as any).execute({});
+
+    expect(result).toContain("Invalid tool arguments");
+    expect(todoistClient.addTask).not.toHaveBeenCalled();
+  });
+
   it("should return error if not connected", async () => {
     mockDb["mcp-server"].get.mockResolvedValue({
       pk: `mcp-servers/${workspaceId}/${serverId}`,

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as hubspotClient from "../../utils/hubspot/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 async function hasOAuthConnection(
   workspaceId: string,
   serverId: string
@@ -20,50 +22,54 @@ async function hasOAuthConnection(
   return !!config.accessToken;
 }
 
-const listSchema = z.object({
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(100)
-    .optional()
-    .describe("Number of results to return (default: 100, max: 100)"),
-  after: z
-    .string()
-    .optional()
-    .describe("Pagination cursor for the next page"),
-  properties: z
-    .array(z.string())
-    .optional()
-    .describe("Optional list of properties to include"),
-  archived: z
-    .boolean()
-    .optional()
-    .describe("Whether to return archived records"),
-});
+const listSchema = z
+  .object({
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Number of results to return (default: 100, max: 100)"),
+    after: z
+      .string()
+      .optional()
+      .describe("Pagination cursor for the next page"),
+    properties: z
+      .array(z.string())
+      .optional()
+      .describe("Optional list of properties to include"),
+    archived: z
+      .boolean()
+      .optional()
+      .describe("Whether to return archived records"),
+  })
+  .strict();
 
-const searchSchema = z.object({
-  query: z.string().min(1).describe("Search query text"),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(100)
-    .optional()
-    .describe("Number of results to return (default: 100, max: 100)"),
-  after: z
-    .string()
-    .optional()
-    .describe("Pagination cursor for the next page"),
-  properties: z
-    .array(z.string())
-    .optional()
-    .describe("Optional list of properties to include"),
-  archived: z
-    .boolean()
-    .optional()
-    .describe("Whether to return archived records"),
-});
+const searchSchema = z
+  .object({
+    query: z.string().min(1).describe("Search query text"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Number of results to return (default: 100, max: 100)"),
+    after: z
+      .string()
+      .optional()
+      .describe("Pagination cursor for the next page"),
+    properties: z
+      .array(z.string())
+      .optional()
+      .describe("Optional list of properties to include"),
+    archived: z
+      .boolean()
+      .optional()
+      .describe("Whether to return archived records"),
+  })
+  .strict();
 
 export function createHubspotListContactsTool(
   workspaceId: string,
@@ -75,18 +81,26 @@ export function createHubspotListContactsTool(
     parameters: listSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof listSchema>>(
+          listSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await hubspotClient.listContacts(workspaceId, serverId, {
-          limit: args.limit,
-          after: args.after,
-          properties: args.properties,
-          archived: args.archived,
+          limit: parsed.data.limit,
+          after: parsed.data.after,
+          properties: parsed.data.properties,
+          archived: parsed.data.archived,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -103,9 +117,8 @@ export function createHubspotGetContactTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "Get a HubSpot contact by ID.",
-    parameters: z.object({
+  const schema = z
+    .object({
       contactId: z.string().optional().describe("Contact ID to retrieve"),
       id: z.string().optional().describe("Alias for contactId"),
       contact_id: z.string().optional().describe("Alias for contactId"),
@@ -117,17 +130,31 @@ export function createHubspotGetContactTool(
         .boolean()
         .optional()
         .describe("Whether to return archived records"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.contactId || data.id || data.contact_id, {
+      message: "contactId parameter is required.",
+      path: ["contactId"],
+    });
+
+  return tool({
+    description: "Get a HubSpot contact by ID.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
-        const contactId = args.contactId || args.id || args.contact_id;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const contactId = parsed.data.contactId || parsed.data.id || parsed.data.contact_id;
         if (!contactId || typeof contactId !== "string") {
           return "Error: contactId parameter is required. Please provide the HubSpot contact ID as 'contactId'.";
         }
@@ -137,8 +164,8 @@ export function createHubspotGetContactTool(
           serverId,
           contactId,
           {
-            properties: args.properties,
-            archived: args.archived,
+            properties: parsed.data.properties,
+            archived: parsed.data.archived,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -161,19 +188,27 @@ export function createHubspotSearchContactsTool(
     parameters: searchSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof searchSchema>>(
+          searchSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await hubspotClient.searchContacts(workspaceId, serverId, {
-          query: args.query,
-          limit: args.limit,
-          after: args.after,
-          properties: args.properties,
-          archived: args.archived,
+          query: parsed.data.query,
+          limit: parsed.data.limit,
+          after: parsed.data.after,
+          properties: parsed.data.properties,
+          archived: parsed.data.archived,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -196,18 +231,26 @@ export function createHubspotListCompaniesTool(
     parameters: listSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof listSchema>>(
+          listSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await hubspotClient.listCompanies(workspaceId, serverId, {
-          limit: args.limit,
-          after: args.after,
-          properties: args.properties,
-          archived: args.archived,
+          limit: parsed.data.limit,
+          after: parsed.data.after,
+          properties: parsed.data.properties,
+          archived: parsed.data.archived,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -224,9 +267,8 @@ export function createHubspotGetCompanyTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "Get a HubSpot company by ID.",
-    parameters: z.object({
+  const schema = z
+    .object({
       companyId: z.string().optional().describe("Company ID to retrieve"),
       id: z.string().optional().describe("Alias for companyId"),
       company_id: z.string().optional().describe("Alias for companyId"),
@@ -238,17 +280,31 @@ export function createHubspotGetCompanyTool(
         .boolean()
         .optional()
         .describe("Whether to return archived records"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.companyId || data.id || data.company_id, {
+      message: "companyId parameter is required.",
+      path: ["companyId"],
+    });
+
+  return tool({
+    description: "Get a HubSpot company by ID.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
-        const companyId = args.companyId || args.id || args.company_id;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const companyId = parsed.data.companyId || parsed.data.id || parsed.data.company_id;
         if (!companyId || typeof companyId !== "string") {
           return "Error: companyId parameter is required. Please provide the HubSpot company ID as 'companyId'.";
         }
@@ -258,8 +314,8 @@ export function createHubspotGetCompanyTool(
           serverId,
           companyId,
           {
-            properties: args.properties,
-            archived: args.archived,
+            properties: parsed.data.properties,
+            archived: parsed.data.archived,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -282,22 +338,30 @@ export function createHubspotSearchCompaniesTool(
     parameters: searchSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
+        }
+
+        const parsed = validateToolArgs<z.infer<typeof searchSchema>>(
+          searchSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         const result = await hubspotClient.searchCompanies(
           workspaceId,
           serverId,
           {
-            query: args.query,
-            limit: args.limit,
-            after: args.after,
-            properties: args.properties,
-            archived: args.archived,
+            query: parsed.data.query,
+            limit: parsed.data.limit,
+            after: parsed.data.after,
+            properties: parsed.data.properties,
+            archived: parsed.data.archived,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -321,18 +385,26 @@ export function createHubspotListDealsTool(
     parameters: listSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof listSchema>>(
+          listSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await hubspotClient.listDeals(workspaceId, serverId, {
-          limit: args.limit,
-          after: args.after,
-          properties: args.properties,
-          archived: args.archived,
+          limit: parsed.data.limit,
+          after: parsed.data.after,
+          properties: parsed.data.properties,
+          archived: parsed.data.archived,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -349,9 +421,8 @@ export function createHubspotGetDealTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "Get a HubSpot deal by ID.",
-    parameters: z.object({
+  const schema = z
+    .object({
       dealId: z.string().optional().describe("Deal ID to retrieve"),
       id: z.string().optional().describe("Alias for dealId"),
       deal_id: z.string().optional().describe("Alias for dealId"),
@@ -363,17 +434,31 @@ export function createHubspotGetDealTool(
         .boolean()
         .optional()
         .describe("Whether to return archived records"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.dealId || data.id || data.deal_id, {
+      message: "dealId parameter is required.",
+      path: ["dealId"],
+    });
+
+  return tool({
+    description: "Get a HubSpot deal by ID.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
-        const dealId = args.dealId || args.id || args.deal_id;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const dealId = parsed.data.dealId || parsed.data.id || parsed.data.deal_id;
         if (!dealId || typeof dealId !== "string") {
           return "Error: dealId parameter is required. Please provide the HubSpot deal ID as 'dealId'.";
         }
@@ -383,8 +468,8 @@ export function createHubspotGetDealTool(
           serverId,
           dealId,
           {
-            properties: args.properties,
-            archived: args.archived,
+            properties: parsed.data.properties,
+            archived: parsed.data.archived,
           }
         );
         return JSON.stringify(result, null, 2);
@@ -407,19 +492,27 @@ export function createHubspotSearchDealsTool(
     parameters: searchSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof searchSchema>>(
+          searchSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await hubspotClient.searchDeals(workspaceId, serverId, {
-          query: args.query,
-          limit: args.limit,
-          after: args.after,
-          properties: args.properties,
-          archived: args.archived,
+          query: parsed.data.query,
+          limit: parsed.data.limit,
+          after: parsed.data.after,
+          properties: parsed.data.properties,
+          archived: parsed.data.archived,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -436,9 +529,8 @@ export function createHubspotListOwnersTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "List HubSpot owners with optional pagination.",
-    parameters: z.object({
+  const schema = z
+    .object({
       limit: z
         .number()
         .int()
@@ -450,24 +542,31 @@ export function createHubspotListOwnersTool(
         .string()
         .optional()
         .describe("Pagination cursor for the next page"),
-      email: z
-        .string()
-        .optional()
-        .describe("Optional email to filter owners"),
-    }),
+      email: z.string().optional().describe("Optional email to filter owners"),
+    })
+    .strict();
+
+  return tool({
+    description: "List HubSpot owners with optional pagination.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await hubspotClient.listOwners(workspaceId, serverId, {
-          limit: args.limit,
-          after: args.after,
-          email: args.email,
+          limit: parsed.data.limit,
+          after: parsed.data.after,
+          email: parsed.data.email,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -484,23 +583,36 @@ export function createHubspotGetOwnerTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "Get a HubSpot owner by ID.",
-    parameters: z.object({
+  const schema = z
+    .object({
       ownerId: z.string().optional().describe("Owner ID to retrieve"),
       id: z.string().optional().describe("Alias for ownerId"),
       owner_id: z.string().optional().describe("Alias for ownerId"),
-    }),
+    })
+    .strict()
+    .refine((data) => data.ownerId || data.id || data.owner_id, {
+      message: "ownerId parameter is required.",
+      path: ["ownerId"],
+    });
+
+  return tool({
+    description: "Get a HubSpot owner by ID.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
-        const ownerId = args.ownerId || args.id || args.owner_id;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const ownerId = parsed.data.ownerId || parsed.data.id || parsed.data.owner_id;
         if (!ownerId || typeof ownerId !== "string") {
           return "Error: ownerId parameter is required. Please provide the HubSpot owner ID as 'ownerId'.";
         }
@@ -525,9 +637,8 @@ export function createHubspotSearchOwnersTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description: "Search HubSpot owners by email.",
-    parameters: z.object({
+  const schema = z
+    .object({
       email: z.string().min(1).describe("Owner email to search for"),
       limit: z
         .number()
@@ -540,20 +651,30 @@ export function createHubspotSearchOwnersTool(
         .string()
         .optional()
         .describe("Pagination cursor for the next page"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description: "Search HubSpot owners by email.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: HubSpot is not connected. Please connect your HubSpot account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await hubspotClient.listOwners(workspaceId, serverId, {
-          email: args.email,
-          limit: args.limit,
-          after: args.after,
+          email: parsed.data.email,
+          limit: parsed.data.limit,
+          after: parsed.data.after,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {

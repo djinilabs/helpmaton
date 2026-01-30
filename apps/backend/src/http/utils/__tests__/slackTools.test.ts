@@ -117,7 +117,7 @@ describe("Slack Tools", () => {
       const tool = createSlackGetChannelHistoryTool(workspaceId, serverId);
       const result = await (tool as any).execute({});
 
-      expect(result).toContain("channel_id parameter is required");
+      expect(result).toContain("Invalid tool arguments");
       expect(slackClient.getChannelHistory).not.toHaveBeenCalled();
     });
   });
@@ -165,7 +165,7 @@ describe("Slack Tools", () => {
         channel_id: "C123",
       });
 
-      expect(result).toContain("text parameter is required");
+      expect(result).toContain("Invalid tool arguments");
       expect(slackClient.postMessage).not.toHaveBeenCalled();
     });
   });

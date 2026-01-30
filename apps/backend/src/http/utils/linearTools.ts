@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as linearClient from "../../utils/linear/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 async function hasOAuthConnection(
   workspaceId: string,
   serverId: string
@@ -24,16 +26,23 @@ export function createLinearListTeamsTool(
   workspaceId: string,
   serverId: string
 ) {
+  const schema = z.object({}).strict();
+
   return tool({
     description:
       "List Linear teams available to the connected account. Returns team IDs, names, and keys.",
-    parameters: z.object({}),
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    execute: async () => {
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Linear is not connected. Please connect your Linear account first.";
+        }
+
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         const result = await linearClient.listTeams(workspaceId, serverId);
@@ -52,10 +61,8 @@ export function createLinearListProjectsTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List Linear projects. Returns project metadata and pagination info.",
-    parameters: z.object({
+  const schema = z
+    .object({
       first: z
         .number()
         .int()
@@ -67,19 +74,30 @@ export function createLinearListProjectsTool(
         .string()
         .optional()
         .describe("Pagination cursor for the next page"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List Linear projects. Returns project metadata and pagination info.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Linear is not connected. Please connect your Linear account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await linearClient.listProjects(workspaceId, serverId, {
-          first: args.first,
-          after: args.after,
+          first: parsed.data.first,
+          after: parsed.data.after,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -96,10 +114,8 @@ export function createLinearListIssuesTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "List Linear issues with optional filters for team, project, assignee, and state.",
-    parameters: z.object({
+  const schema = z
+    .object({
       teamId: z
         .string()
         .optional()
@@ -127,23 +143,34 @@ export function createLinearListIssuesTool(
         .string()
         .optional()
         .describe("Pagination cursor for the next page"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "List Linear issues with optional filters for team, project, assignee, and state.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Linear is not connected. Please connect your Linear account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await linearClient.listIssues(workspaceId, serverId, {
-          teamId: args.teamId,
-          projectId: args.projectId,
-          assigneeId: args.assigneeId,
-          state: args.state,
-          first: args.first,
-          after: args.after,
+          teamId: parsed.data.teamId,
+          projectId: parsed.data.projectId,
+          assigneeId: parsed.data.assigneeId,
+          state: parsed.data.state,
+          first: parsed.data.first,
+          after: parsed.data.after,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -160,27 +187,37 @@ export function createLinearGetIssueTool(
   workspaceId: string,
   serverId: string
 ) {
+  const schema = z
+    .object({
+      issueId: z.string().optional().describe("Linear issue ID to retrieve"),
+      id: z.string().optional().describe("Alias for issueId"),
+      issue_id: z.string().optional().describe("Alias for issueId"),
+    })
+    .strict()
+    .refine((data) => data.issueId || data.id || data.issue_id, {
+      message: "issueId parameter is required.",
+      path: ["issueId"],
+    });
+
   return tool({
     description:
       "Get detailed information about a Linear issue by its ID.",
-    parameters: z.object({
-      issueId: z
-        .string()
-        .optional()
-        .describe("Linear issue ID to retrieve"),
-      id: z.string().optional().describe("Alias for issueId"),
-      issue_id: z.string().optional().describe("Alias for issueId"),
-    }),
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Linear is not connected. Please connect your Linear account first.";
         }
 
-        const issueId = args.issueId || args.id || args.issue_id;
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
+        const issueId = parsed.data.issueId || parsed.data.id || parsed.data.issue_id;
         if (!issueId || typeof issueId !== "string") {
           return "Error: issueId parameter is required. Please provide the Linear issue ID as 'issueId'.";
         }
@@ -205,10 +242,8 @@ export function createLinearSearchIssuesTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Search Linear issues by query text with optional filters.",
-    parameters: z.object({
+  const schema = z
+    .object({
       query: z
         .string()
         .min(1, "Search query cannot be empty")
@@ -240,24 +275,35 @@ export function createLinearSearchIssuesTool(
         .string()
         .optional()
         .describe("Pagination cursor for the next page"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Search Linear issues by query text with optional filters.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Linear is not connected. Please connect your Linear account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await linearClient.searchIssues(workspaceId, serverId, {
-          query: args.query,
-          teamId: args.teamId,
-          projectId: args.projectId,
-          assigneeId: args.assigneeId,
-          state: args.state,
-          first: args.first,
-          after: args.after,
+          query: parsed.data.query,
+          teamId: parsed.data.teamId,
+          projectId: parsed.data.projectId,
+          assigneeId: parsed.data.assigneeId,
+          state: parsed.data.state,
+          first: parsed.data.first,
+          after: parsed.data.after,
         });
         return JSON.stringify(result, null, 2);
       } catch (error) {

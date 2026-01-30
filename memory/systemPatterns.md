@@ -81,6 +81,7 @@
 - **Error Handling**: Custom error utilities in `utils/handlingErrors.ts`
 - **Logging**: Structured logging with table logger
 - **Sentry Tracing**: Use `@sentry/aws-serverless` with wrapper-level `startSpan` for Lambda/SQS/scheduled handlers and flush only in handler `finally` blocks; manual spans for aws-lite S3 calls.
+- **Tool Validation**: MCP tool inputs use `validateToolArgs` with strict Zod schemas; generic MCP tools validate method params against discovered JSON Schemas (Ajv) cached in `mcp-server.config.toolSchemaCache`.
 - **Resource cleanup**: Workspace/agent cleanup is centralized in helper utilities; conversation files are deleted by parsing stored message URLs (no S3 list operations).
 - **Credit user errors**: `InsufficientCreditsError` / `SpendingLimitExceededError` are expected 402s; log at `info` and do not report to Sentry or trigger notifications.
 - **LLM Observers**: Wrap models with `llmObserver` to emit events; wrap tools for execution timing; build conversation records from observed events

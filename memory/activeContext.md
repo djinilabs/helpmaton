@@ -3352,3 +3352,18 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Added llm-shared HTTP streaming diagnostics
 - Verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run llm-shared`
 - Credit user errors (`InsufficientCreditsError`, `SpendingLimitExceededError`) are now **info-only** (no Sentry capture, no email notifications); added streaming error handling tests; verified `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run streamErrorHandling`
+
+## MCP Tool Validation
+
+**Status**: Completed ✅
+
+**Overview**: Enforced strict argument validation across MCP tools with consistent error messaging and added per-method validation for generic MCP servers using tool discovery.
+
+**Key Changes**:
+
+- Added shared Zod validation formatter and applied `.strict()` schemas across MCP tools
+- Added JSON Schema validation for generic MCP tools with `tools/list` discovery and cached schemas in `mcp-server.config.toolSchemaCache`
+- Updated MCP tool metadata to document alias parameters
+- Added/updated unit tests for MCP tool validation and generic MCP behavior
+
+**Verification**: `pnpm typecheck`, `pnpm lint --fix` ✅

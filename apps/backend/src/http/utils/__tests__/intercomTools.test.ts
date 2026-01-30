@@ -104,6 +104,21 @@ describe("Intercom Tools", () => {
       expect(result).toContain("conv-1");
     });
 
+    it("should return validation error when conversationId is missing", async () => {
+      mockDb["mcp-server"].get.mockResolvedValue({
+        pk: `mcp-servers/${workspaceId}/${serverId}`,
+        sk: "server",
+        authType: "oauth",
+        config: { accessToken: "token-123", adminId: "admin-1" },
+      });
+
+      const tool = createIntercomReplyConversationTool(workspaceId, serverId);
+      const result = await (tool as any).execute({ body: "Hello" });
+
+      expect(result).toContain("Invalid tool arguments");
+      expect(intercomClient.replyConversation).not.toHaveBeenCalled();
+    });
+
     it("should return error if admin ID is missing", async () => {
       mockDb["mcp-server"].get.mockResolvedValue({
         pk: `mcp-servers/${workspaceId}/${serverId}`,

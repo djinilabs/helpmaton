@@ -127,6 +127,23 @@ describe("Linear Tools", () => {
     expect(result).toContain("ENG-1");
   });
 
+  it("should return validation error when issueId is missing", async () => {
+    mockDb["mcp-server"].get.mockResolvedValue({
+      pk: `mcp-servers/${workspaceId}/${serverId}`,
+      sk: "server",
+      authType: "oauth",
+      config: {
+        accessToken: "token-123",
+      },
+    });
+
+    const tool = createLinearGetIssueTool(workspaceId, serverId);
+    const result = await (tool as any).execute({});
+
+    expect(result).toContain("Invalid tool arguments");
+    expect(linearClient.getIssue).not.toHaveBeenCalled();
+  });
+
   it("should search issues", async () => {
     mockDb["mcp-server"].get.mockResolvedValue({
       pk: `mcp-servers/${workspaceId}/${serverId}`,

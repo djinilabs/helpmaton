@@ -87,6 +87,7 @@ describe("HubSpot Tools", () => {
       const tool = createHubspotGetContactTool(workspaceId, serverId);
       const result = await (tool as any).execute({});
 
+      expect(result).toContain("Invalid tool arguments");
       expect(result).toContain("contactId parameter is required");
       expect(hubspotClient.getContact).not.toHaveBeenCalled();
     });

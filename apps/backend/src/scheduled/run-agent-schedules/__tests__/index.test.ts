@@ -35,6 +35,7 @@ vi.mock("../../../utils/sentry", () => ({
     captureException: vi.fn(),
   },
   ensureError: (error: unknown) => error as Error,
+  initSentry: vi.fn(),
 }));
 
 import { handler } from "../index";

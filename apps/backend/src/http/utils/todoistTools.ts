@@ -4,6 +4,8 @@ import { z } from "zod";
 import { database } from "../../tables";
 import * as todoistClient from "../../utils/todoist/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 async function getTodoistConfig(
   workspaceId: string,
   serverId: string
@@ -71,17 +73,25 @@ export function createTodoistAddTaskTool(
     parameters: addTaskSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Todoist is not connected. Please connect your Todoist account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof addTaskSchema>>(
+          addTaskSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await todoistClient.addTask(
           workspaceId,
           serverId,
-          args
+          parsed.data
         );
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -104,17 +114,25 @@ export function createTodoistGetTasksTool(
     parameters: getTasksSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Todoist is not connected. Please connect your Todoist account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof getTasksSchema>>(
+          getTasksSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await todoistClient.listTasks(
           workspaceId,
           serverId,
-          args.filter
+          parsed.data.filter
         );
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -136,17 +154,25 @@ export function createTodoistCloseTaskTool(
     parameters: closeTaskSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+     
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Todoist is not connected. Please connect your Todoist account first.";
         }
 
+        const parsed = validateToolArgs<z.infer<typeof closeTaskSchema>>(
+          closeTaskSchema,
+          args
+        );
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+
         const result = await todoistClient.closeTask(
           workspaceId,
           serverId,
-          args.id
+          parsed.data.id
         );
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -163,17 +189,24 @@ export function createTodoistGetProjectsTool(
   workspaceId: string,
   serverId: string
 ) {
+  const schema = z.object({}).strict();
+
   return tool({
     description:
       "Lists all Todoist projects to find the correct project ID for task creation.",
-    parameters: z.object({}).strict(),
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
      
-    execute: async () => {
+    execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Todoist is not connected. Please connect your Todoist account first.";
+        }
+
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
         }
 
         const result = await todoistClient.listProjects(workspaceId, serverId);

@@ -5,6 +5,9 @@ import { database } from "../../tables";
 import type { McpServerRecord } from "../../tables/schema";
 import { trackBusinessEvent } from "../../utils/tracking";
 
+import { validateMcpToolParams } from "./mcpToolSchemaValidation";
+import { validateToolArgs } from "./toolValidation";
+
 /**
  * Get MCP server details
  */
@@ -139,6 +142,137 @@ async function callMcpServer(
   }
 }
 
+type McpToolSchemaEntry = {
+  description?: string;
+  inputSchema?: unknown;
+};
+
+type McpToolSchemaCache = {
+  fetchedAt: string;
+  tools: Record<string, McpToolSchemaEntry>;
+};
+
+const TOOL_SCHEMA_CACHE_KEY = "toolSchemaCache";
+const TOOL_SCHEMA_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+const getCachedToolSchemaCache = (
+  server: McpServerRecord
+): McpToolSchemaCache | null => {
+  const config = server.config as Record<string, unknown>;
+  const cache = config[TOOL_SCHEMA_CACHE_KEY];
+  if (!cache || typeof cache !== "object") {
+    return null;
+  }
+  const fetchedAt = (cache as { fetchedAt?: unknown }).fetchedAt;
+  const tools = (cache as { tools?: unknown }).tools;
+  if (typeof fetchedAt !== "string" || !tools || typeof tools !== "object") {
+    return null;
+  }
+  return {
+    fetchedAt,
+    tools: tools as Record<string, McpToolSchemaEntry>,
+  };
+};
+
+const isCacheFresh = (cache: McpToolSchemaCache): boolean => {
+  const fetched = Date.parse(cache.fetchedAt);
+  if (Number.isNaN(fetched)) {
+    return false;
+  }
+  return Date.now() - fetched < TOOL_SCHEMA_CACHE_TTL_MS;
+};
+
+const extractToolSchemas = (
+  result: unknown
+): Record<string, McpToolSchemaEntry> | null => {
+  const tools = Array.isArray(result)
+    ? result
+    : (result as { tools?: unknown })?.tools;
+  if (!Array.isArray(tools)) {
+    return null;
+  }
+  const toolMap: Record<string, McpToolSchemaEntry> = {};
+  for (const tool of tools) {
+    if (!tool || typeof tool !== "object") {
+      continue;
+    }
+    const name = (tool as { name?: unknown }).name;
+    if (typeof name !== "string" || !name) {
+      continue;
+    }
+    const inputSchema =
+      (tool as { inputSchema?: unknown }).inputSchema ??
+      (tool as { input_schema?: unknown }).input_schema ??
+      (tool as { parameters?: unknown }).parameters ??
+      (tool as { schema?: unknown }).schema;
+    const description = (tool as { description?: unknown }).description;
+    toolMap[name] = {
+      description: typeof description === "string" ? description : undefined,
+      inputSchema,
+    };
+  }
+  return toolMap;
+};
+
+const updateToolSchemaCache = async (
+  server: McpServerRecord,
+  workspaceId: string,
+  serverId: string,
+  tools: Record<string, McpToolSchemaEntry>
+): Promise<McpToolSchemaCache> => {
+  const cache: McpToolSchemaCache = {
+    fetchedAt: new Date().toISOString(),
+    tools,
+  };
+  const db = await database();
+  const pk = `mcp-servers/${workspaceId}/${serverId}`;
+  const updatedConfig = {
+    ...(server.config as Record<string, unknown>),
+    [TOOL_SCHEMA_CACHE_KEY]: cache,
+  };
+  await db["mcp-server"].update({
+    pk,
+    sk: "server",
+    config: updatedConfig,
+    updatedAt: new Date().toISOString(),
+  });
+  return cache;
+};
+
+const fetchToolSchemas = async (
+  server: McpServerRecord,
+  workspaceId: string,
+  serverId: string
+): Promise<McpToolSchemaCache | null> => {
+  try {
+    const result = await callMcpServer(server, "tools/list", {});
+    const tools = extractToolSchemas(result);
+    if (!tools) {
+      return null;
+    }
+    return await updateToolSchemaCache(server, workspaceId, serverId, tools);
+  } catch (error) {
+    console.warn("Failed to fetch MCP tool schemas:", error);
+    return null;
+  }
+};
+
+const getMcpToolSchemaCache = async (
+  server: McpServerRecord,
+  workspaceId: string,
+  serverId: string
+): Promise<McpToolSchemaCache | null> => {
+  const cached = getCachedToolSchemaCache(server);
+  if (cached && isCacheFresh(cached)) {
+    return cached;
+  }
+  const refreshed = await fetchToolSchemas(server, workspaceId, serverId);
+  if (refreshed) {
+    return refreshed;
+  }
+  return cached ?? null;
+};
+
 /**
  * Create a tool for calling an MCP server
  * This creates a generic tool that can call any MCP method
@@ -148,13 +282,15 @@ export function createMcpServerTool(
   serverId: string,
   serverName: string
 ) {
-  const toolParamsSchema = z.object({
-    method: z.string().describe("The MCP method to call"),
-    params: z
-      .record(z.string(), z.unknown())
-      .optional()
-      .describe("Optional parameters for the MCP method"),
-  });
+  const toolParamsSchema = z
+    .object({
+      method: z.string().min(1).describe("The MCP method to call"),
+      params: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe("Optional parameters for the MCP method"),
+    })
+    .strict();
 
   type ToolArgs = z.infer<typeof toolParamsSchema>;
 
@@ -167,7 +303,11 @@ export function createMcpServerTool(
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     execute: async (args: unknown) => {
       try {
-        const typedArgs = args as ToolArgs;
+        const parsed = validateToolArgs<ToolArgs>(toolParamsSchema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+        const typedArgs = parsed.data;
         const server = await getMcpServer(workspaceId, serverId);
 
         if (!server) {
@@ -178,11 +318,32 @@ export function createMcpServerTool(
           return `Error: MCP server ${serverId} does not belong to this workspace`;
         }
 
-        const result = await callMcpServer(
+        const schemaCache = await getMcpToolSchemaCache(
           server,
-          typedArgs.method,
-          typedArgs.params
+          workspaceId,
+          serverId
         );
+        if (!schemaCache) {
+          return "Error: MCP tool schemas are unavailable for this server. Ensure the server supports tools/list and try again.";
+        }
+
+        const toolSchema = schemaCache.tools[typedArgs.method];
+        if (!toolSchema) {
+          const knownMethods = Object.keys(schemaCache.tools);
+          const knownList =
+            knownMethods.length > 0
+              ? ` Known methods: ${knownMethods.slice(0, 20).join(", ")}.`
+              : "";
+          return `Error: Unknown MCP method "${typedArgs.method}".${knownList}`;
+        }
+
+        const params = typedArgs.params ?? {};
+        const validation = validateMcpToolParams(toolSchema.inputSchema, params);
+        if (!validation.ok) {
+          return validation.error;
+        }
+
+        const result = await callMcpServer(server, typedArgs.method, params);
 
         // Track MCP server tool call
         trackBusinessEvent(

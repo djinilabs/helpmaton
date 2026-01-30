@@ -87,6 +87,7 @@ describe("Salesforce Tools", () => {
     const tool = createSalesforceDescribeObjectTool(workspaceId, serverId);
     const result = await (tool as any).execute({});
 
+    expect(result).toContain("Invalid tool arguments");
     expect(result).toContain("objectName parameter is required");
     expect(salesforceClient.describeObject).not.toHaveBeenCalled();
   });

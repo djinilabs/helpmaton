@@ -91,6 +91,23 @@ describe("Notion Tools", () => {
       expect(result).toContain("Notion is not connected");
       expect(notionClient.readPage).not.toHaveBeenCalled();
     });
+
+    it("should return validation error when pageId is missing", async () => {
+      mockDb["mcp-server"].get.mockResolvedValue({
+        pk: `mcp-servers/${workspaceId}/${serverId}`,
+        sk: "server",
+        authType: "oauth",
+        config: {
+          accessToken: "token-123",
+        },
+      });
+
+      const tool = createNotionReadPageTool(workspaceId, serverId);
+      const result = await (tool as any).execute({});
+
+      expect(result).toContain("Invalid tool arguments");
+      expect(notionClient.readPage).not.toHaveBeenCalled();
+    });
   });
 
   describe("createNotionSearchTool", () => {
@@ -500,7 +517,7 @@ describe("Notion Tools", () => {
         databaseId: "",
       });
 
-      expect(result).toContain("databaseId parameter is required");
+      expect(result).toContain("Invalid tool arguments");
       expect(notionClient.queryDatabase).not.toHaveBeenCalled();
     });
   });

@@ -33,6 +33,7 @@
     "@tavily/core": "^0.7.0",
     "@vendia/serverless-express": "^4.12.6",
     "ai": "^6.0.0",
+    "ajv": "^8.17.1",
     "aws-sdk": "^2.1692.0",
     "chalk": "^5.0.0",
     "cron-parser": "^5.5.0",

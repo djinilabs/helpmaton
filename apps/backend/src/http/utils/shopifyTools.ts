@@ -8,6 +8,8 @@ import {
   getSalesReport,
 } from "../../utils/shopify/client";
 
+import { validateToolArgs } from "./toolValidation";
+
 async function hasOAuthConnection(
   workspaceId: string,
   serverId: string
@@ -36,14 +38,18 @@ export function createShopifyGetOrderTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Finds an order by ID or order number (e.g., #1001) to check status and tracking.",
-    parameters: z.object({
+  const schema = z
+    .object({
       orderNumber: z
         .union([z.string(), z.number().int()])
         .describe("Order number or ID (e.g., #1001)"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Finds an order by ID or order number (e.g., #1001) to check status and tracking.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     execute: async (args: unknown) => {
@@ -51,7 +57,11 @@ export function createShopifyGetOrderTool(
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Shopify is not connected. Please connect your Shopify account first.";
         }
-        const { orderNumber } = args as { orderNumber: string | number };
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+        const { orderNumber } = parsed.data;
         const result = await getOrderByNumber(
           workspaceId,
           serverId,
@@ -72,15 +82,19 @@ export function createShopifySearchProductsTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Searches for products by title to check inventory levels and pricing.",
-    parameters: z.object({
+  const schema = z
+    .object({
       query: z
         .string()
         .min(1)
         .describe("Product title or keyword to search for"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Searches for products by title to check inventory levels and pricing.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     execute: async (args: unknown) => {
@@ -88,7 +102,11 @@ export function createShopifySearchProductsTool(
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Shopify is not connected. Please connect your Shopify account first.";
         }
-        const { query } = args as { query: string };
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+        const { query } = parsed.data;
         const result = await searchProductsByTitle(
           workspaceId,
           serverId,
@@ -109,10 +127,8 @@ export function createShopifySalesReportTool(
   workspaceId: string,
   serverId: string
 ) {
-  return tool({
-    description:
-      "Retrieves order counts and gross sales for a specific date range.",
-    parameters: z.object({
+  const schema = z
+    .object({
       startDate: z
         .string()
         .min(1)
@@ -125,7 +141,13 @@ export function createShopifySalesReportTool(
         .max(250)
         .optional()
         .describe("Maximum number of orders to sum (default: 250)"),
-    }),
+    })
+    .strict();
+
+  return tool({
+    description:
+      "Retrieves order counts and gross sales for a specific date range.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     execute: async (args: unknown) => {
@@ -133,11 +155,11 @@ export function createShopifySalesReportTool(
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
           return "Error: Shopify is not connected. Please connect your Shopify account first.";
         }
-        const { startDate, endDate, limit } = args as {
-          startDate: string;
-          endDate: string;
-          limit?: number;
-        };
+        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        if (!parsed.ok) {
+          return parsed.error;
+        }
+        const { startDate, endDate, limit } = parsed.data;
 
         const parsedStart = parseDateInput(startDate);
         const parsedEnd = parseDateInput(endDate);

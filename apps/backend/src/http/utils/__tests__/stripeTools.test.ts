@@ -92,6 +92,23 @@ describe("Stripe Tools", () => {
       expect(stripeClient.getBalance).not.toHaveBeenCalled();
     });
 
+    it("should return validation error when startDate is missing", async () => {
+      mockDb["mcp-server"].get.mockResolvedValue({
+        pk: `mcp-servers/${workspaceId}/${serverId}`,
+        sk: "server",
+        authType: "oauth",
+        config: { accessToken: "token-123" },
+      });
+
+      const tool = createStripeGetMetricsTool(workspaceId, serverId);
+      const result = await (tool as any).execute({
+        endDate: "2025-01-01T00:00:00Z",
+      });
+
+      expect(result).toContain("Invalid tool arguments");
+      expect(stripeClient.getBalance).not.toHaveBeenCalled();
+    });
+
     it("should return balance and refunds for date range", async () => {
       mockDb["mcp-server"].get.mockResolvedValue({
         pk: `mcp-servers/${workspaceId}/${serverId}`,
