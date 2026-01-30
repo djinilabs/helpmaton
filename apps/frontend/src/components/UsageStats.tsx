@@ -28,49 +28,49 @@ export const UsageStats: FC<UsageStatsProps> = ({
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {/* Conversation and Messages Group - Success (Green) */}
-        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+        <div className="overflow-hidden rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
           <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Conversations</div>
           <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.conversationCount)}</div>
         </div>
-        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+        <div className="overflow-hidden rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
           <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Messages In</div>
           <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.messagesIn)}</div>
         </div>
-        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+        <div className="overflow-hidden rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
           <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Messages Out</div>
           <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.messagesOut)}</div>
         </div>
-        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+        <div className="overflow-hidden rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
           <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Total Messages</div>
           <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.totalMessages)}</div>
         </div>
         {/* Tokens Group - Primary (Teal) */}
-        <div className="rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
+        <div className="overflow-hidden rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
           <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Input Tokens</div>
           <div className="text-3xl font-bold text-primary-900 dark:text-primary-50">{formatNumber(stats.inputTokens)}</div>
         </div>
-        <div className="rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
+        <div className="overflow-hidden rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
           <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Output Tokens</div>
           <div className="text-3xl font-bold text-primary-900 dark:text-primary-50">{formatNumber(stats.outputTokens)}</div>
         </div>
-        <div className="rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
+        <div className="overflow-hidden rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
           <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Total Tokens</div>
           <div className="text-3xl font-bold text-primary-900 dark:text-primary-50">{formatNumber(stats.totalTokens)}</div>
         </div>
         {/* Costs Group - Accent (Purple) */}
         {(stats.rerankingCostUsd !== undefined && stats.rerankingCostUsd > 0) && (
-          <div className="rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
+          <div className="overflow-hidden rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
             <div className="mb-2 text-sm font-semibold text-accent-700 dark:text-accent-300">Reranking Cost</div>
             <div className="text-3xl font-bold text-accent-900 dark:text-accent-50">{formatCurrency(stats.rerankingCostUsd, currency, 10)}</div>
           </div>
         )}
         {(stats.evalCostUsd !== undefined && stats.evalCostUsd > 0) && (
-          <div className="rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
+          <div className="overflow-hidden rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
             <div className="mb-2 text-sm font-semibold text-accent-700 dark:text-accent-300">Eval Cost</div>
             <div className="text-3xl font-bold text-accent-900 dark:text-accent-50">{formatCurrency(stats.evalCostUsd, currency, 10)}</div>
           </div>
         )}
-        <div className="rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
+        <div className="overflow-hidden rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
           <div className="mb-2 text-sm font-semibold text-accent-700 dark:text-accent-300">Total Cost</div>
           <div className="text-3xl font-bold text-accent-900 dark:text-accent-50">{formatCurrency(stats.cost, currency, 10)}</div>
         </div>
@@ -154,7 +154,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
       <div>
         <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">By Key Type</h4>
         <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
             <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">BYOK</div>
             <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
               {formatCurrency(stats.byByok.byok.cost, currency, 10)}
@@ -163,7 +163,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
               {formatNumber(stats.byByok.byok.totalTokens)} tokens
             </div>
           </div>
-          <div className="bg-gradient-primary/10 rounded-xl border border-primary-300 p-5 dark:border-primary-700 dark:bg-primary-950/50">
+          <div className="bg-gradient-primary/10 overflow-hidden rounded-xl border border-primary-300 p-5 dark:border-primary-700 dark:bg-primary-950/50">
             <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Platform</div>
             <div className="text-2xl font-bold text-primary-900 dark:text-primary-100">
               {formatCurrency(stats.byByok.platform.cost, currency, 10)}
