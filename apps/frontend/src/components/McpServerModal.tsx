@@ -596,7 +596,7 @@ const FormField = ({
 const OAuthManagedNotice = ({ name }: { name: string }) => (
   <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
     <p className="text-sm text-neutral-700 dark:text-neutral-300">
-      This is a {name} MCP server. OAuth connection is managed separately.
+      This is a {name} connected tool. OAuth connection is managed separately.
     </p>
   </div>
 );
@@ -944,12 +944,12 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <h2 className="mb-8 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-          {isEditing ? "Edit MCP Server" : "Create MCP Server"}
+          {isEditing ? "Edit Connected Tool" : "Create Connected Tool"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           {showTypeSelection && (
             <div>
-              <FormField label="Search MCP servers" htmlFor="mcpTypeSearch">
+              <FormField label="Search connected tools" htmlFor="mcpTypeSearch">
                 <input
                   id="mcpTypeSearch"
                   type="search"
@@ -959,7 +959,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                   placeholder="Search by name or description"
                 />
               </FormField>
-              <label className={LABEL_CLASSNAME}>MCP Server Type *</label>
+              <label className={LABEL_CLASSNAME}>Connected tool type *</label>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {filteredServerTypes.map((serverType) => (
                   <ServerTypeCard
@@ -972,7 +972,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
               </div>
               {filteredServerTypes.length === 0 && (
                 <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-300">
-                  No MCP servers match your search.
+                  No connected tools match your search.
                 </p>
               )}
             </div>

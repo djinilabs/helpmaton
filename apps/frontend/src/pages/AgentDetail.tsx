@@ -2644,8 +2644,8 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
               Tool calling unavailable
             </p>
             <p className="text-sm text-yellow-900">
-              This model does not support tool calling. Built-in tools, MCP
-              integrations, and client tools will be disabled.
+              This model does not support tool calling. Built-in tools,
+              connected tool integrations, and client tools will be disabled.
             </p>
           </div>
         )}
@@ -4351,16 +4351,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               title={
                 <>
                   <BoltIcon className="mr-2 inline-block size-5" />
-                  MCP SERVERS
+                  CONNECTED TOOLS
                 </>
               }
               expandedSection={expandedSection}
               onToggle={toggleSection}
             >
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
-                  Enable MCP servers from your workspace to make them available
+                  Enable connected tools from your workspace to make them available
                   as tools to this agent. When enabled, the agent will be able
-                  to call the MCP server methods.
+                  to call the connected tool methods.
                 </p>
                 {mcpServersData && mcpServersData.servers.length > 0 ? (
                   <div className="space-y-4">
@@ -4393,13 +4393,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       disabled={updateAgent.isPending}
                       className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {updateAgent.isPending ? "Saving..." : "Save MCP Servers"}
+                      {updateAgent.isPending
+                        ? "Saving..."
+                        : "Save Connected Tools"}
                     </button>
                   </div>
                 ) : (
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    No MCP servers available in this workspace. Create MCP
-                    servers in the workspace settings to enable them for agents.
+                    No connected tools available in this workspace. Create
+                    connected tools in the workspace settings to enable them for
+                    agents.
                   </p>
                 )}
             </AgentAccordionSection>

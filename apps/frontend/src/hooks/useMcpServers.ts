@@ -38,10 +38,10 @@ export function useCreateMcpServer(workspaceId: string) {
       queryClient.invalidateQueries({
         queryKey: ["workspaces", workspaceId, "mcp-servers"],
       });
-      toast.success("MCP server created successfully");
+      toast.success("Connected tool created successfully");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to create MCP server");
+      toast.error(error.message || "Failed to create connected tool");
     },
   });
 }
@@ -65,10 +65,10 @@ export function useUpdateMcpServer(workspaceId: string) {
       queryClient.invalidateQueries({
         queryKey: ["workspaces", workspaceId, "mcp-servers", variables.serverId],
       });
-      toast.success("MCP server updated successfully");
+      toast.success("Connected tool updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to update MCP server");
+      toast.error(error.message || "Failed to update connected tool");
     },
   });
 }
@@ -83,10 +83,10 @@ export function useDeleteMcpServer(workspaceId: string) {
       queryClient.invalidateQueries({
         queryKey: ["workspaces", workspaceId, "mcp-servers"],
       });
-      toast.success("MCP server deleted successfully");
+      toast.success("Connected tool deleted successfully");
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete MCP server");
+      toast.error(error.message || "Failed to delete connected tool");
     },
   });
 }

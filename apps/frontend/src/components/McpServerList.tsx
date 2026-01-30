@@ -70,7 +70,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
   const handleDisconnect = async () => {
     if (
       !confirm(
-        "Are you sure you want to disconnect this OAuth connection? You'll need to reconnect to use this MCP server."
+        "Are you sure you want to disconnect this OAuth connection? You'll need to reconnect to use this connected tool."
       )
     ) {
       return;
@@ -203,7 +203,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
                 onClick={async () => {
                   if (
                     !confirm(
-                      "Are you sure you want to delete this MCP server? This action cannot be undone."
+                      "Are you sure you want to delete this connected tool? This action cannot be undone."
                     )
                   ) {
                     return;
@@ -257,7 +257,7 @@ export const McpServerList: FC<McpServerListProps> = ({
   if (isLoading) {
     return (
       <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
-        <p className="text-lg font-bold text-neutral-900 dark:text-neutral-50">Loading MCP servers...</p>
+        <p className="text-lg font-bold text-neutral-900 dark:text-neutral-50">Loading connected tools...</p>
       </div>
     );
   }
@@ -272,7 +272,7 @@ export const McpServerList: FC<McpServerListProps> = ({
             onClick={() => setIsCreateModalOpen(true)}
             className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
           >
-            Create MCP Server
+            Create connected tool
           </button>
         </div>
       )}
@@ -280,7 +280,7 @@ export const McpServerList: FC<McpServerListProps> = ({
       {servers.length === 0 ? (
         <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
           <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
-            No MCP servers configured.
+            No connected tools configured.
           </p>
         </div>
       ) : (

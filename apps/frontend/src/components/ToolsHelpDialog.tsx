@@ -183,7 +183,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           {groupedTools?.some((g) => g.category === "MCP Server Tools") && (
             <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
               <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
-                🔌 MCP Server Tools
+                🔌 Connected tool actions
               </h3>
               <div className="space-y-3">
                 {groupedTools
@@ -279,11 +279,11 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
             (agent?.enabledMcpServerIds?.length ?? 0) === 0 && (
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                 <p className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                  🔌 MCP Server Tools
+                  🔌 Connected tool actions
                 </p>
                 <p className="text-xs text-neutral-600 dark:text-neutral-300">
-                  No MCP server tools available. Enable MCP servers in the agent
-                  configuration to make them available as tools.
+                  No connected tool actions available. Enable connected tools in
+                  the agent configuration to make them available as tools.
                 </p>
               </div>
             )}

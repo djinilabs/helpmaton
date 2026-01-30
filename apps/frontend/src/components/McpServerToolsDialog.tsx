@@ -66,7 +66,7 @@ export const McpServerToolsDialog: FC<McpServerToolsDialogProps> = ({
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-4xl font-black text-neutral-900 dark:text-neutral-50">
-              {server?.name ?? "MCP Server"} tools
+              {server?.name ?? "Connected tool"} tools
             </h2>
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
               Tools may be marked as not available if OAuth is not connected.

@@ -332,7 +332,7 @@ function buildPlanFeatures(plan: PlanKey, limits: PlanLimits) {
       : formatCountLabel(limits.maxManagers ?? 1, "manager"),
     formatCountLabel(limits.maxAgentKeys, "webhook"),
     formatCountLabel(limits.maxChannels, "channel"),
-    formatCountLabel(limits.maxMcpServers, "MCP server"),
+    formatCountLabel(limits.maxMcpServers, "connected tool"),
   ];
 
   if (plan === "free") {

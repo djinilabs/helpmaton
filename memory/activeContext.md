@@ -61,6 +61,7 @@
 - **Workspace section order**: Swapped the workspace detail section order so Settings appears before Spending & usage. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace settings order**: Swapped Connected tools ahead of Workspace API key in the workspace Settings section. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace API key rename**: Renamed the Workspace API key section title to "Bring your AI Provider Key". Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Connected tool UI copy (2026-01-30)**: Replaced MCP UI copy with "Connected tool" across agent/tooling modals, lists, help dialogs, plan comparison, and toasts (excluding Custom MCP flow). Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 237 review fixes**: Added jsonParsing unit tests, improved knowledge graph endpoint coverage (agent missing, maxResults bounds, query escaping), fixed SVG marker ID collisions, added accessible search label + reset view control, and stabilized LIKE escape string handling. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for knowledge graph/jsonParsing.
 - **Knowledge graph panels visibility**: Adjusted the graph container to scroll internally without forcing column width and ensured facts list uses min-height-safe flex overflow so the overview stays visible. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Knowledge graph fixed height**: Locked the graph and facts overview panels to a fixed height with internal scrolling to avoid layout jumps when selecting nodes. Ran `pnpm typecheck` and `pnpm lint --fix`.
