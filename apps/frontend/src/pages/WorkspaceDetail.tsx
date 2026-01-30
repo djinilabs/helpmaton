@@ -705,6 +705,56 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
         <SectionGroup
           title={
             <>
+              <Cog6ToothIcon className="mr-2 inline-block size-5" />
+              Settings
+            </>
+          }
+        >
+          {canEdit && (
+            <AccordionSection
+              id="mcp-servers"
+              title={
+                <>
+                  <BoltIcon className="mr-2 inline-block size-5" />
+                  Connected tools
+                </>
+              }
+              isExpanded={expandedSection === "mcp-servers"}
+              onToggle={() => toggleSection("mcp-servers")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "mcp-servers"}
+              >
+                <McpServerList workspaceId={id!} canEdit={!!canEdit} />
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {canEdit && (
+            <AccordionSection
+              id="api-key"
+              title={
+                <>
+                  <KeyIcon className="mr-2 inline-block size-5" />
+                  Bring your AI Provider Key
+                </>
+              }
+              isExpanded={expandedSection === "api-key"}
+              onToggle={() => toggleSection("api-key")}
+            >
+              <LazyAccordionContent isExpanded={expandedSection === "api-key"}>
+                <WorkspaceApiKeyManager
+                  workspaceId={id!}
+                  apiKeys={workspace.apiKeys}
+                />
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+        </SectionGroup>
+
+        <SectionGroup
+          title={
+            <>
               <CurrencyDollarIcon className="mr-2 inline-block size-5" />
               Spending & usage
             </>
@@ -831,56 +881,6 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               </QueryPanel>
             </LazyAccordionContent>
           </AccordionSection>
-        </SectionGroup>
-
-        <SectionGroup
-          title={
-            <>
-              <Cog6ToothIcon className="mr-2 inline-block size-5" />
-              Settings
-            </>
-          }
-        >
-          {canEdit && (
-            <AccordionSection
-              id="api-key"
-              title={
-                <>
-                  <KeyIcon className="mr-2 inline-block size-5" />
-                  Workspace API key
-                </>
-              }
-              isExpanded={expandedSection === "api-key"}
-              onToggle={() => toggleSection("api-key")}
-            >
-              <LazyAccordionContent isExpanded={expandedSection === "api-key"}>
-                <WorkspaceApiKeyManager
-                  workspaceId={id!}
-                  apiKeys={workspace.apiKeys}
-                />
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
-
-          {canEdit && (
-            <AccordionSection
-              id="mcp-servers"
-              title={
-                <>
-                  <BoltIcon className="mr-2 inline-block size-5" />
-                  Connected tools
-                </>
-              }
-              isExpanded={expandedSection === "mcp-servers"}
-              onToggle={() => toggleSection("mcp-servers")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "mcp-servers"}
-              >
-                <McpServerList workspaceId={id!} canEdit={!!canEdit} />
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
         </SectionGroup>
 
         <AccordionSection
