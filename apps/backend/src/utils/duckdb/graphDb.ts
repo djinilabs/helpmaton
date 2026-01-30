@@ -133,13 +133,16 @@ function resolveS3Credentials(): {
   useSsl?: boolean;
 } {
   const arcEnv = process.env.ARC_ENV;
-  const accessKeyId =
-    process.env.HELPMATON_S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey =
-    process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
-    process.env.AWS_SECRET_ACCESS_KEY;
+  const envAccessKeyId = process.env.HELPMATON_S3_ACCESS_KEY_ID;
+  const envSecretAccessKey = process.env.HELPMATON_S3_SECRET_ACCESS_KEY;
+  const roleAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const roleSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const accessKeyId = envAccessKeyId || roleAccessKeyId;
+  const secretAccessKey = envSecretAccessKey || roleSecretAccessKey;
   const sessionToken =
-    process.env.HELPMATON_S3_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
+    envAccessKeyId && envSecretAccessKey
+      ? process.env.HELPMATON_S3_SESSION_TOKEN
+      : process.env.AWS_SESSION_TOKEN;
   const region =
     process.env.HELPMATON_S3_REGION ||
     process.env.AWS_REGION ||
@@ -176,8 +179,12 @@ function resolveS3Credentials(): {
     endpoint: customEndpoint ?? "aws-default",
     urlStyle: "vhost",
     useSsl: customEndpoint ? !customEndpoint.startsWith("http://") : undefined,
-    accessKeyId: accessKeyId ? "env" : "missing",
-    secretAccessKey: secretAccessKey ? "env" : "missing",
+    accessKeyId: envAccessKeyId ? "env" : roleAccessKeyId ? "role" : "missing",
+    secretAccessKey: envSecretAccessKey
+      ? "env"
+      : roleSecretAccessKey
+        ? "role"
+        : "missing",
     sessionToken: sessionToken ? "set" : "missing",
   });
   return {

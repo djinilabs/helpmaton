@@ -234,9 +234,31 @@ function isTestMode(): boolean {
 /**
  * Make authenticated request to Lemon Squeezy API
  */
+export class LemonSqueezyApiError extends Error {
+  status: number;
+  statusText: string;
+
+  constructor(message: string, status: number, statusText: string) {
+    super(message);
+    this.name = "LemonSqueezyApiError";
+    this.status = status;
+    this.statusText = statusText;
+  }
+}
+
+export const isLemonSqueezyNotFoundError = (error: unknown): boolean => {
+  if (error instanceof LemonSqueezyApiError) {
+    return error.status === 404;
+  }
+  if (error instanceof Error) {
+    return error.message.includes("Lemon Squeezy API error: 404");
+  }
+  return false;
+};
+
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const apiKey = getApiKey();
   const url = `${LEMON_SQUEEZY_API_BASE}${endpoint}`;
@@ -275,7 +297,11 @@ async function apiRequest<T>(
       errorMessage += ` - ${errorText}`;
     }
 
-    throw new Error(errorMessage);
+    throw new LemonSqueezyApiError(
+      errorMessage,
+      response.status,
+      response.statusText,
+    );
   }
 
   return response.json();
@@ -288,12 +314,12 @@ async function apiRequest<T>(
  */
 export function verifyWebhookSignature(
   body: string,
-  signature: string
+  signature: string,
 ): boolean {
   const webhookSecret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
   if (!webhookSecret) {
     throw new Error(
-      "LEMON_SQUEEZY_WEBHOOK_SECRET environment variable is required"
+      "LEMON_SQUEEZY_WEBHOOK_SECRET environment variable is required",
     );
   }
 
@@ -310,7 +336,7 @@ export function verifyWebhookSignature(
   try {
     return crypto.timingSafeEqual(
       Buffer.from(expectedSignature, "hex"),
-      Buffer.from(signature, "hex")
+      Buffer.from(signature, "hex"),
     );
   } catch {
     // If signature is not valid hex, return false
@@ -322,7 +348,7 @@ export function verifyWebhookSignature(
  * Get subscription details
  */
 export async function getSubscription(
-  subscriptionId: string
+  subscriptionId: string,
 ): Promise<LemonSqueezySubscription> {
   const response = await apiRequest<
     LemonSqueezyResponse<LemonSqueezySubscription>
@@ -334,10 +360,10 @@ export async function getSubscription(
  * Get customer details
  */
 export async function getCustomer(
-  customerId: string
+  customerId: string,
 ): Promise<LemonSqueezyCustomer> {
   const response = await apiRequest<LemonSqueezyResponse<LemonSqueezyCustomer>>(
-    `/customers/${customerId}`
+    `/customers/${customerId}`,
   );
   return response.data;
 }
@@ -347,7 +373,7 @@ export async function getCustomer(
  */
 export async function getOrder(orderId: string): Promise<LemonSqueezyOrder> {
   const response = await apiRequest<LemonSqueezyResponse<LemonSqueezyOrder>>(
-    `/orders/${orderId}`
+    `/orders/${orderId}`,
   );
   return response.data;
 }
@@ -356,10 +382,10 @@ export async function getOrder(orderId: string): Promise<LemonSqueezyOrder> {
  * Get variant details
  */
 export async function getVariant(
-  variantId: string
+  variantId: string,
 ): Promise<LemonSqueezyVariant> {
   const response = await apiRequest<LemonSqueezyResponse<LemonSqueezyVariant>>(
-    `/variants/${variantId}`
+    `/variants/${variantId}`,
   );
   return response.data;
 }
@@ -369,7 +395,7 @@ export async function getVariant(
  * Uses JSON:API format with relationships for store and variant
  */
 export async function createCheckout(
-  data: CheckoutData
+  data: CheckoutData,
 ): Promise<{ url: string }> {
   // Build attributes object (excluding store/variant IDs which go in relationships)
   const attributes: Record<string, unknown> = {};
@@ -481,13 +507,13 @@ export async function createCheckout(
       const actualPrice = response.data.attributes.custom_price;
       if (actualPrice !== expectedPrice) {
         console.error(
-          `[createCheckout] WARNING: custom_price mismatch! Expected ${expectedPrice}, got ${actualPrice}`
+          `[createCheckout] WARNING: custom_price mismatch! Expected ${expectedPrice}, got ${actualPrice}`,
         );
       } else {
         console.log(
           `[createCheckout] ✓ custom_price verified: ${actualPrice} cents (${(
             actualPrice / 100
-          ).toFixed(2)} in currency units)`
+          ).toFixed(2)} in currency units)`,
         );
       }
     }
@@ -502,7 +528,7 @@ export async function createCheckout(
 1. The variant ID is correct in your environment variable
 2. The variant belongs to store ${data.storeId}
 3. The variant exists in your Lemon Squeezy dashboard
-Original error: ${error.message}`
+Original error: ${error.message}`,
         );
       }
       if (error.message.includes("404") && error.message.includes("store")) {
@@ -510,7 +536,7 @@ Original error: ${error.message}`
           `Store ID ${data.storeId} not found. Please verify:
 1. The store ID is correct in your environment variable
 2. The store exists in your Lemon Squeezy dashboard
-Original error: ${error.message}`
+Original error: ${error.message}`,
         );
       }
     }
@@ -522,7 +548,7 @@ Original error: ${error.message}`
  * Cancel subscription
  */
 export async function cancelSubscription(
-  subscriptionId: string
+  subscriptionId: string,
 ): Promise<void> {
   await apiRequest(`/subscriptions/${subscriptionId}`, {
     method: "DELETE",
@@ -535,7 +561,7 @@ export async function cancelSubscription(
  */
 export async function updateSubscriptionVariant(
   subscriptionId: string,
-  variantId: string
+  variantId: string,
 ): Promise<LemonSqueezySubscription> {
   const response = await apiRequest<
     LemonSqueezyResponse<LemonSqueezySubscription>
@@ -561,7 +587,7 @@ export async function updateSubscriptionVariant(
  * @returns Array of subscriptions for the customer
  */
 export async function listSubscriptionsByCustomer(
-  customerId: string
+  customerId: string,
 ): Promise<LemonSqueezySubscription[]> {
   // Lemon Squeezy API supports filtering subscriptions by customer_id
   const response = await apiRequest<
@@ -576,7 +602,7 @@ export async function listSubscriptionsByCustomer(
  * For now, we construct it based on customer ID using the store's custom domain
  */
 export async function getCustomerPortalUrl(
-  customerId: string
+  customerId: string,
 ): Promise<string> {
   // Lemon Squeezy customer portal URL format using custom store domain
   return `https://helpmaton.lemonsqueezy.com/my-account/customer/${customerId}`;

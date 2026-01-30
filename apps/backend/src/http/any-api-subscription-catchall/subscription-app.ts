@@ -13,6 +13,7 @@ import {
   createCheckout,
   cancelSubscription as cancelLemonSqueezySubscription,
   getSubscription as getLemonSqueezySubscription,
+  isLemonSqueezyNotFoundError,
   listSubscriptionsByCustomer,
   updateSubscriptionVariant,
 } from "../../utils/lemonSqueezy";
@@ -1409,6 +1410,17 @@ export const createApp: () => express.Application = () => {
           synced: true,
         });
       } catch (error) {
+        if (isLemonSqueezyNotFoundError(error)) {
+          console.warn(
+            `[POST /api/subscription/sync] Lemon Squeezy subscription ${subscription.lemonSqueezySubscriptionId} not found for subscription ${subscriptionId}`,
+          );
+          res.status(400).json({
+            message:
+              "Subscription is not associated with Lemon Squeezy or could not be found.",
+            synced: false,
+          });
+          return;
+        }
         console.error(
           `[POST /api/subscription/sync] Error syncing subscription ${subscriptionId}:`,
           error,

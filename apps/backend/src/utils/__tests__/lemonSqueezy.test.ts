@@ -9,6 +9,7 @@ import {
   createCheckout,
   cancelSubscription,
   getCustomerPortalUrl,
+  LemonSqueezyApiError,
 } from "../lemonSqueezy";
 
 // Mock environment variables
@@ -76,7 +77,7 @@ describe("lemonSqueezy", () => {
       expect(result).toBe(true);
       expect(mockCreateHmac).toHaveBeenCalledWith(
         "sha256",
-        "test-webhook-secret"
+        "test-webhook-secret",
       );
       expect(mockHmacUpdate).toHaveBeenCalledWith(body);
     });
@@ -110,7 +111,7 @@ describe("lemonSqueezy", () => {
       expect(() => {
         verifyWebhookSignature("body", "signature");
       }).toThrow(
-        "LEMON_SQUEEZY_WEBHOOK_SECRET environment variable is required"
+        "LEMON_SQUEEZY_WEBHOOK_SECRET environment variable is required",
       );
     });
   });
@@ -150,7 +151,7 @@ describe("lemonSqueezy", () => {
             Authorization: "Bearer sk_test_1234567890",
             Accept: "application/vnd.api+json",
           }),
-        })
+        }),
       );
     });
 
@@ -162,9 +163,16 @@ describe("lemonSqueezy", () => {
         text: async () => '{"errors":[{"detail":"Subscription not found"}]}',
       });
 
-      await expect(getSubscription("invalid-id")).rejects.toThrow(
-        "Lemon Squeezy API error"
-      );
+      let thrown: unknown;
+      try {
+        await getSubscription("invalid-id");
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(LemonSqueezyApiError);
+      expect((thrown as LemonSqueezyApiError).status).toBe(404);
+      expect((thrown as Error).message).toContain("Lemon Squeezy API error");
     });
   });
 
@@ -193,7 +201,7 @@ describe("lemonSqueezy", () => {
       expect(result).toEqual(mockCustomer.data);
       expect(mockFetch).toHaveBeenCalledWith(
         "https://api.lemonsqueezy.com/v1/customers/cust-123",
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -281,14 +289,14 @@ describe("lemonSqueezy", () => {
       });
 
       expect(result.url).toBe(
-        "https://checkout.lemonsqueezy.com/checkout/abc123"
+        "https://checkout.lemonsqueezy.com/checkout/abc123",
       );
       expect(mockFetch).toHaveBeenCalledWith(
         "https://api.lemonsqueezy.com/v1/checkouts",
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining('"type":"checkouts"'),
-        })
+        }),
       );
     });
 
@@ -393,7 +401,7 @@ describe("lemonSqueezy", () => {
         createCheckout({
           storeId: "store-123",
           variantId: "",
-        })
+        }),
       ).rejects.toThrow("variantId is required");
     });
 
@@ -410,7 +418,7 @@ describe("lemonSqueezy", () => {
         createCheckout({
           storeId: "store-123",
           variantId: "invalid-variant",
-        })
+        }),
       ).rejects.toThrow("Variant ID invalid-variant not found");
     });
   });
@@ -428,7 +436,7 @@ describe("lemonSqueezy", () => {
         "https://api.lemonsqueezy.com/v1/subscriptions/sub-123",
         expect.objectContaining({
           method: "DELETE",
-        })
+        }),
       );
     });
   });
@@ -438,13 +446,8 @@ describe("lemonSqueezy", () => {
       const url = await getCustomerPortalUrl("cust-123");
 
       expect(url).toBe(
-        "https://helpmaton.lemonsqueezy.com/my-account/customer/cust-123"
+        "https://helpmaton.lemonsqueezy.com/my-account/customer/cust-123",
       );
     });
   });
 });
-
-
-
-
-
