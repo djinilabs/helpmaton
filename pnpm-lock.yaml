@@ -147,13 +147,13 @@ importers:
         version: 8.1.9(patch_hash=f8a8bfced584be6b0b3d8529985c9c19a0ccb0ace405749a7ab137f1b4cae1e5)
       '@auth/core':
         specifier: ^0.41.0
-        version: 0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.12)
+        version: 0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.13)
       '@auth/dynamodb-adapter':
         specifier: ^2.7.4
-        version: 2.11.1(@aws-sdk/client-dynamodb@3.975.0)(@aws-sdk/lib-dynamodb@3.975.0(@aws-sdk/client-dynamodb@3.975.0))(nodemailer@7.0.12)
+        version: 2.11.1(@aws-sdk/client-dynamodb@3.975.0)(@aws-sdk/lib-dynamodb@3.975.0(@aws-sdk/client-dynamodb@3.975.0))(nodemailer@7.0.13)
       '@auth/express':
         specifier: ^0.12.0
-        version: 0.12.1(patch_hash=543f8d388bf1362c9fe95f3f1a4166d9324de6638ceb19248703a74c441c9749)(express@5.2.1)(nodemailer@7.0.12)
+        version: 0.12.1(patch_hash=543f8d388bf1362c9fe95f3f1a4166d9324de6638ceb19248703a74c441c9749)(express@5.2.1)(nodemailer@7.0.13)
       '@aws-lite/apigatewayv2':
         specifier: ^0.0.9
         version: 0.0.9
@@ -201,7 +201,7 @@ importers:
         version: 0.23.0(apache-arrow@21.1.0)
       '@openrouter/ai-sdk-provider':
         specifier: ^2.0.0
-        version: 2.0.2(ai@6.0.52(zod@4.3.6))(zod@4.3.6)
+        version: 2.0.2(ai@6.0.53(zod@4.3.6))(zod@4.3.6)
       '@openrouter/sdk':
         specifier: ^0.5.1
         version: 0.5.1
@@ -225,7 +225,7 @@ importers:
         version: 4.12.6
       ai:
         specifier: ^6.0.0
-        version: 6.0.52(zod@4.3.6)
+        version: 6.0.53(zod@4.3.6)
       ajv:
         specifier: ^8.17.1
         version: 8.17.1
@@ -264,7 +264,7 @@ importers:
         version: 5.1.6
       nodemailer:
         specifier: ^7.0.0
-        version: 7.0.12
+        version: 7.0.13
       posthog-node:
         specifier: ^5.0.0
         version: 5.24.2
@@ -325,7 +325,7 @@ importers:
     dependencies:
       '@ai-sdk/react':
         specifier: ^3.0.0
-        version: 3.0.54(react@19.2.4)(zod@4.3.6)
+        version: 3.0.55(react@19.2.4)(zod@4.3.6)
       '@heroicons/react':
         specifier: ^2.2.0
         version: 2.2.0(react@19.2.4)
@@ -340,7 +340,7 @@ importers:
         version: 5.90.20(react@19.2.4)
       ai:
         specifier: ^6.0.0
-        version: 6.0.52(zod@4.3.6)
+        version: 6.0.53(zod@4.3.6)
       next-auth:
         specifier: 5.0.0-beta.30
         version: 5.0.0-beta.30(next@16.1.5(@babel/core@7.28.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)
@@ -425,13 +425,13 @@ importers:
     dependencies:
       '@ai-sdk/react':
         specifier: ^3.0.0
-        version: 3.0.54(react@19.2.4)(zod@4.3.6)
+        version: 3.0.55(react@19.2.4)(zod@4.3.6)
       '@tanstack/react-query':
         specifier: ^5.90.9
         version: 5.90.20(react@19.2.4)
       ai:
         specifier: ^6.0.0
-        version: 6.0.52(zod@4.3.6)
+        version: 6.0.53(zod@4.3.6)
       react:
         specifier: ^19.0.0
         version: 19.2.4
@@ -505,8 +505,8 @@ packages:
     resolution: {integrity: sha512-2Xmoq6DBJqmSl80U6V9z5jJSJP7ehaJJQMy2iFUqTay06wdCqTnPVBBQbtEL8RCChenL+q5DC5H5WzU3vV3v8w==}
     engines: {node: '>=18'}
 
-  '@ai-sdk/react@3.0.54':
-    resolution: {integrity: sha512-FHM0f4rDas53OX79MdRhYsmXKJmDqvrIiJDhaNfxP8DCcnZJHKjBGUrVnjDdf9W0nFTcOaSFnE0NvE4SDSKFCA==}
+  '@ai-sdk/react@3.0.55':
+    resolution: {integrity: sha512-zwd4i3dzu1/LFUk+aRUbONZeFK/+bnNA8Ln3z0QHFimXDPkWnmygvo1zKl5tlQ2LV2kEkTUF7EpiM3IbHvNjGg==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
@@ -3580,8 +3580,8 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai@6.0.52:
-    resolution: {integrity: sha512-vw+i+a43iKQ6fzCHn+tBEEcaIYZUbwJEw+BaBOyHuj/ypd/ZQFlzhJB5EfsNEOxucclFI7WsXV5AoyqI+9ihqA==}
+  ai@6.0.53:
+    resolution: {integrity: sha512-/5Gd/hPvdpKrNgYLyHnP+rTdppkjxzDVrTvc1cxHxP77a5heEnEtqmnR73Dy3Z4RJjEGQCmVjfQmeBq1OerO6A==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -6249,8 +6249,8 @@ packages:
     resolution: {integrity: sha512-Sla56CeSLWvPbwud2kogqf5edQtKNXZBtXDDpmOzAgNZjwETbK/Am6PXfs54iZPLBm8K8amZ9XWaCQwGqZmKyQ==}
     engines: {node: '>=6.6.0'}
 
-  nodemailer@7.0.12:
-    resolution: {integrity: sha512-H+rnK5bX2Pi/6ms3sN4/jRQvYSMltV6vqup/0SFOrxYYY/qoNvhXPlYq3e+Pm9RFJRwrMGbMIwi81M4dxpomhA==}
+  nodemailer@7.0.13:
+    resolution: {integrity: sha512-PNDFSJdP+KFgdsG3ZzMXCgquO7I6McjY2vlqILjtJd0hy8wEvtugS9xKRF2NWlPNGxvLCXlTNIae4serI7dinw==}
     engines: {node: '>=6.0.0'}
 
   nopt@9.0.0:
@@ -8081,10 +8081,10 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@3.0.54(react@19.2.4)(zod@4.3.6)':
+  '@ai-sdk/react@3.0.55(react@19.2.4)(zod@4.3.6)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.10(zod@4.3.6)
-      ai: 6.0.52(zod@4.3.6)
+      ai: 6.0.53(zod@4.3.6)
       react: 19.2.4
       swr: 2.3.8(react@19.2.4)
       throttleit: 2.1.0
@@ -8310,7 +8310,7 @@ snapshots:
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
 
-  '@auth/core@0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.12)':
+  '@auth/core@0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.13)':
     dependencies:
       '@panva/hkdf': 1.2.1
       jose: 6.1.3
@@ -8318,11 +8318,11 @@ snapshots:
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
     optionalDependencies:
-      nodemailer: 7.0.12
+      nodemailer: 7.0.13
 
-  '@auth/dynamodb-adapter@2.11.1(@aws-sdk/client-dynamodb@3.975.0)(@aws-sdk/lib-dynamodb@3.975.0(@aws-sdk/client-dynamodb@3.975.0))(nodemailer@7.0.12)':
+  '@auth/dynamodb-adapter@2.11.1(@aws-sdk/client-dynamodb@3.975.0)(@aws-sdk/lib-dynamodb@3.975.0(@aws-sdk/client-dynamodb@3.975.0))(nodemailer@7.0.13)':
     dependencies:
-      '@auth/core': 0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.12)
+      '@auth/core': 0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.13)
       '@aws-sdk/client-dynamodb': 3.975.0
       '@aws-sdk/lib-dynamodb': 3.975.0(@aws-sdk/client-dynamodb@3.975.0)
     transitivePeerDependencies:
@@ -8330,9 +8330,9 @@ snapshots:
       - '@simplewebauthn/server'
       - nodemailer
 
-  '@auth/express@0.12.1(patch_hash=543f8d388bf1362c9fe95f3f1a4166d9324de6638ceb19248703a74c441c9749)(express@5.2.1)(nodemailer@7.0.12)':
+  '@auth/express@0.12.1(patch_hash=543f8d388bf1362c9fe95f3f1a4166d9324de6638ceb19248703a74c441c9749)(express@5.2.1)(nodemailer@7.0.13)':
     dependencies:
-      '@auth/core': 0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.12)
+      '@auth/core': 0.41.1(patch_hash=82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912)(nodemailer@7.0.13)
       express: 5.2.1
     transitivePeerDependencies:
       - '@simplewebauthn/browser'
@@ -10338,10 +10338,10 @@ snapshots:
     dependencies:
       '@octokit/openapi-types': 27.0.0
 
-  '@openrouter/ai-sdk-provider@2.0.2(ai@6.0.52(zod@4.3.6))(zod@4.3.6)':
+  '@openrouter/ai-sdk-provider@2.0.2(ai@6.0.53(zod@4.3.6))(zod@4.3.6)':
     dependencies:
       '@openrouter/sdk': 0.1.27
-      ai: 6.0.52(zod@4.3.6)
+      ai: 6.0.53(zod@4.3.6)
       zod: 4.3.6
 
   '@openrouter/sdk@0.1.27':
@@ -12371,7 +12371,7 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@6.0.52(zod@4.3.6):
+  ai@6.0.53(zod@4.3.6):
     dependencies:
       '@ai-sdk/gateway': 3.0.24(zod@4.3.6)
       '@ai-sdk/provider': 3.0.5
@@ -15607,7 +15607,7 @@ snapshots:
 
   node-webtokens@1.0.4: {}
 
-  nodemailer@7.0.12: {}
+  nodemailer@7.0.13: {}
 
   nopt@9.0.0:
     dependencies:
