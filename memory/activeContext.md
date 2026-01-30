@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **MCP server create flow (2026-01-30)**: Switched MCP server creation modal to a two-step flow (type selection with client-side search, then type-specific fields with change-type control). Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Suppress stream credit error reports (2026-01-30)**: Skip Sentry capture for credit user errors in stream internal handler, rely on `isCreditUserError` in early failures, added unit test `internalHandler-credit-errors`, ran `pnpm --filter backend test --run internalHandler-credit-errors`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Credit applied email link (2026-01-30)**: Removed Discord /credit mention, added workspace link to credit applied email (text + HTML), ran `pnpm typecheck` and `pnpm lint --fix`.
 - **OpenRouter embedding timeout (2026-01-30)**: Sentry issue 92157436 in staging `agent-temporal-grain-queue` shows OpenRouter embeddings request timing out on headers (undici `HeadersTimeoutError` → `TypeError: fetch failed` → `ConnectionError`). No code changes yet.

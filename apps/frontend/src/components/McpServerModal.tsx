@@ -61,7 +61,7 @@ interface McpServerTypeMetadata {
 
 interface McpServerFormState {
   name: string;
-  mcpType: McpServerType;
+  mcpType: McpServerType | null;
   url: string;
   authType: McpServerAuthType;
   headerValue: string;
@@ -195,6 +195,9 @@ const POSTHOG_BASE_URLS = {
   eu: "https://eu.posthog.com",
 } as const;
 
+const DEFAULT_AUTH_TYPE: McpServerAuthType = "none";
+const DEFAULT_POSTHOG_REGION: PosthogRegion = "us";
+
 const OAUTH_MCP_TYPES = new Set<McpServerType>([
   "google-drive",
   "gmail",
@@ -214,13 +217,13 @@ const OAUTH_MCP_TYPES = new Set<McpServerType>([
 
 const DEFAULT_FORM_STATE: McpServerFormState = {
   name: "",
-  mcpType: "google-drive",
+  mcpType: null,
   url: "",
-  authType: "none",
+  authType: DEFAULT_AUTH_TYPE,
   headerValue: "",
   username: "",
   password: "",
-  posthogRegion: "us",
+  posthogRegion: DEFAULT_POSTHOG_REGION,
   posthogApiKey: "",
   zendeskSubdomain: "",
   zendeskClientId: "",
@@ -308,7 +311,10 @@ const buildFormStateFromServer = (server: McpServer): McpServerFormState => {
   };
 };
 
-const getCreateHelperText = (mcpType: McpServerType) => {
+const getCreateHelperText = (mcpType: McpServerType | null) => {
+  if (!mcpType) {
+    return [];
+  }
   const helpText: string[] = [];
   if (OAUTH_MCP_TYPES.has(mcpType)) {
     helpText.push(DEFAULT_OAUTH_HELP_TEXT);
@@ -386,7 +392,7 @@ const buildCreatePayload = ({
   trimmedValues,
   selectedPosthogBaseUrl,
 }: {
-  formState: McpServerFormState;
+  formState: McpServerFormState & { mcpType: McpServerType };
   trimmedValues: ReturnType<typeof getTrimmedFormValues>;
   selectedPosthogBaseUrl: string;
 }): {
@@ -729,45 +735,60 @@ const useMcpServerModalState = ({
       server.authType !== "oauth" &&
       server.serviceType !== "posthog");
 
+  const resetTypeFields = (): Partial<McpServerFormState> => ({
+    mcpType: null,
+    url: "",
+    authType: DEFAULT_AUTH_TYPE,
+    headerValue: "",
+    username: "",
+    password: "",
+    posthogRegion: DEFAULT_POSTHOG_REGION,
+    posthogApiKey: "",
+    zendeskSubdomain: "",
+    zendeskClientId: "",
+    zendeskClientSecret: "",
+    shopifyShopDomain: "",
+  });
+
   const handleTypeSelect = (nextType: McpServerType) => {
     const isPosthogOption = nextType === "posthog";
     const isOAuthOption = nextType !== "custom" && !isPosthogOption;
 
     updateFormState({
+      ...resetTypeFields(),
       mcpType: nextType,
-      ...(nextType !== "zendesk"
-        ? {
-            zendeskSubdomain: "",
-            zendeskClientId: "",
-            zendeskClientSecret: "",
-          }
-        : {}),
       ...(isOAuthOption
         ? {
-            authType: "none",
+            authType: DEFAULT_AUTH_TYPE,
             url: "",
-            posthogRegion: "us",
+            posthogRegion: DEFAULT_POSTHOG_REGION,
             posthogApiKey: "",
           }
         : isPosthogOption
         ? {
             authType: "header",
             url: POSTHOG_BASE_URLS.us,
-            posthogRegion: "us",
+          posthogRegion: DEFAULT_POSTHOG_REGION,
             posthogApiKey: "",
           }
-        : { authType: "none" }),
+        : { authType: DEFAULT_AUTH_TYPE }),
     });
+  };
+
+  const handleClearTypeSelection = () => {
+    updateFormState(resetTypeFields());
   };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const selectedType = formState.mcpType;
+    if (!selectedType) return;
     const trimmedValues = getTrimmedFormValues(formState);
 
     if (!trimmedValues.name) return;
-    if (formState.mcpType === "custom" && !trimmedValues.url) return;
+    if (selectedType === "custom" && !trimmedValues.url) return;
 
-    if (formState.mcpType === "custom") {
+    if (selectedType === "custom") {
       if (!isEditing) {
         if (formState.authType === "header" && !trimmedValues.headerValue) {
           return;
@@ -838,8 +859,12 @@ const useMcpServerModalState = ({
           updated_fields: updatedFields,
         });
       } else {
+        const createFormState: McpServerFormState & { mcpType: McpServerType } = {
+          ...formState,
+          mcpType: selectedType,
+        };
         const { input, authType, serviceType } = buildCreatePayload({
-          formState,
+          formState: createFormState,
           trimmedValues,
           selectedPosthogBaseUrl,
         });
@@ -867,6 +892,7 @@ const useMcpServerModalState = ({
     formState,
     updateFormState,
     handleTypeSelect,
+    handleClearTypeSelection,
     handleSubmit,
     handleClose,
     isPosthogType,
@@ -887,6 +913,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
     formState,
     updateFormState,
     handleTypeSelect,
+    handleClearTypeSelection,
     handleSubmit,
     handleClose,
     isPosthogType,
@@ -897,6 +924,19 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
     oauthNoticeName,
     isPending,
   } = useMcpServerModalState(props);
+  const [searchQuery, setSearchQuery] = useState("");
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredServerTypes = MCP_SERVER_TYPES.filter((serverType) => {
+    if (!normalizedSearchQuery) return true;
+    const name = serverType.name.toLowerCase();
+    const description = serverType.description.toLowerCase();
+    return (
+      name.includes(normalizedSearchQuery) ||
+      description.includes(normalizedSearchQuery)
+    );
+  });
+  const showCreateFields = isEditing || !!formState.mcpType;
+  const showTypeSelection = !isEditing && !formState.mcpType;
 
   if (!isOpen) return null;
 
@@ -907,39 +947,73 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
           {isEditing ? "Edit MCP Server" : "Create MCP Server"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
-          <FormField label="Name *" htmlFor="name">
-            <input
-              id="name"
-              type="text"
-              value={formState.name}
-              onChange={(event) =>
-                updateFormState({ name: event.target.value })
-              }
-              className={INPUT_CLASSNAME}
-              required
-            />
-          </FormField>
-
-          {!isEditing && (
+          {showTypeSelection && (
             <div>
+              <FormField label="Search MCP servers" htmlFor="mcpTypeSearch">
+                <input
+                  id="mcpTypeSearch"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className={INPUT_CLASSNAME}
+                  placeholder="Search by name or description"
+                />
+              </FormField>
               <label className={LABEL_CLASSNAME}>MCP Server Type *</label>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {MCP_SERVER_TYPES.map((serverType) => (
+                {filteredServerTypes.map((serverType) => (
                   <ServerTypeCard
                     key={serverType.value}
                     serverType={serverType}
-                    isSelected={formState.mcpType === serverType.value}
+                    isSelected={false}
                     onSelect={() => handleTypeSelect(serverType.value)}
                   />
                 ))}
               </div>
-              {createHelperText.map((text, index) => (
-                <p
-                  key={text}
-                  className={`text-xs text-neutral-600 dark:text-neutral-300 ${
-                    index === 0 ? "mt-3" : "mt-1.5"
-                  }`}
+              {filteredServerTypes.length === 0 && (
+                <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-300">
+                  No MCP servers match your search.
+                </p>
+              )}
+            </div>
+          )}
+
+          {showCreateFields && (
+            <FormField label="Name *" htmlFor="name">
+              <input
+                id="name"
+                type="text"
+                value={formState.name}
+                onChange={(event) =>
+                  updateFormState({ name: event.target.value })
+                }
+                className={INPUT_CLASSNAME}
+                required
+              />
+            </FormField>
+          )}
+
+          {!isEditing && formState.mcpType && (
+            <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                    Selected server type
+                  </div>
+                  <div className="mt-1 text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                    {MCP_TYPE_LABELS[formState.mcpType]}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearTypeSelection}
+                  className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700"
                 >
+                  Change type
+                </button>
+              </div>
+              {createHelperText.map((text) => (
+                <p key={text} className="text-xs text-neutral-600 dark:text-neutral-300">
                   {text}
                 </p>
               ))}
@@ -1328,19 +1402,21 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
           )}
 
           <div className="flex gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={isPending}
-              className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPending
-                ? isEditing
-                  ? "Updating..."
-                  : "Creating..."
-                : isEditing
-                ? "Update"
-                : "Create"}
-            </button>
+            {(isEditing || formState.mcpType) && (
+              <button
+                type="submit"
+                disabled={isPending}
+                className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isPending
+                  ? isEditing
+                    ? "Updating..."
+                    : "Creating..."
+                  : isEditing
+                  ? "Update"
+                  : "Create"}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleClose}
