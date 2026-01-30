@@ -29,9 +29,11 @@ describe("configureMethodAuthorizers", () => {
       McpResource: createResource("mcp", "ApiResource"),
       McpOauthResource: createResource("oauth", "McpResource"),
       McpOauthCallbackResource: createResource("callback", "McpOauthResource"),
+      DiscordResource: createResource("discord", "ApiResource"),
       WorkspacesResource: createResource("workspaces", "ApiResource"),
       EmailOauthMethod: createMethod("EmailOauthCallbackResource"),
       McpOauthMethod: createMethod("McpOauthCallbackResource"),
+      DiscordMethod: createMethod("DiscordResource"),
       WorkspacesMethod: createMethod("WorkspacesResource"),
     };
 
@@ -50,6 +52,11 @@ describe("configureMethodAuthorizers", () => {
       AuthorizationType?: string;
       AuthorizerId?: unknown;
     };
+    const discordMethod = updated.Resources.DiscordMethod
+      .Properties as {
+      AuthorizationType?: string;
+      AuthorizerId?: unknown;
+    };
     const workspacesMethod = updated.Resources.WorkspacesMethod
       .Properties as {
       AuthorizationType?: string;
@@ -60,6 +67,8 @@ describe("configureMethodAuthorizers", () => {
     expect(emailMethod.AuthorizerId).toBeUndefined();
     expect(mcpMethod.AuthorizationType).toBeUndefined();
     expect(mcpMethod.AuthorizerId).toBeUndefined();
+    expect(discordMethod.AuthorizationType).toBeUndefined();
+    expect(discordMethod.AuthorizerId).toBeUndefined();
 
     expect(workspacesMethod.AuthorizationType).toBe("CUSTOM");
     expect(workspacesMethod.AuthorizerId).toEqual({

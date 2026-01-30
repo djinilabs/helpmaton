@@ -356,9 +356,7 @@ export const registerGetAgentMemoryRecord = (app: express.Application) => {
           message: "Memory record not found",
         });
         return;
-      }
-
-      res.json({
+      }      res.json({
         workspaceId,
         agentId,
         record,
