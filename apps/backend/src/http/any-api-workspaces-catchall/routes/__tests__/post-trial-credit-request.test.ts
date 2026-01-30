@@ -99,10 +99,16 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
         );
       }
 
-      // Validate CAPTCHA token
-      const { captchaToken } = req.body as { captchaToken?: string };
+      // Validate request body
+      const { captchaToken, reason } = req.body as {
+        captchaToken?: string;
+        reason?: string;
+      };
       if (!captchaToken || typeof captchaToken !== "string") {
         throw badRequest("CAPTCHA token is required");
+      }
+      if (!reason || typeof reason !== "string") {
+        throw badRequest("Reason is required");
       }
 
       // Get user IP from request
@@ -129,6 +135,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
         workspaceId,
         userId,
         userEmail,
+        reason,
         currency: workspace.currency || "usd",
         requestedAt: new Date().toISOString(),
         status: "pending",
@@ -146,7 +153,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       await mockSendTrialCreditRequestNotification(
         workspaceId,
         userEmail,
-        workspace.currency || "usd"
+        reason
       );
 
       res.status(201).json({
@@ -168,6 +175,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     const userEmail = "user@example.com";
     const workspaceResource = `workspaces/${workspaceId}`;
     const captchaToken = "test-captcha-token";
+    const reason = "Need to validate the app for a client demo.";
     const userIp = "192.168.1.1";
 
     const mockWorkspace = {
@@ -208,6 +216,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       },
       body: {
         captchaToken,
+        reason,
       },
       ip: userIp,
     });
@@ -230,6 +239,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       workspaceId,
       userId,
       userEmail,
+      reason,
       currency: "usd",
       requestedAt: expect.any(String),
       status: "pending",
@@ -243,7 +253,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     expect(mockSendTrialCreditRequestNotification).toHaveBeenCalledWith(
       workspaceId,
       userEmail,
-      "usd"
+      reason
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
@@ -262,6 +272,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     const userEmail = "user@example.com";
     const workspaceResource = `workspaces/${workspaceId}`;
     const captchaToken = "test-captcha-token";
+    const reason = "Testing trial usage before purchase.";
     const userIp = "192.168.1.1";
 
     const mockWorkspace = {
@@ -302,6 +313,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       },
       body: {
         captchaToken,
+        reason,
       },
       ip: userIp,
     });
@@ -317,7 +329,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     expect(mockSendTrialCreditRequestNotification).toHaveBeenCalledWith(
       workspaceId,
       userEmail,
-      "usd"
+      reason
     );
   });
 
@@ -330,6 +342,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     const userEmail = "user@example.com";
     const workspaceResource = `workspaces/${workspaceId}`;
     const captchaToken = "test-captcha-token";
+    const reason = "Need to benchmark workflows.";
     const socketIp = "10.0.0.1";
 
     const mockWorkspace = {
@@ -370,6 +383,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       },
       body: {
         captchaToken,
+        reason,
       },
       ip: undefined,
       socket: {
@@ -395,6 +409,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     const userEmail = "user@example.com";
     const workspaceResource = `workspaces/${workspaceId}`;
     const captchaToken = "test-captcha-token";
+    const reason = "Need to set up initial agents.";
 
     const mockWorkspace = {
       pk: workspaceResource,
@@ -434,6 +449,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       },
       body: {
         captchaToken,
+        reason,
       },
       ip: undefined,
       socket: {} as express.Request["socket"],
@@ -459,6 +475,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     const userEmail = "user@example.com";
     const workspaceResource = `workspaces/${workspaceId}`;
     const captchaToken = "test-captcha-token";
+    const reason = "Need to validate workflows.";
     const userIp = "192.168.1.1";
 
     const mockWorkspace = {
@@ -498,6 +515,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       },
       body: {
         captchaToken,
+        reason,
       },
       ip: userIp,
     });
@@ -830,6 +848,59 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     );
   });
 
+  it("should throw badRequest when reason is missing", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const workspaceId = "workspace-123";
+    const userId = "user-456";
+    const userEmail = "user@example.com";
+    const workspaceResource = `workspaces/${workspaceId}`;
+
+    const mockWorkspace = {
+      pk: workspaceResource,
+      sk: "workspace",
+      workspaceId,
+      name: "Test Workspace",
+      currency: "usd",
+      trialCreditRequested: false,
+    };
+
+    const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
+    mockDb.workspace.get = mockWorkspaceGet;
+
+    mockIsUserInTrialPeriod.mockResolvedValue(true);
+
+    const req = createMockRequest({
+      workspaceResource,
+      session: {
+        user: {
+          id: userId,
+          email: userEmail,
+        },
+        expires: "2024-12-31T23:59:59Z",
+      },
+      params: {
+        workspaceId,
+      },
+      body: {
+        captchaToken: "test-token",
+      },
+    });
+    const res = createMockResponse();
+
+    await expect(callRouteHandler(req, res)).rejects.toThrow(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message: expect.stringContaining("Reason is required"),
+          }),
+        }),
+      })
+    );
+  });
+
   it("should throw badRequest when captchaToken is not a string", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
@@ -892,6 +963,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
     const userEmail = "user@example.com";
     const workspaceResource = `workspaces/${workspaceId}`;
     const captchaToken = "invalid-token";
+    const reason = "Need to test basic workflow.";
     const userIp = "192.168.1.1";
 
     const mockWorkspace = {
@@ -923,6 +995,7 @@ describe("POST /api/workspaces/:workspaceId/trial-credit-request", () => {
       },
       body: {
         captchaToken,
+        reason,
       },
       ip: userIp,
     });

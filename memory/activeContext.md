@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Trial credit request reason (2026-01-30)**: Added required reason input for trial credit requests, enforced backend validation/storage, and included reason in Discord notifications; updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Prod agent memory missing (2026-01-30)**: Verified S3 `helpmaton-vectordbs` contains LanceDB data for agent `8b459eb0-db6f-4b01-87a8-b03e879e4716` under `vectordb/{agentId}/working`, `daily`, `weekly` (latest object Jan 1). Likely memory API reads empty bucket because `HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION` is not set in prod Lambda envs (falls back to `vectordb.staging`).
 - **Prod agent memory missing root cause (2026-01-30)**: CloudWatch logs show memory API reads from `s3://helpmaton-vectordbs/vectordb/8b459eb0-db6f-4b01-87a8-b03e879e4716/working/` and returns 0 rows. Agent temporal grain queue insertions fail with `Found field not in schema: documentId at row 0`, meaning the LanceDB table schema for this agent predates new metadata fields and rejects new inserts. Memory ingestion has been failing since Jan 23.
 - **Discord /command prod failure (2026-01-30)**: API Gateway `/api/discord` methods are configured with `AuthorizationType: CUSTOM` (authorizer applied via api-throttling plugin skip list missing `/api/discord`). Discord requests have no Authorization header, so they are rejected before Lambda (no CloudWatch logs). Fix by skipping `/api/discord` from authorizer configuration.

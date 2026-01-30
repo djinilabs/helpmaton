@@ -516,6 +516,7 @@ export const purchaseCreditsSchema = z
 export const trialCreditRequestSchema = z
   .object({
     captchaToken: z.string().min(1, "CAPTCHA token is required"),
+    reason: z.string().min(1, "Reason is required"),
   })
   .strict();
 

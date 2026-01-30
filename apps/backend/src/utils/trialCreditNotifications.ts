@@ -9,7 +9,8 @@ import { sendDiscordMessage } from "./discord";
  */
 export async function sendTrialCreditRequestNotification(
   workspaceId: string,
-  userEmail: string
+  userEmail: string,
+  reason: string
 ): Promise<void> {
   const botToken = getDefined(
     process.env.DISCORD_BOT_TOKEN,
@@ -29,6 +30,7 @@ export async function sendTrialCreditRequestNotification(
 **Workspace ID:** \`${workspaceId}\`
 **Currency:** USD
 **Requested Amount:** ${creditAmount} USD
+**Reason:** ${reason}
 
 Please review and approve using the Discord \`/credit\` command:
 \`/credit workspace_id:${workspaceId} amount:${creditAmount}\`

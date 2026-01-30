@@ -374,6 +374,7 @@ export const tableSchemas = {
     workspaceId: z.string(), // workspace ID
     userId: z.string(), // user ID who requested
     userEmail: z.string().email(), // user email
+    reason: z.string().min(1), // required reason for request
     currency: z.enum(["usd"]), // workspace currency
     requestedAt: z.iso.datetime(), // when request was made
     status: z.enum(["pending", "approved", "rejected"]).default("pending"),

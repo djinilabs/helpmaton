@@ -36,10 +36,14 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *             type: object
  *             required:
  *               - captchaToken
+ *               - reason
  *             properties:
  *               captchaToken:
  *                 type: string
  *                 description: Cloudflare Turnstile CAPTCHA token
+ *               reason:
+ *                 type: string
+ *                 description: Reason for requesting trial credits
  *     responses:
  *       201:
  *         description: Trial credit request submitted successfully
@@ -116,7 +120,7 @@ export const registerPostTrialCreditRequest = (app: express.Application) => {
 
       // Validate CAPTCHA token
       const body = validateBody(req.body, trialCreditRequestSchema);
-      const { captchaToken } = body;
+      const { captchaToken, reason } = body;
 
       // Get user IP from request
       const userIp = req.ip || req.socket.remoteAddress || "unknown";
@@ -138,6 +142,7 @@ export const registerPostTrialCreditRequest = (app: express.Application) => {
         workspaceId,
         userId,
         userEmail,
+        reason,
         currency: workspace.currency || "usd",
         requestedAt: new Date().toISOString(),
         status: "pending",
@@ -154,7 +159,8 @@ export const registerPostTrialCreditRequest = (app: express.Application) => {
       // Send Discord notification
       await sendTrialCreditRequestNotification(
         workspaceId,
-        userEmail
+        userEmail,
+        reason
       );
 
       // Track trial credit request

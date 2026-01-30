@@ -23,10 +23,12 @@ export function useRequestTrialCredits() {
     mutationFn: ({
       workspaceId,
       captchaToken,
+      reason,
     }: {
       workspaceId: string;
       captchaToken: string;
-    }) => requestTrialCredits(workspaceId, captchaToken),
+      reason: string;
+    }) => requestTrialCredits(workspaceId, captchaToken, reason),
     onSuccess: () => {
       // Invalidate trial status to refetch
       queryClient.invalidateQueries({ queryKey: ["trial-status"] });

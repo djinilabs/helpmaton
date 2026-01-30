@@ -872,10 +872,11 @@ export interface TrialStatus {
 export async function requestTrialCredits(
   workspaceId: string,
   captchaToken: string,
+  reason: string,
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/trial-credit-request`, {
     method: "POST",
-    body: JSON.stringify({ captchaToken }),
+    body: JSON.stringify({ captchaToken, reason }),
   });
 }
 

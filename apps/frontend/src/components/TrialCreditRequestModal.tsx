@@ -43,6 +43,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
   const { data: trialStatus } = useTrialStatus(workspaceId);
   const { registerDialog, unregisterDialog } = useDialogTracking();
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
   const captchaWidgetId = useRef<string | null>(null);
   const captchaContainerRef = useRef<HTMLDivElement>(null);
 
@@ -80,6 +81,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
         captchaWidgetId.current = null;
       }
       setCaptchaToken(null);
+      setReason("");
     };
   }, [isOpen, turnstileSiteKey]);
 
@@ -89,6 +91,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
       captchaWidgetId.current = null;
     }
     setCaptchaToken(null);
+    setReason("");
     onClose();
   };
 
@@ -103,7 +106,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!captchaToken || !turnstileSiteKey) {
+    if (!captchaToken || !turnstileSiteKey || !reason.trim()) {
       return;
     }
 
@@ -111,6 +114,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
       await requestCredits.mutateAsync({
         workspaceId,
         captchaToken,
+        reason: reason.trim(),
       });
       trackEvent("trial_credit_requested", {
         workspace_id: workspaceId,
@@ -148,6 +152,24 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
         )}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
+            <label
+              htmlFor="trial-credit-reason"
+              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+            >
+              Why do you need trial credits?
+            </label>
+            <textarea
+              id="trial-credit-reason"
+              name="reason"
+              rows={4}
+              required
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Tell us how you plan to use the credits."
+              className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500 shadow-sm focus:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-200 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50 dark:placeholder-neutral-500 dark:focus:border-neutral-500 dark:focus:ring-neutral-800"
+            />
+          </div>
+          <div>
             <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Verify you&apos;re human
             </label>
@@ -175,7 +197,10 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
             <button
               type="submit"
               disabled={
-                requestCredits.isPending || !captchaToken || !turnstileSiteKey
+                requestCredits.isPending ||
+                !captchaToken ||
+                !turnstileSiteKey ||
+                !reason.trim()
               }
               className="flex-1 rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
             >
