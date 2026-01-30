@@ -45,6 +45,10 @@ type S3Location = {
   uri: string;
 };
 
+function logS3Config(note: string, details: Record<string, unknown>) {
+  console.log(`[Graph DB][S3] ${note}`, details);
+}
+
 function escapeSingleQuotes(value: string): string {
   return value.replace(/'/g, "''");
 }
@@ -145,6 +149,16 @@ function resolveS3Credentials(): {
 
   if (isLocal) {
     const endpoint = customEndpoint || DEFAULT_LOCAL_S3_ENDPOINT;
+    logS3Config("Resolved local S3 credentials", {
+      arcEnv,
+      region: DEFAULT_S3_REGION,
+      endpoint,
+      urlStyle: "path",
+      useSsl: !endpoint.startsWith("http://"),
+      accessKeyId: accessKeyId ? "env" : "local-default",
+      secretAccessKey: secretAccessKey ? "env" : "local-default",
+      sessionToken: sessionToken ? "set" : "missing",
+    });
     return {
       accessKeyId: LOCAL_S3_ACCESS_KEY,
       secretAccessKey: LOCAL_S3_SECRET_KEY,
@@ -156,6 +170,16 @@ function resolveS3Credentials(): {
     };
   }
 
+  logS3Config("Resolved AWS S3 credentials", {
+    arcEnv,
+    region,
+    endpoint: customEndpoint ?? "aws-default",
+    urlStyle: "vhost",
+    useSsl: customEndpoint ? !customEndpoint.startsWith("http://") : undefined,
+    accessKeyId: accessKeyId ? "env" : "missing",
+    secretAccessKey: secretAccessKey ? "env" : "missing",
+    sessionToken: sessionToken ? "set" : "missing",
+  });
   return {
     accessKeyId: accessKeyId ?? "",
     secretAccessKey: secretAccessKey ?? "",
@@ -183,6 +207,11 @@ function createS3Client() {
 
 async function parquetExists(location: S3Location): Promise<boolean> {
   const client = createS3Client();
+  logS3Config("HEAD parquet", {
+    bucket: location.bucket,
+    key: location.key,
+    uri: location.uri,
+  });
   try {
     await client.send(
       new HeadObjectCommand({
@@ -196,6 +225,22 @@ async function parquetExists(location: S3Location): Promise<boolean> {
       error && typeof error === "object" && "$metadata" in error
         ? (error.$metadata as { httpStatusCode?: number }).httpStatusCode
         : undefined;
+    logS3Config("HEAD parquet failed", {
+      bucket: location.bucket,
+      key: location.key,
+      statusCode,
+      errorName:
+        error && typeof error === "object" && "name" in error
+          ? (error as { name?: string }).name
+          : undefined,
+      requestId:
+        error &&
+        typeof error === "object" &&
+        "$metadata" in error &&
+        (error.$metadata as { requestId?: string }).requestId
+          ? (error.$metadata as { requestId?: string }).requestId
+          : undefined,
+    });
     if (
       statusCode === 404 ||
       (error as { name?: string }).name === "NotFound"

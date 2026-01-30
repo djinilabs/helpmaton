@@ -4,6 +4,11 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Prod S3 UnknownError (2026-01-30 08:34)**: `GET /api/workspaces/:workspaceId/agents/:agentId/knowledge-graph` failed while `createGraphDb` ran `HeadObject` on `graphs/{workspaceId}/{agentId}/facts.parquet` in the vector DB S3 bucket. The HEAD returned 400 `UnknownError`, which bubbled to a 500 response. Likely misconfigured S3 client (region/endpoint/credentials), since `graphDb` uses env creds to decide local vs prod and could select local/S3RVER credentials or wrong region when IAM role creds are in use.
+- **Graph DB S3 tracing logs (2026-01-30)**: Added structured logs around S3 credential resolution and the graph facts HEAD call (bucket/key, endpoint/region, url style, error metadata) to trace prod 400 UnknownError. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Shopify MCP tools reference (2026-01-29)**: Documented available Shopify MCP tools (`shopify_get_order`, `shopify_search_products`, `shopify_sales_report`) and their parameters.
+
+- **E2E run 21487317012 failure (2026-01-29)**: E2E login/widget tests timed out waiting for Testmail magic-link emails; multiple “Waiting for message in …@inbox.testmail.app with 120000ms timeout” retries, followed by Playwright 180s test timeouts and downstream state failures.
 - **Email connection cache clear (2026-01-29)**: Clearing React Query cache for workspace email connection on delete via helper, added unit test, ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter frontend test`.
 - **Memory list preview + expand (2026-01-29)**: Added `previewLength` to agent memory list (returns ids + truncation flag), added record-by-id endpoint for full content, updated memory UI to fetch 120-char previews and load full content on expand, added backend tests, ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Memory list preview tweaks (2026-01-29)**: Escaped newlines in preview text, added top "Show less" option when expanded, added ellipsis for unexpanded previews, ran `pnpm typecheck` and `pnpm lint --fix`.
