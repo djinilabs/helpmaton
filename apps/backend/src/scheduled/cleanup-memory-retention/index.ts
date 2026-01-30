@@ -3,11 +3,14 @@ import type { ScheduledEvent } from "aws-lambda";
 import { database } from "../../tables";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { calculateRetentionCutoff } from "../../utils/memory/retentionPolicies";
+import { initSentry } from "../../utils/sentry";
 import type { SubscriptionPlan } from "../../utils/subscriptionPlans";
 import { getSubscriptionById } from "../../utils/subscriptionUtils";
 import { sendWriteOperation } from "../../utils/vectordb/queueClient";
 import { query } from "../../utils/vectordb/readClient";
 import { TEMPORAL_GRAINS } from "../../utils/vectordb/types";
+
+initSentry();
 
 /**
  * Clean up old memory records based on retention policies

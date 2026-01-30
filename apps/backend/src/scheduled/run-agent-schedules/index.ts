@@ -5,7 +5,9 @@ import { database } from "../../tables";
 import { DUE_PARTITION } from "../../utils/agentSchedule";
 import { getNextRunAtEpochSeconds } from "../../utils/cron";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
+
+initSentry();
 
 const MAX_SCHEDULES_PER_RUN = 100;
 const QUEUE_NAME = "agent-schedule-queue";

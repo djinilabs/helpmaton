@@ -4,6 +4,9 @@ import asap from "@architect/asap";
 
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
+
+initSentry();
 
 export const handler = adaptHttpHandler(
   handlingErrors(

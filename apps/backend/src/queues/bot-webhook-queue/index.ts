@@ -5,11 +5,13 @@ import {
   type BotWebhookTaskMessage,
 } from "../../utils/botWebhookQueue";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 import { processDiscordTask } from "./discordTask";
 import { processSlackTask } from "./slackTask";
+
+initSentry();
 
 /**
  * Process a single bot webhook task

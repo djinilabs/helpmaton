@@ -9,8 +9,11 @@ import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { summarizeWithLLM } from "../../utils/memory/summarizeMemory";
 import { formatTimeForGrain } from "../../utils/memory/timeFormats";
 import { queueMemoryWrite } from "../../utils/memory/writeMemory";
+import { initSentry } from "../../utils/sentry";
 import { query } from "../../utils/vectordb/readClient";
 import type { FactRecord } from "../../utils/vectordb/types";
+
+initSentry();
 
 /**
  * Summarize day summaries into week summaries for all agents

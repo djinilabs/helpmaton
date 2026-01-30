@@ -7,11 +7,14 @@ import { database } from "../../tables";
 import { enqueueBotWebhookTask } from "../../utils/botWebhookQueue";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
 import {
   createDiscordDeferredResponse,
   createDiscordInteractionResponse,
 } from "../any-api-webhooks-000type-000workspaceId-000integrationId/services/discordResponse";
 import { verifyDiscordSignature } from "../any-api-webhooks-000type-000workspaceId-000integrationId/services/discordVerification";
+
+initSentry();
 
 interface DiscordInteraction {
   type: number;

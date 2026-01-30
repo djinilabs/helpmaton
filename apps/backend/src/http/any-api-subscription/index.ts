@@ -2,7 +2,10 @@ import serverlessExpress from "@vendia/serverless-express";
 import { APIGatewayProxyHandlerV2, APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { handlingErrors } from "../../utils/handlingErrors";
+import { initSentry } from "../../utils/sentry";
 import { createApp } from "../any-api-subscription-catchall/subscription-app";
+
+initSentry();
 
 let cachedHandler: APIGatewayProxyHandlerV2 | undefined;
 

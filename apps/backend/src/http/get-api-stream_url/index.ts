@@ -6,6 +6,9 @@ import type { APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
+
+initSentry();
 
 // Cache the Function URL to avoid repeated API calls
 let cachedFunctionUrl: string | null = null;

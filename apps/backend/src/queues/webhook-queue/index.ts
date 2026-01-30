@@ -1,7 +1,7 @@
 import type { SQSEvent } from "aws-lambda";
 
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import {
   WebhookQueueMessageSchema,
   type WebhookQueueMessage,
@@ -9,6 +9,8 @@ import {
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 import { processWebhookTask } from "./webhookTask";
+
+initSentry();
 
 async function processWebhookQueueMessage(
   message: WebhookQueueMessage,

@@ -3,6 +3,9 @@ import type { APIGatewayProxyResultV2 } from "aws-lambda";
 import packageJson from "../../../../../package.json";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
+
+initSentry();
 
 /**
  * @openapi

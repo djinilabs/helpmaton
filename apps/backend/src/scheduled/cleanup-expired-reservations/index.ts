@@ -5,8 +5,10 @@ import { database } from "../../tables";
 import type { CreditReservationRecord } from "../../tables/schema";
 import { refundReservation } from "../../utils/creditManagement";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
+
+initSentry();
 
 /**
  * Cleanup expired credit reservations

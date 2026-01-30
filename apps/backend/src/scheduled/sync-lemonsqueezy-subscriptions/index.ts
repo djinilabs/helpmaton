@@ -9,13 +9,15 @@ import { database } from "../../tables";
 import type { SubscriptionRecord } from "../../tables/schema";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { getSubscription as getLemonSqueezySubscription } from "../../utils/lemonSqueezy";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { sendGracePeriodExpiringEmail } from "../../utils/subscriptionEmails";
 import {
   checkGracePeriod,
   shouldSendGracePeriodWarning,
 } from "../../utils/subscriptionStatus";
 import { getUserEmailById } from "../../utils/subscriptionUtils";
+
+initSentry();
 /**
  * Map Lemon Squeezy variant ID to plan
  */

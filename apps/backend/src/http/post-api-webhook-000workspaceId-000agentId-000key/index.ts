@@ -5,8 +5,11 @@ import type {
 
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
 
 import { handleWebhookRequest } from "./webhookHandler";
+
+initSentry();
 
 export const handler = adaptHttpHandler(
   handlingErrors(

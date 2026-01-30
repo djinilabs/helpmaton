@@ -7,7 +7,10 @@ import { finalizeCreditReservation } from "../../utils/creditManagement";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { getMessageCost } from "../../utils/messageCostCalculation";
 import type { UIMessage } from "../../utils/messageTypes";
+import { initSentry } from "../../utils/sentry";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
+
+initSentry();
 
 // Exponential backoff configuration for OpenRouter API retries
 const BACKOFF_INITIAL_DELAY_MS = 500; // 0.5 seconds

@@ -19,6 +19,7 @@ import { handler as summarizeMemoryMonthlyHandler } from "../../scheduled/summar
 import { handler as summarizeMemoryQuarterlyHandler } from "../../scheduled/summarize-memory-quarterly";
 import { handler as summarizeMemoryWeeklyHandler } from "../../scheduled/summarize-memory-weekly";
 import { handler as summarizeMemoryYearlyHandler } from "../../scheduled/summarize-memory-yearly";
+import { initSentry } from "../../utils/sentry";
 import { internalHandler as streamsInternalHandler } from "../any-api-streams-catchall/internalHandler";
 import { handler as workspacesHandler } from "../any-api-workspaces";
 import { handler as workspacesCatchallHandler } from "../any-api-workspaces-catchall";
@@ -30,6 +31,8 @@ import {
   type HttpResponseStream,
   writeChunkToStream,
 } from "../utils/streamResponseStream";
+
+initSentry();
 
 type AnyHandler = (...args: unknown[]) => unknown;
 

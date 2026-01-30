@@ -14,7 +14,7 @@ import {
   getSubscription as getLemonSqueezySubscription,
   getOrder as getLemonSqueezyOrder,
 } from "../../utils/lemonSqueezy";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import {
   sendPaymentFailedEmail,
   sendSubscriptionCancelledEmail,
@@ -22,6 +22,8 @@ import {
 import { getUserSubscription } from "../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
+
+initSentry();
 
 interface LemonSqueezyWebhookEvent {
   meta: {

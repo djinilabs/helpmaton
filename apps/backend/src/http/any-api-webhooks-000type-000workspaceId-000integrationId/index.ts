@@ -9,6 +9,7 @@ import type { BotIntegrationRecord } from "../../tables/schema";
 import { enqueueBotWebhookTask } from "../../utils/botWebhookQueue";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
 import { trackEvent } from "../../utils/tracking";
 
 import {
@@ -18,6 +19,8 @@ import {
 import { verifyDiscordSignature } from "./services/discordVerification";
 import { postSlackMessage } from "./services/slackResponse";
 import { verifySlackSignature } from "./services/slackVerification";
+
+initSentry();
 
 /**
  * Decodes the request body if it's base64 encoded by API Gateway

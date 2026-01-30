@@ -3,6 +3,9 @@ import type { APIGatewayProxyResultV2 } from "aws-lambda";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { loadPricingConfig, type CurrencyPricing } from "../../utils/pricing";
+import { initSentry } from "../../utils/sentry";
+
+initSentry();
 
 /**
  * @openapi

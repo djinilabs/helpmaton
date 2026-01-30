@@ -11,7 +11,10 @@ import {
 } from "../../utils/aggregation";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
 import { requireSession, userRef } from "../utils/session";
+
+initSentry();
 
 /**
  * @openapi

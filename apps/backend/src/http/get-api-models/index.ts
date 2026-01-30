@@ -3,7 +3,10 @@ import type { APIGatewayProxyResultV2 } from "aws-lambda";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { getImageCapableModels, loadPricingConfig } from "../../utils/pricing";
+import { initSentry } from "../../utils/sentry";
 import { getDefaultModel } from "../utils/modelFactory";
+
+initSentry();
 
 /**
  * @openapi

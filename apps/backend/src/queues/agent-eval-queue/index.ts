@@ -3,7 +3,10 @@ import type { SQSRecord } from "aws-lambda";
 import { database } from "../../tables";
 import { executeEvaluation } from "../../utils/evalExecution";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
+import { initSentry } from "../../utils/sentry";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
+
+initSentry();
 
 interface EvalTaskMessage {
   workspaceId: string;

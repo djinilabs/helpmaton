@@ -12,7 +12,9 @@ import {
   formatDate,
 } from "../../utils/aggregation";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
+
+initSentry();
 
 type DateRange = {
   dateStr: string;

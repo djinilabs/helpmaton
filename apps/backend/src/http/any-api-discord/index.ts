@@ -3,6 +3,7 @@ import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
 
 import { handleDiscordCommand } from "./services/commandHandler";
 import { discordResponse } from "./services/discordResponse";
@@ -10,6 +11,8 @@ import {
   verifyDiscordSignature,
   verifyDiscordUser,
 } from "./services/discordService";
+
+initSentry();
 
 export const handler = adaptHttpHandler(
   handlingErrors(

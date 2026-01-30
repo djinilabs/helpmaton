@@ -27,13 +27,15 @@ import { launchBrowser } from "../../utils/puppeteerBrowser";
 // delay is still imported for small safety ticks, but used sparingly
 import { delay } from "../../utils/puppeteerContentLoading";
 import { setupResourceBlocking } from "../../utils/puppeteerResourceBlocking";
-import { ensureError, flushSentry, Sentry } from "../../utils/sentry";
+import { ensureError, flushSentry, initSentry, Sentry } from "../../utils/sentry";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { validateBody } from "../utils/bodyValidation";
 import { expressErrorHandler } from "../utils/errorHandler";
 import { extractWorkspaceContextFromToken } from "../utils/jwtUtils";
 import { scrapeRequestSchema } from "../utils/schemas/requestSchemas";
+
+initSentry();
 
 // Re-export for backward compatibility
 export { parseProxyUrl, getRandomProxyUrl, aomToXml, escapeXml };

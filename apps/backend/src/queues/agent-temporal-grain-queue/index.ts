@@ -4,7 +4,7 @@ import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../../utils/embedding";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
-import { Sentry, ensureError } from "../../utils/sentry";
+import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { getDatabaseUri } from "../../utils/vectordb/paths";
 import {
   WriteOperationMessageSchema,
@@ -13,6 +13,8 @@ import {
   type TemporalGrain,
   type RawFactData,
 } from "../../utils/vectordb/types";
+
+initSentry();
 
 /**
  * Get LanceDB connection options for S3

@@ -3,7 +3,10 @@ import { APIGatewayProxyHandlerV2, APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { initSentry } from "../../utils/sentry";
 import { createApp } from "../any-api-workspaces-catchall/workspaces-app";
+
+initSentry();
 
 let cachedHandler: APIGatewayProxyHandlerV2 | undefined;
 
