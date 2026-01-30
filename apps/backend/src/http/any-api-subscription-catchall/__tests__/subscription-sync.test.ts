@@ -109,19 +109,24 @@ describe("Subscription Sync Endpoint", () => {
       path: "/sync",
       userRef: `users/${userId}`,
     }) as Request;
-    const res = createMockResponse();
+    const res = createMockResponse() as ReturnType<
+      typeof createMockResponse
+    > & {
+      body: unknown;
+      json: ReturnType<typeof vi.fn>;
+    };
     let resolveResponse: () => void;
     const responsePromise = new Promise<void>((resolve) => {
       resolveResponse = resolve;
     });
-    res.json.mockImplementation(function (this: typeof res, data: unknown) {
-      this.body = data;
+    res.json.mockImplementation((data: unknown) => {
+      res.body = data;
       resolveResponse();
-      return this;
+      return res;
     });
     const next = vi.fn();
 
-    handler(req, res as Response, next);
+    await handler(req, res as Response, next);
     await responsePromise;
 
     expect(mockGetLemonSqueezySubscription).toHaveBeenCalledWith("ls-sub-123");
