@@ -14,6 +14,7 @@ import {
   buildAgentResponse,
   buildAgentUpdateParams,
   cleanEnabledMcpServerIds,
+  cleanEnabledMcpServerToolNames,
   getAgentOrThrow,
   resolveFetchWebProvider,
   resolveSearchWebProvider,
@@ -158,6 +159,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
             workspaceId,
             normalizedSummarizationPrompts,
             cleanedEnabledMcpServerIds,
+            cleanedEnabledMcpServerToolNames: undefined,
             resolvedSearchWebProvider,
             resolvedFetchWebProvider,
             resolvedModelName,
@@ -1229,5 +1231,36 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
         notificationChannelId: undefined,
       }),
     );
+  });
+
+  describe("cleanEnabledMcpServerToolNames", () => {
+    it("should reject unknown MCP tool names", async () => {
+      const mockDb = createMockDatabase();
+      const db = mockDb as unknown as Parameters<
+        typeof cleanEnabledMcpServerToolNames
+      >[0]["db"];
+      (mockDb as Record<string, unknown>)["mcp-server"] = {
+        get: vi.fn().mockResolvedValue({
+          pk: "mcp-servers/workspace-123/server-1",
+          sk: "server",
+          workspaceId: "workspace-123",
+          name: "My Google Drive",
+          serviceType: "google-drive",
+          authType: "oauth",
+          config: { accessToken: "token" },
+        }),
+      };
+
+      await expect(
+        cleanEnabledMcpServerToolNames({
+          db,
+          workspaceId: "workspace-123",
+          enabledMcpServerToolNames: {
+            "server-1": ["google_drive_list", "unknown_tool"],
+          },
+          existingEnabledMcpServerToolNames: undefined,
+        }),
+      ).rejects.toThrow("Invalid tool names for MCP server server-1");
+    });
   });
 });

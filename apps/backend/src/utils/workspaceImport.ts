@@ -466,6 +466,26 @@ function resolveMcpServerIds(
   });
 }
 
+function resolveMcpServerToolNames(
+  toolNamesByServer: Record<string, string[]> | undefined,
+  referenceMap: Map<string, string>,
+  mcpServerIdMap: Map<string, string>,
+): Record<string, string[]> | undefined {
+  if (!toolNamesByServer) {
+    return undefined;
+  }
+  const resolvedToolNamesByServer: Record<string, string[]> = {};
+  for (const [serverId, toolNames] of Object.entries(toolNamesByServer)) {
+    const [resolvedServerId] = resolveMcpServerIds(
+      [serverId],
+      referenceMap,
+      mcpServerIdMap,
+    );
+    resolvedToolNamesByServer[resolvedServerId] = toolNames;
+  }
+  return resolvedToolNamesByServer;
+}
+
 async function createAgentsAndNestedEntities(
   ctx: ImportContext,
   validatedData: WorkspaceExport,
@@ -508,6 +528,11 @@ async function createAgentsAndNestedEntities(
           mcpServerIdMap,
         )
       : undefined;
+    const enabledMcpServerToolNames = resolveMcpServerToolNames(
+      agentData.enabledMcpServerToolNames,
+      ctx.referenceMap,
+      mcpServerIdMap,
+    );
 
     await ctx.db.agent.create({
       pk: agentPk,
@@ -524,6 +549,7 @@ async function createAgentsAndNestedEntities(
       notificationChannelId,
       delegatableAgentIds,
       enabledMcpServerIds,
+      enabledMcpServerToolNames,
       enableMemorySearch: agentData.enableMemorySearch ?? false,
       enableSearchDocuments: agentData.enableSearchDocuments ?? false,
       enableKnowledgeInjection: agentData.enableKnowledgeInjection ?? false,

@@ -1253,7 +1253,8 @@ const createDedicatedTools = async (params: {
  */
 export async function createMcpServerTools(
   workspaceId: string,
-  enabledMcpServerIds: string[]
+  enabledMcpServerIds: string[],
+  enabledMcpServerToolNames?: Record<string, string[]>
 ): Promise<Record<string, ReturnType<typeof createMcpServerTool>>> {
   const tools: Record<string, ReturnType<typeof createMcpServerTool>> = {};
   const validServers = await collectValidServers(
@@ -1270,6 +1271,8 @@ export async function createMcpServerTools(
     const sameTypeServers = serversByServiceType.get(groupKey) ?? [];
     const hasConflict = sameTypeServers.length > 1;
     const suffix = getToolSuffix(server, hasConflict);
+    const allowedToolNames = enabledMcpServerToolNames?.[serverId];
+    const existingToolNames = new Set(Object.keys(tools));
 
     logNotionServer({
       server,
@@ -1293,6 +1296,22 @@ export async function createMcpServerTools(
       const toolName = `mcp_${sanitizeServerName(server.name)}`;
       logNotionGenericFallback(server, serverId);
       tools[toolName] = createMcpServerTool(workspaceId, serverId, server.name);
+    }
+
+    if (allowedToolNames !== undefined) {
+      const allowedToolNamesSet = new Set(allowedToolNames);
+      const newlyCreatedToolNames = Object.keys(tools).filter(
+        (toolName) => !existingToolNames.has(toolName),
+      );
+      for (const toolName of newlyCreatedToolNames) {
+        const baseName =
+          suffix && toolName.endsWith(suffix)
+            ? toolName.slice(0, -suffix.length)
+            : toolName;
+        if (!allowedToolNamesSet.has(baseName)) {
+          delete tools[toolName];
+        }
+      }
     }
   }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { DatabaseSchema } from "../../../tables/schema";
 import { isImageCapableModel } from "../../../utils/pricing";
+import { buildMcpServerToolList } from "../../../utils/toolMetadata";
 import { updateAgentSchema } from "../../utils/schemas/workspaceSchemas";
 
 type UpdateAgentBody = z.infer<typeof updateAgentSchema>;
@@ -243,6 +244,128 @@ export async function cleanEnabledMcpServerIds(params: {
       }
     }
     return cleanedEnabledMcpServerIds;
+  }
+
+  return undefined;
+}
+
+export async function cleanEnabledMcpServerToolNames(params: {
+  db: Database;
+  workspaceId: string;
+  enabledMcpServerToolNames: Record<string, string[]> | undefined;
+  existingEnabledMcpServerToolNames: Record<string, string[]> | undefined;
+}): Promise<Record<string, string[]> | undefined> {
+  const { enabledMcpServerToolNames } = params;
+  if (enabledMcpServerToolNames !== undefined) {
+    if (
+      typeof enabledMcpServerToolNames !== "object" ||
+      enabledMcpServerToolNames === null ||
+      Array.isArray(enabledMcpServerToolNames)
+    ) {
+      throw badRequest("enabledMcpServerToolNames must be an object");
+    }
+
+    const cleanedToolNamesByServer: Record<string, string[]> = {};
+    for (const [serverId, toolNames] of Object.entries(
+      enabledMcpServerToolNames,
+    )) {
+      if (!Array.isArray(toolNames)) {
+        throw badRequest(
+          "enabledMcpServerToolNames values must be arrays of strings",
+        );
+      }
+      for (const toolName of toolNames) {
+        if (typeof toolName !== "string") {
+          throw badRequest(
+            "All enabledMcpServerToolNames values must be arrays of strings",
+          );
+        }
+      }
+
+      const serverPk = `mcp-servers/${params.workspaceId}/${serverId}`;
+      const server = await params.db["mcp-server"].get(serverPk, "server");
+      if (!server) {
+        throw resourceGone(`MCP server ${serverId} not found`);
+      }
+      if (server.workspaceId !== params.workspaceId) {
+        throw forbidden(
+          `MCP server ${serverId} does not belong to this workspace`,
+        );
+      }
+
+      const config = server.config as { accessToken?: string };
+      const oauthConnected =
+        server.authType === "oauth" && !!config.accessToken;
+      const toolList = buildMcpServerToolList({
+        serverName: server.name,
+        serviceType: server.serviceType,
+        authType: server.authType,
+        oauthConnected,
+      });
+      const validToolNames = new Set(
+        toolList.flatMap((group) => group.tools.map((tool) => tool.name)),
+      );
+      const invalidToolNames = toolNames.filter(
+        (toolName) => !validToolNames.has(toolName),
+      );
+      if (invalidToolNames.length > 0) {
+        throw badRequest(
+          `Invalid tool names for MCP server ${serverId}: ${invalidToolNames.join(
+            ", ",
+          )}`,
+        );
+      }
+
+      cleanedToolNamesByServer[serverId] = Array.from(
+        new Set(toolNames.filter((toolName) => validToolNames.has(toolName))),
+      );
+    }
+
+    return cleanedToolNamesByServer;
+  }
+
+  if (
+    params.existingEnabledMcpServerToolNames &&
+    Object.keys(params.existingEnabledMcpServerToolNames).length > 0
+  ) {
+    const cleanedToolNamesByServer: Record<string, string[]> = {};
+    for (const [serverId, toolNames] of Object.entries(
+      params.existingEnabledMcpServerToolNames,
+    )) {
+      const serverPk = `mcp-servers/${params.workspaceId}/${serverId}`;
+      const server = await params.db["mcp-server"].get(serverPk, "server");
+      if (!server || server.workspaceId !== params.workspaceId) {
+        console.warn(
+          `MCP server ${serverId} not found or invalid, filtering out from enabledMcpServerToolNames`,
+        );
+        continue;
+      }
+
+      const config = server.config as { accessToken?: string };
+      const oauthConnected =
+        server.authType === "oauth" && !!config.accessToken;
+      const toolList = buildMcpServerToolList({
+        serverName: server.name,
+        serviceType: server.serviceType,
+        authType: server.authType,
+        oauthConnected,
+      });
+      const validToolNames = new Set(
+        toolList.flatMap((group) => group.tools.map((tool) => tool.name)),
+      );
+      const filteredToolNames = toolNames.filter((toolName) =>
+        validToolNames.has(toolName),
+      );
+      if (filteredToolNames.length !== toolNames.length) {
+        console.warn(
+          `Invalid tool names found for MCP server ${serverId}, filtering out invalid entries`,
+        );
+      }
+      cleanedToolNamesByServer[serverId] = Array.from(
+        new Set(filteredToolNames),
+      );
+    }
+    return cleanedToolNamesByServer;
   }
 
   return undefined;
@@ -596,6 +719,7 @@ export function buildAgentUpdateParams(params: {
   workspaceId: string;
   normalizedSummarizationPrompts: UpdateAgentBody["summarizationPrompts"];
   cleanedEnabledMcpServerIds: string[] | undefined;
+  cleanedEnabledMcpServerToolNames: Record<string, string[]> | undefined;
   resolvedSearchWebProvider: "tavily" | "jina" | undefined;
   resolvedFetchWebProvider: "tavily" | "jina" | "scrape" | undefined;
   resolvedModelName: string | undefined;
@@ -624,6 +748,10 @@ export function buildAgentUpdateParams(params: {
       params.cleanedEnabledMcpServerIds !== undefined
         ? params.cleanedEnabledMcpServerIds
         : (agent.enabledMcpServerIds ?? []),
+    enabledMcpServerToolNames:
+      params.cleanedEnabledMcpServerToolNames !== undefined
+        ? params.cleanedEnabledMcpServerToolNames
+        : agent.enabledMcpServerToolNames,
     enableMemorySearch:
       body.enableMemorySearch !== undefined
         ? body.enableMemorySearch
@@ -758,6 +886,7 @@ export function buildAgentResponse(params: {
     notificationChannelId: updated.notificationChannelId,
     delegatableAgentIds: updated.delegatableAgentIds ?? [],
     enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
+    enabledMcpServerToolNames: updated.enabledMcpServerToolNames ?? undefined,
     enableMemorySearch: updated.enableMemorySearch ?? false,
     enableSearchDocuments: updated.enableSearchDocuments ?? false,
     enableKnowledgeInjection: updated.enableKnowledgeInjection ?? false,

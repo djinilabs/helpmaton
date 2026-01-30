@@ -278,6 +278,20 @@ export async function exportWorkspace(
             return mcpServerIdToRefNameMap.get(actualServerId) || id;
           })
         : undefined;
+      const enabledMcpServerToolNames = agent.enabledMcpServerToolNames
+        ? Object.fromEntries(
+            Object.entries(agent.enabledMcpServerToolNames).map(
+              ([serverId, toolNames]) => {
+                const actualServerId = serverId.includes("/")
+                  ? serverId.replace(`mcp-servers/${workspaceId}/`, "")
+                  : serverId;
+                const refName =
+                  mcpServerIdToRefNameMap.get(actualServerId) || serverId;
+                return [refName, toolNames];
+              },
+            ),
+          )
+        : undefined;
 
       return {
         id: agentRefName,
@@ -298,6 +312,7 @@ export async function exportWorkspace(
         notificationChannelId: notificationChannelRefName,
         delegatableAgentIds: delegatableAgentRefNames,
         enabledMcpServerIds: enabledMcpServerRefNames,
+        enabledMcpServerToolNames,
         enableMemorySearch: agent.enableMemorySearch,
         enableSearchDocuments: agent.enableSearchDocuments,
         enableKnowledgeInjection: agent.enableKnowledgeInjection,

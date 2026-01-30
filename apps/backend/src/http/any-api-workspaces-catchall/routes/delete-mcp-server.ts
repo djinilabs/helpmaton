@@ -1,4 +1,4 @@
-import { badRequest, forbidden, resourceGone } from "@hapi/boom";
+import { badRequest, conflict, forbidden, resourceGone } from "@hapi/boom";
 import express from "express";
 
 import { database } from "../../../tables";
@@ -34,6 +34,12 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *         description: MCP server deleted successfully
  *       400:
  *         $ref: '#/components/responses/BadRequest'
+ *       409:
+ *         description: MCP server is in use by at least one agent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -87,7 +93,7 @@ export const registerDeleteMcpServer = (app: express.Application) => {
             agent.enabledMcpServerIds &&
             agent.enabledMcpServerIds.includes(serverId)
           ) {
-            throw badRequest(
+            throw conflict(
               `Cannot delete MCP server: at least one agent is using it. Please disable it in those agents first.`
             );
           }

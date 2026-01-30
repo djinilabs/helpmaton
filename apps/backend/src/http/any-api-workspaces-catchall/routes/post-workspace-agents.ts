@@ -300,6 +300,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           modelName: agent.modelName ?? null,
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
+          enabledMcpServerToolNames: agent.enabledMcpServerToolNames ?? undefined,
           enableMemorySearch: agent.enableMemorySearch ?? false,
           enableImageGeneration: agent.enableImageGeneration ?? false,
           imageGenerationModel: agent.imageGenerationModel ?? null,

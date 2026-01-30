@@ -108,6 +108,9 @@ export const updateAgentSchema = z
     spendingLimits: z.array(spendingLimitSchema).optional(),
     delegatableAgentIds: z.array(z.string()).optional(),
     enabledMcpServerIds: z.array(z.string()).optional(),
+    enabledMcpServerToolNames: z
+      .record(z.string(), z.array(z.string()))
+      .optional(),
     enableMemorySearch: z.boolean().optional(),
     enableSearchDocuments: z.boolean().optional(),
     enableKnowledgeInjection: z.boolean().optional(),

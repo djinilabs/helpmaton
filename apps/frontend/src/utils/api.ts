@@ -102,6 +102,7 @@ export interface Agent {
   notificationChannelId?: string;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enabledMcpServerToolNames?: Record<string, string[]>;
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;
@@ -161,6 +162,7 @@ export interface UpdateAgentInput {
   notificationChannelId?: string | null;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enabledMcpServerToolNames?: Record<string, string[]>;
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;

@@ -387,6 +387,43 @@ describe("toolMetadata", () => {
         );
       });
 
+      it("should mark MCP tools as not available when disabled by agent allowlist", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Google Drive",
+            serviceType: "google-drive",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+            enabledMcpServerToolNames: {
+              "server-1": ["google_drive_list"],
+            },
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        const listTool = mcpGroup?.tools.find(
+          (t) => t.name === "google_drive_list",
+        );
+        const readTool = mcpGroup?.tools.find(
+          (t) => t.name === "google_drive_read",
+        );
+
+        expect(listTool?.condition).toContain("Available");
+        expect(readTool?.condition).toContain("Not available");
+        expect(readTool?.condition).toContain("Disabled");
+      });
+
       it("should not include Google Drive tools when OAuth is not connected", () => {
         const mcpServers: McpServerInfo[] = [
           {

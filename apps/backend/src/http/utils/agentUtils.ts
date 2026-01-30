@@ -44,6 +44,7 @@ type CachedAgent = {
   enableSendEmail?: boolean;
   notificationChannelId?: string;
   enabledMcpServerIds?: string[];
+  enabledMcpServerToolNames?: Record<string, string[]>;
   delegatableAgentIds?: string[];
   clientTools?: Array<{ name: string }>;
   [key: string]: unknown;
@@ -130,6 +131,8 @@ export interface WorkspaceAndAgent {
     pk: string;
     systemPrompt: string;
     notificationChannelId?: string;
+    enabledMcpServerIds?: string[];
+    enabledMcpServerToolNames?: Record<string, string[]>;
     temperature?: number;
     topP?: number;
     topK?: number;
@@ -1099,6 +1102,7 @@ async function fetchAndCacheAgent(
       enableSendEmail: agent.enableSendEmail,
       notificationChannelId: agent.notificationChannelId,
       enabledMcpServerIds: agent.enabledMcpServerIds,
+      enabledMcpServerToolNames: agent.enabledMcpServerToolNames,
       delegatableAgentIds: agent.delegatableAgentIds,
       clientTools: agent.clientTools,
     };

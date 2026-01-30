@@ -14,6 +14,7 @@ import {
   buildAgentResponse,
   buildAgentUpdateParams,
   cleanEnabledMcpServerIds,
+  cleanEnabledMcpServerToolNames,
   getAgentOrThrow,
   resolveFetchWebProvider,
   resolveKnowledgeInjectionSources,
@@ -158,6 +159,14 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enabledMcpServerIds: body.enabledMcpServerIds,
           existingEnabledMcpServerIds: agent.enabledMcpServerIds,
         });
+        const cleanedEnabledMcpServerToolNames =
+          await cleanEnabledMcpServerToolNames({
+            db,
+            workspaceId,
+            enabledMcpServerToolNames: body.enabledMcpServerToolNames,
+            existingEnabledMcpServerToolNames:
+              agent.enabledMcpServerToolNames,
+          });
         validateClientTools(body.clientTools);
         validateKnowledgeConfig({
           knowledgeInjectionMinSimilarity: body.knowledgeInjectionMinSimilarity,
@@ -212,6 +221,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             workspaceId,
             normalizedSummarizationPrompts,
             cleanedEnabledMcpServerIds,
+            cleanedEnabledMcpServerToolNames,
             resolvedSearchWebProvider,
             resolvedFetchWebProvider,
             resolvedModelName,

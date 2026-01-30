@@ -162,6 +162,16 @@ export const openApiSchemas = {
         },
         description: "IDs of enabled MCP servers",
       },
+      enabledMcpServerToolNames: {
+        type: "object",
+        additionalProperties: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        description: "Per-server tool allowlist for MCP servers",
+      },
       enableMemorySearch: {
         type: "boolean",
         description: "Enable the memory search tool for this agent",
@@ -348,6 +358,16 @@ export const openApiSchemas = {
         },
         description: "IDs of enabled MCP servers",
       },
+      enabledMcpServerToolNames: {
+        type: "object",
+        additionalProperties: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        description: "Per-server tool allowlist for MCP servers",
+      },
       enableMemorySearch: {
         type: "boolean",
         description: "Enable the memory search tool for this agent",
@@ -459,6 +479,16 @@ export const openApiSchemas = {
           type: "string",
         },
         description: "IDs of enabled MCP servers",
+      },
+      enabledMcpServerToolNames: {
+        type: "object",
+        additionalProperties: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        description: "Per-server tool allowlist for MCP servers",
       },
       enableMemorySearch: {
         type: "boolean",

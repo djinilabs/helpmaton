@@ -314,6 +314,10 @@ const agentSchema = z
       .describe(
         "List of MCP server IDs enabled for this agent (can use references)",
       ),
+    enabledMcpServerToolNames: z
+      .record(z.string(), z.array(z.string()))
+      .optional()
+      .describe("Per-server tool allowlist for MCP servers"),
     enableMemorySearch: z
       .boolean()
       .optional()

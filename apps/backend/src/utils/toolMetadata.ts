@@ -42,6 +42,7 @@ export interface ToolListOptions {
     imageGenerationModel?: string;
     delegatableAgentIds?: string[];
     enabledMcpServerIds?: string[];
+    enabledMcpServerToolNames?: Record<string, string[]>;
     clientTools?: Array<{
       name: string;
       description: string;
@@ -3634,6 +3635,35 @@ function sanitizeServerName(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 }
 
+function resolveMcpToolBaseName(toolName: string, suffix: string): string {
+  if (suffix && toolName.endsWith(suffix)) {
+    return toolName.slice(0, -suffix.length);
+  }
+  return toolName;
+}
+
+function applyMcpServerToolSelection(params: {
+  tools: ToolMetadata[];
+  allowedToolNames: string[] | undefined;
+  suffix: string;
+}): ToolMetadata[] {
+  if (params.allowedToolNames === undefined) {
+    return params.tools;
+  }
+  const allowedToolNamesSet = new Set(params.allowedToolNames);
+  return params.tools.map((tool) => {
+    const baseName = resolveMcpToolBaseName(tool.name, params.suffix);
+    if (allowedToolNamesSet.has(baseName)) {
+      return tool;
+    }
+    return {
+      ...tool,
+      alwaysAvailable: false,
+      condition: "Not available (Disabled for this agent)",
+    };
+  });
+}
+
 /**
  * Generate tool list from agent configuration
  */
@@ -3707,6 +3737,8 @@ export function generateToolList(
       const hasConflict = sameTypeServers.length > 1;
       const serverNameSanitized = sanitizeServerName(server.name);
       const suffix = hasConflict ? `_${serverNameSanitized}` : "";
+      const allowedToolNames =
+        options.agent.enabledMcpServerToolNames?.[server.id];
 
       if (server.serviceType === "posthog") {
         const serviceTools = getMcpServerToolMetadata(
@@ -3715,7 +3747,13 @@ export function generateToolList(
           suffix,
           true
         );
-        tools.push(...serviceTools);
+        tools.push(
+          ...applyMcpServerToolSelection({
+            tools: serviceTools,
+            allowedToolNames,
+            suffix,
+          }),
+        );
       } else if (
         server.authType === "oauth" &&
         server.serviceType &&
@@ -3729,7 +3767,13 @@ export function generateToolList(
             suffix,
             true
           );
-          tools.push(...serviceTools);
+          tools.push(
+            ...applyMcpServerToolSelection({
+              tools: serviceTools,
+              allowedToolNames,
+              suffix,
+            }),
+          );
         }
         // Skip OAuth servers that are not connected
       } else {
@@ -3740,7 +3784,13 @@ export function generateToolList(
           suffix,
           true
         );
-        tools.push(...genericTools);
+        tools.push(
+          ...applyMcpServerToolSelection({
+            tools: genericTools,
+            allowedToolNames,
+            suffix,
+          }),
+        );
       }
     }
   }

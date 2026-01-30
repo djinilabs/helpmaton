@@ -1,4 +1,4 @@
-import { badRequest, forbidden, resourceGone } from "@hapi/boom";
+import { badRequest, conflict, forbidden, resourceGone } from "@hapi/boom";
 import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -71,7 +71,7 @@ describe("DELETE /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
             agent.enabledMcpServerIds &&
             agent.enabledMcpServerIds.includes(serverId)
           ) {
-            throw badRequest(
+            throw conflict(
               `Cannot delete MCP server: at least one agent is using it. Please disable it in those agents first.`
             );
           }
@@ -350,7 +350,7 @@ describe("DELETE /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("should throw badRequest when an agent is using the MCP server", async () => {
+  it("should throw conflict when an agent is using the MCP server", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
@@ -420,7 +420,7 @@ describe("DELETE /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         output: expect.objectContaining({
-          statusCode: 400,
+          statusCode: 409,
           payload: expect.objectContaining({
             message: expect.stringContaining(
               "Cannot delete MCP server: at least one agent is using it"
@@ -432,7 +432,7 @@ describe("DELETE /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("should throw badRequest when multiple agents are using the MCP server", async () => {
+  it("should throw conflict when multiple agents are using the MCP server", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
@@ -502,7 +502,7 @@ describe("DELETE /api/workspaces/:workspaceId/mcp-servers/:serverId", () => {
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({
         output: expect.objectContaining({
-          statusCode: 400,
+          statusCode: 409,
           payload: expect.objectContaining({
             message: expect.stringContaining(
               "Cannot delete MCP server: at least one agent is using it"

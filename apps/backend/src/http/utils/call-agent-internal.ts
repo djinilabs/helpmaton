@@ -63,6 +63,7 @@ const buildDelegationTools = async (params: {
     notificationChannelId?: string;
     enableSendEmail?: boolean;
     enabledMcpServerIds?: string[];
+    enabledMcpServerToolNames?: Record<string, string[]>;
     clientTools?: Array<Record<string, unknown>>;
     delegatableAgentIds?: string[];
     [key: string]: unknown;
@@ -183,7 +184,8 @@ const buildDelegationTools = async (params: {
   ) {
     const mcpTools = await createMcpServerTools(
       workspaceId,
-      targetAgent.enabledMcpServerIds
+      targetAgent.enabledMcpServerIds,
+      targetAgent.enabledMcpServerToolNames ?? undefined
     );
     Object.assign(tools, mcpTools);
   }

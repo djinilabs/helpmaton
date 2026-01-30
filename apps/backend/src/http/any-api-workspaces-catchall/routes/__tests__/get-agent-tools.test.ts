@@ -100,6 +100,8 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/tools", () => {
             imageGenerationModel: agent.imageGenerationModel,
             delegatableAgentIds: agent.delegatableAgentIds ?? [],
             enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
+            enabledMcpServerToolNames:
+              agent.enabledMcpServerToolNames ?? undefined,
             clientTools: agent.clientTools ?? [],
           },
           workspaceId,
@@ -189,6 +191,7 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/tools", () => {
         imageGenerationModel: undefined,
         delegatableAgentIds: [],
         enabledMcpServerIds: [],
+        enabledMcpServerToolNames: undefined,
         clientTools: [],
       },
       workspaceId: "workspace-123",
@@ -482,6 +485,7 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/tools", () => {
         enableImageGeneration: false,
         delegatableAgentIds: ["agent-1", "agent-2"],
         enabledMcpServerIds: ["server-1"],
+        enabledMcpServerToolNames: undefined,
         imageGenerationModel: undefined,
         clientTools: [
           {

@@ -146,6 +146,8 @@ export const registerGetAgentTools = (app: express.Application) => {
             imageGenerationModel: agent.imageGenerationModel,
             delegatableAgentIds: agent.delegatableAgentIds ?? [],
             enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
+            enabledMcpServerToolNames:
+              agent.enabledMcpServerToolNames ?? undefined,
             clientTools: agent.clientTools ?? [],
           },
           workspaceId,

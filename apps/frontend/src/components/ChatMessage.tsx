@@ -36,6 +36,404 @@ export interface ChatMessageProps {
  * Memoized component for rendering a single chat message.
  * Only re-renders when the message content actually changes.
  */
+type PartContext = {
+  messageId: string;
+  role: string;
+  isWidget: boolean;
+};
+
+const isMessagePart = (part: unknown): part is { type: string } =>
+  !!part &&
+  typeof part === "object" &&
+  "type" in part &&
+  typeof part.type === "string";
+
+const renderTextPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (part.type !== "text" || !("text" in part)) {
+    return undefined;
+  }
+  const textPart = part as { type: "text"; text: string };
+  return (
+    <TextPart
+      key={`${context.messageId}-text-${partIndex}`}
+      text={textPart.text}
+      isUser={context.role === "user"}
+    />
+  );
+};
+
+const renderReasoningPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (part.type !== "reasoning" || !("text" in part)) {
+    return undefined;
+  }
+  const reasoningPart = part as { type: "reasoning"; text: string };
+  return (
+    <ReasoningPart
+      key={`${context.messageId}-reasoning-${partIndex}`}
+      text={reasoningPart.text}
+      isWidget={context.isWidget}
+    />
+  );
+};
+
+const renderFilePart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (
+    (part.type !== "file" && part.type !== "image") ||
+    !("file" in part || "image" in part || "data" in part || "url" in part)
+  ) {
+    return undefined;
+  }
+  let fileUrl: string | null = null;
+  if ("url" in part && typeof part.url === "string") {
+    fileUrl = part.url;
+  } else if ("file" in part && typeof part.file === "string") {
+    fileUrl = part.file;
+  } else if ("image" in part && typeof part.image === "string") {
+    fileUrl = part.image;
+  } else if ("data" in part && typeof part.data === "string") {
+    fileUrl = part.data;
+  }
+
+  if (!fileUrl || typeof fileUrl !== "string") {
+    return null;
+  }
+
+  let mediaType: string | undefined;
+  if ("mediaType" in part && typeof part.mediaType === "string") {
+    mediaType = part.mediaType;
+  } else if ("mimeType" in part && typeof part.mimeType === "string") {
+    mediaType = part.mimeType;
+  }
+
+  return (
+    <FilePart
+      key={`${context.messageId}-file-${partIndex}`}
+      fileUrl={fileUrl}
+      mediaType={mediaType}
+      partIndex={partIndex}
+      messageId={context.messageId}
+    />
+  );
+};
+
+const renderToolCallPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (
+    part.type !== "tool-call" ||
+    !("toolName" in part && "toolCallId" in part)
+  ) {
+    return undefined;
+  }
+  const toolPart = part as {
+    type: "tool-call";
+    toolName: string;
+    toolCallId: string;
+    args?: unknown;
+    input?: unknown;
+  };
+  return (
+    <ToolPart
+      key={`${context.messageId}-tool-${partIndex}`}
+      toolName={toolPart.toolName}
+      toolCallId={toolPart.toolCallId}
+      input={toolPart.args || toolPart.input || {}}
+      partIndex={partIndex}
+      messageId={context.messageId}
+      isWidget={context.isWidget}
+    />
+  );
+};
+
+const renderToolResultPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (
+    part.type !== "tool-result" ||
+    !("toolCallId" in part && "toolName" in part)
+  ) {
+    return undefined;
+  }
+  const toolResultPart = part as {
+    type: "tool-result";
+    toolCallId: string;
+    toolName: string;
+    result?: unknown;
+  };
+  return (
+    <ToolPart
+      key={`${context.messageId}-tool-result-${partIndex}`}
+      toolName={toolResultPart.toolName}
+      toolCallId={toolResultPart.toolCallId}
+      input={{}}
+      output={toolResultPart.result}
+      partIndex={partIndex}
+      messageId={context.messageId}
+      isWidget={context.isWidget}
+    />
+  );
+};
+
+const renderDynamicToolPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (
+    part.type !== "dynamic-tool" ||
+    !("toolName" in part && "toolCallId" in part)
+  ) {
+    return undefined;
+  }
+  const toolPart = part as {
+    type: "dynamic-tool";
+    toolName: string;
+    toolCallId: string;
+    input?: unknown;
+    output?: unknown;
+    errorText?: string;
+    state?: string;
+  };
+  return (
+    <ToolPart
+      key={`${context.messageId}-tool-${partIndex}`}
+      toolName={toolPart.toolName}
+      toolCallId={toolPart.toolCallId}
+      input={toolPart.input || {}}
+      output={toolPart.output}
+      errorText={toolPart.errorText}
+      state={toolPart.state}
+      partIndex={partIndex}
+      messageId={context.messageId}
+      isWidget={context.isWidget}
+    />
+  );
+};
+
+const renderNamedToolPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (
+    !part.type.startsWith("tool-") ||
+    part.type === "tool-call" ||
+    part.type === "tool-result" ||
+    !("toolCallId" in part)
+  ) {
+    return undefined;
+  }
+  const toolName = part.type.substring(5);
+  const toolPart = part as {
+    type: string;
+    toolCallId: string;
+    input?: unknown;
+    output?: unknown;
+    errorText?: string;
+    state?: string;
+  };
+  return (
+    <ToolPart
+      key={`${context.messageId}-tool-${partIndex}`}
+      toolName={toolName}
+      toolCallId={toolPart.toolCallId}
+      input={toolPart.input || {}}
+      output={toolPart.output}
+      errorText={toolPart.errorText}
+      state={toolPart.state}
+      partIndex={partIndex}
+      messageId={context.messageId}
+      isWidget={context.isWidget}
+    />
+  );
+};
+
+const renderSourceUrlPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (part.type !== "source-url" || !("url" in part && "sourceId" in part)) {
+    return undefined;
+  }
+  const sourcePart = part as {
+    type: "source-url";
+    sourceId: string;
+    url: string;
+    title?: string;
+  };
+  return (
+    <SourceUrlPart
+      key={`${context.messageId}-source-url-${partIndex}`}
+      sourceId={sourcePart.sourceId}
+      url={sourcePart.url}
+      title={sourcePart.title}
+      partIndex={partIndex}
+      messageId={context.messageId}
+    />
+  );
+};
+
+const renderSourceDocumentPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (
+    part.type !== "source-document" ||
+    !("sourceId" in part && "title" in part)
+  ) {
+    return undefined;
+  }
+  const docPart = part as {
+    type: "source-document";
+    sourceId: string;
+    mediaType: string;
+    title: string;
+    filename?: string;
+  };
+  return (
+    <SourceDocumentPart
+      key={`${context.messageId}-source-doc-${partIndex}`}
+      sourceId={docPart.sourceId}
+      mediaType={docPart.mediaType}
+      title={docPart.title}
+      filename={docPart.filename}
+      partIndex={partIndex}
+      messageId={context.messageId}
+    />
+  );
+};
+
+const renderLegacyFilePart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (part.type !== "file" || !("url" in part && "mediaType" in part)) {
+    return undefined;
+  }
+  const filePart = part as {
+    type: "file";
+    url: string;
+    mediaType: string;
+    filename?: string;
+  };
+  return (
+    <div
+      key={`${context.messageId}-part-${partIndex}`}
+      className="max-w-[80%] overflow-x-auto rounded-xl border border-purple-200 bg-purple-50 p-3 dark:border-purple-800 dark:bg-purple-950"
+    >
+      <div className="mb-1 text-xs font-medium text-purple-700 dark:text-purple-300">
+        📎 File
+      </div>
+      <div className="text-sm font-medium text-purple-900 dark:text-purple-100">
+        {filePart.filename || "Untitled file"}
+      </div>
+      <div className="mt-1 text-xs text-purple-600 dark:text-purple-400">
+        {filePart.mediaType}
+      </div>
+      <a
+        href={filePart.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 inline-block text-xs text-purple-700 underline hover:text-purple-900 dark:text-purple-300 dark:hover:text-purple-200"
+      >
+        View/Download
+      </a>
+    </div>
+  );
+};
+
+const renderDataPart = (
+  part: { type: string },
+  partIndex: number,
+  context: PartContext
+) => {
+  if (!part.type.startsWith("data-") || !("data" in part)) {
+    return undefined;
+  }
+  const dataName = part.type.substring(5);
+  const dataPart = part as {
+    type: string;
+    data: unknown;
+    id?: string;
+  };
+  return (
+    <DataPart
+      key={`${context.messageId}-data-${partIndex}`}
+      dataName={dataName}
+      data={dataPart.data}
+      id={dataPart.id}
+      partIndex={partIndex}
+      messageId={context.messageId}
+    />
+  );
+};
+
+const renderStepStartPart = () => null;
+
+const renderPart = (
+  part: unknown,
+  partIndex: number,
+  context: PartContext
+) => {
+  if (!isMessagePart(part)) {
+    return null;
+  }
+
+  const handlers = [
+    renderTextPart,
+    renderReasoningPart,
+    renderFilePart,
+    renderToolCallPart,
+    renderToolResultPart,
+    renderDynamicToolPart,
+    renderNamedToolPart,
+    renderSourceUrlPart,
+    renderSourceDocumentPart,
+    renderLegacyFilePart,
+    renderDataPart,
+  ];
+
+  for (const handler of handlers) {
+    const result = handler(part, partIndex, context);
+    if (result !== undefined) {
+      return result;
+    }
+  }
+
+  if (part.type === "step-start") {
+    return renderStepStartPart();
+  }
+
+  return (
+    <UnknownPart
+      key={`${context.messageId}-unknown-${partIndex}`}
+      partType={part.type}
+      part={part}
+      partIndex={partIndex}
+      messageId={context.messageId}
+    />
+  );
+};
+
 export const ChatMessage = memo<ChatMessageProps>(
   ({ message, agent, isWidget = false }) => {
     // Check if this is a knowledge injection message
@@ -118,313 +516,12 @@ export const ChatMessage = memo<ChatMessageProps>(
     const roleLabel = getRoleLabel(message.role);
     const roleStyling = getRoleStyling(message.role);
 
-    // Render part function - now using memoized components
-    // eslint-disable-next-line complexity
-    const renderPart = (part: unknown, partIndex: number) => {
-      if (
-        !part ||
-        typeof part !== "object" ||
-        !("type" in part) ||
-        typeof part.type !== "string"
-      ) {
-        return null;
-      }
-
-      const partType = part.type;
-
-      // Text part
-      if (partType === "text" && "text" in part) {
-        const textPart = part as { type: "text"; text: string };
-        return (
-          <TextPart
-            key={`${message.id}-text-${partIndex}`}
-            text={textPart.text}
-            isUser={message.role === "user"}
-          />
-        );
-      }
-
-      // Reasoning part
-      if (partType === "reasoning" && "text" in part) {
-        const reasoningPart = part as { type: "reasoning"; text: string };
-        return (
-          <ReasoningPart
-            key={`${message.id}-reasoning-${partIndex}`}
-            text={reasoningPart.text}
-            isWidget={isWidget}
-          />
-        );
-      }
-
-      // File part
-      if (
-        (partType === "file" || partType === "image") &&
-        ("file" in part || "image" in part || "data" in part || "url" in part)
-      ) {
-        let fileUrl: string | null = null;
-        if ("url" in part && typeof part.url === "string") {
-          fileUrl = part.url;
-        } else if ("file" in part && typeof part.file === "string") {
-          fileUrl = part.file;
-        } else if ("image" in part && typeof part.image === "string") {
-          fileUrl = part.image;
-        } else if ("data" in part && typeof part.data === "string") {
-          fileUrl = part.data;
-        }
-
-        if (!fileUrl || typeof fileUrl !== "string") {
-          return null;
-        }
-
-        let mediaType: string | undefined;
-        if ("mediaType" in part && typeof part.mediaType === "string") {
-          mediaType = part.mediaType;
-        } else if ("mimeType" in part && typeof part.mimeType === "string") {
-          mediaType = part.mimeType;
-        }
-
-        return (
-          <FilePart
-            key={`${message.id}-file-${partIndex}`}
-            fileUrl={fileUrl}
-            mediaType={mediaType}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // Tool calls - tool-call (backend format)
-      if (
-        partType === "tool-call" &&
-        "toolName" in part &&
-        "toolCallId" in part
-      ) {
-        const toolPart = part as {
-          type: "tool-call";
-          toolName: string;
-          toolCallId: string;
-          args?: unknown;
-          input?: unknown;
-        };
-        return (
-          <ToolPart
-            key={`${message.id}-tool-${partIndex}`}
-            toolName={toolPart.toolName}
-            toolCallId={toolPart.toolCallId}
-            input={toolPart.args || toolPart.input || {}}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // Tool results - tool-result (backend format)
-      if (
-        partType === "tool-result" &&
-        "toolCallId" in part &&
-        "toolName" in part
-      ) {
-        const toolResultPart = part as {
-          type: "tool-result";
-          toolCallId: string;
-          toolName: string;
-          result?: unknown;
-        };
-        return (
-          <ToolPart
-            key={`${message.id}-tool-result-${partIndex}`}
-            toolName={toolResultPart.toolName}
-            toolCallId={toolResultPart.toolCallId}
-            input={{}}
-            output={toolResultPart.result}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // Tool calls - dynamic-tool (AI SDK format)
-      if (
-        partType === "dynamic-tool" &&
-        "toolName" in part &&
-        "toolCallId" in part
-      ) {
-        const toolPart = part as {
-          type: "dynamic-tool";
-          toolName: string;
-          toolCallId: string;
-          input?: unknown;
-          output?: unknown;
-          errorText?: string;
-          state?: string;
-        };
-        return (
-          <ToolPart
-            key={`${message.id}-tool-${partIndex}`}
-            toolName={toolPart.toolName}
-            toolCallId={toolPart.toolCallId}
-            input={toolPart.input || {}}
-            output={toolPart.output}
-            errorText={toolPart.errorText}
-            state={toolPart.state}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // Tool calls - tool-${name} (AI SDK format)
-      if (
-        typeof partType === "string" &&
-        partType.startsWith("tool-") &&
-        partType !== "tool-call" &&
-        partType !== "tool-result" &&
-        "toolCallId" in part
-      ) {
-        const toolName = partType.substring(5);
-        const toolPart = part as {
-          type: string;
-          toolCallId: string;
-          input?: unknown;
-          output?: unknown;
-          errorText?: string;
-          state?: string;
-        };
-        return (
-          <ToolPart
-            key={`${message.id}-tool-${partIndex}`}
-            toolName={toolName}
-            toolCallId={toolPart.toolCallId}
-            input={toolPart.input || {}}
-            output={toolPart.output}
-            errorText={toolPart.errorText}
-            state={toolPart.state}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // Source URL part
-      if (partType === "source-url" && "url" in part && "sourceId" in part) {
-        const sourcePart = part as {
-          type: "source-url";
-          sourceId: string;
-          url: string;
-          title?: string;
-        };
-        return (
-          <SourceUrlPart
-            key={`${message.id}-source-url-${partIndex}`}
-            sourceId={sourcePart.sourceId}
-            url={sourcePart.url}
-            title={sourcePart.title}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // Source document part
-      if (
-        partType === "source-document" &&
-        "sourceId" in part &&
-        "title" in part
-      ) {
-        const docPart = part as {
-          type: "source-document";
-          sourceId: string;
-          mediaType: string;
-          title: string;
-          filename?: string;
-        };
-        return (
-          <SourceDocumentPart
-            key={`${message.id}-source-doc-${partIndex}`}
-            sourceId={docPart.sourceId}
-            mediaType={docPart.mediaType}
-            title={docPart.title}
-            filename={docPart.filename}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      // File part (alternative format)
-      if (partType === "file" && "url" in part && "mediaType" in part) {
-        const filePart = part as {
-          type: "file";
-          url: string;
-          mediaType: string;
-          filename?: string;
-        };
-        return (
-          <div
-            key={`${message.id}-part-${partIndex}`}
-            className="max-w-[80%] overflow-x-auto rounded-xl border border-purple-200 bg-purple-50 p-3 dark:border-purple-800 dark:bg-purple-950"
-          >
-            <div className="mb-1 text-xs font-medium text-purple-700 dark:text-purple-300">
-              📎 File
-            </div>
-            <div className="text-sm font-medium text-purple-900 dark:text-purple-100">
-              {filePart.filename || "Untitled file"}
-            </div>
-            <div className="mt-1 text-xs text-purple-600 dark:text-purple-400">
-              {filePart.mediaType}
-            </div>
-            <a
-              href={filePart.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-block text-xs text-purple-700 underline hover:text-purple-900 dark:text-purple-300 dark:hover:text-purple-200"
-            >
-              View/Download
-            </a>
-          </div>
-        );
-      }
-
-      // Data part - data-${name}
-      if (
-        typeof partType === "string" &&
-        partType.startsWith("data-") &&
-        "data" in part
-      ) {
-        const dataName = partType.substring(5);
-        const dataPart = part as {
-          type: string;
-          data: unknown;
-          id?: string;
-        };
-        return (
-          <DataPart
-            key={`${message.id}-data-${partIndex}`}
-            dataName={dataName}
-            data={dataPart.data}
-            id={dataPart.id}
-            partIndex={partIndex}
-            messageId={message.id}
-          />
-        );
-      }
-
-      if (partType === "step-start") {
-        return null;
-      }
-
-      // Unknown part type
-      return (
-        <UnknownPart
-          key={`${message.id}-unknown-${partIndex}`}
-          partType={partType}
-          part={part}
-          partIndex={partIndex}
-          messageId={message.id}
-        />
-      );
-    };
+    const renderMessagePart = (part: unknown, partIndex: number) =>
+      renderPart(part, partIndex, {
+        messageId: message.id,
+        role: message.role,
+        isWidget,
+      });
 
     // Special rendering for knowledge injection messages
     if (isKnowledgeInjection) {
@@ -712,7 +809,7 @@ export const ChatMessage = memo<ChatMessageProps>(
               : "unknown";
 
           // Render the part
-          const renderedPart = renderPart(part, partIndex);
+          const renderedPart = renderMessagePart(part, partIndex);
 
           // If part renders to null, skip it (but still show metadata if it's the first part)
           if (!renderedPart) {

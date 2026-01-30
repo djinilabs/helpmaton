@@ -49,6 +49,7 @@ type AgentPromptContext = {
   notificationChannelId?: string;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enabledMcpServerToolNames?: Record<string, string[]>;
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableSendEmail?: boolean;
@@ -103,6 +104,7 @@ const loadAgentForPrompt = async (params: {
     notificationChannelId: agentRecord.notificationChannelId,
     delegatableAgentIds: agentRecord.delegatableAgentIds,
     enabledMcpServerIds: agentRecord.enabledMcpServerIds,
+    enabledMcpServerToolNames: agentRecord.enabledMcpServerToolNames,
     enableMemorySearch: agentRecord.enableMemorySearch,
     enableSearchDocuments: agentRecord.enableSearchDocuments,
     enableSendEmail: agentRecord.enableSendEmail,
@@ -169,6 +171,8 @@ const buildToolList = (params: {
       enableExaSearch: params.agent?.enableExaSearch ?? false,
       delegatableAgentIds: params.agent?.delegatableAgentIds ?? [],
       enabledMcpServerIds: params.agent?.enabledMcpServerIds ?? [],
+      enabledMcpServerToolNames:
+        params.agent?.enabledMcpServerToolNames ?? undefined,
       clientTools: params.agent?.clientTools ?? [],
     },
     workspaceId: params.workspaceId,

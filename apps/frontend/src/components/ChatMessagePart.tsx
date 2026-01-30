@@ -140,12 +140,25 @@ interface ToolPartProps {
   output?: unknown;
   errorText?: string;
   state?: string;
+  isWidget?: boolean;
   partIndex: number;
   messageId: string;
 }
 
 export const ToolPart = memo<ToolPartProps>(
-  ({ toolName, input, output, errorText, state, partIndex, messageId }) => {
+  ({
+    toolName,
+    input,
+    output,
+    errorText,
+    state,
+    partIndex,
+    messageId,
+    isWidget,
+  }) => {
+    if (isWidget) {
+      return null;
+    }
     const hasOutput = output !== undefined;
     const hasError = !!errorText;
 

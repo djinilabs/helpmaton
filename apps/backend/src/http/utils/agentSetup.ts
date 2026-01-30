@@ -805,7 +805,8 @@ const addMcpTools = async (params: {
   }
   const mcpTools = await createMcpServerTools(
     params.workspaceId,
-    params.agent.enabledMcpServerIds
+    params.agent.enabledMcpServerIds,
+    params.agent.enabledMcpServerToolNames ?? undefined
   );
   Object.assign(params.tools, mcpTools);
 };

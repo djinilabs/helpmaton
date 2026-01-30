@@ -62,6 +62,7 @@ type AgentPromptContext = {
   notificationChannelId?: string;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enabledMcpServerToolNames?: Record<string, string[]>;
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableSendEmail?: boolean;
@@ -203,6 +204,8 @@ const buildToolList = (params: {
       enableExaSearch: params.agent?.enableExaSearch ?? false,
       delegatableAgentIds: params.agent?.delegatableAgentIds ?? [],
       enabledMcpServerIds: params.agent?.enabledMcpServerIds ?? [],
+      enabledMcpServerToolNames:
+        params.agent?.enabledMcpServerToolNames ?? undefined,
       clientTools: params.agent?.clientTools ?? [],
     },
     workspaceId: params.workspaceId,

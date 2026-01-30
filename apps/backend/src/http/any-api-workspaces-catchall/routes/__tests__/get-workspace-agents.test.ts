@@ -65,6 +65,7 @@ describe("GET /api/workspaces/:workspaceId/agents", () => {
             notificationChannelId?: string;
             delegatableAgentIds?: string[];
             enabledMcpServerIds?: string[];
+            enabledMcpServerToolNames?: Record<string, string[]>;
             clientTools?: unknown[];
             spendingLimits?: unknown[];
             provider: string;
@@ -78,6 +79,7 @@ describe("GET /api/workspaces/:workspaceId/agents", () => {
             notificationChannelId: agent.notificationChannelId,
             delegatableAgentIds: agent.delegatableAgentIds ?? [],
             enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
+            enabledMcpServerToolNames: agent.enabledMcpServerToolNames ?? undefined,
             clientTools: agent.clientTools ?? [],
             spendingLimits: agent.spendingLimits ?? [],
             provider: agent.provider,
@@ -163,6 +165,7 @@ describe("GET /api/workspaces/:workspaceId/agents", () => {
           notificationChannelId: undefined,
           delegatableAgentIds: [],
           enabledMcpServerIds: [],
+          enabledMcpServerToolNames: undefined,
           clientTools: [],
           spendingLimits: [],
           provider: "google",
@@ -177,6 +180,7 @@ describe("GET /api/workspaces/:workspaceId/agents", () => {
           notificationChannelId: "channel-789",
           delegatableAgentIds: ["agent-1"],
           enabledMcpServerIds: ["mcp-1"],
+          enabledMcpServerToolNames: undefined,
           clientTools: [
             { name: "tool1", description: "Tool 1", parameters: {} },
           ],
@@ -310,6 +314,7 @@ describe("GET /api/workspaces/:workspaceId/agents", () => {
           notificationChannelId: "channel-1",
           delegatableAgentIds: ["agent-2", "agent-3"],
           enabledMcpServerIds: ["mcp-1", "mcp-2"],
+          enabledMcpServerToolNames: undefined,
           clientTools: [
             {
               name: "tool1",

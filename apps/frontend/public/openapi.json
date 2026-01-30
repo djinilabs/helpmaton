@@ -336,6 +336,16 @@
             },
             "description": "IDs of enabled MCP servers"
           },
+          "enabledMcpServerToolNames": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Per-server tool allowlist for MCP servers"
+          },
           "enableMemorySearch": {
             "type": "boolean",
             "description": "Enable the memory search tool for this agent"
@@ -528,6 +538,16 @@
             },
             "description": "IDs of enabled MCP servers"
           },
+          "enabledMcpServerToolNames": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Per-server tool allowlist for MCP servers"
+          },
           "enableMemorySearch": {
             "type": "boolean",
             "description": "Enable the memory search tool for this agent"
@@ -638,6 +658,16 @@
               "type": "string"
             },
             "description": "IDs of enabled MCP servers"
+          },
+          "enabledMcpServerToolNames": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Per-server tool allowlist for MCP servers"
           },
           "enableMemorySearch": {
             "type": "boolean",
@@ -946,355 +976,6 @@
     }
   },
   "paths": {
-    "/api/user/verify-gate": {
-      "post": {
-        "summary": "Verify CAPTCHA and TOS acceptance for new users",
-        "description": "Validates Cloudflare Turnstile and requires Terms acceptance before allowing new user sign-in.",
-        "tags": [
-          "User"
-        ],
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "captchaToken",
-                  "acceptedTerms",
-                  "callbackUrl"
-                ],
-                "properties": {
-                  "captchaToken": {
-                    "type": "string",
-                    "description": "Cloudflare Turnstile CAPTCHA token"
-                  },
-                  "acceptedTerms": {
-                    "type": "boolean",
-                    "description": "User accepted terms of service"
-                  },
-                  "callbackUrl": {
-                    "type": "string",
-                    "description": "Auth callback URL from email link"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Gate verified successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "gateToken": {
-                      "type": "string",
-                      "description": "Short-lived token proving verification"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/user/api-keys": {
-      "post": {
-        "summary": "Create user API key",
-        "description": "Creates a new API key for the authenticated user. The key value is only returned once upon creation.",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Optional name/label for the key"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "API key created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "description": "API key ID"
-                    },
-                    "key": {
-                      "type": "string",
-                      "description": "The API key value (only shown once - save this securely)"
-                    },
-                    "name": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Optional name/label for the key"
-                    },
-                    "keyPrefix": {
-                      "type": "string",
-                      "description": "Key prefix for display"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "description": "When the key was created"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "get": {
-        "summary": "List user API keys",
-        "description": "Returns all API keys for the authenticated user (masked)",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of API keys",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "description": "API key ID"
-                      },
-                      "name": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Optional name/label for the key"
-                      },
-                      "keyPrefix": {
-                        "type": "string",
-                        "description": "Masked key prefix for display"
-                      },
-                      "maskedKey": {
-                        "type": "string",
-                        "description": "Fully masked key for display"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "When the key was created"
-                      },
-                      "lastUsedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true,
-                        "description": "When the key was last used"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/user/refresh-token": {
-      "post": {
-        "summary": "Refresh access and refresh tokens",
-        "description": "Validates a refresh token and returns new access and refresh tokens. The old refresh token is revoked. This endpoint does not require authentication as it uses the refresh token in the request body.",
-        "tags": [
-          "User"
-        ],
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "refreshToken"
-                ],
-                "properties": {
-                  "refreshToken": {
-                    "type": "string",
-                    "description": "The refresh token to validate"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Tokens refreshed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string",
-                      "description": "New JWT access token (24 hours expiry)"
-                    },
-                    "refreshToken": {
-                      "type": "string",
-                      "description": "New refresh token (30 days expiry, save securely)"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/user/generate-tokens": {
-      "post": {
-        "summary": "Generate access and refresh tokens",
-        "description": "Generates new access and refresh tokens for the authenticated user. Requires either a valid Bearer token or cookie-based session. This is typically called after initial login to get Bearer tokens.",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Tokens generated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string",
-                      "description": "JWT access token (24 hours expiry)"
-                    },
-                    "refreshToken": {
-                      "type": "string",
-                      "description": "Refresh token (30 days expiry, save securely)"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/user/api-keys/{keyId}": {
-      "delete": {
-        "summary": "Delete user API key",
-        "description": "Deletes an API key for the authenticated user",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "keyId",
-            "in": "path",
-            "required": true,
-            "description": "API key ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "API key deleted successfully"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "410": {
-            "description": "API key not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
     "/api/workspaces/{workspaceId}": {
       "put": {
         "summary": "Update workspace",
@@ -3452,6 +3133,16 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "MCP server is in use by at least one agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "410": {
             "description": "MCP server not found",
@@ -5779,12 +5470,17 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "captchaToken"
+                  "captchaToken",
+                  "reason"
                 ],
                 "properties": {
                   "captchaToken": {
                     "type": "string",
                     "description": "Cloudflare Turnstile CAPTCHA token"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Reason for requesting trial credits"
                   }
                 }
               }
@@ -8257,6 +7953,141 @@
         }
       }
     },
+    "/api/user/api-keys": {
+      "get": {
+        "summary": "List user API keys",
+        "description": "Returns all API keys for the authenticated user (masked)",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "API key ID"
+                      },
+                      "name": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional name/label for the key"
+                      },
+                      "keyPrefix": {
+                        "type": "string",
+                        "description": "Masked key prefix for display"
+                      },
+                      "maskedKey": {
+                        "type": "string",
+                        "description": "Fully masked key for display"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the key was created"
+                      },
+                      "lastUsedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "When the key was last used"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create user API key",
+        "description": "Creates a new API key for the authenticated user. The key value is only returned once upon creation.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Optional name/label for the key"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "API key created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "API key ID"
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "The API key value (only shown once - save this securely)"
+                    },
+                    "name": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Optional name/label for the key"
+                    },
+                    "keyPrefix": {
+                      "type": "string",
+                      "description": "Key prefix for display"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "When the key was created"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/trial-status": {
       "get": {
         "summary": "Get trial status",
@@ -10297,6 +10128,55 @@
         }
       }
     },
+    "/api/user/api-keys/{keyId}": {
+      "delete": {
+        "summary": "Delete user API key",
+        "description": "Deletes an API key for the authenticated user",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "description": "API key ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "API key deleted successfully"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "API key not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/keys/{keyId}": {
       "delete": {
         "summary": "Delete agent key",
@@ -10360,6 +10240,171 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/user/verify-gate": {
+      "post": {
+        "summary": "Verify CAPTCHA and TOS acceptance for new users",
+        "description": "Validates Cloudflare Turnstile and requires Terms acceptance before allowing new user sign-in.",
+        "tags": [
+          "User"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "captchaToken",
+                  "acceptedTerms",
+                  "callbackUrl"
+                ],
+                "properties": {
+                  "captchaToken": {
+                    "type": "string",
+                    "description": "Cloudflare Turnstile CAPTCHA token"
+                  },
+                  "acceptedTerms": {
+                    "type": "boolean",
+                    "description": "User accepted terms of service"
+                  },
+                  "callbackUrl": {
+                    "type": "string",
+                    "description": "Auth callback URL from email link"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gate verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "gateToken": {
+                      "type": "string",
+                      "description": "Short-lived token proving verification"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/user/refresh-token": {
+      "post": {
+        "summary": "Refresh access and refresh tokens",
+        "description": "Validates a refresh token and returns new access and refresh tokens. The old refresh token is revoked. This endpoint does not require authentication as it uses the refresh token in the request body.",
+        "tags": [
+          "User"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "description": "The refresh token to validate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "New JWT access token (24 hours expiry)"
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "New refresh token (30 days expiry, save securely)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/user/generate-tokens": {
+      "post": {
+        "summary": "Generate access and refresh tokens",
+        "description": "Generates new access and refresh tokens for the authenticated user. Requires either a valid Bearer token or cookie-based session. This is typically called after initial login to get Bearer tokens.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tokens generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT access token (24 hours expiry)"
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "Refresh token (30 days expiry, save securely)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -10523,63 +10568,6 @@
         }
       }
     },
-    "/api/stream-url": {
-      "get": {
-        "summary": "Get streaming function URL",
-        "description": "Returns the Lambda Function URL for streaming agent interactions",
-        "tags": [
-          "Streaming"
-        ],
-        "responses": {
-          "200": {
-            "description": "Streaming function URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "description": "The Lambda Function URL for streaming"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Streaming function URL not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "406": {
-            "description": "Method not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/usage": {
       "get": {
         "summary": "Get usage statistics",
@@ -10645,6 +10633,63 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/stream-url": {
+      "get": {
+        "summary": "Get streaming function URL",
+        "description": "Returns the Lambda Function URL for streaming agent interactions",
+        "tags": [
+          "Streaming"
+        ],
+        "responses": {
+          "200": {
+            "description": "Streaming function URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "The Lambda Function URL for streaming"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Streaming function URL not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

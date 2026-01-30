@@ -4,7 +4,11 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **ChatMessage lint refactor (2026-01-30)**: Split chat part rendering into helpers to reduce complexity; `pnpm lint --fix` and `pnpm typecheck` now pass.
+- **MCP per-tool enablement (2026-01-30)**: Added per-agent MCP tool allowlist per server, filtered MCP tool exposure + tool lists, added agent detail tool-level checkboxes, updated backend tests; ran `pnpm typecheck`, `pnpm lint --fix` (fails on existing ChatMessage complexity rule), and focused backend tests.
+- **Widget tool call hide (2026-01-30)**: Hid tool call UI when `isWidget` is true to keep widget chat clean. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **MCP server create flow (2026-01-30)**: Switched MCP server creation modal to a two-step flow (type selection with client-side search, then type-specific fields with change-type control). Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **MCP server delete guard (2026-01-30)**: Return 409 conflict when an agent has the MCP server enabled; updated delete-mcp-server tests. Ran `pnpm --filter backend test --run delete-mcp-server`, `pnpm typecheck`, `pnpm lint --fix`.
 - **Suppress stream credit error reports (2026-01-30)**: Skip Sentry capture for credit user errors in stream internal handler, rely on `isCreditUserError` in early failures, added unit test `internalHandler-credit-errors`, ran `pnpm --filter backend test --run internalHandler-credit-errors`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Credit applied email link (2026-01-30)**: Removed Discord /credit mention, added workspace link to credit applied email (text + HTML), ran `pnpm typecheck` and `pnpm lint --fix`.
 - **OpenRouter embedding timeout (2026-01-30)**: Sentry issue 92157436 in staging `agent-temporal-grain-queue` shows OpenRouter embeddings request timing out on headers (undici `HeadersTimeoutError` → `TypeError: fetch failed` → `ConnectionError`). No code changes yet.
