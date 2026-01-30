@@ -4,6 +4,8 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Suppress stream credit error reports (2026-01-30)**: Skip Sentry capture for credit user errors in stream internal handler, rely on `isCreditUserError` in early failures, added unit test `internalHandler-credit-errors`, ran `pnpm --filter backend test --run internalHandler-credit-errors`, `pnpm typecheck`, and `pnpm lint --fix`.
+- **OpenRouter embedding timeout (2026-01-30)**: Sentry issue 92157436 in staging `agent-temporal-grain-queue` shows OpenRouter embeddings request timing out on headers (undici `HeadersTimeoutError` → `TypeError: fetch failed` → `ConnectionError`). No code changes yet.
 - **Trial credit request reason (2026-01-30)**: Added required reason input for trial credit requests, enforced backend validation/storage, and included reason in Discord notifications; updated unit tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Prod agent memory missing (2026-01-30)**: Verified S3 `helpmaton-vectordbs` contains LanceDB data for agent `8b459eb0-db6f-4b01-87a8-b03e879e4716` under `vectordb/{agentId}/working`, `daily`, `weekly` (latest object Jan 1). Likely memory API reads empty bucket because `HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION` is not set in prod Lambda envs (falls back to `vectordb.staging`).
 - **Prod agent memory missing root cause (2026-01-30)**: CloudWatch logs show memory API reads from `s3://helpmaton-vectordbs/vectordb/8b459eb0-db6f-4b01-87a8-b03e879e4716/working/` and returns 0 rows. Agent temporal grain queue insertions fail with `Found field not in schema: documentId at row 0`, meaning the LanceDB table schema for this agent predates new metadata fields and rejects new inserts. Memory ingestion has been failing since Jan 23.
@@ -54,6 +56,9 @@
 **Latest Work**:
 
 - **Agent options tool cache clear**: Invalidate `agent-tools` and `mcp-server-tools` react-query caches after agent updates so tool dialogs refetch when options change. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Workspace section order**: Swapped the workspace detail section order so Settings appears before Spending & usage. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Workspace settings order**: Swapped Connected tools ahead of Workspace API key in the workspace Settings section. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Workspace API key rename**: Renamed the Workspace API key section title to "Bring your AI Provider Key". Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **PR 237 review fixes**: Added jsonParsing unit tests, improved knowledge graph endpoint coverage (agent missing, maxResults bounds, query escaping), fixed SVG marker ID collisions, added accessible search label + reset view control, and stabilized LIKE escape string handling. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests for knowledge graph/jsonParsing.
 - **Knowledge graph panels visibility**: Adjusted the graph container to scroll internally without forcing column width and ensured facts list uses min-height-safe flex overflow so the overview stays visible. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Knowledge graph fixed height**: Locked the graph and facts overview panels to a fixed height with internal scrolling to avoid layout jumps when selecting nodes. Ran `pnpm typecheck` and `pnpm lint --fix`.

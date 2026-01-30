@@ -1,10 +1,7 @@
 import { boomify } from "@hapi/boom";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 
-import {
-  InsufficientCreditsError,
-  SpendingLimitExceededError,
-} from "../../utils/creditErrors";
+import { isCreditUserError } from "../../utils/creditErrors";
 import { flushPostHog } from "../../utils/posthog";
 import { Sentry, flushSentry, ensureError } from "../../utils/sentry";
 import { getAllowedOrigins } from "../../utils/streamServerUtils";
@@ -217,13 +214,7 @@ const tryHandleCreditError = async (params: {
   context?: StreamRequestContext;
 }): Promise<boolean> => {
   const { error, workspaceId } = params;
-  if (
-    !workspaceId ||
-    !(
-      error instanceof InsufficientCreditsError ||
-      error instanceof SpendingLimitExceededError
-    )
-  ) {
+  if (!workspaceId || !isCreditUserError(error)) {
     return false;
   }
 
@@ -452,8 +443,9 @@ export const internalHandler = async (
     }
 
     const boomed = boomify(ensureError(error));
+    const creditUserError = isCreditUserError(error);
     console.error("[Stream Handler] Unhandled error:", boomed);
-    if (boomed.isServer) {
+    if (boomed.isServer && !creditUserError) {
       Sentry.captureException(ensureError(error), {
         tags: {
           handler: "Stream Handler",
