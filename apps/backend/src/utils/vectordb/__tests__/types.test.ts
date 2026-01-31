@@ -113,6 +113,31 @@ describe("types", () => {
       expect(message.data.records).toBeDefined();
     });
 
+    it("should support BYOK and credit context fields", () => {
+      const message: WriteOperationMessage = {
+        operation: "insert",
+        agentId: "agent-1",
+        temporalGrain: "daily",
+        workspaceId: "workspace-1",
+        usesByok: true,
+        creditContext: {
+          agentId: "agent-1",
+          conversationId: "conv-1",
+        },
+        data: {
+          rawFacts: [
+            {
+              id: "fact-1",
+              content: "Test",
+              timestamp: "2024-01-01T00:00:00Z",
+            },
+          ],
+        },
+      };
+      expect(message.usesByok).toBe(true);
+      expect(message.creditContext?.conversationId).toBe("conv-1");
+    });
+
     it("should support delete operation", () => {
       const message: WriteOperationMessage = {
         operation: "delete",

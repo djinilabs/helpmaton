@@ -89,6 +89,7 @@ export async function writeToWorkingMemory(
   messages: UIMessage[],
   memoryExtractionConfig?: MemoryExtractionConfig,
   context?: AugmentedContext,
+  usesByok?: boolean,
 ): Promise<void> {
   console.log(
     `[Memory Write] Starting write to working memory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${messages.length} messages`,
@@ -237,6 +238,11 @@ export async function writeToWorkingMemory(
       agentId,
       temporalGrain: "working",
       workspaceId, // Include workspaceId for API key lookup in queue handler
+      usesByok,
+      creditContext: {
+        agentId,
+        conversationId,
+      },
       data: {
         rawFacts,
       },

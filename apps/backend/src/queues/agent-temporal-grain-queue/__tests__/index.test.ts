@@ -42,12 +42,42 @@ vi.mock("../../../tables/database", () => ({
   database: mockDatabase,
 }));
 
+vi.mock("../../../tables", () => ({
+  database: mockDatabase,
+}));
+
 vi.mock("@architect/functions", () => ({
   tables: vi.fn().mockResolvedValue({
     reflect: vi.fn().mockResolvedValue({}),
     _client: {},
   }),
 }));
+
+const {
+  mockGenerateEmbeddingWithUsage,
+  mockResolveEmbeddingApiKey,
+  mockReserveEmbeddingCredits,
+  mockAdjustEmbeddingCreditReservation,
+  mockRefundEmbeddingCredits,
+  mockGetCurrentSQSContext,
+} = vi.hoisted(() => {
+  return {
+    mockGenerateEmbeddingWithUsage: vi.fn().mockResolvedValue({
+      embedding: [0.1, 0.2, 0.3],
+      usage: { promptTokens: 5 },
+      fromCache: false,
+    }),
+    mockResolveEmbeddingApiKey: vi
+      .fn()
+      .mockResolvedValue({ apiKey: "test-api-key", usesByok: false }),
+    mockReserveEmbeddingCredits: vi.fn().mockResolvedValue({
+      reservationId: "res-123",
+    }),
+    mockAdjustEmbeddingCreditReservation: vi.fn().mockResolvedValue(undefined),
+    mockRefundEmbeddingCredits: vi.fn().mockResolvedValue(undefined),
+    mockGetCurrentSQSContext: vi.fn(),
+  };
+});
 
 // Mock workspaceCreditContext functions
 vi.mock("../../../utils/workspaceCreditContext", () => ({
@@ -59,13 +89,23 @@ vi.mock("../../../utils/workspaceCreditContext", () => ({
   createTransactionBuffer: vi.fn(() => new Map()),
   setCurrentSQSContext: vi.fn(),
   clearCurrentSQSContext: vi.fn(),
+  getCurrentSQSContext: (...args: unknown[]) => mockGetCurrentSQSContext(...args),
 }));
 
 vi.mock("../../../utils/embedding", () => ({
-  generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
-  resolveEmbeddingApiKey: vi
-    .fn()
-    .mockResolvedValue({ apiKey: "test-api-key", usesByok: false }),
+  generateEmbeddingWithUsage: (...args: unknown[]) =>
+    mockGenerateEmbeddingWithUsage(...args),
+  resolveEmbeddingApiKey: (...args: unknown[]) =>
+    mockResolveEmbeddingApiKey(...args),
+}));
+
+vi.mock("../../../utils/embeddingCredits", () => ({
+  reserveEmbeddingCredits: (...args: unknown[]) =>
+    mockReserveEmbeddingCredits(...args),
+  adjustEmbeddingCreditReservation: (...args: unknown[]) =>
+    mockAdjustEmbeddingCreditReservation(...args),
+  refundEmbeddingCredits: (...args: unknown[]) =>
+    mockRefundEmbeddingCredits(...args),
 }));
 
 describe("agent-temporal-grain-queue handler", () => {
@@ -74,6 +114,22 @@ describe("agent-temporal-grain-queue handler", () => {
 
     // Set environment variable for API key
     process.env.OPENROUTER_API_KEY = "test-api-key";
+
+    mockGetCurrentSQSContext.mockReturnValue({
+      addWorkspaceCreditTransaction: vi.fn(),
+    });
+    mockResolveEmbeddingApiKey.mockResolvedValue({
+      apiKey: "test-api-key",
+      usesByok: false,
+    });
+    mockReserveEmbeddingCredits.mockResolvedValue({
+      reservationId: "res-123",
+    });
+    mockGenerateEmbeddingWithUsage.mockResolvedValue({
+      embedding: [0.1, 0.2, 0.3],
+      usage: { promptTokens: 5 },
+      fromCache: false,
+    });
 
     const { connect } = await import("@lancedb/lancedb");
     const mockConnect = vi.mocked(connect);
@@ -168,6 +224,134 @@ describe("agent-temporal-grain-queue handler", () => {
           },
         ]);
         expect(result).toEqual({ batchItemFailures: [] });
+      });
+
+      it("should use BYOK key and skip charged reservations for rawFacts", async () => {
+        mockResolveEmbeddingApiKey.mockResolvedValue({
+          apiKey: "byok-key",
+          usesByok: true,
+        });
+        mockReserveEmbeddingCredits.mockResolvedValue({
+          reservationId: "byok",
+        });
+
+        const message: WriteOperationMessage = {
+          operation: "insert",
+          agentId: "agent-123",
+          temporalGrain: "daily",
+          workspaceId: "workspace-123",
+          usesByok: true,
+          data: {
+            rawFacts: [
+              {
+                id: "fact-1",
+                content: "BYOK content",
+                timestamp: "2024-01-01T00:00:00Z",
+                metadata: {
+                  workspaceId: "workspace-123",
+                  agentId: "agent-123",
+                  conversationId: "conv-1",
+                },
+              },
+            ],
+          },
+        };
+
+        await handler(createSQSEvent([message]));
+
+        expect(mockGenerateEmbeddingWithUsage).toHaveBeenCalledWith(
+          "BYOK content",
+          "byok-key",
+          undefined,
+          undefined,
+        );
+        expect(mockReserveEmbeddingCredits).toHaveBeenCalledWith(
+          expect.objectContaining({
+            workspaceId: "workspace-123",
+            usesByok: true,
+            agentId: "agent-123",
+            conversationId: "conv-1",
+          }),
+        );
+        expect(mockAdjustEmbeddingCreditReservation).toHaveBeenCalledWith(
+          expect.objectContaining({ reservationId: "byok" }),
+        );
+      });
+
+      it("should charge credits when using system key for rawFacts", async () => {
+        mockResolveEmbeddingApiKey.mockResolvedValue({
+          apiKey: "workspace-key",
+          usesByok: true,
+        });
+
+        const message: WriteOperationMessage = {
+          operation: "insert",
+          agentId: "agent-123",
+          temporalGrain: "daily",
+          workspaceId: "workspace-123",
+          usesByok: false,
+          data: {
+            rawFacts: [
+              {
+                id: "fact-1",
+                content: "System content",
+                timestamp: "2024-01-01T00:00:00Z",
+                metadata: {
+                  workspaceId: "workspace-123",
+                },
+              },
+            ],
+          },
+        };
+
+        await handler(createSQSEvent([message]));
+
+        expect(mockGenerateEmbeddingWithUsage).toHaveBeenCalledWith(
+          "System content",
+          "test-api-key",
+          undefined,
+          undefined,
+        );
+        expect(mockReserveEmbeddingCredits).toHaveBeenCalledWith(
+          expect.objectContaining({
+            workspaceId: "workspace-123",
+            usesByok: false,
+          }),
+        );
+        expect(mockAdjustEmbeddingCreditReservation).toHaveBeenCalledWith(
+          expect.objectContaining({ reservationId: "res-123" }),
+        );
+      });
+
+      it("should refund credits when embedding generation fails", async () => {
+        mockGenerateEmbeddingWithUsage.mockRejectedValueOnce(
+          new Error("Embedding failed"),
+        );
+
+        const message: WriteOperationMessage = {
+          operation: "insert",
+          agentId: "agent-123",
+          temporalGrain: "daily",
+          workspaceId: "workspace-123",
+          data: {
+            rawFacts: [
+              {
+                id: "fact-1",
+                content: "Failing content",
+                timestamp: "2024-01-01T00:00:00Z",
+                metadata: {
+                  workspaceId: "workspace-123",
+                },
+              },
+            ],
+          },
+        };
+
+        await handler(createSQSEvent([message]));
+
+        expect(mockRefundEmbeddingCredits).toHaveBeenCalledWith(
+          expect.objectContaining({ reservationId: "res-123" }),
+        );
       });
 
       it("should create table if it doesn't exist", async () => {
@@ -457,12 +641,14 @@ describe("agent-temporal-grain-queue handler", () => {
 
       it("should process insert operation with rawFacts and generate embeddings", async () => {
         const { connect } = await import("@lancedb/lancedb");
-        const { generateEmbedding } = await import("../../../utils/embedding");
         const mockConnect = vi.mocked(connect);
-        const mockGenerateEmbedding = vi.mocked(generateEmbedding);
 
         const mockEmbedding = [0.5, 0.6, 0.7];
-        mockGenerateEmbedding.mockResolvedValue(mockEmbedding);
+        mockGenerateEmbeddingWithUsage.mockResolvedValue({
+          embedding: mockEmbedding,
+          usage: { promptTokens: 5 },
+          fromCache: false,
+        });
 
         const mockAdd = vi.fn().mockResolvedValue(undefined);
         const mockOpenTable = vi.fn().mockResolvedValue({
@@ -497,7 +683,7 @@ describe("agent-temporal-grain-queue handler", () => {
         const result = await handler(event);
 
         // Verify embedding was generated
-        expect(mockGenerateEmbedding).toHaveBeenCalledWith(
+        expect(mockGenerateEmbeddingWithUsage).toHaveBeenCalledWith(
           "User said: Hello world",
           expect.any(String), // API key
           "workspace-456:agent-123:abc123",

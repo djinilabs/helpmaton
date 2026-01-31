@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Background embedding billing + BYOK (2026-01-31)**: Added BYOK/credit context to vector DB queue messages, resolved embedding API key per queue message, and applied embedding credit reservation/adjust/refund in `agent-temporal-grain-queue`; updated document indexing + conversation memory queueing to pass BYOK info, refreshed queue/type tests, and ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter backend test --run agent-temporal-grain-queue`, `pnpm --filter backend test --run documentIndexing`, `pnpm --filter backend test --run vectordb`.
 - **Embedding BYOK support (2026-01-31)**: Added workspace key resolution for embeddings across document search, memory search, temporal queue, and scheduled summaries; embedding credit reservation now respects BYOK + spending limits; updated unit tests/docs; ran `pnpm --filter backend test --run embeddingCredits`, `pnpm --filter backend test --run documentSearch`, `pnpm --filter backend test --run agent-temporal-grain-queue`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Embedding API key tests (2026-01-31)**: Added unit tests for `resolveEmbeddingApiKey` covering workspace key, fallback, and missing key error; ran `pnpm --filter backend test --run embedding`, `pnpm lint --fix`, and `pnpm typecheck`.
 

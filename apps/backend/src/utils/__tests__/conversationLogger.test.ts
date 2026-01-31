@@ -1060,6 +1060,8 @@ describe("conversationLogger", () => {
         "conv1",
         messages,
         undefined,
+        undefined,
+        undefined,
       );
     });
 
@@ -1112,6 +1114,8 @@ describe("conversationLogger", () => {
           { role: "user", content: "How are you?" },
           { role: "assistant", content: "I'm good!" },
         ],
+        undefined,
+        undefined,
         undefined,
       );
     });
@@ -1206,6 +1210,8 @@ describe("conversationLogger", () => {
           { role: "assistant", content: "I'm good!" },
           { role: "user", content: "Goodbye" },
         ],
+        undefined,
+        undefined,
         undefined,
       );
     });

@@ -1,3 +1,5 @@
+import { getWorkspaceApiKey } from "../http/utils/agent-keys";
+
 import { splitDocumentIntoSnippets } from "./documentSearch";
 import { getDocument } from "./s3";
 import { Sentry, ensureError } from "./sentry";
@@ -27,8 +29,12 @@ export async function indexDocument(
   metadata: {
     documentName: string;
     folderPath: string;
-  }
+  },
+  usesByok?: boolean
 ): Promise<void> {
+  const resolvedUsesByok =
+    usesByok ?? !!(await getWorkspaceApiKey(workspaceId, "openrouter"));
+
   // Split document into snippets
   const snippets = splitDocumentIntoSnippets(content);
 
@@ -93,6 +99,7 @@ export async function indexDocument(
     agentId: workspaceId, // For docs grain, workspaceId is used as agentId
     temporalGrain: "docs",
     workspaceId, // Include workspaceId for API key lookup in queue handler
+    usesByok: resolvedUsesByok,
     data: {
       rawFacts,
     },

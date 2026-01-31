@@ -42,6 +42,7 @@ When a workspace has a workspace API key configured, requests can use the worksp
 - Credit adjustment is skipped
 - The workspace pays directly to the LLM provider
 - Token usage is still tracked for analytics
+- Background embedding generation (SQS queue) follows the same rule: system key usage is billed to the workspace, BYOK usage skips credit charges.
 
 ## Credit Reservation Flow
 

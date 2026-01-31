@@ -6,12 +6,14 @@ const {
   mockGetDocument,
   mockSendWriteOperation,
   mockQuery,
+  mockGetWorkspaceApiKey,
 } = vi.hoisted(() => {
   return {
     mockSplitDocumentIntoSnippets: vi.fn(),
     mockGetDocument: vi.fn(),
     mockSendWriteOperation: vi.fn(),
     mockQuery: vi.fn(),
+    mockGetWorkspaceApiKey: vi.fn(),
   };
 });
 
@@ -33,6 +35,11 @@ vi.mock("../vectordb/queueClient", () => ({
 // Mock readClient
 vi.mock("../vectordb/readClient", () => ({
   query: mockQuery,
+}));
+
+// Mock workspace API key lookup
+vi.mock("../../http/utils/agent-keys", () => ({
+  getWorkspaceApiKey: (...args: unknown[]) => mockGetWorkspaceApiKey(...args),
 }));
 
 // Mock config to get MAX_QUERY_LIMIT
@@ -66,6 +73,7 @@ describe("documentIndexing", () => {
     mockGetDocument.mockResolvedValue(Buffer.from("test content"));
     mockSendWriteOperation.mockResolvedValue(undefined);
     mockQuery.mockResolvedValue([]);
+    mockGetWorkspaceApiKey.mockResolvedValue(null);
   });
 
   describe("indexDocument", () => {
@@ -86,6 +94,7 @@ describe("documentIndexing", () => {
         agentId: workspaceId,
         temporalGrain: "docs",
         workspaceId,
+        usesByok: false,
         data: {
           rawFacts: expect.arrayContaining([
             expect.objectContaining({

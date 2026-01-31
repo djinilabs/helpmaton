@@ -961,6 +961,7 @@ export async function startConversation(
         expandedMessages,
         memoryExtractionConfig,
         data.context,
+        data.usesByok,
       );
     } else {
       await writeToWorkingMemory(
@@ -969,6 +970,8 @@ export async function startConversation(
         conversationId,
         expandedMessages,
         memoryExtractionConfig,
+        undefined,
+        data.usesByok,
       );
     }
   } catch (error) {
@@ -1573,6 +1576,7 @@ export async function updateConversation(
           expandedAllMessagesForMemory,
           memoryExtractionConfig,
           context,
+          usesByok,
         );
       } else {
         await writeToWorkingMemory(
@@ -1581,6 +1585,8 @@ export async function updateConversation(
           conversationId,
           expandedAllMessagesForMemory,
           memoryExtractionConfig,
+          undefined,
+          usesByok,
         );
       }
     } catch (error) {

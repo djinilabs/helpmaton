@@ -89,6 +89,11 @@ export interface WriteOperationMessage {
   agentId: string;
   temporalGrain: TemporalGrain;
   workspaceId?: string; // Required for insert operations to get API key
+  usesByok?: boolean;
+  creditContext?: {
+    agentId?: string;
+    conversationId?: string;
+  };
   data: {
     records?: FactRecord[]; // For insert and update operations (with embeddings)
     rawFacts?: RawFactData[]; // For insert operations (without embeddings, will be generated async)
@@ -113,6 +118,13 @@ export const WriteOperationMessageSchema = z
       "docs",
     ]),
     workspaceId: z.string().optional(),
+    usesByok: z.boolean().optional(),
+    creditContext: z
+      .object({
+        agentId: z.string().optional(),
+        conversationId: z.string().optional(),
+      })
+      .optional(),
     data: z.object({
       records: z
         .array(

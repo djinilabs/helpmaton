@@ -1,7 +1,17 @@
 import { connect } from "@lancedb/lancedb";
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 
-import { generateEmbedding, resolveEmbeddingApiKey } from "../../utils/embedding";
+import { database } from "../../tables";
+import { getDefined } from "../../utils";
+import {
+  generateEmbeddingWithUsage,
+  resolveEmbeddingApiKey,
+} from "../../utils/embedding";
+import {
+  adjustEmbeddingCreditReservation,
+  refundEmbeddingCredits,
+  reserveEmbeddingCredits,
+} from "../../utils/embeddingCredits";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { getDatabaseUri } from "../../utils/vectordb/paths";
@@ -12,8 +22,19 @@ import {
   type TemporalGrain,
   type RawFactData,
 } from "../../utils/vectordb/types";
+import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 initSentry();
+
+type EmbeddingGenerationContext = {
+  workspaceId?: string;
+  usesByok?: boolean;
+  creditContext?: {
+    agentId?: string;
+    conversationId?: string;
+  };
+  context?: ReturnType<typeof getCurrentSQSContext>;
+};
 
 /**
  * Get LanceDB connection options for S3
@@ -92,27 +113,69 @@ function getLanceDBConnectionOptions(): {
  */
 async function generateEmbeddingsForFacts(
   rawFacts: RawFactData[],
+  params: EmbeddingGenerationContext,
 ): Promise<FactRecord[]> {
-  const apiKeyCache = new Map<string, string>();
+  const workspaceId = params.workspaceId;
+  if (!workspaceId) {
+    throw new Error("workspaceId is required for embedding generation");
+  }
+
+  const resolved = await resolveEmbeddingApiKey(workspaceId);
+  let usesByok = params.usesByok ?? resolved.usesByok;
+  if (usesByok && !resolved.usesByok) {
+    console.warn(
+      "[Write Server] BYOK requested but no workspace key found. Falling back to system key.",
+      { workspaceId },
+    );
+    usesByok = false;
+  }
+
+  const apiKey = usesByok
+    ? resolved.apiKey
+    : getDefined(
+        process.env.OPENROUTER_API_KEY,
+        "OPENROUTER_API_KEY is not set",
+      );
+
+  const context =
+    params.context &&
+    typeof params.context.addWorkspaceCreditTransaction === "function"
+      ? params.context
+      : undefined;
+  const db = await database();
 
   const records: FactRecord[] = [];
 
   for (let i = 0; i < rawFacts.length; i++) {
     const rawFact = rawFacts[i];
+    const metadata =
+      rawFact.metadata &&
+      typeof rawFact.metadata === "object" &&
+      !Array.isArray(rawFact.metadata)
+        ? (rawFact.metadata as Record<string, unknown>)
+        : undefined;
+    const agentId =
+      params.creditContext?.agentId ??
+      (typeof metadata?.agentId === "string" ? metadata.agentId : undefined);
+    const conversationId =
+      params.creditContext?.conversationId ??
+      (typeof metadata?.conversationId === "string"
+        ? metadata.conversationId
+        : undefined);
+
+    let reservationId: string | undefined;
     try {
-      const workspaceId =
-        rawFact.metadata &&
-        typeof rawFact.metadata === "object" &&
-        !Array.isArray(rawFact.metadata) &&
-        typeof rawFact.metadata.workspaceId === "string"
-          ? rawFact.metadata.workspaceId
-          : undefined;
-      const apiKeyCacheKey = workspaceId ?? "__system__";
-      let apiKey = apiKeyCache.get(apiKeyCacheKey);
-      if (!apiKey) {
-        const resolved = await resolveEmbeddingApiKey(workspaceId);
-        apiKey = resolved.apiKey;
-        apiKeyCache.set(apiKeyCacheKey, apiKey);
+      if (context) {
+        const reservation = await reserveEmbeddingCredits({
+          db,
+          workspaceId,
+          text: rawFact.content,
+          usesByok,
+          context,
+          agentId,
+          conversationId,
+        });
+        reservationId = reservation.reservationId;
       }
 
       console.log(
@@ -120,7 +183,7 @@ async function generateEmbeddingsForFacts(
           rawFacts.length
         } for fact: "${rawFact.content.substring(0, 50)}..."`,
       );
-      const embedding = await generateEmbedding(
+      const embeddingResult = await generateEmbeddingWithUsage(
         rawFact.content,
         apiKey,
         rawFact.cacheKey,
@@ -130,7 +193,7 @@ async function generateEmbeddingsForFacts(
       const record: FactRecord = {
         id: rawFact.id,
         content: rawFact.content,
-        embedding,
+        embedding: embeddingResult.embedding,
         timestamp: rawFact.timestamp,
         metadata: rawFact.metadata,
       };
@@ -144,6 +207,25 @@ async function generateEmbeddingsForFacts(
           rawFacts.length
         }`,
       );
+
+      if (context && reservationId) {
+        try {
+          await adjustEmbeddingCreditReservation({
+            db,
+            reservationId,
+            workspaceId,
+            usage: embeddingResult.usage,
+            context,
+            agentId,
+            conversationId,
+          });
+        } catch (adjustError) {
+          console.error(
+            "[Write Server] Failed to adjust embedding credit reservation:",
+            adjustError,
+          );
+        }
+      }
     } catch (error) {
       console.error(
         `[Write Server] Failed to generate embedding ${i + 1}/${
@@ -157,6 +239,23 @@ async function generateEmbeddingsForFacts(
             }
           : String(error),
       );
+      if (context && reservationId) {
+        try {
+          await refundEmbeddingCredits({
+            db,
+            reservationId,
+            workspaceId,
+            context,
+            agentId,
+            conversationId,
+          });
+        } catch (refundError) {
+          console.error(
+            "[Write Server] Failed to refund embedding credits:",
+            refundError,
+          );
+        }
+      }
       Sentry.captureException(ensureError(error), {
         tags: {
           context: "memory",
@@ -250,20 +349,18 @@ async function executeInsert(
   temporalGrain: TemporalGrain,
   records: FactRecord[],
   rawFacts?: RawFactData[],
-  workspaceId?: string,
+  embeddingContext?: EmbeddingGenerationContext,
 ): Promise<void> {
   // If rawFacts are provided, generate embeddings first
   let finalRecords = records;
   if (rawFacts && rawFacts.length > 0) {
-    if (!workspaceId) {
-      throw new Error(
-        "workspaceId is required when rawFacts are provided for embedding generation",
-      );
-    }
     console.log(
       `[Write Server] Generating embeddings for ${rawFacts.length} raw facts...`,
     );
-    const generatedRecords = await generateEmbeddingsForFacts(rawFacts);
+    const generatedRecords = await generateEmbeddingsForFacts(
+      rawFacts,
+      embeddingContext ?? {},
+    );
     finalRecords = generatedRecords;
     console.log(
       `[Write Server] Generated ${generatedRecords.length} embeddings out of ${rawFacts.length} raw facts`,
@@ -564,6 +661,13 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
 
   const message: WriteOperationMessage = validationResult.data;
   const { operation, agentId, temporalGrain, data, workspaceId } = message;
+  const context = getCurrentSQSContext(messageId);
+  const embeddingContext: EmbeddingGenerationContext = {
+    workspaceId,
+    usesByok: message.usesByok,
+    creditContext: message.creditContext,
+    context,
+  };
 
   // Log the message details for debugging
   console.log(
@@ -598,7 +702,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
           temporalGrain,
           [], // No pre-generated records
           data.rawFacts,
-          workspaceId,
+          embeddingContext,
         );
       } else if (data.records && data.records.length > 0) {
         // Use pre-generated embeddings
@@ -613,7 +717,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
         await executeUpdate(
           agentId,
           temporalGrain,
-          await generateEmbeddingsForFacts(data.rawFacts),
+          await generateEmbeddingsForFacts(data.rawFacts, embeddingContext),
         );
       } else if (data.records && data.records.length > 0) {
         await executeUpdate(agentId, temporalGrain, data.records);
