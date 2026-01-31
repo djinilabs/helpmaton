@@ -63,6 +63,7 @@
 
 **Latest Work**:
 
+- **Backend sourcemap upload workflow (2026-01-31)**: Added a workflow_run job to build backend with sourcemaps and upload to Sentry after Deploy Prod completes; removed the post-deploy upload step from `deploy-prod.yml`. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent options tool cache clear**: Invalidate `agent-tools` and `mcp-server-tools` react-query caches after agent updates so tool dialogs refetch when options change. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace section order**: Swapped the workspace detail section order so Settings appears before Spending & usage. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace settings order**: Swapped Connected tools ahead of Workspace API key in the workspace Settings section. Ran `pnpm typecheck` and `pnpm lint --fix`.

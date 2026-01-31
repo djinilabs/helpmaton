@@ -412,38 +412,3 @@ jobs:
           else
             echo "⚠️  Discord credentials not set, skipping command registration"
           fi
-
-      - name: Upload backend sourcemaps to Sentry (post-deploy)
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          SENTRY_RELEASE: ${{ github.sha }}
-          SENTRY_DIST: "backend"
-        run: |
-          if [ -z "${SENTRY_AUTH_TOKEN}" ] || [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ]; then
-            echo "⚠️  Missing Sentry credentials, skipping backend sourcemap upload."
-            exit 0
-          fi
-
-          if [ -d "apps/backend/.arc" ]; then
-            pnpm exec sentry-cli sourcemaps upload "apps/backend/.arc" \
-              --release "${SENTRY_RELEASE}" \
-              --dist "${SENTRY_DIST}" \
-              --url-prefix "app:///var/task" \
-              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/.arc" \
-              --rewrite
-          else
-            echo "⚠️  apps/backend/.arc not found; skipping zip Lambda sourcemaps."
-          fi
-
-          if [ -d "apps/backend/dist" ]; then
-            pnpm exec sentry-cli sourcemaps upload "apps/backend/dist" \
-              --release "${SENTRY_RELEASE}" \
-              --dist "${SENTRY_DIST}" \
-              --url-prefix "app:///var/task" \
-              --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/dist" \
-              --rewrite
-          else
-            echo "⚠️  apps/backend/dist not found; skipping container Lambda sourcemaps."
-          fi
