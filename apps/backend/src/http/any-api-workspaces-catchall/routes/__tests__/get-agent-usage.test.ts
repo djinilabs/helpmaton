@@ -71,8 +71,10 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage", () => {
         endDate,
       });
 
-      // Cost always in USD
-      const cost = stats.costUsd;
+      const cost = Object.values(stats.costByType || {}).reduce<number>(
+        (sum, value) => sum + Number(value),
+        0
+      );
 
       res.json({
         workspaceId,
@@ -85,6 +87,9 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage", () => {
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
           cost,
+          costByType: stats.costByType,
+          rerankingCostUsd: stats.rerankingCostUsd,
+          evalCostUsd: stats.evalCostUsd,
           byModel: Object.entries(stats.byModel).map(([model, modelStats]) => {
             const stats = modelStats as {
               inputTokens: number;
@@ -171,6 +176,18 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.01,
+      costByType: {
+        textGeneration: 0.006,
+        embeddings: 0.002,
+        reranking: 0.0005,
+        tavily: 0.0005,
+        exa: 0.0002,
+        scrape: 0.0002,
+        imageGeneration: 0.0003,
+        eval: 0.0003,
+      },
+      rerankingCostUsd: 0,
+      evalCostUsd: 0,
       byModel: {
         "gpt-4": {
           inputTokens: 800,
@@ -240,7 +257,7 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage", () => {
     expect(response.stats.inputTokens).toBe(1000);
     expect(response.stats.outputTokens).toBe(500);
     expect(response.stats.totalTokens).toBe(1500);
-    expect(response.stats.cost).toBe(0.01);
+    expect(response.stats.cost).toBeCloseTo(0.01, 12);
     expect(response.stats.byModel).toHaveLength(1);
     expect(response.stats.byProvider).toHaveLength(1);
   });
@@ -298,6 +315,18 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage", () => {
       outputTokens: 0,
       totalTokens: 0,
       costUsd: 0,
+      costByType: {
+        textGeneration: 0,
+        embeddings: 0,
+        reranking: 0,
+        tavily: 0,
+        exa: 0,
+        scrape: 0,
+        imageGeneration: 0,
+        eval: 0,
+      },
+      rerankingCostUsd: 0,
+      evalCostUsd: 0,
       byModel: {},
       byProvider: {},
       byByok: {

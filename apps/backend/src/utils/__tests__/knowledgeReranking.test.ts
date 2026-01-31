@@ -145,9 +145,12 @@ describe("knowledgeReranking", () => {
         json: async () => mockResponse,
       });
 
-      await rerankSnippets("test query", mockSnippets, "rerank-model");
+      await rerankSnippets("test query", mockSnippets, "rerank-model", "workspace-1");
 
-      expect(mockGetWorkspaceApiKey).not.toHaveBeenCalled();
+      expect(mockGetWorkspaceApiKey).toHaveBeenCalledWith(
+        "workspace-1",
+        "openrouter"
+      );
       expect(global.fetch).toHaveBeenCalledWith(
         "https://openrouter.ai/api/v1/rerank",
         expect.objectContaining({
@@ -212,7 +215,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       expect(result.snippets).toHaveLength(3);
@@ -238,7 +242,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       expect(result.snippets[0].similarity).toBe(0.99);
@@ -258,7 +263,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       expect(result.snippets).toHaveLength(3);
@@ -283,7 +289,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       // Should return original snippets in original order
@@ -298,7 +305,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       // Should return original snippets in original order
@@ -314,7 +322,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       // Should return original snippets in original order
@@ -330,7 +339,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       // Should return original snippets in original order
@@ -354,7 +364,8 @@ describe("knowledgeReranking", () => {
       const result = await rerankSnippets(
         "test query",
         mockSnippets,
-        "rerank-model"
+        "rerank-model",
+        "workspace-1"
       );
 
       // Should only include valid indices
@@ -372,7 +383,12 @@ describe("knowledgeReranking", () => {
         json: async () => mockResponse,
       });
 
-      await rerankSnippets("test query", mockSnippets, "rerank-model-v1");
+      await rerankSnippets(
+        "test query",
+        mockSnippets,
+        "rerank-model-v1",
+        "workspace-1"
+      );
 
       expect(global.fetch).toHaveBeenCalledWith(
         "https://openrouter.ai/api/v1/rerank",
@@ -400,8 +416,16 @@ describe("knowledgeReranking", () => {
       mockGetWorkspaceApiKey.mockResolvedValue(null);
 
       await expect(
-        rerankSnippets("test query", mockSnippets, "rerank-model")
+        rerankSnippets("test query", mockSnippets, "rerank-model", "workspace-1")
       ).rejects.toThrow("OPENROUTER_API_KEY is not set");
+    });
+
+    it("should throw error if workspaceId is missing", async () => {
+      await expect(
+        rerankSnippets("test query", mockSnippets, "rerank-model", "")
+      ).rejects.toThrow(
+        "workspaceId is required for knowledge re-ranking to ensure correct billing"
+      );
     });
   });
 });

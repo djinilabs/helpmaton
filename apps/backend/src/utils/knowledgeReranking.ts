@@ -36,14 +36,14 @@ export interface RerankableSnippet {
  * @param query - The search query text
  * @param snippets - Array of search results to re-rank
  * @param model - Re-ranking model name from OpenRouter
- * @param workspaceId - Workspace ID for API key lookup (optional)
+ * @param workspaceId - Workspace ID for API key lookup
  * @returns Re-ranked snippets with cost and generationId information
  */
 export async function rerankSnippets<T extends RerankableSnippet>(
   query: string,
   snippets: T[],
   model: string,
-  workspaceId?: string
+  workspaceId: string
 ): Promise<RerankingResult<T>> {
   if (snippets.length === 0) {
     return {
@@ -51,18 +51,17 @@ export async function rerankSnippets<T extends RerankableSnippet>(
     };
   }
 
+  if (!workspaceId) {
+    throw new Error(
+      "workspaceId is required for knowledge re-ranking to ensure correct billing"
+    );
+  }
+
   // Get API key - try workspace key first, fall back to system key
   let apiKey: string;
-  if (workspaceId) {
-    const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
-    if (workspaceApiKey) {
-      apiKey = workspaceApiKey;
-    } else {
-      apiKey = getDefined(
-        process.env.OPENROUTER_API_KEY,
-        "OPENROUTER_API_KEY is not set"
-      );
-    }
+  const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
+  if (workspaceApiKey) {
+    apiKey = workspaceApiKey;
   } else {
     apiKey = getDefined(
       process.env.OPENROUTER_API_KEY,

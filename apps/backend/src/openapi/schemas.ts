@@ -595,6 +595,36 @@ export const openApiSchemas = {
             type: "integer",
             description: "Total cost in specified currency (nano-dollars)",
           },
+          costByType: {
+            type: "object",
+            description: "Cost breakdown by charge type (nano-dollars)",
+            properties: {
+              textGeneration: {
+                type: "integer",
+              },
+              embeddings: {
+                type: "integer",
+              },
+              reranking: {
+                type: "integer",
+              },
+              tavily: {
+                type: "integer",
+              },
+              exa: {
+                type: "integer",
+              },
+              scrape: {
+                type: "integer",
+              },
+              imageGeneration: {
+                type: "integer",
+              },
+              eval: {
+                type: "integer",
+              },
+            },
+          },
           rerankingCostUsd: {
             type: "integer",
             description: "Reranking costs in USD (nano-dollars)",

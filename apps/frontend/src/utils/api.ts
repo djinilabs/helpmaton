@@ -1676,6 +1676,16 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   cost: number; // nano-dollars (integer)
+  costByType: {
+    textGeneration: number;
+    embeddings: number;
+    reranking: number;
+    tavily: number;
+    exa: number;
+    scrape: number;
+    imageGeneration: number;
+    eval: number;
+  };
   rerankingCostUsd?: number; // nano-dollars (integer)
   evalCostUsd?: number; // nano-dollars (integer)
   conversationCount: number;

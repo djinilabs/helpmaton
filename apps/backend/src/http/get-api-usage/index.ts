@@ -152,8 +152,10 @@ export const handler = adaptHttpHandler(
         });
 
         // Always use USD
-        // Total cost includes token costs, tool costs, reranking costs, and eval costs
-        const cost = (mergedStats.costUsd || 0) + (mergedStats.rerankingCostUsd || 0) + (mergedStats.evalCostUsd || 0);
+        const cost = Object.values(mergedStats.costByType || {}).reduce(
+          (sum, value) => sum + value,
+          0
+        );
 
         return {
           statusCode: 200,
@@ -171,6 +173,7 @@ export const handler = adaptHttpHandler(
               outputTokens: mergedStats.outputTokens,
               totalTokens: mergedStats.totalTokens,
               cost,
+              costByType: mergedStats.costByType,
               rerankingCostUsd: mergedStats.rerankingCostUsd,
               evalCostUsd: mergedStats.evalCostUsd,
               conversationCount: mergedStats.conversationCount,

@@ -19,6 +19,19 @@ export const UsageStats: FC<UsageStatsProps> = ({
   title = "Usage Statistics",
 }) => {
   const currency: Currency = "usd";
+  const chargeTypes: Array<{
+    key: keyof UsageStatsType["costByType"];
+    label: string;
+  }> = [
+    { key: "textGeneration", label: "Text generation" },
+    { key: "embeddings", label: "Embeddings" },
+    { key: "reranking", label: "Reranking" },
+    { key: "tavily", label: "Tavily" },
+    { key: "exa", label: "Exa" },
+    { key: "scrape", label: "Scrape" },
+    { key: "imageGeneration", label: "Image generation" },
+    { key: "eval", label: "Eval" },
+  ];
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
       <h3 className="mb-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h3>
@@ -150,6 +163,26 @@ export const UsageStats: FC<UsageStatsProps> = ({
           <ToolUsageSection toolExpenses={stats.toolExpenses} currency={currency} />
         </div>
       )}
+
+      <div className="mb-8">
+        <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">Charges by Type</h4>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {chargeTypes.map(({ key, label }) => {
+            const value = stats.costByType?.[key] ?? 0;
+            return (
+              <div
+                key={key}
+                className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+              >
+                <span className="font-medium text-neutral-700 dark:text-neutral-200">{label}</span>
+                <span className={`text-sm font-semibold ${getCostColor(value)}`}>
+                  {formatCurrency(value, currency, 10)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <div>
         <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">By Key Type</h4>

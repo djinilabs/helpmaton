@@ -62,8 +62,10 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
         endDate,
       });
 
-      // Cost always in USD
-      const cost = stats.costUsd;
+      const cost = Object.values(stats.costByType || {}).reduce<number>(
+        (sum, value) => sum + Number(value),
+        0
+      );
 
       res.json({
         workspaceId,
@@ -75,6 +77,9 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
           cost,
+          costByType: stats.costByType,
+          rerankingCostUsd: stats.rerankingCostUsd,
+          evalCostUsd: stats.evalCostUsd,
           byModel: Object.entries(stats.byModel).map(([model, modelStats]) => {
             const stats = modelStats as {
               inputTokens: number;
@@ -156,6 +161,18 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.05,
+      costByType: {
+        textGeneration: 0.03,
+        embeddings: 0.005,
+        reranking: 0.002,
+        tavily: 0.006,
+        exa: 0.003,
+        scrape: 0.002,
+        imageGeneration: 0.001,
+        eval: 0.001,
+      },
+      rerankingCostUsd: 0,
+      evalCostUsd: 0,
       byModel: {
         "gpt-4": {
           inputTokens: 600,
@@ -229,6 +246,9 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
         outputTokens: 500,
         totalTokens: 1500,
         cost: 0.05, // USD
+        costByType: mockStats.costByType,
+        rerankingCostUsd: 0,
+        evalCostUsd: 0,
         byModel: [
           {
             model: "gpt-4",
@@ -284,6 +304,18 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.05,
+      costByType: {
+        textGeneration: 0.05,
+        embeddings: 0,
+        reranking: 0,
+        tavily: 0,
+        exa: 0,
+        scrape: 0,
+        imageGeneration: 0,
+        eval: 0,
+      },
+      rerankingCostUsd: 0,
+      evalCostUsd: 0,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -324,6 +356,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
         currency: "usd",
         stats: expect.objectContaining({
           cost: 0.05, // USD
+          costByType: mockStats.costByType,
         }),
       })
     );
@@ -409,6 +442,18 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 250,
       totalTokens: 750,
       costUsd: 0.025,
+      costByType: {
+        textGeneration: 0.025,
+        embeddings: 0,
+        reranking: 0,
+        tavily: 0,
+        exa: 0,
+        scrape: 0,
+        imageGeneration: 0,
+        eval: 0,
+      },
+      rerankingCostUsd: 0,
+      evalCostUsd: 0,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -468,6 +513,18 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.05,
+      costByType: {
+        textGeneration: 0.05,
+        embeddings: 0,
+        reranking: 0,
+        tavily: 0,
+        exa: 0,
+        scrape: 0,
+        imageGeneration: 0,
+        eval: 0,
+      },
+      rerankingCostUsd: 0,
+      evalCostUsd: 0,
       byModel: {},
       byProvider: {},
       byByok: {

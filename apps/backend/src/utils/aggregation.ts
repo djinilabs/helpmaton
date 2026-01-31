@@ -7,6 +7,7 @@ import type {
 } from "../tables/schema";
 
 import type { TokenUsage } from "./conversationLogger";
+import { getModelPricing } from "./pricing";
 import { Sentry, ensureError } from "./sentry";
 
 export type Currency = "usd";
@@ -16,6 +17,17 @@ export interface ByokStats {
   outputTokens: number;
   totalTokens: number;
   costUsd: number;
+}
+
+export interface CostByType {
+  textGeneration: number;
+  embeddings: number;
+  reranking: number;
+  tavily: number;
+  exa: number;
+  scrape: number;
+  imageGeneration: number;
+  eval: number;
 }
 
 export interface ToolExpenseStats {
@@ -28,6 +40,7 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   costUsd: number;
+  costByType: CostByType;
   rerankingCostUsd: number; // Reranking costs in nano-dollars
   evalCostUsd: number; // Eval judge costs in nano-dollars
   conversationCount: number;
@@ -131,6 +144,79 @@ export function isRecentDate(date: Date): boolean {
   return date >= threshold;
 }
 
+function createEmptyCostByType(): CostByType {
+  return {
+    textGeneration: 0,
+    embeddings: 0,
+    reranking: 0,
+    tavily: 0,
+    exa: 0,
+    scrape: 0,
+    imageGeneration: 0,
+    eval: 0,
+  };
+}
+
+function addCostByType(target: CostByType, source: CostByType): void {
+  target.textGeneration += source.textGeneration;
+  target.embeddings += source.embeddings;
+  target.reranking += source.reranking;
+  target.tavily += source.tavily;
+  target.exa += source.exa;
+  target.scrape += source.scrape;
+  target.imageGeneration += source.imageGeneration;
+  target.eval += source.eval;
+}
+
+function isImageGenerationModel(modelName?: string): boolean {
+  if (!modelName) {
+    return false;
+  }
+  const pricing = getModelPricing("openrouter", modelName);
+  if (pricing?.capabilities?.image_generation || pricing?.capabilities?.image) {
+    return true;
+  }
+  return /image/i.test(modelName);
+}
+
+export function classifyTransactionChargeType(
+  txn: WorkspaceCreditTransactionRecord
+): keyof CostByType | undefined {
+  if (txn.source === "embedding-generation") {
+    return "embeddings";
+  }
+  if (txn.source !== "text-generation") {
+    return undefined;
+  }
+  const rawModelName = txn.model || "";
+  if (rawModelName === "scrape") {
+    return "scrape";
+  }
+  if (isImageGenerationModel(rawModelName)) {
+    return "imageGeneration";
+  }
+  return "textGeneration";
+}
+
+export function classifyToolChargeType(
+  toolCall: string,
+  supplier: string
+): keyof CostByType | undefined {
+  if (toolCall === "document-search-embedding") {
+    return "embeddings";
+  }
+  if (toolCall === "rerank") {
+    return "reranking";
+  }
+  if (supplier === "tavily") {
+    return "tavily";
+  }
+  if (supplier === "exa") {
+    return "exa";
+  }
+  return undefined;
+}
+
 /**
  * Aggregate usage stats from conversations
  */
@@ -142,6 +228,7 @@ export function aggregateConversations(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0, // Cost comes from conversation records (costUsd field)
+    costByType: createEmptyCostByType(),
     rerankingCostUsd: 0,
     evalCostUsd: 0,
     conversationCount: conversations.length,
@@ -311,6 +398,8 @@ export function aggregateConversations(
     stats.totalTokens += totalTokens;
     stats.costUsd += conversationCostUsd;
     stats.rerankingCostUsd += rerankingCostUsd;
+    stats.costByType.textGeneration += conversationCostUsd;
+    stats.costByType.reranking += rerankingCostUsd;
 
     // Aggregate by model
     if (!stats.byModel[modelName]) {
@@ -364,6 +453,7 @@ export function aggregateAggregates(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0, // Cost now comes from transactions/aggregates, not token aggregates
+    costByType: createEmptyCostByType(),
     rerankingCostUsd: 0,
     evalCostUsd: 0,
     conversationCount: 0,
@@ -504,6 +594,7 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    costByType: createEmptyCostByType(),
     rerankingCostUsd: 0,
     evalCostUsd: 0,
     conversationCount: 0,
@@ -534,6 +625,7 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     merged.outputTokens += stats.outputTokens;
     merged.totalTokens += stats.totalTokens;
     merged.costUsd += stats.costUsd;
+    addCostByType(merged.costByType, stats.costByType);
     merged.rerankingCostUsd += stats.rerankingCostUsd;
     merged.evalCostUsd += stats.evalCostUsd;
     merged.conversationCount += stats.conversationCount;
@@ -676,6 +768,7 @@ async function aggregateTransactionsStream(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    costByType: createEmptyCostByType(),
     rerankingCostUsd: 0,
     evalCostUsd: 0,
     conversationCount: 0,
@@ -730,6 +823,10 @@ async function aggregateTransactionsStream(
 
     // Aggregate totals
     stats.costUsd += costUsd;
+    const chargeType = classifyTransactionChargeType(txn);
+    if (chargeType) {
+      stats.costByType[chargeType] += costUsd;
+    }
 
     // Aggregate by model
     // Normalize model name to remove provider prefix if present (e.g., "google/gemini-3-flash-preview" -> "gemini-3-flash-preview")
@@ -816,6 +913,7 @@ async function aggregateToolTransactionsStream(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    costByType: createEmptyCostByType(),
     rerankingCostUsd: 0,
     evalCostUsd: 0,
     conversationCount: 0,
@@ -858,6 +956,10 @@ async function aggregateToolTransactionsStream(
 
     // Aggregate totals
     stats.costUsd += costUsd;
+    const chargeType = classifyToolChargeType(toolCall, supplier);
+    if (chargeType) {
+      stats.costByType[chargeType] += costUsd;
+    }
 
     // Aggregate by tool
     if (!stats.toolExpenses[key]) {
@@ -944,6 +1046,7 @@ function aggregateToolAggregates(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    costByType: createEmptyCostByType(),
     rerankingCostUsd: 0,
     evalCostUsd: 0,
     conversationCount: 0,
@@ -975,6 +1078,13 @@ function aggregateToolAggregates(
 
     // Aggregate totals
     stats.costUsd += costUsd;
+    const chargeType = classifyToolChargeType(
+      agg.toolCall || "unknown",
+      agg.supplier || "unknown"
+    );
+    if (chargeType) {
+      stats.costByType[chargeType] += costUsd;
+    }
 
     // Aggregate by tool
     if (!stats.toolExpenses[key]) {
@@ -1100,6 +1210,26 @@ export async function queryUsageStats(
         })
       );
     }
+
+    const oldStart = new Date(
+      Math.min(...oldDates.map((d) => new Date(d).getTime()))
+    );
+    const oldEnd = new Date(
+      Math.max(...oldDates.map((d) => new Date(d).getTime()))
+    );
+    oldEnd.setHours(23, 59, 59, 999);
+
+    // Query non-tool transactions for older dates to capture costs
+    statsPromises.push(
+      aggregateTransactionsStream(
+        queryTransactionsForDateRange(db, {
+          workspaceId,
+          agentId,
+          startDate: oldStart,
+          endDate: oldEnd,
+        })
+      )
+    );
   }
 
   const allStats = await Promise.all(statsPromises);
@@ -1219,6 +1349,7 @@ async function queryEvalCostsForDateRange(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    costByType: createEmptyCostByType(),
     rerankingCostUsd: 0,
     evalCostUsd: 0,
     conversationCount: 0,
@@ -1263,6 +1394,7 @@ async function queryEvalCostsForDateRange(
       if (evaluatedAt >= startDate && evaluatedAt <= endDate) {
         const costUsd = (result.costUsd as number | undefined) || 0;
         stats.evalCostUsd += costUsd;
+        stats.costByType.eval += costUsd;
       }
     }
   } else if (workspaceId) {
@@ -1297,6 +1429,7 @@ async function queryEvalCostsForDateRange(
           if (evaluatedAt >= startDate && evaluatedAt <= endDate) {
             const costUsd = (evalResult.costUsd as number | undefined) || 0;
             stats.evalCostUsd += costUsd;
+            stats.costByType.eval += costUsd;
           }
         }
       } catch (error) {
