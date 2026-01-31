@@ -161,7 +161,7 @@ export function createGoogleCalendarReadTool(
 
   return tool({
     description:
-      "Read the full details of an event from Google Calendar. Returns the complete event with all metadata including summary, description, start/end times, attendees, location, etc.",
+      "Read the full details of an event from Google Calendar. Returns the complete event with all metadata including summary, description, start/end times, attendees, location, etc. Use google_calendar_list or google_calendar_search to find the eventId.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -187,7 +187,7 @@ export function createGoogleCalendarReadTool(
             hasEventId: !!parsed.data.eventId,
             hasEvent_id: !!parsed.data.event_id,
           });
-          return "Error: eventId parameter is required and must be a non-empty string. Please provide the event ID as 'eventId' (not 'event_id').";
+          return "Error: eventId parameter is required and must be a non-empty string. Provide the event ID as 'eventId' or 'event_id'.";
         }
 
         // Log tool call for debugging
@@ -403,7 +403,7 @@ export function createGoogleCalendarCreateTool(
 
   return tool({
     description:
-      "Create a new event in Google Calendar. Returns the created event with all metadata including the event ID.",
+      "Create a new event in Google Calendar. Returns the created event with all metadata including the event ID. Example: {\"summary\":\"Team sync\",\"start\":{\"dateTime\":\"2024-06-01T10:00:00-07:00\",\"timeZone\":\"America/Los_Angeles\"},\"end\":{\"dateTime\":\"2024-06-01T10:30:00-07:00\",\"timeZone\":\"America/Los_Angeles\"}}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -522,7 +522,7 @@ export function createGoogleCalendarUpdateTool(
 
   return tool({
     description:
-      "Update an existing event in Google Calendar. Returns the updated event with all metadata. Only provide fields that should be updated.",
+      "Update an existing event in Google Calendar. Returns the updated event with all metadata. Only provide fields that should be updated. Example: {\"eventId\":\"EVENT_ID\",\"start\":{\"dateTime\":\"2024-06-01T11:00:00-07:00\",\"timeZone\":\"America/Los_Angeles\"},\"end\":{\"dateTime\":\"2024-06-01T11:30:00-07:00\",\"timeZone\":\"America/Los_Angeles\"}}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -548,7 +548,7 @@ export function createGoogleCalendarUpdateTool(
             hasEventId: !!parsed.data.eventId,
             hasEvent_id: !!parsed.data.event_id,
           });
-          return "Error: eventId parameter is required and must be a non-empty string. Please provide the event ID as 'eventId' (not 'event_id').";
+          return "Error: eventId parameter is required and must be a non-empty string. Provide the event ID as 'eventId' or 'event_id'.";
         }
 
         // Log tool call for debugging
@@ -651,7 +651,7 @@ export function createGoogleCalendarDeleteTool(
             hasEventId: !!parsed.data.eventId,
             hasEvent_id: !!parsed.data.event_id,
           });
-          return "Error: eventId parameter is required and must be a non-empty string. Please provide the event ID as 'eventId' (not 'event_id').";
+          return "Error: eventId parameter is required and must be a non-empty string. Provide the event ID as 'eventId' or 'event_id'.";
         }
 
         // Log tool call for debugging

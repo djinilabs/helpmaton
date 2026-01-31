@@ -638,7 +638,7 @@ export function createPosthogGetTool(
 
   return tool({
     description:
-      "Fetch any read-only PostHog endpoint via GET. Use this for endpoints not covered by other PostHog tools.",
+      "Fetch any read-only PostHog endpoint via GET. Use this for endpoints not covered by other PostHog tools. Example: {\"path\":\"/api/projects/123/insights/\",\"params\":{\"limit\":5}}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime

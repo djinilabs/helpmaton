@@ -263,7 +263,7 @@ export function createGmailReadTool(
 
   return tool({
     description:
-      "Read the full content of an email from Gmail. Returns the complete email with headers, body (text and HTML), and attachment information.",
+      "Read the full content of an email from Gmail. Returns the complete email with headers, body (text and HTML), and attachment information. Use gmail_list or gmail_search first to get the messageId.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -289,7 +289,7 @@ export function createGmailReadTool(
             hasMessageId: !!parsed.data.messageId,
             hasMessage_id: !!parsed.data.message_id,
           });
-          return "Error: messageId parameter is required and must be a non-empty string. Please provide the message ID as 'messageId' (not 'message_id').";
+          return "Error: messageId parameter is required and must be a non-empty string. Provide the message ID as 'messageId' or 'message_id'.";
         }
 
         // Log tool call for debugging

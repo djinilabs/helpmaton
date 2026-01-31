@@ -47,7 +47,9 @@ const paginationSchema = z
 
 const searchQuerySchema = z
   .record(z.string(), z.unknown())
-  .describe("Intercom search query object");
+  .describe(
+    "Intercom search query object. Example: {\"operator\":\"AND\",\"value\":[{\"field\":\"email\",\"operator\":\"=\",\"value\":\"alice@example.com\"}]}",
+  );
 
 export function createIntercomListContactsTool(
   workspaceId: string,
@@ -160,7 +162,7 @@ export function createIntercomSearchContactsTool(
 
   return tool({
     description:
-      "Search Intercom contacts using the Intercom search query format.",
+      "Search Intercom contacts using the Intercom search query format. Example query: {\"operator\":\"AND\",\"value\":[{\"field\":\"email\",\"operator\":\"=\",\"value\":\"alice@example.com\"}]}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -367,7 +369,7 @@ export function createIntercomSearchConversationsTool(
 
   return tool({
     description:
-      "Search Intercom conversations using the Intercom search query format.",
+      "Search Intercom conversations using the Intercom search query format. Example query: {\"operator\":\"AND\",\"value\":[{\"field\":\"id\",\"operator\":\"=\",\"value\":\"123456\"}]}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime

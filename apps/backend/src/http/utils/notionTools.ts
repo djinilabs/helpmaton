@@ -242,7 +242,7 @@ export function createNotionCreatePageTool(
 
   return tool({
     description:
-      "Create a new page in Notion. Supports simplified parameters: use 'name' for the page title and 'content' (string) for text content. The page will be created at workspace level by default. For advanced use, you can specify 'parent' (page, database, data source, or workspace), 'properties' (full Notion properties object), and 'children' (array of block objects). If 'parent' is not provided, defaults to workspace level. If 'name' is provided without 'properties', it will be used as the title. If 'content' is provided as a string without 'children', it will be converted to paragraph blocks (split by newlines).",
+      "Create a new page in Notion. Supports simplified parameters: use 'name' for the page title and 'content' (string) for text content. The page will be created at workspace level by default. For advanced use, you can specify 'parent' (page, database, data source, or workspace), 'properties' (full Notion properties object), and 'children' (array of block objects). If 'parent' is not provided, defaults to workspace level. If 'name' is provided without 'properties', it will be used as the title. If 'content' is provided as a string without 'children', it will be converted to paragraph blocks (split by newlines). Example (simple): {\"name\":\"Weekly Update\",\"content\":\"Line one\\nLine two\"}. Example (blocks): {\"parent\":{\"type\":\"page_id\",\"page_id\":\"PAGE_ID\"},\"properties\":{\"title\":[{\"type\":\"text\",\"text\":{\"content\":\"Status\"}}]},\"children\":[{\"object\":\"block\",\"type\":\"paragraph\",\"paragraph\":{\"rich_text\":[{\"type\":\"text\",\"text\":{\"content\":\"Hello\"}}]}}]}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -397,7 +397,7 @@ export function createNotionUpdatePageTool(
 
   return tool({
     description:
-      "Update a Notion page's properties. Only provide the properties that should be updated.",
+      "Update a Notion page's properties. Only provide the properties that should be updated. Use notion_search or notion_query_database to find the pageId. Example: {\"pageId\":\"PAGE_ID\",\"properties\":{\"Status\":{\"select\":{\"name\":\"In Progress\"}}}}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -490,7 +490,7 @@ export function createNotionQueryDatabaseTool(
 
   return tool({
     description:
-      "Query a Notion database to retrieve pages that match the specified filters and sorts.",
+      "Query a Notion database to retrieve pages that match the specified filters and sorts. Example: {\"databaseId\":\"DB_ID\",\"filter\":{\"property\":\"Status\",\"select\":{\"equals\":\"Done\"}},\"sorts\":[{\"property\":\"Created\",\"direction\":\"descending\"}]}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -561,7 +561,7 @@ export function createNotionCreateDatabasePageTool(
 
   return tool({
     description:
-      "Create a new page in a Notion database. Properties must match the database schema.",
+      "Create a new page in a Notion database. Properties must match the database schema. Example: {\"databaseId\":\"DB_ID\",\"properties\":{\"Name\":{\"title\":[{\"text\":{\"content\":\"New Item\"}}]}}}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -624,7 +624,7 @@ export function createNotionUpdateDatabasePageTool(
 
   return tool({
     description:
-      "Update a page in a Notion database. Only provide the properties that should be updated.",
+      "Update a page in a Notion database. Only provide the properties that should be updated. Example: {\"pageId\":\"PAGE_ID\",\"properties\":{\"Priority\":{\"select\":{\"name\":\"High\"}}}}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -697,7 +697,7 @@ export function createNotionAppendBlocksTool(
 
   return tool({
     description:
-      "Append content blocks (paragraphs, headings, lists, etc.) to an existing Notion page. Use this to add text, headings, lists, and other content to a page after it's been created.",
+      "Append content blocks (paragraphs, headings, lists, etc.) to an existing Notion page. Use this to add text, headings, lists, and other content to a page after it's been created. Example: {\"pageId\":\"PAGE_ID\",\"children\":[{\"object\":\"block\",\"type\":\"heading_2\",\"heading_2\":{\"rich_text\":[{\"type\":\"text\",\"text\":{\"content\":\"Section\"}}]}},{\"object\":\"block\",\"type\":\"paragraph\",\"paragraph\":{\"rich_text\":[{\"type\":\"text\",\"text\":{\"content\":\"Details...\"}}]}}]}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime

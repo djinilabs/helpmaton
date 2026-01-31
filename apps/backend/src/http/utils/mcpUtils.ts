@@ -294,7 +294,7 @@ export function createMcpServerTool(
 
   type ToolArgs = z.infer<typeof toolParamsSchema>;
 
-  const description = `Call the MCP server "${serverName}". Provide the MCP method name and optional parameters.`;
+  const description = `Call the MCP server "${serverName}". Provide the MCP method name and optional parameters. Example: { "method": "tools/list", "params": {} }`;
 
   return tool({
     description,

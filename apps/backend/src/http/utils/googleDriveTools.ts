@@ -129,7 +129,7 @@ export function createGoogleDriveReadTool(
 
   return tool({
     description:
-      "Read the content of a file from Google Drive. Supports text files, Google Docs (exports as plain text), Google Sheets (exports as CSV), and Google Slides (exports as plain text).",
+      "Read the content of a file from Google Drive. Supports text files, Google Docs (exports as plain text), Google Sheets (exports as CSV), and Google Slides (exports as plain text). Use google_drive_list or google_drive_search first to get the fileId.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -155,7 +155,7 @@ export function createGoogleDriveReadTool(
             hasFileId: !!parsed.data.fileId,
             hasFile_id: !!parsed.data.file_id,
           });
-          return "Error: fileId parameter is required and must be a non-empty string. Please provide the file ID as 'fileId' (not 'file_id').";
+          return "Error: fileId parameter is required and must be a non-empty string. Provide the file ID as 'fileId' or 'file_id'.";
         }
 
         // Log tool call for debugging

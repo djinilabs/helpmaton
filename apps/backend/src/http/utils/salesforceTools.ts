@@ -132,7 +132,7 @@ export function createSalesforceQueryTool(
 
   return tool({
     description:
-      "Executes a SOQL query to find records. Supports filtering, sorting, and joins.",
+      "Executes a SOQL query to find records. Supports filtering, sorting, and joins. Example: {\"query\":\"SELECT Id, Name FROM Account WHERE Industry = 'Software' ORDER BY CreatedDate DESC LIMIT 10\"}",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime

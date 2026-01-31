@@ -61,7 +61,7 @@ export function createSearchMemoryTool(
 
   return tool({
     description:
-      "Search the agent's factual memory. Returns the most recent events prefixed by the date when they happened. Use this to recall past conversations, facts, and important information.",
+      "Search the agent's factual memory. Returns the most recent events prefixed by the date when they happened. Use this to recall past conversations, facts, and important information. Example: {\"grain\":\"weekly\",\"maximumDaysAgo\":90,\"queryText\":\"pricing change\"}",
     parameters: searchMemoryParamsSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
