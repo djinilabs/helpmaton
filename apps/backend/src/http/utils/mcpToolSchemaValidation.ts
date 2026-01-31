@@ -15,6 +15,12 @@ const ajv = new Ajv({
 
 const validatorCache = new Map<string, ValidateFunction>();
 
+const normalizeKeyName = (key: string): string =>
+  key.toLowerCase().replace(/[_-]/g, "");
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const normalizeSchema = (schema: Record<string, unknown>): Record<string, unknown> => {
   if (!schema.type && schema.properties) {
     return {
@@ -23,6 +29,120 @@ const normalizeSchema = (schema: Record<string, unknown>): Record<string, unknow
     };
   }
   return schema;
+};
+
+const isObjectSchema = (schema: Record<string, unknown>): boolean => {
+  const type = schema.type;
+  if (type === "object") {
+    return true;
+  }
+  if (Array.isArray(type) && type.includes("object")) {
+    return true;
+  }
+  return !!schema.properties;
+};
+
+const isArraySchema = (schema: Record<string, unknown>): boolean => {
+  const type = schema.type;
+  if (type === "array") {
+    return true;
+  }
+  if (Array.isArray(type) && type.includes("array")) {
+    return true;
+  }
+  return false;
+};
+
+const normalizeMcpParams = (schema: unknown, params: unknown): unknown => {
+  if (!schema || typeof schema !== "object") {
+    return params;
+  }
+
+  const normalizedSchema = normalizeSchema(schema as Record<string, unknown>);
+  const maybeOneOf = normalizedSchema.oneOf;
+  const maybeAnyOf = normalizedSchema.anyOf;
+  if (Array.isArray(maybeOneOf) || Array.isArray(maybeAnyOf)) {
+    const options = Array.isArray(maybeOneOf)
+      ? maybeOneOf
+      : Array.isArray(maybeAnyOf)
+        ? maybeAnyOf
+        : [];
+    for (const option of options) {
+      const normalized = normalizeMcpParams(option, params);
+      const validator = getValidator(option);
+      if (!validator) {
+        return normalized;
+      }
+      if (validator(normalized ?? {})) {
+        return normalized;
+      }
+    }
+    return params;
+  }
+
+  if (isObjectSchema(normalizedSchema)) {
+    if (!isPlainObject(params)) {
+      return params;
+    }
+    const properties = normalizedSchema.properties as
+      | Record<string, unknown>
+      | undefined;
+    const additional = normalizedSchema.additionalProperties;
+
+    if (!properties) {
+      if (additional && typeof additional === "object") {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(params)) {
+          result[key] = normalizeMcpParams(additional, value);
+        }
+        return result;
+      }
+      return params;
+    }
+
+    const canonicalKeys = new Map<string, string>();
+    for (const key of Object.keys(properties)) {
+      canonicalKeys.set(normalizeKeyName(key), key);
+    }
+
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (Object.prototype.hasOwnProperty.call(properties, key)) {
+        result[key] = normalizeMcpParams(properties[key], value);
+        continue;
+      }
+      const normalized = normalizeKeyName(key);
+      const canonical = canonicalKeys.get(normalized);
+      if (canonical) {
+        const hasCanonical =
+          Object.prototype.hasOwnProperty.call(params, canonical) ||
+          Object.prototype.hasOwnProperty.call(result, canonical);
+        if (!hasCanonical) {
+          result[canonical] = normalizeMcpParams(properties[canonical], value);
+        }
+        continue;
+      }
+      if (additional && typeof additional === "object") {
+        result[key] = normalizeMcpParams(additional, value);
+        continue;
+      }
+      result[key] = value;
+    }
+    return result;
+  }
+
+  if (isArraySchema(normalizedSchema)) {
+    if (!Array.isArray(params)) {
+      return params;
+    }
+    const items = normalizedSchema.items;
+    if (!items) {
+      return params;
+    }
+    return params.map((value) => normalizeMcpParams(items, value));
+  }
+
+  return params;
 };
 
 const getValidator = (schema: unknown): ValidateFunction | null => {
@@ -79,7 +199,8 @@ export const validateMcpToolParams = (
   if (!validator) {
     return { ok: true };
   }
-  const valid = validator(params ?? {});
+  const normalizedParams = normalizeMcpParams(schema, params);
+  const valid = validator(normalizedParams ?? {});
   if (valid) {
     return { ok: true };
   }

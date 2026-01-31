@@ -87,6 +87,7 @@
 
 **Latest Work**:
 
+- **Tool args repair (2026-01-31)**: Added recursive argument-name normalization for Zod + MCP schemas, expanded tests for unions/records, ran `pnpm lint --fix`, `pnpm typecheck`, and backend tests for tool validation.
 - **Document search result markdown (2026-01-31)**: Rendered document search snippets as markdown using shared markdown components in `DocumentList`, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Document search embedding credits (2026-01-31)**: Added OpenRouter pricing for `thenlper/gte-base`, introduced embedding credit reservation/adjust/refund helpers, wired document search + agent tools + knowledge injection to charge embeddings, added unit coverage, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Entity extraction billing (2026-01-31)**: Added OpenRouter reservation/adjustment/verification flow to entity extraction when using the system key, passed context/conversationId through knowledge injection, updated entity extraction unit tests, and ran `pnpm typecheck` + `pnpm lint --fix`.
