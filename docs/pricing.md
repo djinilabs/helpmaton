@@ -415,6 +415,7 @@ When a workspace uses their own OpenRouter API key:
 - **Adjustment**: Skipped (no credit adjustment)
 - **Finalization**: Skipped (no cost verification)
 - **Token Tracking**: Still tracked for analytics
+- **Coverage**: Applies to both LLM calls and embeddings
 
 The workspace pays directly to OpenRouter, bypassing Helpmaton's credit system.
 

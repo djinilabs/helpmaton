@@ -61,19 +61,11 @@ vi.mock("../../../utils/workspaceCreditContext", () => ({
   clearCurrentSQSContext: vi.fn(),
 }));
 
-vi.mock("../../../http/utils/agentUtils", () => ({
-  getWorkspaceApiKey: vi.fn().mockResolvedValue(null),
-}));
-
 vi.mock("../../../utils/embedding", () => ({
   generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
-}));
-
-vi.mock("../../../utils", () => ({
-  getDefined: vi.fn((value: string, message: string) => {
-    if (!value) throw new Error(message);
-    return value;
-  }),
+  resolveEmbeddingApiKey: vi
+    .fn()
+    .mockResolvedValue({ apiKey: "test-api-key", usesByok: false }),
 }));
 
 describe("agent-temporal-grain-queue handler", () => {

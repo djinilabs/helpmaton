@@ -1,5 +1,4 @@
-import { getDefined } from "../../utils";
-import { generateEmbedding } from "../embedding";
+import { generateEmbedding, resolveEmbeddingApiKey } from "../embedding";
 import { MAX_QUERY_LIMIT } from "../vectordb/config";
 import { getRecordById, query } from "../vectordb/readClient";
 import type { TemporalGrain } from "../vectordb/types";
@@ -88,12 +87,7 @@ export async function searchMemory(
   // If queryText is provided, generate embedding and do semantic search
   if (queryText && queryText.trim().length > 0) {
     try {
-      // Get API key for embedding generation
-      // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
-      const apiKey = getDefined(
-        process.env.OPENROUTER_API_KEY,
-        "OPENROUTER_API_KEY is not set",
-      );
+      const { apiKey } = await resolveEmbeddingApiKey(workspaceId);
 
       const queryEmbedding = await generateEmbedding(
         queryText.trim(),
@@ -186,12 +180,7 @@ async function searchWorkingMemory(
   // If queryText is provided, generate embedding and do semantic search
   if (hasQueryText) {
     try {
-      // Get API key for embedding generation
-      // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
-      const apiKey = getDefined(
-        process.env.OPENROUTER_API_KEY,
-        "OPENROUTER_API_KEY is not set",
-      );
+      const { apiKey } = await resolveEmbeddingApiKey(workspaceId);
 
       const queryEmbedding = await generateEmbedding(
         queryText!.trim(),

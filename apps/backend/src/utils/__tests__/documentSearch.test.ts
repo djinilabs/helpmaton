@@ -7,6 +7,7 @@ const {
   mockReserveEmbeddingCredits,
   mockAdjustEmbeddingCreditReservation,
   mockRefundEmbeddingCredits,
+  mockGetWorkspaceApiKey,
 } = vi.hoisted(() => {
   return {
     mockQuery: vi.fn(),
@@ -14,6 +15,7 @@ const {
     mockReserveEmbeddingCredits: vi.fn(),
     mockAdjustEmbeddingCreditReservation: vi.fn(),
     mockRefundEmbeddingCredits: vi.fn(),
+    mockGetWorkspaceApiKey: vi.fn(),
   };
 });
 
@@ -37,6 +39,10 @@ vi.mock("../embeddingCredits", () => ({
   refundEmbeddingCredits: mockRefundEmbeddingCredits,
 }));
 
+vi.mock("../../http/utils/agent-keys", () => ({
+  getWorkspaceApiKey: (...args: unknown[]) => mockGetWorkspaceApiKey(...args),
+}));
+
 // Import after mocks are set up
 import {
   splitDocumentIntoSnippets,
@@ -55,6 +61,7 @@ describe("documentSearch", () => {
 
     // Setup default environment
     process.env.OPENROUTER_API_KEY = "test-api-key";
+    mockGetWorkspaceApiKey.mockResolvedValue(null);
   });
 
   describe("splitDocumentIntoSnippets", () => {
@@ -603,6 +610,7 @@ describe("documentSearch", () => {
         expect.objectContaining({
           workspaceId: "workspace-123",
           text: "test query",
+          usesByok: false,
           context,
           agentId: "agent-123",
           conversationId: "conv-123",
@@ -617,6 +625,43 @@ describe("documentSearch", () => {
           }),
           context,
         }),
+      );
+    });
+
+    it("should mark BYOK when a workspace key is available", async () => {
+      const mockEmbedding = Array(768).fill(0.1);
+      mockEmbeddingsGenerate.mockResolvedValue({
+        data: [{ embedding: mockEmbedding }],
+        usage: { promptTokens: 12, totalTokens: 12, cost: 0.000001 },
+        id: "gen-123",
+      });
+      mockQuery.mockResolvedValue([]);
+      mockReserveEmbeddingCredits.mockResolvedValue({
+        reservationId: "byok",
+        reservedAmount: 0,
+        workspace: { creditBalance: 0 },
+        estimatedTokens: 3,
+      });
+      mockGetWorkspaceApiKey.mockResolvedValue("workspace-key");
+
+      const context = {
+        addWorkspaceCreditTransaction: vi.fn(),
+      };
+
+      await searchDocuments("workspace-123", "test query", 5, {
+        db: {} as never,
+        context: context as never,
+      });
+
+      expect(mockReserveEmbeddingCredits).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "workspace-123",
+          usesByok: true,
+        }),
+      );
+      expect(mockGetWorkspaceApiKey).toHaveBeenCalledWith(
+        "workspace-123",
+        "openrouter",
       );
     });
 

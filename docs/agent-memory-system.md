@@ -333,7 +333,7 @@ Comprehensive integration tests are available in:
 ### Environment Variables
 
 - `OPENROUTER_API_KEY`: Required for embedding generation and LLM summarization
-- Workspace API keys: Can override system key for LLM calls (embeddings use the system key)
+- Workspace API keys: Can override system key for LLM calls and embeddings
 
 ### S3 Configuration
 

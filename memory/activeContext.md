@@ -4,6 +4,9 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Embedding BYOK support (2026-01-31)**: Added workspace key resolution for embeddings across document search, memory search, temporal queue, and scheduled summaries; embedding credit reservation now respects BYOK + spending limits; updated unit tests/docs; ran `pnpm --filter backend test --run embeddingCredits`, `pnpm --filter backend test --run documentSearch`, `pnpm --filter backend test --run agent-temporal-grain-queue`, `pnpm lint --fix`, and `pnpm typecheck`.
+- **Embedding API key tests (2026-01-31)**: Added unit tests for `resolveEmbeddingApiKey` covering workspace key, fallback, and missing key error; ran `pnpm --filter backend test --run embedding`, `pnpm lint --fix`, and `pnpm typecheck`.
+
 - **Memory summarization billing (2026-01-31)**: Added credit reservation/adjustment + cost verification for scheduled memory summaries when using system OpenRouter key, threaded scheduled context/agentId, updated summarizeMemory tests and memory system integration mocks, ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Memory extraction charging (2026-01-31)**: Added 3-step credit reservation/adjustment/verification for conversation memory extraction + JSON repair, threaded credit context through conversation logging, updated unit/integration tests, ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests (`memoryExtraction`, `memorySystem.integration`).
 - **Embedding pricing + capabilities (2026-01-31)**: Added OpenRouter embedding detection and capability tagging in pricing update script, allowed input-only embedding pricing, excluded embeddings from text-generation model lists, and added unit coverage for embedding pricing and capability filtering; ran `pnpm typecheck` and `pnpm lint --fix`.

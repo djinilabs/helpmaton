@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockReserveCredits, mockCalculateTokenCost } = vi.hoisted(() => ({
+const {
+  mockReserveCredits,
+  mockCalculateTokenCost,
+  mockIsSpendingLimitChecksEnabled,
+  mockCheckSpendingLimits,
+} = vi.hoisted(() => ({
   mockReserveCredits: vi.fn(),
   mockCalculateTokenCost: vi.fn(),
+  mockIsSpendingLimitChecksEnabled: vi.fn(),
+  mockCheckSpendingLimits: vi.fn(),
 }));
 
 vi.mock("../creditManagement", () => ({
@@ -11,6 +18,14 @@ vi.mock("../creditManagement", () => ({
 
 vi.mock("../pricing", () => ({
   calculateTokenCost: mockCalculateTokenCost,
+}));
+
+vi.mock("../featureFlags", () => ({
+  isSpendingLimitChecksEnabled: mockIsSpendingLimitChecksEnabled,
+}));
+
+vi.mock("../spendingLimits", () => ({
+  checkSpendingLimits: mockCheckSpendingLimits,
 }));
 
 import {
@@ -24,6 +39,7 @@ import {
 describe("embeddingCredits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsSpendingLimitChecksEnabled.mockReturnValue(false);
   });
 
   it("estimates embedding tokens from text length", () => {
@@ -50,17 +66,17 @@ describe("embeddingCredits", () => {
     });
 
     const result = await reserveEmbeddingCredits({
-      db: {} as never,
+      db: { workspace: { get: vi.fn() }, agent: { get: vi.fn() } } as never,
       workspaceId: "workspace-123",
       text: "hello",
     });
 
     expect(mockReserveCredits).toHaveBeenCalledWith(
-      {} as never,
+      expect.anything(),
       "workspace-123",
       1000,
       3,
-      false,
+      undefined,
       undefined,
       "openrouter",
       "thenlper/gte-base",
@@ -69,6 +85,68 @@ describe("embeddingCredits", () => {
     );
     expect(result.reservationId).toBe("res-1");
     expect(result.estimatedTokens).toBe(2);
+  });
+
+  it("passes BYOK flag to credit reservation", async () => {
+    mockCalculateTokenCost.mockReturnValueOnce(2000);
+    mockReserveCredits.mockResolvedValueOnce({
+      reservationId: "byok",
+      reservedAmount: 0,
+      workspace: { creditBalance: 5000 },
+    });
+
+    await reserveEmbeddingCredits({
+      db: { workspace: { get: vi.fn() }, agent: { get: vi.fn() } } as never,
+      workspaceId: "workspace-123",
+      text: "hello",
+      usesByok: true,
+    });
+
+    expect(mockReserveCredits).toHaveBeenCalledWith(
+      expect.anything(),
+      "workspace-123",
+      2000,
+      3,
+      true,
+      undefined,
+      "openrouter",
+      "thenlper/gte-base",
+      undefined,
+      undefined,
+    );
+  });
+
+  it("checks spending limits before reserving", async () => {
+    mockIsSpendingLimitChecksEnabled.mockReturnValue(true);
+    mockCalculateTokenCost.mockReturnValueOnce(1000);
+    mockCheckSpendingLimits.mockResolvedValueOnce({
+      passed: true,
+      failedLimits: [],
+    });
+    mockReserveCredits.mockResolvedValueOnce({
+      reservationId: "res-2",
+      reservedAmount: 1000,
+      workspace: { creditBalance: 5000 },
+    });
+
+    const mockDb = {
+      workspace: { get: vi.fn().mockResolvedValue({ pk: "workspaces/ws-1" }) },
+      agent: { get: vi.fn().mockResolvedValue({ pk: "agents/ws-1/agent-1" }) },
+    };
+
+    await reserveEmbeddingCredits({
+      db: mockDb as never,
+      workspaceId: "ws-1",
+      text: "hello",
+      agentId: "agent-1",
+    });
+
+    expect(mockCheckSpendingLimits).toHaveBeenCalledWith(
+      mockDb,
+      expect.objectContaining({ pk: "workspaces/ws-1" }),
+      expect.objectContaining({ pk: "agents/ws-1/agent-1" }),
+      0.000001,
+    );
   });
 
   it("adjusts reservation based on usage cost", async () => {

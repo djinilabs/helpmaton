@@ -1,8 +1,7 @@
 import { connect } from "@lancedb/lancedb";
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 
-import { getDefined } from "../../utils";
-import { generateEmbedding } from "../../utils/embedding";
+import { generateEmbedding, resolveEmbeddingApiKey } from "../../utils/embedding";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { getDatabaseUri } from "../../utils/vectordb/paths";
@@ -94,18 +93,28 @@ function getLanceDBConnectionOptions(): {
 async function generateEmbeddingsForFacts(
   rawFacts: RawFactData[],
 ): Promise<FactRecord[]> {
-  // Get API key for embedding generation
-  // Note: Embeddings use OpenRouter's API directly, workspace API keys are not supported for embeddings
-  const apiKey = getDefined(
-    process.env.OPENROUTER_API_KEY,
-    "OPENROUTER_API_KEY is not set",
-  );
+  const apiKeyCache = new Map<string, string>();
 
   const records: FactRecord[] = [];
 
   for (let i = 0; i < rawFacts.length; i++) {
     const rawFact = rawFacts[i];
     try {
+      const workspaceId =
+        rawFact.metadata &&
+        typeof rawFact.metadata === "object" &&
+        !Array.isArray(rawFact.metadata) &&
+        typeof rawFact.metadata.workspaceId === "string"
+          ? rawFact.metadata.workspaceId
+          : undefined;
+      const apiKeyCacheKey = workspaceId ?? "__system__";
+      let apiKey = apiKeyCache.get(apiKeyCacheKey);
+      if (!apiKey) {
+        const resolved = await resolveEmbeddingApiKey(workspaceId);
+        apiKey = resolved.apiKey;
+        apiKeyCache.set(apiKeyCacheKey, apiKey);
+      }
+
       console.log(
         `[Write Server] Generating embedding ${i + 1}/${
           rawFacts.length

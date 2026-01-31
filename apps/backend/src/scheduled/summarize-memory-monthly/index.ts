@@ -3,8 +3,7 @@ import { randomUUID } from "crypto";
 import type { ScheduledEvent } from "aws-lambda";
 
 import { database } from "../../tables";
-import { getDefined } from "../../utils";
-import { generateEmbedding } from "../../utils/embedding";
+import { generateEmbedding, resolveEmbeddingApiKey } from "../../utils/embedding";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { summarizeWithLLM } from "../../utils/memory/summarizeMemory";
 import { formatTimeForGrain } from "../../utils/memory/timeFormats";
@@ -52,6 +51,7 @@ export const handler = handlingScheduledErrors(
     // Process each workspace
     for (const workspaceId of workspaceIds) {
       try {
+        const { apiKey } = await resolveEmbeddingApiKey(workspaceId);
         const agentsQuery = await db.agent.query({
           IndexName: "byWorkspaceId",
           KeyConditionExpression: "workspaceId = :workspaceId",
@@ -107,12 +107,6 @@ export const handler = handlingScheduledErrors(
             }
 
             // Generate embedding
-            // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
-            const apiKey = getDefined(
-              process.env.OPENROUTER_API_KEY,
-              "OPENROUTER_API_KEY is not set",
-            );
-
             const embedding = await generateEmbedding(
               summary,
               apiKey,

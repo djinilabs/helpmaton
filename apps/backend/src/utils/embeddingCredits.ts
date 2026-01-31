@@ -1,11 +1,14 @@
 import type { DatabaseSchema } from "../tables/schema";
 
-import { formatCurrencyNanoDollars } from "./creditConversions";
+import { formatCurrencyNanoDollars, fromNanoDollars } from "./creditConversions";
+import { SpendingLimitExceededError } from "./creditErrors";
 import type { CreditReservation } from "./creditManagement";
 import { reserveCredits } from "./creditManagement";
 import type { EmbeddingUsage } from "./embedding";
 import { EMBEDDING_MODEL } from "./embedding";
+import { isSpendingLimitChecksEnabled } from "./featureFlags";
 import { calculateTokenCost } from "./pricing";
+import { checkSpendingLimits } from "./spendingLimits";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
 const EMBEDDING_PROVIDER = "openrouter";
@@ -48,12 +51,43 @@ export async function reserveEmbeddingCredits(params: {
   db: DatabaseSchema;
   workspaceId: string;
   text: string;
+  usesByok?: boolean;
   context?: AugmentedContext;
   agentId?: string;
   conversationId?: string;
 }): Promise<CreditReservation & { estimatedTokens: number }> {
   const estimatedTokens = estimateEmbeddingTokens(params.text);
   const estimatedCost = calculateEmbeddingCostNanoFromTokens(estimatedTokens);
+
+  if (isSpendingLimitChecksEnabled()) {
+    const workspacePk = `workspaces/${params.workspaceId}`;
+    const workspace = await params.db.workspace.get(workspacePk, "workspace");
+    if (!workspace) {
+      throw new Error(`Workspace ${params.workspaceId} not found`);
+    }
+
+    let agent:
+      | Awaited<ReturnType<DatabaseSchema["agent"]["get"]>>
+      | undefined;
+    if (params.agentId) {
+      const agentPk = `agents/${params.workspaceId}/${params.agentId}`;
+      agent = await params.db.agent.get(agentPk, "agent");
+      if (!agent) {
+        throw new Error(`Agent ${params.agentId} not found`);
+      }
+    }
+
+    const estimatedCostUsd = fromNanoDollars(estimatedCost);
+    const limitCheck = await checkSpendingLimits(
+      params.db,
+      workspace,
+      agent,
+      estimatedCostUsd,
+    );
+    if (!limitCheck.passed) {
+      throw new SpendingLimitExceededError(limitCheck.failedLimits);
+    }
+  }
 
   console.log("[reserveEmbeddingCredits] Reserving credits:", {
     workspaceId: params.workspaceId,
@@ -68,7 +102,7 @@ export async function reserveEmbeddingCredits(params: {
     params.workspaceId,
     estimatedCost,
     3,
-    false,
+    params.usesByok,
     params.context,
     EMBEDDING_PROVIDER,
     EMBEDDING_MODEL,

@@ -2,9 +2,8 @@ import { split } from "llm-splitter";
 
 import { database } from "../tables";
 import type { DatabaseSchema } from "../tables/schema";
-import { getDefined } from "../utils";
 
-import { generateEmbeddingWithUsage } from "./embedding";
+import { generateEmbeddingWithUsage, resolveEmbeddingApiKey } from "./embedding";
 import {
   adjustEmbeddingCreditReservation,
   refundEmbeddingCredits,
@@ -161,10 +160,7 @@ export async function searchDocuments(
   }
 
   const trimmedQuery = queryText.trim();
-  const apiKey = getDefined(
-    process.env.OPENROUTER_API_KEY,
-    "OPENROUTER_API_KEY is not set",
-  );
+  const { apiKey, usesByok } = await resolveEmbeddingApiKey(workspaceId);
 
   const hasCreditContext =
     !!options?.context &&
@@ -178,6 +174,7 @@ export async function searchDocuments(
       db,
       workspaceId,
       text: trimmedQuery,
+      usesByok,
       context: options.context,
       agentId: options.agentId,
       conversationId: options.conversationId,

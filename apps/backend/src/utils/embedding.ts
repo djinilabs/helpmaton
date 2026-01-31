@@ -1,5 +1,8 @@
 import { OpenRouter } from "@openrouter/sdk";
 
+import { getWorkspaceApiKey } from "../http/utils/agent-keys";
+import { getDefined } from "../utils";
+
 // OpenRouter embedding model name
 export const EMBEDDING_MODEL = "thenlper/gte-base";
 
@@ -128,6 +131,28 @@ export interface EmbeddingResult {
   usage?: EmbeddingUsage;
   id?: string;
   fromCache: boolean;
+}
+
+export interface ResolvedEmbeddingApiKey {
+  apiKey: string;
+  usesByok: boolean;
+}
+
+export async function resolveEmbeddingApiKey(
+  workspaceId?: string,
+): Promise<ResolvedEmbeddingApiKey> {
+  if (workspaceId) {
+    const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
+    if (workspaceKey) {
+      return { apiKey: workspaceKey, usesByok: true };
+    }
+  }
+
+  const apiKey = getDefined(
+    process.env.OPENROUTER_API_KEY,
+    "OPENROUTER_API_KEY is not set",
+  );
+  return { apiKey, usesByok: false };
 }
 
 /**
