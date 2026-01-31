@@ -4,6 +4,9 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Embedding pricing + capabilities (2026-01-31)**: Added OpenRouter embedding detection and capability tagging in pricing update script, allowed input-only embedding pricing, excluded embeddings from text-generation model lists, and added unit coverage for embedding pricing and capability filtering; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Update pricing Google key optional (2026-01-31)**: Skip Google pricing updates when `GEMINI_API_KEY` is missing and only require `OPENROUTER_API_KEY`; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Model list fallback (2026-01-31)**: Restored fallback to all models when text-generation filtering yields none in Agent detail/modals; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent delegation BYOK reservation (2026-01-31)**: Propagated BYOK flag to delegation credit reservation to avoid charging workspace on BYOK calls; added unit test; ran `pnpm --filter backend test --run call-agent-internal`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **Non-streaming BYOK reservation test (2026-01-31)**: Added BYOK propagation unit coverage in `callAgentNonStreaming`; ran `pnpm --filter backend test --run agentCallNonStreaming`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **ChatMessage lint refactor (2026-01-30)**: Split chat part rendering into helpers to reduce complexity; `pnpm lint --fix` and `pnpm typecheck` now pass.

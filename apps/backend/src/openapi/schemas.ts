@@ -748,6 +748,9 @@ export const openApiSchemas = {
       image_generation: {
         type: "boolean",
       },
+      embeddings: {
+        type: "boolean",
+      },
       rerank: {
         type: "boolean",
       },

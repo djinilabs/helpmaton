@@ -8,7 +8,7 @@ import { useChannels } from "../hooks/useChannels";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { Agent, ModelCapabilities } from "../utils/api";
 import {
-  filterModelsByCapability,
+  filterTextGenerationModels,
   getCapabilitiesForProvider,
   getCapabilityLabels,
   getModelCapabilities,
@@ -320,21 +320,21 @@ export const AgentModal: FC<AgentModalProps> = ({
           getDefaultModelForProvider(provider),
           getCapabilitiesForProvider(provider),
         ]);
-        const filteredModels = filterModelsByCapability(
-          models,
-          capabilities,
-          "text_generation"
-        );
+        const filteredModels = filterTextGenerationModels(models, capabilities);
+        const resolvedModels =
+          filteredModels.length > 0 ? filteredModels : models;
         const resolvedDefaultModel = resolveDefaultModel(
-          filteredModels,
+          resolvedModels,
           defaultModelName
         );
         if (!cancelled) {
-          setAvailableModels(filteredModels);
+          setAvailableModels(resolvedModels);
           setDefaultModel(resolvedDefaultModel);
           setModelCapabilities(capabilities);
           setModelName((current) =>
-            current && !filteredModels.includes(current) ? null : current
+            current && !resolvedModels.includes(current)
+              ? null
+              : current
           );
         }
       } catch (error) {

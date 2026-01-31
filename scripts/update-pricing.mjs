@@ -69,6 +69,48 @@ function isRerankingModel(modelName) {
 }
 
 /**
+ * Check if a model is an embedding model based on metadata and naming
+ * @param {Object | undefined} model - OpenRouter model data
+ * @param {string | undefined} modelName - Model ID
+ * @returns {boolean} True if the model is an embedding model
+ */
+function isEmbeddingModel(model, modelName) {
+  const architecture = model?.architecture || {};
+  const outputModalities = normalizeStringArray(
+    architecture.output_modalities ??
+      architecture.outputModalities ??
+      model?.output_modalities ??
+      model?.outputModalities
+  );
+  const modalityRaw =
+    architecture.modality ?? model?.modality ?? model?.type ?? model?.category;
+  const modality =
+    typeof modalityRaw === "string" ? modalityRaw.toLowerCase() : "";
+
+  if (
+    outputModalities.includes("embeddings") ||
+    outputModalities.includes("embedding")
+  ) {
+    return true;
+  }
+
+  if (modality.includes("embedding")) {
+    return true;
+  }
+
+  const modelId = typeof modelName === "string" ? modelName.toLowerCase() : "";
+  const displayName =
+    typeof model?.name === "string" ? model.name.toLowerCase() : "";
+  const combined = `${modelId} ${displayName}`.trim();
+
+  if (combined.includes("embedding")) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Normalize arrays of strings for capability fields
  * @param {*} value - Potential array of strings
  * @returns {string[]} Normalized list of lowercase strings
@@ -143,6 +185,7 @@ function mergeCapabilities(derived, existing) {
 export function buildOpenRouterCapabilities({
   model,
   isReranking,
+  isEmbedding,
   existingCapabilities,
 } = {}) {
   const architecture = model?.architecture || {};
@@ -163,6 +206,8 @@ export function buildOpenRouterCapabilities({
   const hasSupportedParameters = supportedParameters.length > 0;
 
   const derived = {};
+  const embeddingDetected =
+    isEmbedding === true || outputModalities.includes("embeddings");
 
   if (inputModalities.length > 0) {
     derived.input_modalities = inputModalities;
@@ -176,13 +221,18 @@ export function buildOpenRouterCapabilities({
     derived.supported_parameters = supportedParameters;
   }
 
+  if (embeddingDetected) {
+    derived.embeddings = true;
+    derived.text_generation = false;
+  }
+
   if (isReranking !== undefined) {
     derived.rerank = Boolean(isReranking);
   }
 
   if (isReranking) {
     derived.text_generation = false;
-  } else if (hasOutputModalities) {
+  } else if (!embeddingDetected && hasOutputModalities) {
     derived.text_generation = outputModalities.includes("text");
   }
 
@@ -215,7 +265,6 @@ export function buildOpenRouterCapabilities({
  */
 function validateRequiredApiKeys() {
   const requiredKeys = [
-    { name: "GEMINI_API_KEY", env: process.env.GEMINI_API_KEY },
     { name: "OPENROUTER_API_KEY", env: process.env.OPENROUTER_API_KEY },
   ];
 
@@ -321,9 +370,59 @@ function isInvalidPrice(value) {
  * @param {boolean} isReranking - Whether this is a re-ranking model
  * @returns {boolean} True if any price is invalid or negative
  */
-function hasInvalidOrNegativePricing(pricing, isReranking = false) {
+function hasInvalidOrNegativePricing(
+  pricing,
+  isReranking = false,
+  isEmbedding = false
+) {
   if (!pricing || typeof pricing !== 'object') {
     return false;
+  }
+
+  // For embedding models, allow input-only pricing
+  if (isEmbedding) {
+    if (pricing.tiers && Array.isArray(pricing.tiers)) {
+      for (const tier of pricing.tiers) {
+        if (!tier || typeof tier !== "object") continue;
+        if (isInvalidPrice(tier.input)) {
+          return true;
+        }
+        if (tier.output !== undefined && isInvalidPrice(tier.output)) {
+          return true;
+        }
+        if (tier.cachedInput !== undefined && isInvalidPrice(tier.cachedInput)) {
+          return true;
+        }
+        if (tier.reasoning !== undefined && isInvalidPrice(tier.reasoning)) {
+          return true;
+        }
+        if (tier.request !== undefined && isInvalidPrice(tier.request)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (pricing.input !== undefined) {
+      if (isInvalidPrice(pricing.input)) {
+        return true;
+      }
+      if (pricing.output !== undefined && isInvalidPrice(pricing.output)) {
+        return true;
+      }
+      if (pricing.cachedInput !== undefined && isInvalidPrice(pricing.cachedInput)) {
+        return true;
+      }
+      if (pricing.reasoning !== undefined && isInvalidPrice(pricing.reasoning)) {
+        return true;
+      }
+      if (pricing.request !== undefined && isInvalidPrice(pricing.request)) {
+        return true;
+      }
+      return false;
+    }
+
+    return true;
   }
 
   // For re-ranking models, allow request-only pricing
@@ -833,6 +932,7 @@ function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
       console.log(`[Update Pricing] Model ${modelId} not found in OpenRouter API response`);
       continue;
     }
+    const isEmbedding = isEmbeddingModel(model, modelId);
     
     // OpenRouter pricing structure: pricing.prompt and pricing.completion (per 1M tokens)
     // Some models may have pricing.prompt_cached for cached tokens
@@ -946,8 +1046,12 @@ function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
     
     // For re-ranking models, allow request-only pricing (input/output can be 0 or missing)
     // For regular models, require both input and output pricing
-    if (!isReranking && (inputPrice === null || outputPrice === null)) {
+    if (!isReranking && !isEmbedding && (inputPrice === null || outputPrice === null)) {
       console.log(`[Update Pricing] Missing required pricing fields for OpenRouter model ${modelId} (pricing: ${JSON.stringify(modelPricing)})`);
+      continue;
+    }
+    if (isEmbedding && inputPrice === null) {
+      console.log(`[Update Pricing] Missing required input pricing for embedding model ${modelId} (pricing: ${JSON.stringify(modelPricing)})`);
       continue;
     }
     
@@ -966,6 +1070,11 @@ function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
     if (isReranking) {
       pricingStructure.input = inputPrice !== null ? inputPrice : 0;
       pricingStructure.output = outputPrice !== null ? outputPrice : 0;
+    } else if (isEmbedding) {
+      pricingStructure.input = inputPrice;
+      if (outputPrice !== null) {
+        pricingStructure.output = outputPrice;
+      }
     } else {
       pricingStructure.input = inputPrice;
       pricingStructure.output = outputPrice;
@@ -995,7 +1104,7 @@ function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
     }
     
     // Skip models with invalid or negative pricing
-    if (hasInvalidOrNegativePricing(pricingStructure, isReranking)) {
+    if (hasInvalidOrNegativePricing(pricingStructure, isReranking, isEmbedding)) {
       console.log(`[Update Pricing] Skipping OpenRouter model ${modelId} due to invalid or negative pricing`);
       continue;
     }
@@ -1005,6 +1114,7 @@ function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
     const capabilities = buildOpenRouterCapabilities({
       model,
       isReranking,
+      isEmbedding,
       existingCapabilities,
     });
 
@@ -1279,9 +1389,14 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
         pricingEntry.capabilities && typeof pricingEntry.capabilities === "object"
           ? pricingEntry.capabilities
           : undefined;
+      const existingCapabilities =
+        updatedPricing.providers.openrouter.models[modelName]?.capabilities;
+      const isEmbedding =
+        capabilities?.embeddings === true ||
+        existingCapabilities?.embeddings === true;
 
       // Skip models with invalid or negative pricing
-      if (hasInvalidOrNegativePricing(usdPricing, isReranking)) {
+      if (hasInvalidOrNegativePricing(usdPricing, isReranking, isEmbedding)) {
         console.log(`[Update Pricing] Skipping OpenRouter model ${modelName} in merge due to invalid or negative pricing`);
         continue;
       }
@@ -1393,7 +1508,8 @@ function removeInvalidOrNegativePricingModels(pricing) {
       // Check if this is a re-ranking model
       const isReranking = isRerankingModel(modelName);
       
-      if (usdPricing && hasInvalidOrNegativePricing(usdPricing, isReranking)) {
+      const isEmbedding = model?.capabilities?.embeddings === true;
+      if (usdPricing && hasInvalidOrNegativePricing(usdPricing, isReranking, isEmbedding)) {
         modelsToRemove.push(modelName);
         console.log(`[Update Pricing] Model ${providerName}/${modelName} has invalid or negative pricing and will be removed:`, JSON.stringify(usdPricing));
       }
@@ -1426,11 +1542,20 @@ async function updatePricingWrapper() {
 
   // Fetch pricing from Google (throws if fails)
   let googlePricing = {};
-  try {
-    googlePricing = await fetchGooglePricing();
-  } catch (error) {
-    console.error("[Update Pricing] Failed to fetch Google pricing:", error.message);
-    // Continue with OpenRouter pricing even if Google fails
+  if (!process.env.GEMINI_API_KEY) {
+    console.log(
+      "[Update Pricing] GEMINI_API_KEY not set; skipping Google pricing update."
+    );
+  } else {
+    try {
+      googlePricing = await fetchGooglePricing();
+    } catch (error) {
+      console.error(
+        "[Update Pricing] Failed to fetch Google pricing:",
+        error.message
+      );
+      // Continue with OpenRouter pricing even if Google fails
+    }
   }
 
   // Fetch pricing from OpenRouter (throws if fails)

@@ -46,6 +46,7 @@ export interface ModelCapabilities {
   supported_parameters?: string[];
   text_generation?: boolean;
   image_generation?: boolean;
+  embeddings?: boolean;
   rerank?: boolean;
   tool_calling?: boolean;
   structured_output?: boolean;

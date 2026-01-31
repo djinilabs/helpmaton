@@ -14,6 +14,15 @@ const { mockPricingConfig } = vi.hoisted(() => {
                 cachedInput: 0.1,
               },
             },
+          "test-embedding-model": {
+            usd: {
+              input: 0.5,
+            },
+            capabilities: {
+              embeddings: true,
+              text_generation: false,
+            },
+          },
             "test-tiered-model": {
               usd: {
                 tiers: [
@@ -158,6 +167,18 @@ describe("pricing", () => {
     it("should return 0 for zero tokens", () => {
       const cost = calculateTokenCost("google", "test-flat-model", 0, 0);
       expect(cost).toBe(0);
+    });
+
+    it("should calculate cost for input-only embedding pricing", () => {
+      const cost = calculateTokenCost(
+        "google",
+        "test-embedding-model",
+        1_000_000,
+        500_000
+      );
+
+      // 1M * $0.5 = $0.5 = 500_000_000 nano-dollars (output tokens ignored)
+      expect(cost).toBe(500_000_000);
     });
 
     it("should handle small token counts", () => {

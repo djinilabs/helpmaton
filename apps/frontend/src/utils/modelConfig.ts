@@ -178,6 +178,23 @@ export function filterModelsByCapability(
   );
 }
 
+export function filterTextGenerationModels(
+  models: string[],
+  capabilities: Record<string, ModelCapabilities> | undefined
+): string[] {
+  if (!capabilities) {
+    return [];
+  }
+
+  return models.filter((model) => {
+    const modelCapabilities = capabilities[model];
+    return (
+      modelCapabilities?.text_generation === true &&
+      modelCapabilities?.embeddings !== true
+    );
+  });
+}
+
 /**
  * Resolve a default model after filtering
  */
@@ -207,6 +224,7 @@ export function getModelCapabilities(
 const BOOLEAN_CAPABILITY_KEYS: Array<keyof ModelCapabilities> = [
   "text_generation",
   "image_generation",
+  "embeddings",
   "rerank",
   "tool_calling",
   "structured_output",

@@ -10,7 +10,7 @@ import {
 } from "../hooks/useEvalJudges";
 import type { ModelCapabilities } from "../utils/api";
 import {
-  filterModelsByCapability,
+  filterTextGenerationModels,
   getCapabilitiesForProvider,
   getCapabilityLabels,
   getModelCapabilities,
@@ -124,21 +124,21 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           getDefaultModelForProvider(provider),
           getCapabilitiesForProvider(provider),
         ]);
-        const filteredModels = filterModelsByCapability(
-          models,
-          capabilities,
-          "text_generation"
-        );
+        const filteredModels = filterTextGenerationModels(models, capabilities);
+        const resolvedModels =
+          filteredModels.length > 0 ? filteredModels : models;
         const resolvedDefaultModel = resolveDefaultModel(
-          filteredModels,
+          resolvedModels,
           defaultModelName
         );
         if (!cancelled) {
-          setAvailableModels(filteredModels);
+          setAvailableModels(resolvedModels);
           setDefaultModel(resolvedDefaultModel);
           setModelCapabilities(capabilities);
           setModelName((current) =>
-            current && !filteredModels.includes(current) ? null : current
+            current && !resolvedModels.includes(current)
+              ? null
+              : current
           );
         }
       } catch (error) {
