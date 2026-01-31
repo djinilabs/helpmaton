@@ -78,6 +78,7 @@
 
 **Latest Work**:
 
+- **Document search result markdown (2026-01-31)**: Rendered document search snippets as markdown using shared markdown components in `DocumentList`, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Document search embedding credits (2026-01-31)**: Added OpenRouter pricing for `thenlper/gte-base`, introduced embedding credit reservation/adjust/refund helpers, wired document search + agent tools + knowledge injection to charge embeddings, added unit coverage, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Entity extraction billing (2026-01-31)**: Added OpenRouter reservation/adjustment/verification flow to entity extraction when using the system key, passed context/conversationId through knowledge injection, updated entity extraction unit tests, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Backend sourcemap upload workflow (2026-01-31)**: Added a workflow_run job to build backend with sourcemaps and upload to Sentry after Deploy Prod completes; removed the post-deploy upload step from `deploy-prod.yml`. Ran `pnpm typecheck` and `pnpm lint --fix`.

@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import type { FC } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import {
   useDocuments,
@@ -10,6 +12,7 @@ import {
 import { getSizeColor, getAgeColor, getPercentageColor } from "../utils/colorUtils";
 import { trackEvent } from "../utils/tracking";
 
+import { markdownComponents } from "./ChatMarkdownComponents";
 import { DocumentViewer } from "./DocumentViewer";
 
 interface DocumentListProps {
@@ -286,7 +289,12 @@ export const DocumentList: FC<DocumentListProps> = ({
                       </div>
                     </div>
                     <div className="rounded-lg border border-neutral-200 bg-white p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                      {truncatedSnippet}
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                      >
+                        {truncatedSnippet}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 );
