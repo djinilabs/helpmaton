@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Intercom MCP docs clarity (2026-01-31)**: Documented Intercom search query object format with an email example; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Memory search embedding billing (2026-01-31)**: Added 3-step embedding credit flow (reserve/adjust/verify) for memory search embeddings, threaded credit context into memory search call sites, and updated embedding/document search to pass OpenRouter generation IDs. Added tests for memory search billing and embedding cost verification, ran backend tests (embeddingCredits, searchMemoryCredits, memorySystem), `pnpm lint --fix`, and `pnpm typecheck`.
 - **Agent memory endpoint test fix (2026-01-31)**: Mocked credit context lookup for `get-agent-memory` tests to account for credit context requirement; ran `pnpm --filter backend test --run get-agent-memory`, `pnpm lint --fix`, and `pnpm typecheck`.
 - **Usage charge-type breakdown (2026-01-31)**: Added cost-by-type aggregation (text generation, embeddings, reranking, Tavily, Exa, scrape, image generation, eval), surfaced breakdown in usage APIs/UI, and ensured totals sum charge types; added aggregation charge-type tests and updated usage endpoint tests; ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests (`aggregationChargeTypes`, `get-workspace-usage`, `get-agent-usage`, `get-api-usage`).

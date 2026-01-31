@@ -795,6 +795,25 @@ Once connected, agents can use the following Intercom tools:
 - `intercom_search_conversations_{serverName}` - Search conversations using Intercom search queries
 - `intercom_reply_conversation_{serverName}` - Reply to or update conversations as an admin
 
+**Search Query Format**:
+
+Intercom search tools (`intercom_search_contacts_*`, `intercom_search_conversations_*`) require a query object, not a plain string. Example email search:
+
+```json
+{
+  "query": {
+    "operator": "AND",
+    "value": [
+      {
+        "field": "email",
+        "operator": "=",
+        "value": "email@projectmap.com"
+      }
+    ]
+  }
+}
+```
+
 **Important Notes**:
 
 - Intercom OAuth does not provide refresh tokens; reconnect if the token is revoked
