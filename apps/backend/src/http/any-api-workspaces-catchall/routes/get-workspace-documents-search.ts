@@ -4,6 +4,7 @@ import express from "express";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { searchDocuments } from "../../../utils/documentSearch";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -82,6 +83,22 @@ export const registerGetWorkspaceDocumentsSearch = (
       const workspaceId = req.params.workspaceId;
       const query = req.query.q as string | undefined;
       const limitParam = req.query.limit as string | undefined;
+      const awsRequestIdRaw =
+        req.headers["x-amzn-requestid"] ||
+        req.headers["X-Amzn-Requestid"] ||
+        req.headers["x-request-id"] ||
+        req.headers["X-Request-Id"] ||
+        req.apiGateway?.event?.requestContext?.requestId;
+      const awsRequestId = Array.isArray(awsRequestIdRaw)
+        ? awsRequestIdRaw[0]
+        : awsRequestIdRaw;
+      const context = getContextFromRequestId(awsRequestId);
+      if (
+        !context ||
+        typeof context.addWorkspaceCreditTransaction !== "function"
+      ) {
+        throw new Error("Context not properly configured for credits.");
+      }
 
       if (!query || query.trim().length === 0) {
         throw badRequest("Query parameter 'q' is required");
@@ -96,7 +113,9 @@ export const registerGetWorkspaceDocumentsSearch = (
         limit = parsedLimit;
       }
 
-      const results = await searchDocuments(workspaceId, query.trim(), limit);
+      const results = await searchDocuments(workspaceId, query.trim(), limit, {
+        context,
+      });
 
       // Track document search
       trackBusinessEvent(

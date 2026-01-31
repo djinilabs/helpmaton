@@ -173,11 +173,15 @@ const addCoreTools = (
   messages: unknown[],
   options?: AgentSetupOptions
 ) => {
+  const effectiveContext = resolveEffectiveContext(options);
   tools.get_datetime = createGetDatetimeTool();
 
   if (agent.enableSearchDocuments === true) {
     tools.search_documents = createSearchDocumentsTool(workspaceId, {
       messages,
+      context: effectiveContext,
+      agentId,
+      conversationId: options?.conversationId,
       ...options?.searchDocumentsOptions,
     });
   }

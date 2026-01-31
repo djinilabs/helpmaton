@@ -72,6 +72,26 @@
     },
     "openrouter": {
       "models": {
+        "thenlper/gte-base": {
+          "usd": {
+            "input": 0.005,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [],
+            "supported_parameters": [],
+            "rerank": false,
+            "text_generation": false,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          }
+        },
         "writer/palmyra-x5": {
           "usd": {
             "input": 0.6,

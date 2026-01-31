@@ -98,6 +98,12 @@ describe("knowledgeInjection", () => {
   ];
 
   describe("injectKnowledgeIntoMessages", () => {
+    const defaultSearchOptions = {
+      db: undefined,
+      context: undefined,
+      agentId: undefined,
+      conversationId: undefined,
+    };
     it("should return original messages when knowledge injection is disabled", async () => {
       const agent = {
         enableKnowledgeInjection: false,
@@ -233,6 +239,7 @@ describe("knowledgeInjection", () => {
         "workspace-1",
         "Test query",
         10,
+        defaultSearchOptions,
       );
     });
 
@@ -292,6 +299,7 @@ describe("knowledgeInjection", () => {
         "workspace-1",
         "Test query",
         10,
+        defaultSearchOptions,
       );
     });
 
@@ -313,6 +321,7 @@ describe("knowledgeInjection", () => {
         "workspace-1",
         "Test query",
         20,
+        defaultSearchOptions,
       );
     });
 
@@ -334,6 +343,7 @@ describe("knowledgeInjection", () => {
         "workspace-1",
         "Test query",
         50,
+        defaultSearchOptions,
       );
     });
 
@@ -355,6 +365,7 @@ describe("knowledgeInjection", () => {
         "workspace-1",
         "Test query",
         2,
+        defaultSearchOptions,
       );
     });
 
@@ -375,6 +386,7 @@ describe("knowledgeInjection", () => {
         "workspace-1",
         "What is the meaning of life?",
         10,
+        defaultSearchOptions,
       );
     });
 
@@ -401,6 +413,7 @@ describe("knowledgeInjection", () => {
         "workspace-1",
         "Test query from array",
         10,
+        defaultSearchOptions,
       );
     });
 

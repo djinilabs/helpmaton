@@ -1,7 +1,7 @@
 import { OpenRouter } from "@openrouter/sdk";
 
 // OpenRouter embedding model name
-const EMBEDDING_MODEL = "thenlper/gte-base";
+export const EMBEDDING_MODEL = "thenlper/gte-base";
 
 // Exponential backoff configuration
 const BACKOFF_INITIAL_DELAY_MS = 1000; // 1 second
@@ -117,22 +117,35 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+export interface EmbeddingUsage {
+  promptTokens?: number;
+  totalTokens?: number;
+  cost?: number;
+}
+
+export interface EmbeddingResult {
+  embedding: number[];
+  usage?: EmbeddingUsage;
+  id?: string;
+  fromCache: boolean;
+}
+
 /**
  * Generate embedding for text using OpenRouter embeddings API
  * Uses in-memory cache to avoid regenerating embeddings for the same text
  * Implements exponential backoff retry for throttling errors
  */
-export async function generateEmbedding(
+async function generateEmbeddingResult(
   text: string,
   apiKey: string,
   cacheKey?: string,
   signal?: AbortSignal,
-): Promise<number[]> {
+): Promise<EmbeddingResult> {
   // Check cache first if cacheKey is provided
   if (cacheKey) {
     const cached = embeddingCache.get(cacheKey);
     if (cached) {
-      return cached;
+      return { embedding: cached, fromCache: true };
     }
   }
   if (!text || text.trim().length === 0) {
@@ -231,7 +244,12 @@ export async function generateEmbedding(
           embeddingCache.set(cacheKey, embedding);
         }
 
-        return embedding;
+        return {
+          embedding,
+          usage: response.usage as EmbeddingUsage | undefined,
+          id: response.id,
+          fromCache: false,
+        };
       } catch (requestError) {
         // Check if it's a timeout/abort error
         if (
@@ -366,6 +384,31 @@ export async function generateEmbedding(
     throw lastError;
   }
   throw new Error("Failed to generate embedding: Unknown error");
+}
+
+/**
+ * Generate embedding for text and return usage metadata
+ */
+export async function generateEmbeddingWithUsage(
+  text: string,
+  apiKey: string,
+  cacheKey?: string,
+  signal?: AbortSignal,
+): Promise<EmbeddingResult> {
+  return generateEmbeddingResult(text, apiKey, cacheKey, signal);
+}
+
+/**
+ * Generate embedding for text using OpenRouter embeddings API
+ */
+export async function generateEmbedding(
+  text: string,
+  apiKey: string,
+  cacheKey?: string,
+  signal?: AbortSignal,
+): Promise<number[]> {
+  const result = await generateEmbeddingResult(text, apiKey, cacheKey, signal);
+  return result.embedding;
 }
 
 /**

@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockQuery, mockEmbeddingsGenerate } = vi.hoisted(() => {
+const {
+  mockQuery,
+  mockEmbeddingsGenerate,
+  mockReserveEmbeddingCredits,
+  mockAdjustEmbeddingCreditReservation,
+  mockRefundEmbeddingCredits,
+} = vi.hoisted(() => {
   return {
     mockQuery: vi.fn(),
     mockEmbeddingsGenerate: vi.fn(),
+    mockReserveEmbeddingCredits: vi.fn(),
+    mockAdjustEmbeddingCreditReservation: vi.fn(),
+    mockRefundEmbeddingCredits: vi.fn(),
   };
 });
 
@@ -21,6 +30,12 @@ vi.mock("@openrouter/sdk", () => {
   }
   return { OpenRouter: OpenRouterMock };
 });
+
+vi.mock("../embeddingCredits", () => ({
+  reserveEmbeddingCredits: mockReserveEmbeddingCredits,
+  adjustEmbeddingCreditReservation: mockAdjustEmbeddingCreditReservation,
+  refundEmbeddingCredits: mockRefundEmbeddingCredits,
+}));
 
 // Import after mocks are set up
 import {
@@ -556,6 +571,82 @@ describe("documentSearch", () => {
       // Verify no filter is used (workspace isolation is at database level)
       const queryCall = mockQuery.mock.calls[0];
       expect(queryCall[2]).not.toHaveProperty("filter");
+    });
+
+    it("should reserve and adjust credits when context is provided", async () => {
+      const mockEmbedding = Array(768).fill(0.1);
+      mockEmbeddingsGenerate.mockResolvedValue({
+        data: [{ embedding: mockEmbedding }],
+        usage: { promptTokens: 12, totalTokens: 12, cost: 0.000001 },
+        id: "gen-123",
+      });
+      mockQuery.mockResolvedValue([]);
+      mockReserveEmbeddingCredits.mockResolvedValue({
+        reservationId: "res-1",
+        reservedAmount: 1000,
+        workspace: { creditBalance: 0 },
+        estimatedTokens: 3,
+      });
+
+      const context = {
+        addWorkspaceCreditTransaction: vi.fn(),
+      };
+
+      await searchDocuments("workspace-123", "test query", 5, {
+        db: {} as never,
+        context: context as never,
+        agentId: "agent-123",
+        conversationId: "conv-123",
+      });
+
+      expect(mockReserveEmbeddingCredits).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "workspace-123",
+          text: "test query",
+          context,
+          agentId: "agent-123",
+          conversationId: "conv-123",
+        }),
+      );
+      expect(mockAdjustEmbeddingCreditReservation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reservationId: "res-1",
+          workspaceId: "workspace-123",
+          usage: expect.objectContaining({
+            promptTokens: 12,
+          }),
+          context,
+        }),
+      );
+    });
+
+    it("should refund credits when embedding generation fails", async () => {
+      mockEmbeddingsGenerate.mockRejectedValueOnce(new Error("Embedding failed"));
+      mockReserveEmbeddingCredits.mockResolvedValue({
+        reservationId: "res-2",
+        reservedAmount: 1000,
+        workspace: { creditBalance: 0 },
+        estimatedTokens: 3,
+      });
+
+      const context = {
+        addWorkspaceCreditTransaction: vi.fn(),
+      };
+
+      await expect(
+        searchDocuments("workspace-123", "test query", 5, {
+          db: {} as never,
+          context: context as never,
+        }),
+      ).rejects.toThrow("Embedding failed");
+
+      expect(mockRefundEmbeddingCredits).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reservationId: "res-2",
+          workspaceId: "workspace-123",
+          context,
+        }),
+      );
     });
   });
 

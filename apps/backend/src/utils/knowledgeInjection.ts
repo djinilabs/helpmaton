@@ -811,12 +811,17 @@ export async function injectKnowledgeIntoMessages(
       const fetchLimit = Math.min(50, validSnippetCount * 2);
 
       const documentSnippets = enableKnowledgeInjectionFromDocuments
-        ? (await searchDocuments(workspaceId, query, fetchLimit)).map(
-            (result) => ({
-              ...result,
-              source: "document" as const,
-            }),
-          )
+        ? (
+            await searchDocuments(workspaceId, query, fetchLimit, {
+              db,
+              context,
+              agentId,
+              conversationId,
+            })
+          ).map((result) => ({
+            ...result,
+            source: "document" as const,
+          }))
         : [];
 
       let memorySnippets: KnowledgeSnippet[] = [];

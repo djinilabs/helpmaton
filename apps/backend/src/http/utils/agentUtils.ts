@@ -10,6 +10,7 @@ import { trackDelegation } from "../../utils/conversationLogger";
 import { searchDocuments } from "../../utils/documentSearch";
 import { sendNotification } from "../../utils/notifications";
 import { Sentry, ensureError } from "../../utils/sentry";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import { MODEL_NAME } from "./agent-constants";
 import { getWorkspaceApiKey as getWorkspaceApiKeyImpl } from "./agent-keys";
@@ -250,6 +251,9 @@ export function createSearchDocumentsTool(
       }>,
     ) => string;
     messages?: unknown[];
+    context?: AugmentedContext;
+    agentId?: string;
+    conversationId?: string;
   },
 ) {
   const searchDocumentsParamsSchema = z.object({
@@ -348,7 +352,11 @@ export function createSearchDocumentsTool(
       }
 
       try {
-        const results = await searchDocuments(workspaceId, query, topN);
+        const results = await searchDocuments(workspaceId, query, topN, {
+          context: options?.context,
+          agentId: options?.agentId,
+          conversationId: options?.conversationId,
+        });
 
         let result: string;
         if (results.length === 0) {

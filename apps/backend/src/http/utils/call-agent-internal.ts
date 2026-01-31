@@ -108,6 +108,9 @@ const buildDelegationTools = async (params: {
   if (targetAgent.enableSearchDocuments === true) {
     tools.search_documents = createSearchDocumentsTool(workspaceId, {
       messages: [{ role: "user", content: message }],
+      context,
+      agentId: extractedTargetAgentId,
+      conversationId: targetAgentConversationId || conversationId,
     });
   }
 
