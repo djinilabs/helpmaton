@@ -974,7 +974,7 @@ export async function callAgentInternal(
       modelMessagesWithKnowledge,
       targetAgent.systemPrompt,
       toolDefinitions,
-      false
+      usesByok
     );
 
     if (reservation) {

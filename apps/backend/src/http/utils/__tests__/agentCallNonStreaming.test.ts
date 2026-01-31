@@ -179,6 +179,24 @@ describe("callAgentNonStreaming", () => {
     expect(callArgs[11]).toBe("conversation-123");
   });
 
+  it("forwards BYOK flag to credit reservation", async () => {
+    mockSetupAgentAndTools.mockResolvedValueOnce({
+      agent: {
+        systemPrompt: "system",
+        modelName: "test-model",
+      },
+      model: {},
+      tools: {},
+      usesByok: true,
+    });
+
+    await callAgentNonStreaming("workspace-1", "agent-1", "hello");
+
+    expect(mockValidateAndReserveCredits).toHaveBeenCalled();
+    const callArgs = mockValidateAndReserveCredits.mock.calls[0];
+    expect(callArgs[8]).toBe(true);
+  });
+
   it("reserves credits before calling the LLM", async () => {
     await callAgentNonStreaming("workspace-1", "agent-1", "hello");
 

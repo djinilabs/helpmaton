@@ -4,6 +4,8 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Agent delegation BYOK reservation (2026-01-31)**: Propagated BYOK flag to delegation credit reservation to avoid charging workspace on BYOK calls; added unit test; ran `pnpm --filter backend test --run call-agent-internal`, `pnpm typecheck`, and `pnpm lint --fix`.
+- **Non-streaming BYOK reservation test (2026-01-31)**: Added BYOK propagation unit coverage in `callAgentNonStreaming`; ran `pnpm --filter backend test --run agentCallNonStreaming`, `pnpm typecheck`, and `pnpm lint --fix`.
 - **ChatMessage lint refactor (2026-01-30)**: Split chat part rendering into helpers to reduce complexity; `pnpm lint --fix` and `pnpm typecheck` now pass.
 - **MCP per-tool enablement (2026-01-30)**: Added per-agent MCP tool allowlist per server, filtered MCP tool exposure + tool lists, added agent detail tool-level checkboxes, updated backend tests; ran `pnpm typecheck`, `pnpm lint --fix` (fails on existing ChatMessage complexity rule), and focused backend tests.
 - **Widget tool call hide (2026-01-30)**: Hid tool call UI when `isWidget` is true to keep widget chat clean. Ran `pnpm typecheck` and `pnpm lint --fix`.
