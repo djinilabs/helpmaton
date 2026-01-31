@@ -1,11 +1,23 @@
+import type { ModelMessage } from "ai";
 import { generateText } from "ai";
 
-import { createModel } from "../../http/utils/modelFactory";
+import { getWorkspaceApiKey } from "../../http/utils/agent-keys";
+import {
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded,
+} from "../../http/utils/generationCreditManagement";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
+import { createModel, getDefaultModel } from "../../http/utils/modelFactory";
 import {
   createRequestTimeout,
   cleanupRequestTimeout,
 } from "../../http/utils/requestTimeout";
+import { database } from "../../tables";
+import { validateCreditsAndLimitsAndReserve } from "../creditValidation";
 import type { TemporalGrain } from "../vectordb/types";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 export type SummarizationPromptGrain =
   | "daily"
@@ -122,7 +134,9 @@ export async function summarizeWithLLM(
   content: string[],
   summaryType: TemporalGrain,
   workspaceId?: string,
-  summarizationPrompts?: SummarizationPrompts
+  agentId?: string,
+  summarizationPrompts?: SummarizationPrompts,
+  context?: AugmentedContext
 ): Promise<string> {
   if (content.length === 0) {
     return "";
@@ -137,11 +151,47 @@ export async function summarizeWithLLM(
     summarizationPrompts
   );
 
+  const messages: ModelMessage[] = [
+    {
+      role: "user",
+      content: `Please summarize the following information:\n\n${combinedContent}`,
+    },
+  ];
+
+  const resolvedModelName = getDefaultModel();
+  let reservationId: string | undefined;
+  let usesByok = false;
+  const db = await database();
+
+  if (workspaceId) {
+    const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
+    usesByok = workspaceKey !== null;
+
+    const reservation = await validateCreditsAndLimitsAndReserve(
+      db,
+      workspaceId,
+      agentId,
+      "openrouter",
+      resolvedModelName,
+      messages,
+      systemPrompt,
+      undefined,
+      usesByok,
+      context,
+      undefined
+    );
+    reservationId = reservation?.reservationId;
+  } else {
+    console.warn(
+      "[Memory Summarization] No workspaceId provided; skipping credit validation and reservation."
+    );
+  }
+
   // Create model (will use workspace API key if available, otherwise system key)
   // Use DEFAULT_REFERER env var or fallback to webhook endpoint
   const model = await createModel(
     "openrouter",
-    undefined, // Use default model
+    resolvedModelName,
     workspaceId,
     process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook"
   );
@@ -158,17 +208,115 @@ export async function summarizeWithLLM(
     result = await generateText({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
       system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Please summarize the following information:\n\n${combinedContent}`,
-        },
-      ],
+    messages,
       abortSignal: requestTimeout.signal,
     });
+  } catch (error) {
+    if (
+      reservationId &&
+      reservationId !== "byok" &&
+      context &&
+      workspaceId
+    ) {
+      await cleanupReservationOnError(
+        db,
+        reservationId,
+        workspaceId,
+        agentId ?? "unknown",
+        "openrouter",
+        resolvedModelName,
+        error,
+        true,
+        usesByok,
+        "scheduled",
+        context
+      );
+    }
+    throw error;
   } finally {
     cleanupRequestTimeout(requestTimeout);
   }
+
+  if (!workspaceId) {
+    return result.text.trim();
+  }
+
+  const extractionResult = extractTokenUsageAndCosts(
+    result,
+    undefined,
+    resolvedModelName,
+    "scheduled"
+  );
+  const tokenUsage = extractionResult.tokenUsage;
+
+  if (context && reservationId) {
+    const dbWithAtomic = db as Parameters<typeof adjustCreditsAfterLLMCall>[0];
+    await adjustCreditsAfterLLMCall(
+      dbWithAtomic,
+      workspaceId,
+      agentId ?? "unknown",
+      reservationId,
+      "openrouter",
+      resolvedModelName,
+      tokenUsage,
+      usesByok,
+      extractionResult.openrouterGenerationId,
+      extractionResult.openrouterGenerationIds,
+      "scheduled",
+      context,
+      undefined
+    );
+  } else if (reservationId) {
+    console.warn("[Memory Summarization] No context for credit adjustment", {
+      workspaceId,
+      agentId,
+      reservationId,
+    });
+  }
+
+  const hasGenerationIds =
+    extractionResult.openrouterGenerationIds.length > 0 ||
+    Boolean(extractionResult.openrouterGenerationId);
+  if (
+    reservationId &&
+    reservationId !== "byok" &&
+    (!tokenUsage ||
+      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+    !hasGenerationIds
+  ) {
+    await cleanupReservationWithoutTokenUsage(
+      db,
+      reservationId,
+      workspaceId,
+      agentId ?? "unknown",
+      "scheduled"
+    );
+  } else if (
+    reservationId &&
+    reservationId !== "byok" &&
+    (!tokenUsage ||
+      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+    hasGenerationIds
+  ) {
+    console.warn(
+      "[Memory Summarization] No token usage available, keeping reservation for verification",
+      {
+        workspaceId,
+        agentId,
+        reservationId,
+      }
+    );
+  }
+
+  await enqueueCostVerificationIfNeeded(
+    extractionResult.openrouterGenerationId,
+    extractionResult.openrouterGenerationIds,
+    workspaceId,
+    reservationId,
+    undefined,
+    agentId,
+    "scheduled"
+  );
 
   return result.text.trim();
 }

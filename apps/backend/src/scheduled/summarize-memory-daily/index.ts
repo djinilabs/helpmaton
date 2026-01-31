@@ -12,6 +12,7 @@ import { queueMemoryWrite } from "../../utils/memory/writeMemory";
 import { initSentry } from "../../utils/sentry";
 import { query } from "../../utils/vectordb/readClient";
 import type { FactRecord } from "../../utils/vectordb/types";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 initSentry();
 
@@ -19,8 +20,11 @@ initSentry();
  * Summarize working memory into day summaries for all agents
  */
 export const handler = handlingScheduledErrors(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- event parameter required by Lambda handler signature
-  async (_event: ScheduledEvent): Promise<void> => {
+   
+  async (
+    _event: ScheduledEvent,
+    context?: AugmentedContext
+  ): Promise<void> => {
     console.log("[Daily Memory Summarization] Starting daily summarization");
 
     const db = await database();
@@ -106,7 +110,9 @@ export const handler = handlingScheduledErrors(
               content,
               "daily",
               workspaceId,
+              agentId,
               agent.summarizationPrompts,
+              context,
             );
 
             if (!summary || summary.trim().length === 0) {

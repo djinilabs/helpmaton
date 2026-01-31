@@ -18,6 +18,13 @@ const {
   mockQuery,
   mockGetWorkspaceApiKey,
   mockCreateModel,
+  mockValidateCreditsAndLimitsAndReserve,
+  mockAdjustCreditsAfterLLMCall,
+  mockCleanupReservationOnError,
+  mockCleanupReservationWithoutTokenUsage,
+  mockEnqueueCostVerificationIfNeeded,
+  mockExtractTokenUsageAndCosts,
+  mockDatabase,
 } = vi.hoisted(() => {
   return {
     mockGenerateEmbedding: vi.fn(),
@@ -25,11 +32,22 @@ const {
     mockQuery: vi.fn(),
     mockGetWorkspaceApiKey: vi.fn(),
     mockCreateModel: vi.fn(),
+    mockValidateCreditsAndLimitsAndReserve: vi.fn(),
+    mockAdjustCreditsAfterLLMCall: vi.fn(),
+    mockCleanupReservationOnError: vi.fn(),
+    mockCleanupReservationWithoutTokenUsage: vi.fn(),
+    mockEnqueueCostVerificationIfNeeded: vi.fn(),
+    mockExtractTokenUsageAndCosts: vi.fn(),
+    mockDatabase: vi.fn(),
   };
 });
 
 // Mock modules
 vi.mock("../../../http/utils/agentUtils", () => ({
+  getWorkspaceApiKey: mockGetWorkspaceApiKey,
+}));
+
+vi.mock("../../../http/utils/agent-keys", () => ({
   getWorkspaceApiKey: mockGetWorkspaceApiKey,
 }));
 
@@ -56,6 +74,7 @@ vi.mock("../../vectordb/config", () => ({
 
 vi.mock("../../../http/utils/modelFactory", () => ({
   createModel: mockCreateModel,
+  getDefaultModel: () => "google/gemini-2.5-flash",
 }));
 
 vi.mock("ai", async () => {
@@ -65,6 +84,25 @@ vi.mock("ai", async () => {
     generateText: vi.fn(),
   };
 });
+
+vi.mock("../../../tables", () => ({
+  database: mockDatabase,
+}));
+
+vi.mock("../../../http/utils/generationCreditManagement", () => ({
+  adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
+  cleanupReservationOnError: mockCleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage: mockCleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded: mockEnqueueCostVerificationIfNeeded,
+}));
+
+vi.mock("../../../http/utils/generationTokenExtraction", () => ({
+  extractTokenUsageAndCosts: mockExtractTokenUsageAndCosts,
+}));
+
+vi.mock("../../creditValidation", () => ({
+  validateCreditsAndLimitsAndReserve: mockValidateCreditsAndLimitsAndReserve,
+}));
 
 describe("Memory System Integration", () => {
   const agentId = "test-agent-123";
@@ -109,6 +147,15 @@ describe("Memory System Integration", () => {
 
     // Mock workspace API key
     mockGetWorkspaceApiKey.mockResolvedValue(null);
+
+    mockDatabase.mockResolvedValue({});
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue(null);
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: undefined,
+      openrouterGenerationId: undefined,
+      openrouterGenerationIds: [],
+      provisionalCostUsd: undefined,
+    });
 
     // Mock model creation
     mockCreateModel.mockResolvedValue({
@@ -521,6 +568,7 @@ describe("Memory System Integration", () => {
       day1Content,
       "daily",
       workspaceId,
+      agentId,
     );
 
     expect(day1Summary).toContain("Daily Summary");
@@ -593,6 +641,7 @@ describe("Memory System Integration", () => {
       week1Content,
       "weekly",
       workspaceId,
+      agentId,
     );
 
     expect(week1Summary).toContain("Weekly Summary");
@@ -671,6 +720,7 @@ describe("Memory System Integration", () => {
       monthContent,
       "monthly",
       workspaceId,
+      agentId,
     );
 
     expect(monthSummary).toContain("Monthly Summary");
@@ -745,6 +795,7 @@ describe("Memory System Integration", () => {
       quarterContent,
       "quarterly",
       workspaceId,
+      agentId,
     );
 
     expect(quarterSummary).toContain("Quarterly Summary");
@@ -822,6 +873,7 @@ describe("Memory System Integration", () => {
       yearContent,
       "yearly",
       workspaceId,
+      agentId,
     );
 
     expect(yearSummary).toContain("Yearly Summary");

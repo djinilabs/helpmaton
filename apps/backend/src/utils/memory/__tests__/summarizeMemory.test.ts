@@ -1,13 +1,90 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { TemporalGrain } from "../../vectordb/types";
 import {
   getSummarizationPrompt,
   normalizeSummarizationPrompts,
   resolveSummarizationPrompt,
+  summarizeWithLLM,
 } from "../summarizeMemory";
 
+const {
+  mockGenerateText,
+  mockCreateModel,
+  mockGetWorkspaceApiKey,
+  mockValidateCreditsAndLimitsAndReserve,
+  mockAdjustCreditsAfterLLMCall,
+  mockCleanupReservationOnError,
+  mockCleanupReservationWithoutTokenUsage,
+  mockEnqueueCostVerificationIfNeeded,
+  mockExtractTokenUsageAndCosts,
+  mockDatabase,
+} = vi.hoisted(() => ({
+  mockGenerateText: vi.fn(),
+  mockCreateModel: vi.fn(),
+  mockGetWorkspaceApiKey: vi.fn(),
+  mockValidateCreditsAndLimitsAndReserve: vi.fn(),
+  mockAdjustCreditsAfterLLMCall: vi.fn(),
+  mockCleanupReservationOnError: vi.fn(),
+  mockCleanupReservationWithoutTokenUsage: vi.fn(),
+  mockEnqueueCostVerificationIfNeeded: vi.fn(),
+  mockExtractTokenUsageAndCosts: vi.fn(),
+  mockDatabase: vi.fn(),
+}));
+
+vi.mock("ai", async () => {
+  const actual = await vi.importActual("ai");
+  return {
+    ...actual,
+    generateText: mockGenerateText,
+  };
+});
+
+vi.mock("../../../http/utils/modelFactory", () => ({
+  createModel: mockCreateModel,
+  getDefaultModel: () => "google/gemini-2.5-flash",
+}));
+
+vi.mock("../../../http/utils/agent-keys", () => ({
+  getWorkspaceApiKey: mockGetWorkspaceApiKey,
+}));
+
+vi.mock("../../../tables", () => ({
+  database: mockDatabase,
+}));
+
+vi.mock("../../../http/utils/generationCreditManagement", () => ({
+  adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
+  cleanupReservationOnError: mockCleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage: mockCleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded: mockEnqueueCostVerificationIfNeeded,
+}));
+
+vi.mock("../../../http/utils/generationTokenExtraction", () => ({
+  extractTokenUsageAndCosts: mockExtractTokenUsageAndCosts,
+}));
+
+vi.mock("../../creditValidation", () => ({
+  validateCreditsAndLimitsAndReserve: mockValidateCreditsAndLimitsAndReserve,
+}));
+
 describe("summarizeMemory", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDatabase.mockResolvedValue({});
+    mockCreateModel.mockResolvedValue({});
+    mockGenerateText.mockResolvedValue({ text: "Summary text" });
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: {
+        promptTokens: 10,
+        completionTokens: 20,
+      },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 123,
+    });
+  });
+
   describe("getSummarizationPrompt", () => {
     it("should return prompt for daily grain", () => {
       const prompt = getSummarizationPrompt("daily");
@@ -119,6 +196,73 @@ describe("summarizeMemory", () => {
         daily: "Custom daily prompt",
       });
       expect(prompt).toContain("week's worth");
+    });
+  });
+
+  describe("summarizeWithLLM billing", () => {
+    it("reserves, adjusts, and enqueues cost verification on system key", async () => {
+      mockGetWorkspaceApiKey.mockResolvedValue(null);
+      mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+        reservationId: "res-1",
+      });
+
+      const summary = await summarizeWithLLM(
+        ["First note", "Second note"],
+        "daily",
+        "workspace-1",
+        "agent-1",
+        undefined,
+        {
+          addWorkspaceCreditTransaction: vi.fn(),
+        } as unknown as Parameters<typeof summarizeWithLLM>[5]
+      );
+
+      expect(summary).toBe("Summary text");
+      expect(mockValidateCreditsAndLimitsAndReserve).toHaveBeenCalled();
+      expect(mockAdjustCreditsAfterLLMCall).toHaveBeenCalled();
+      expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalled();
+    });
+
+    it("skips reservation adjustments on BYOK", async () => {
+      mockGetWorkspaceApiKey.mockResolvedValue("byok-key");
+      mockValidateCreditsAndLimitsAndReserve.mockResolvedValue(null);
+
+      await summarizeWithLLM(
+        ["Entry A"],
+        "weekly",
+        "workspace-1",
+        "agent-1",
+        undefined,
+        {
+          addWorkspaceCreditTransaction: vi.fn(),
+        } as unknown as Parameters<typeof summarizeWithLLM>[5]
+      );
+
+      expect(mockValidateCreditsAndLimitsAndReserve).toHaveBeenCalled();
+      expect(mockAdjustCreditsAfterLLMCall).not.toHaveBeenCalled();
+    });
+
+    it("cleans up reservation on generateText error", async () => {
+      mockGetWorkspaceApiKey.mockResolvedValue(null);
+      mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+        reservationId: "res-2",
+      });
+      mockGenerateText.mockRejectedValueOnce(new Error("LLM failure"));
+
+      await expect(
+        summarizeWithLLM(
+          ["Entry A"],
+          "monthly",
+          "workspace-1",
+          "agent-1",
+          undefined,
+          {
+            addWorkspaceCreditTransaction: vi.fn(),
+          } as unknown as Parameters<typeof summarizeWithLLM>[5]
+        )
+      ).rejects.toThrow("LLM failure");
+
+      expect(mockCleanupReservationOnError).toHaveBeenCalled();
     });
   });
 });
