@@ -8,6 +8,7 @@ import {
   extractTokenUsage,
   updateConversation,
 } from "../../utils/conversationLogger";
+import { isCreditUserError } from "../../utils/creditErrors";
 import {
   adjustCreditReservation,
   refundReservation,
@@ -1145,17 +1146,31 @@ export async function callAgentInternal(
       `[callAgentInternal] Error calling agent ${targetAgentId}:`,
       error
     );
-    Sentry.captureException(ensureError(error), {
-      tags: {
-        context: "agent-delegation",
-        operation: "call-agent-internal",
-        ...(isTimeoutError(error) && { delegation_timeout: "true" }),
-      },
-      extra: {
-        workspaceId,
-        targetAgentId,
-      },
-    });
+    if (isCreditUserError(error)) {
+      console.info(
+        "[callAgentInternal] Credit user error (not reported to Sentry):",
+        {
+          workspaceId,
+          targetAgentId,
+          error:
+            error instanceof Error
+              ? { name: error.name, message: error.message }
+              : String(error),
+        }
+      );
+    } else {
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "agent-delegation",
+          operation: "call-agent-internal",
+          ...(isTimeoutError(error) && { delegation_timeout: "true" }),
+        },
+        extra: {
+          workspaceId,
+          targetAgentId,
+        },
+      });
+    }
 
     await logDelegationErrorConversation({
       db,

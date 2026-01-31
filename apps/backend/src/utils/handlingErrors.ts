@@ -15,6 +15,7 @@ import type { Context } from "aws-lambda";
 
 export { isAuthenticationError } from "./authenticationErrorDetection";
 
+import { isCreditUserError } from "./creditErrors";
 import { initPostHog, flushPostHog } from "./posthog";
 import { initSentry, Sentry, flushSentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
@@ -143,7 +144,11 @@ export const handlingErrors = (
           return result as APIGatewayProxyResultV2;
         } catch (error) {
           hadError = true; // Used in finally block for commitContextTransactions
-          const boomed = boomify(ensureError(error));
+          const ensuredError = ensureError(error);
+          const creditUserError = isCreditUserError(ensuredError);
+          const boomed = creditUserError
+            ? boomify(ensuredError, { statusCode: 402 })
+            : boomify(ensuredError);
 
           // Always log the full error details
           console.error("Lambda handler error:", {
@@ -156,10 +161,10 @@ export const handlingErrors = (
             },
           });
 
-          if (boomed.isServer) {
+          if (boomed.isServer && !creditUserError) {
             // Report ALL errors to Sentry with full context
             // This ensures we capture all failures for monitoring and debugging
-            Sentry.captureException(ensureError(error), {
+            Sentry.captureException(ensuredError, {
               tags: {
                 handler: "APIGatewayProxyHandlerV2",
                 statusCode: boomed.output.statusCode,
@@ -310,12 +315,16 @@ export const handlingHttpAsyncErrors = (
           return result;
         } catch (error) {
           hadError = true;
-          const boomed = boomify(ensureError(error));
+          const ensuredError = ensureError(error);
+          const creditUserError = isCreditUserError(ensuredError);
+          const boomed = creditUserError
+            ? boomify(ensuredError, { statusCode: 402 })
+            : boomify(ensuredError);
 
-          if (boomed.isServer) {
+          if (boomed.isServer && !creditUserError) {
             console.error(boomed);
             // Report 500 errors to Sentry
-            Sentry.captureException(ensureError(error), {
+            Sentry.captureException(ensuredError, {
               tags: {
                 handler: "HttpAsyncHandler",
                 statusCode: boomed.output.statusCode,
@@ -418,12 +427,16 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
             next
           );
         } catch (error) {
-          const boomed = boomify(ensureError(error));
+          const ensuredError = ensureError(error);
+          const creditUserError = isCreditUserError(ensuredError);
+          const boomed = creditUserError
+            ? boomify(ensuredError, { statusCode: 402 })
+            : boomify(ensuredError);
 
-          if (boomed.isServer) {
+          if (boomed.isServer && !creditUserError) {
             console.error(boomed);
             // Report 500 errors to Sentry
-            Sentry.captureException(ensureError(error), {
+            Sentry.captureException(ensuredError, {
               tags: {
                 handler: "HttpHandler",
                 statusCode: boomed.output.statusCode,
@@ -512,7 +525,11 @@ export const handlingScheduledErrors = (
           await wrappedHandler(event);
         } catch (error) {
           hadError = true;
-          const boomed = boomify(ensureError(error));
+          const ensuredError = ensureError(error);
+          const creditUserError = isCreditUserError(ensuredError);
+          const boomed = creditUserError
+            ? boomify(ensuredError, { statusCode: 402 })
+            : boomify(ensuredError);
 
           // Always log the full error details
           console.error("Scheduled function error:", {
@@ -530,26 +547,39 @@ export const handlingScheduledErrors = (
             },
           });
 
-          // Scheduled functions don't have user errors - all errors are server errors
-          // Report all errors to Sentry
-          console.error("Scheduled function server error details:", boomed);
-          Sentry.captureException(ensureError(error), {
-            tags: {
-              handler: "ScheduledFunction",
-              statusCode: boomed.output.statusCode,
-              source: event.source || "unknown",
-              detailType: event["detail-type"] || "unknown",
-            },
-            contexts: {
-              event: {
-                source: event.source,
-                "detail-type": event["detail-type"],
-                time: event.time,
-                region: event.region,
-                account: event.account,
+          if (creditUserError) {
+            console.info(
+              "[handlingScheduledErrors] Credit user error (not reported to Sentry):",
+              {
+                error:
+                  ensuredError instanceof Error
+                    ? ensuredError.message
+                    : String(ensuredError),
+                statusCode: boomed.output.statusCode,
+                source: event.source || "unknown",
+                detailType: event["detail-type"] || "unknown",
+              }
+            );
+          } else {
+            console.error("Scheduled function server error details:", boomed);
+            Sentry.captureException(ensuredError, {
+              tags: {
+                handler: "ScheduledFunction",
+                statusCode: boomed.output.statusCode,
+                source: event.source || "unknown",
+                detailType: event["detail-type"] || "unknown",
               },
-            },
-          });
+              contexts: {
+                event: {
+                  source: event.source,
+                  "detail-type": event["detail-type"],
+                  time: event.time,
+                  region: event.region,
+                  account: event.account,
+                },
+              },
+            });
+          }
 
           // Re-throw the error so Lambda marks the invocation as failed
           throw error;

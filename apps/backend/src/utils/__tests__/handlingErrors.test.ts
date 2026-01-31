@@ -57,7 +57,12 @@ vi.mock("../workspaceCreditContext", () => ({
   clearCurrentHTTPContext: vi.fn(),
 }));
 
-import { handlingErrors, handlingHttpErrors } from "../handlingErrors";
+import { SpendingLimitExceededError } from "../creditErrors";
+import {
+  handlingErrors,
+  handlingHttpErrors,
+  handlingScheduledErrors,
+} from "../handlingErrors";
 import { flushPostHog } from "../posthog";
 import { flushSentry } from "../sentry";
 
@@ -266,6 +271,30 @@ describe("handlingErrors", () => {
       expect(flushPostHog).toHaveBeenCalled();
     });
 
+    it("should not report credit user errors to Sentry", async () => {
+      const handlerError = new SpendingLimitExceededError([
+        {
+          scope: "workspace",
+          timeFrame: "daily",
+          limit: 1000,
+          current: 1500,
+        },
+      ]);
+      const mockHandler = vi.fn().mockRejectedValue(handlerError);
+
+      const wrappedHandler = handlingErrors(mockHandler);
+      const result = (await wrappedHandler(
+        mockEvent,
+        mockContext,
+        vi.fn()
+      )) as {
+        statusCode: number;
+      };
+
+      expect(result.statusCode).toBe(402);
+      expect(mockSentryCaptureException).not.toHaveBeenCalled();
+    });
+
     it("should handle Sentry flush errors gracefully without causing recursion", async () => {
       const handlerError = new Error("Handler failed");
       const mockHandler = vi.fn().mockRejectedValue(handlerError);
@@ -472,5 +501,44 @@ describe("handlingHttpErrors", () => {
     expect(res).toHaveBeenCalledTimes(1);
     expect(order.indexOf("res")).toBeGreaterThan(order.indexOf("flushSentry"));
     expect(order.indexOf("res")).toBeGreaterThan(order.indexOf("flushPostHog"));
+  });
+});
+
+describe("handlingScheduledErrors", () => {
+  const mockEvent = {
+    "detail-type": "Scheduled event",
+    source: "test.source",
+    time: "2024-01-01T00:00:00Z",
+    region: "us-east-1",
+    account: "123456789012",
+    detail: {},
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(flushSentry).mockResolvedValue(undefined);
+    vi.mocked(flushPostHog).mockResolvedValue(undefined);
+    mockSentryStartSpan.mockImplementation(async (_config, callback) => {
+      if (typeof callback === "function") {
+        return callback();
+      }
+      return undefined;
+    });
+  });
+
+  it("does not report credit user errors to Sentry", async () => {
+    const handlerError = new SpendingLimitExceededError([
+      {
+        scope: "workspace",
+        timeFrame: "daily",
+        limit: 1000,
+        current: 1500,
+      },
+    ]);
+    const mockHandler = vi.fn().mockRejectedValue(handlerError);
+    const wrappedHandler = handlingScheduledErrors(mockHandler);
+
+    await expect(wrappedHandler(mockEvent as never)).rejects.toBe(handlerError);
+    expect(mockSentryCaptureException).not.toHaveBeenCalled();
   });
 });

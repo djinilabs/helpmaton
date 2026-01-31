@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Credit user errors in Sentry (2026-01-31)**: Added credit-user error guards in `handlingErrors` (HTTP + scheduled), ensured 402 boomification for credit errors, added tests for handling errors/scheduled, and ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run handlingErrors`.
 - **Tool schema clarity pass (2026-01-31)**: Added concrete examples and clearer guidance for complex tool schemas (Intercom/Notion/Salesforce/PostHog/Calendar/MCP), clarified list→read flows, aligned alias error messages, and noted Tavily vs scrape fetch behavior. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent MCP tool list visibility (2026-01-31)**: Only show MCP tool list when the server is enabled; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **MCP tool map equality fix (2026-01-31)**: Fixed key-set comparison in `areToolNameMapsEqual` to avoid false positives; ran `pnpm lint --fix` and `pnpm typecheck`.

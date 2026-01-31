@@ -117,6 +117,7 @@ vi.mock("../../../utils/knowledgeInjection", () => ({
 }));
 
 import type { DatabaseSchema } from "../../../tables/schema";
+import { SpendingLimitExceededError } from "../../../utils/creditErrors";
 import { callAgentInternal } from "../call-agent-internal";
 
 describe("callAgentInternal", () => {
@@ -206,5 +207,30 @@ describe("callAgentInternal", () => {
       undefined,
       true
     );
+  });
+
+  it("does not report spending limit errors to Sentry", async () => {
+    mockValidateCreditsAndLimitsAndReserve.mockRejectedValue(
+      new SpendingLimitExceededError([
+        {
+          scope: "workspace",
+          timeFrame: "daily",
+          limit: 1000,
+          current: 1500,
+        },
+      ])
+    );
+
+    const result = await callAgentInternal(
+      "workspace-1",
+      "agent-1",
+      "Hello",
+      0,
+      2
+    );
+
+    const { Sentry } = await import("../../../utils/sentry");
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(result.response).toContain("Spending limits exceeded");
   });
 });
