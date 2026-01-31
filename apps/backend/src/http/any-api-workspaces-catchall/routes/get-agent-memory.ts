@@ -366,9 +366,7 @@ export const registerGetAgentMemoryRecord = (app: express.Application) => {
         agentId,
         grain,
         recordId,
-      });
-
-      if (!record) {
+      });      if (!record) {
         res.status(404).json({
           statusCode: 404,
           error: "Not Found",
