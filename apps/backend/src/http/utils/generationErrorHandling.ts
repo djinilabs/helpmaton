@@ -15,7 +15,8 @@ export type GenerationEndpoint =
   | "stream"
   | "webhook"
   | "bridge"
-  | "scheduled";
+  | "scheduled"
+  | "knowledge-injection";
 
 /**
  * Checks if an error is a NoOutputGeneratedError

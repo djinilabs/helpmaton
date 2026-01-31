@@ -3,14 +3,22 @@ import { generateText } from "ai";
 import { z } from "zod";
 
 import { getWorkspaceApiKey } from "../../http/utils/agent-keys";
+import {
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded,
+} from "../../http/utils/generationCreditManagement";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { createModel, getDefaultModel } from "../../http/utils/modelFactory";
 import {
   cleanupRequestTimeout,
   createRequestTimeout,
 } from "../../http/utils/requestTimeout";
 import { database } from "../../tables";
-import { validateCreditsAndLimits } from "../creditValidation";
+import { validateCreditsAndLimitsAndReserve } from "../creditValidation";
 import { parseJsonWithFallback } from "../jsonParsing";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 const EntityExtractionResponseSchema = z
   .object({
@@ -48,8 +56,11 @@ export async function extractEntitiesFromPrompt(params: {
   agentId: string;
   prompt: string;
   modelName?: string | null;
+  context?: AugmentedContext;
+  conversationId?: string;
 }): Promise<string[]> {
-  const { workspaceId, agentId, prompt, modelName } = params;
+  const { workspaceId, agentId, prompt, modelName, context, conversationId } =
+    params;
   if (!prompt.trim()) {
     return [];
   }
@@ -65,7 +76,7 @@ export async function extractEntitiesFromPrompt(params: {
   const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
   const usesByok = workspaceKey !== null;
 
-  await validateCreditsAndLimits(
+  const reservation = await validateCreditsAndLimitsAndReserve(
     db,
     workspaceId,
     agentId,
@@ -75,18 +86,22 @@ export async function extractEntitiesFromPrompt(params: {
     systemPrompt,
     undefined,
     usesByok,
+    context,
+    conversationId,
   );
-
-  const model = await createModel(
-    "openrouter",
-    resolvedModelName,
-    workspaceId,
-    process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook",
-  );
+  const reservationId = reservation?.reservationId;
 
   const requestTimeout = createRequestTimeout();
   let resultText = "";
+  let llmCallAttempted = false;
   try {
+    const model = await createModel(
+      "openrouter",
+      resolvedModelName,
+      workspaceId,
+      process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook",
+    );
+    llmCallAttempted = true;
     const result = await generateText({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
       system: systemPrompt,
@@ -94,6 +109,104 @@ export async function extractEntitiesFromPrompt(params: {
       abortSignal: requestTimeout.signal,
     });
     resultText = result.text.trim();
+
+    const extractionResult = extractTokenUsageAndCosts(
+      result,
+      undefined,
+      resolvedModelName,
+      "knowledge-injection",
+    );
+    const tokenUsage = extractionResult.tokenUsage;
+
+    if (context) {
+      const dbWithAtomic = db as Parameters<typeof adjustCreditsAfterLLMCall>[0];
+      await adjustCreditsAfterLLMCall(
+        dbWithAtomic,
+        workspaceId,
+        agentId,
+        reservationId,
+        "openrouter",
+        resolvedModelName,
+        tokenUsage,
+        usesByok,
+        extractionResult.openrouterGenerationId,
+        extractionResult.openrouterGenerationIds,
+        "knowledge-injection",
+        context,
+        conversationId,
+      );
+    } else if (reservationId) {
+      console.warn(
+        "[Entity Extraction] No context available for credit adjustment",
+        {
+          workspaceId,
+          agentId,
+          reservationId,
+        },
+      );
+    }
+
+    const hasGenerationIds =
+      extractionResult.openrouterGenerationIds.length > 0 ||
+      Boolean(extractionResult.openrouterGenerationId);
+    if (
+      reservationId &&
+      reservationId !== "byok" &&
+      (!tokenUsage ||
+        (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+      !hasGenerationIds
+    ) {
+      await cleanupReservationWithoutTokenUsage(
+        db,
+        reservationId,
+        workspaceId,
+        agentId,
+        "knowledge-injection",
+      );
+    } else if (
+      reservationId &&
+      reservationId !== "byok" &&
+      (!tokenUsage ||
+        (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+      hasGenerationIds
+    ) {
+      console.warn(
+        "[Entity Extraction] No token usage available, keeping reservation for verification",
+        {
+          workspaceId,
+          agentId,
+          reservationId,
+        },
+      );
+    }
+
+    await enqueueCostVerificationIfNeeded(
+      extractionResult.openrouterGenerationId,
+      extractionResult.openrouterGenerationIds,
+      workspaceId,
+      reservationId,
+      conversationId,
+      agentId,
+      "knowledge-injection",
+    );
+  } catch (error) {
+    if (reservationId && reservationId !== "byok" && context) {
+      const dbWithAtomic = db as Parameters<typeof cleanupReservationOnError>[0];
+      await cleanupReservationOnError(
+        dbWithAtomic,
+        reservationId,
+        workspaceId,
+        agentId,
+        "openrouter",
+        resolvedModelName,
+        error,
+        llmCallAttempted,
+        usesByok,
+        "knowledge-injection",
+        context,
+      );
+    }
+    throw error;
   } finally {
     cleanupRequestTimeout(requestTimeout);
   }

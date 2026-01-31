@@ -65,6 +65,7 @@
 
 **Latest Work**:
 
+- **Entity extraction billing (2026-01-31)**: Added OpenRouter reservation/adjustment/verification flow to entity extraction when using the system key, passed context/conversationId through knowledge injection, updated entity extraction unit tests, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Backend sourcemap upload workflow (2026-01-31)**: Added a workflow_run job to build backend with sourcemaps and upload to Sentry after Deploy Prod completes; removed the post-deploy upload step from `deploy-prod.yml`. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent options tool cache clear**: Invalidate `agent-tools` and `mcp-server-tools` react-query caches after agent updates so tool dialogs refetch when options change. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace section order**: Swapped the workspace detail section order so Settings appears before Spending & usage. Ran `pnpm typecheck` and `pnpm lint --fix`.

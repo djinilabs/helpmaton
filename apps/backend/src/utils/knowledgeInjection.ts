@@ -842,6 +842,8 @@ export async function injectKnowledgeIntoMessages(
           agentId,
           prompt: query,
           modelName: agent.knowledgeInjectionEntityExtractorModel,
+          context,
+          conversationId,
         });
         const graphResults = await searchGraphByEntities({
           workspaceId,
