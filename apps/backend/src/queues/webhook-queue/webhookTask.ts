@@ -47,6 +47,7 @@ async function persistWebhookConversationError(options: {
   finalModelName?: string;
   error: unknown;
   awsRequestId?: string;
+  context?: AugmentedContext;
 }): Promise<void> {
   try {
     const messages = [options.uiMessage].filter(
@@ -120,6 +121,7 @@ async function persistWebhookConversationError(options: {
       usesByok: options.usesByok,
       error: errorInfo,
       awsRequestId: options.awsRequestId,
+      context: options.context,
     });
   } catch (logError) {
     console.error("[Webhook Task] Failed to persist conversation error:", {
@@ -491,6 +493,7 @@ async function logWebhookConversation(options: {
     tokenUsage: agentResult.tokenUsage,
     usesByok,
     awsRequestId,
+    context,
   });
 
   if (createdConversationId !== conversationId) {
@@ -601,6 +604,7 @@ export async function processWebhookTask(options: {
           usesByok,
           finalModelName,
           error: errorToLog,
+          context,
         });
         cleanupRequestTimeout(requestTimeout);
         return;
@@ -614,6 +618,7 @@ export async function processWebhookTask(options: {
         finalModelName,
         error: resultError,
         awsRequestId,
+        context,
       });
       cleanupRequestTimeout(requestTimeout);
       throw resultError;
@@ -758,6 +763,7 @@ export async function processWebhookTask(options: {
         finalModelName,
         error: timeoutError,
         awsRequestId,
+        context,
       });
       return;
     }
@@ -790,6 +796,7 @@ export async function processWebhookTask(options: {
       finalModelName,
       error: errorToLog,
       awsRequestId,
+      context,
     });
 
     if (isByokAuthenticationError(error, usesByok === true)) {

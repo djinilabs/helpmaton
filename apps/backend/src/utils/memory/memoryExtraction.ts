@@ -5,15 +5,23 @@ import { generateText } from "ai";
 import { z } from "zod";
 
 import { getWorkspaceApiKey } from "../../http/utils/agent-keys";
+import {
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded,
+} from "../../http/utils/generationCreditManagement";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { createModel, getDefaultModel } from "../../http/utils/modelFactory";
 import {
   cleanupRequestTimeout,
   createRequestTimeout,
 } from "../../http/utils/requestTimeout";
 import { database } from "../../tables";
-import { validateCreditsAndLimits } from "../creditValidation";
+import { validateCreditsAndLimitsAndReserve } from "../creditValidation";
 import { createGraphDb } from "../duckdb/graphDb";
 import { parseJsonWithFallback } from "../jsonParsing";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 import {
   getEffectiveMemoryExtractionPrompt,
@@ -94,6 +102,8 @@ async function requestJsonRepair(params: {
   usesByok: boolean;
   rawResponse: string;
   errorMessage: string;
+  conversationId: string;
+  context?: AugmentedContext;
 }): Promise<string> {
   const repairSystemPrompt =
     "You are a JSON repair assistant. Return ONLY valid JSON for the schema: " +
@@ -106,7 +116,7 @@ async function requestJsonRepair(params: {
   ];
 
   const db = await database();
-  await validateCreditsAndLimits(
+  const reservation = await validateCreditsAndLimitsAndReserve(
     db,
     params.workspaceId,
     params.agentId,
@@ -116,20 +126,125 @@ async function requestJsonRepair(params: {
     repairSystemPrompt,
     undefined,
     params.usesByok,
+    params.context,
+    params.conversationId,
   );
+  const reservationId = reservation?.reservationId;
 
   const requestTimeout = createRequestTimeout();
+  let result: Awaited<ReturnType<typeof generateText>> | null = null;
+  let llmCallAttempted = false;
   try {
-    const result = await generateText({
+    llmCallAttempted = true;
+    result = await generateText({
       model: params.model,
       system: repairSystemPrompt,
       messages: repairMessages,
       abortSignal: requestTimeout.signal,
     });
-    return result.text.trim();
+  } catch (error) {
+    if (reservationId && params.context) {
+      await cleanupReservationOnError(
+        db,
+        reservationId,
+        params.workspaceId,
+        params.agentId,
+        "openrouter",
+        params.modelName,
+        error,
+        llmCallAttempted,
+        params.usesByok,
+        "memory-extraction",
+        params.context,
+      );
+    }
+    throw error;
   } finally {
     cleanupRequestTimeout(requestTimeout);
   }
+
+  if (!result) {
+    throw new Error("Memory extraction JSON repair returned empty response");
+  }
+  const resultText = result.text.trim();
+  const extractionResult = extractTokenUsageAndCosts(
+    result,
+    undefined,
+    params.modelName,
+    "memory-extraction",
+  );
+
+  if (reservationId && params.context) {
+    const dbWithAtomic = db as Parameters<typeof adjustCreditsAfterLLMCall>[0];
+    await adjustCreditsAfterLLMCall(
+      dbWithAtomic,
+      params.workspaceId,
+      params.agentId,
+      reservationId,
+      "openrouter",
+      params.modelName,
+      extractionResult.tokenUsage,
+      params.usesByok,
+      extractionResult.openrouterGenerationId,
+      extractionResult.openrouterGenerationIds,
+      "memory-extraction",
+      params.context,
+      params.conversationId,
+    );
+  } else if (reservationId && !params.context) {
+    console.warn("[Memory Extraction] No context for credit adjustment", {
+      workspaceId: params.workspaceId,
+      agentId: params.agentId,
+      reservationId,
+    });
+  }
+
+  const tokenUsage = extractionResult.tokenUsage;
+  const hasGenerationIds =
+    extractionResult.openrouterGenerationIds.length > 0 ||
+    Boolean(extractionResult.openrouterGenerationId);
+  if (
+    reservationId &&
+    reservationId !== "byok" &&
+    (!tokenUsage ||
+      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+    !hasGenerationIds
+  ) {
+    await cleanupReservationWithoutTokenUsage(
+      db,
+      reservationId,
+      params.workspaceId,
+      params.agentId,
+      "memory-extraction",
+    );
+  } else if (
+    reservationId &&
+    reservationId !== "byok" &&
+    (!tokenUsage ||
+      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+    hasGenerationIds
+  ) {
+    console.warn(
+      "[Memory Extraction] No token usage available, keeping reservation for verification",
+      {
+        workspaceId: params.workspaceId,
+        agentId: params.agentId,
+        reservationId,
+      },
+    );
+  }
+
+  await enqueueCostVerificationIfNeeded(
+    extractionResult.openrouterGenerationId,
+    extractionResult.openrouterGenerationIds,
+    params.workspaceId,
+    reservationId,
+    params.conversationId,
+    params.agentId,
+    "memory-extraction",
+  );
+
+  return resultText;
 }
 
 export async function extractConversationMemory(params: {
@@ -139,6 +254,7 @@ export async function extractConversationMemory(params: {
   conversationText: string;
   modelName?: string | null;
   prompt?: string | null;
+  context?: AugmentedContext;
 }): Promise<MemoryExtractionResult | null> {
   const {
     workspaceId,
@@ -147,6 +263,7 @@ export async function extractConversationMemory(params: {
     conversationText,
     modelName,
     prompt,
+    context,
   } = params;
   if (!conversationText.trim()) {
     return null;
@@ -163,25 +280,6 @@ export async function extractConversationMemory(params: {
   const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
   const usesByok = workspaceKey !== null;
 
-  await validateCreditsAndLimits(
-    db,
-    workspaceId,
-    agentId,
-    "openrouter",
-    resolvedModelName,
-    messages,
-    systemPrompt,
-    undefined,
-    usesByok,
-  );
-
-  const model = await createModel(
-    "openrouter",
-    resolvedModelName,
-    workspaceId,
-    process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook",
-  );
-
   console.log("[Memory Extraction] generateText arguments:", {
     workspaceId,
     agentId,
@@ -195,23 +293,146 @@ export async function extractConversationMemory(params: {
         : DEFAULT_MEMORY_EXTRACTION_PROMPT.substring(0, 60),
   });
 
+  const reservation = await validateCreditsAndLimitsAndReserve(
+    db,
+    workspaceId,
+    agentId,
+    "openrouter",
+    resolvedModelName,
+    messages,
+    systemPrompt,
+    undefined,
+    usesByok,
+    context,
+    conversationId,
+  );
+  const reservationId = reservation?.reservationId;
+
   const requestTimeout = createRequestTimeout();
-  let resultText = "";
+  let result: Awaited<ReturnType<typeof generateText>> | null = null;
+  let model:
+    | Parameters<typeof generateText>[0]["model"]
+    | null = null;
+  let llmCallAttempted = false;
   try {
-    const result = await generateText({
-      model: model as unknown as Parameters<typeof generateText>[0]["model"],
+    model = (await createModel(
+      "openrouter",
+      resolvedModelName,
+      workspaceId,
+      process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook",
+    )) as unknown as Parameters<typeof generateText>[0]["model"];
+    llmCallAttempted = true;
+    result = await generateText({
+      model,
       system: systemPrompt,
       messages,
       abortSignal: requestTimeout.signal,
     });
-    resultText = result.text.trim();
+  } catch (error) {
+    if (reservationId && context) {
+      await cleanupReservationOnError(
+        db,
+        reservationId,
+        workspaceId,
+        agentId,
+        "openrouter",
+        resolvedModelName,
+        error,
+        llmCallAttempted,
+        usesByok,
+        "memory-extraction",
+        context,
+      );
+    }
+    throw error;
   } finally {
     cleanupRequestTimeout(requestTimeout);
   }
 
+  if (!result) {
+    throw new Error("Memory extraction returned empty response");
+  }
+  const resultText = result.text.trim();
   if (!resultText) {
     throw new Error("Memory extraction returned empty response");
   }
+
+  const extractionResult = extractTokenUsageAndCosts(
+    result,
+    undefined,
+    resolvedModelName,
+    "memory-extraction",
+  );
+  const tokenUsage = extractionResult.tokenUsage;
+
+  if (reservationId && context) {
+    const dbWithAtomic = db as Parameters<typeof adjustCreditsAfterLLMCall>[0];
+    await adjustCreditsAfterLLMCall(
+      dbWithAtomic,
+      workspaceId,
+      agentId,
+      reservationId,
+      "openrouter",
+      resolvedModelName,
+      tokenUsage,
+      usesByok,
+      extractionResult.openrouterGenerationId,
+      extractionResult.openrouterGenerationIds,
+      "memory-extraction",
+      context,
+      conversationId,
+    );
+  } else if (reservationId && !context) {
+    console.warn("[Memory Extraction] No context for credit adjustment", {
+      workspaceId,
+      agentId,
+      reservationId,
+    });
+  }
+
+  const hasGenerationIds =
+    extractionResult.openrouterGenerationIds.length > 0 ||
+    Boolean(extractionResult.openrouterGenerationId);
+  if (
+    reservationId &&
+    reservationId !== "byok" &&
+    (!tokenUsage ||
+      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+    !hasGenerationIds
+  ) {
+    await cleanupReservationWithoutTokenUsage(
+      db,
+      reservationId,
+      workspaceId,
+      agentId,
+      "memory-extraction",
+    );
+  } else if (
+    reservationId &&
+    reservationId !== "byok" &&
+    (!tokenUsage ||
+      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
+    hasGenerationIds
+  ) {
+    console.warn(
+      "[Memory Extraction] No token usage available, keeping reservation for verification",
+      {
+        workspaceId,
+        agentId,
+        reservationId,
+      },
+    );
+  }
+
+  await enqueueCostVerificationIfNeeded(
+    extractionResult.openrouterGenerationId,
+    extractionResult.openrouterGenerationIds,
+    workspaceId,
+    reservationId,
+    conversationId,
+    agentId,
+    "memory-extraction",
+  );
 
   try {
     return parseExtractionResponse(resultText);
@@ -222,14 +443,19 @@ export async function extractConversationMemory(params: {
       responsePreview: resultText.substring(0, 300),
     });
 
+    if (!model) {
+      throw new Error("Memory extraction model was not initialized");
+    }
     const repairedText = await requestJsonRepair({
-      model: model as unknown as Parameters<typeof generateText>[0]["model"],
+      model,
       modelName: resolvedModelName,
       workspaceId,
       agentId,
       usesByok,
       rawResponse: resultText,
       errorMessage,
+      conversationId,
+      context,
     });
 
     try {

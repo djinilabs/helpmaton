@@ -45,6 +45,7 @@ async function persistScheduleConversationError(params: {
   prompt: string;
   conversationId: string;
   error: unknown;
+  context?: Awaited<ReturnType<typeof getCurrentSQSContext>>;
 }): Promise<void> {
   try {
     const uiMessage = convertTextToUIMessage(params.prompt);
@@ -61,6 +62,7 @@ async function persistScheduleConversationError(params: {
       conversationType: "scheduled",
       messages: [uiMessage],
       error: errorInfo,
+      context: params.context,
     });
   } catch (logError) {
     console.error("[Schedule Queue] Failed to persist error:", {
@@ -222,6 +224,7 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
       messages: validMessages,
       tokenUsage: agentResult.tokenUsage,
       usesByok,
+      context,
     });
 
     await db["agent-schedule"].update({
@@ -251,6 +254,7 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
       prompt,
       conversationId,
       error,
+      context,
     });
 
     Sentry.captureException(ensureError(error), {

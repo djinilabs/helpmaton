@@ -537,7 +537,8 @@ async function logDiscordConversation(options: {
       usesByok,
       undefined,
       undefined,
-      "webhook"
+      "webhook",
+      options.context
     );
   } else {
     await startConversation(options.db, {
@@ -547,6 +548,7 @@ async function logDiscordConversation(options: {
       conversationType: "webhook",
       messages: validMessages,
       tokenUsage: options.agentResult.tokenUsage,
+      context: options.context,
       usesByok,
     });
   }

@@ -141,6 +141,7 @@ export async function persistConversationError(
       },
     });
 
+    const lambdaContext = getContextFromRequestId(context.awsRequestId);
     await updateConversation(
       context.db,
       context.workspaceId,
@@ -152,6 +153,7 @@ export async function persistConversationError(
       errorInfo,
       context.awsRequestId,
       context.endpointType as "test" | "stream",
+      lambdaContext,
     );
   } catch (logError) {
     console.error("[Stream Handler] Failed to persist conversation error:", {

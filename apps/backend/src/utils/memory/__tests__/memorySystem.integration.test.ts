@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { UIMessage } from "../../../utils/messageTypes";
 import type { SubscriptionPlan } from "../../subscriptionPlans";
 import type { FactRecord, TemporalGrain } from "../../vectordb/types";
+import type { AugmentedContext } from "../../workspaceCreditContext";
 import { calculateRetentionCutoff } from "../retentionPolicies";
 import { searchMemory } from "../searchMemory";
 import { summarizeWithLLM } from "../summarizeMemory";
@@ -429,6 +430,48 @@ describe("Memory System Integration", () => {
         }
       },
     );
+  });
+
+  it("charges memory extraction with reservation and verification", async () => {
+    const context = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+    const mockText = JSON.stringify({
+      summary: "Summary text",
+      memory_operations: [],
+    });
+    vi.mocked(generateText).mockResolvedValue({
+      text: mockText,
+    } as Awaited<ReturnType<typeof generateText>>);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-1",
+      reservedAmount: 100,
+      workspace: { creditBalance: 0, currency: "usd" },
+    });
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 100,
+    });
+
+    await writeToWorkingMemory(
+      agentId,
+      workspaceId,
+      "conv-memory-charge",
+      [
+        {
+          role: "user",
+          content: "Hello, I'm John.",
+        },
+      ],
+      { enabled: true, modelName: "openrouter/gemini", prompt: null },
+      context,
+    );
+
+    expect(mockValidateCreditsAndLimitsAndReserve).toHaveBeenCalled();
+    expect(mockAdjustCreditsAfterLLMCall).toHaveBeenCalled();
+    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalled();
   });
 
   afterEach(() => {

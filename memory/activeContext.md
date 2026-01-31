@@ -5,6 +5,7 @@
 **Status**: Nano-dollar pricing conversion complete ✅
 
 - **Memory summarization billing (2026-01-31)**: Added credit reservation/adjustment + cost verification for scheduled memory summaries when using system OpenRouter key, threaded scheduled context/agentId, updated summarizeMemory tests and memory system integration mocks, ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Memory extraction charging (2026-01-31)**: Added 3-step credit reservation/adjustment/verification for conversation memory extraction + JSON repair, threaded credit context through conversation logging, updated unit/integration tests, ran `pnpm typecheck`, `pnpm lint --fix`, and backend tests (`memoryExtraction`, `memorySystem.integration`).
 - **Embedding pricing + capabilities (2026-01-31)**: Added OpenRouter embedding detection and capability tagging in pricing update script, allowed input-only embedding pricing, excluded embeddings from text-generation model lists, and added unit coverage for embedding pricing and capability filtering; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Update pricing Google key optional (2026-01-31)**: Skip Google pricing updates when `GEMINI_API_KEY` is missing and only require `OPENROUTER_API_KEY`; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Model list fallback (2026-01-31)**: Restored fallback to all models when text-generation filtering yields none in Agent detail/modals; ran `pnpm typecheck` and `pnpm lint --fix`.

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type { AugmentedContext } from "../../workspaceCreditContext";
 import {
   applyMemoryOperationsToGraph,
   extractConversationMemory,
@@ -9,7 +10,12 @@ const mockGenerateText = vi.fn();
 const mockCreateModel = vi.fn();
 const mockGetDefaultModel = vi.fn();
 const mockGetWorkspaceApiKey = vi.fn();
-const mockValidateCreditsAndLimits = vi.fn();
+const mockValidateCreditsAndLimitsAndReserve = vi.fn();
+const mockAdjustCreditsAfterLLMCall = vi.fn();
+const mockCleanupReservationOnError = vi.fn();
+const mockCleanupReservationWithoutTokenUsage = vi.fn();
+const mockEnqueueCostVerificationIfNeeded = vi.fn();
+const mockExtractTokenUsageAndCosts = vi.fn();
 const mockCreateGraphDb = vi.fn();
 const mockCreateRequestTimeout = vi.fn();
 const mockCleanupRequestTimeout = vi.fn();
@@ -32,8 +38,24 @@ vi.mock("../../../tables", () => ({
 }));
 
 vi.mock("../../creditValidation", () => ({
-  validateCreditsAndLimits: (...args: unknown[]) =>
-    mockValidateCreditsAndLimits(...args),
+  validateCreditsAndLimitsAndReserve: (...args: unknown[]) =>
+    mockValidateCreditsAndLimitsAndReserve(...args),
+}));
+
+vi.mock("../../../http/utils/generationCreditManagement", () => ({
+  adjustCreditsAfterLLMCall: (...args: unknown[]) =>
+    mockAdjustCreditsAfterLLMCall(...args),
+  cleanupReservationOnError: (...args: unknown[]) =>
+    mockCleanupReservationOnError(...args),
+  cleanupReservationWithoutTokenUsage: (...args: unknown[]) =>
+    mockCleanupReservationWithoutTokenUsage(...args),
+  enqueueCostVerificationIfNeeded: (...args: unknown[]) =>
+    mockEnqueueCostVerificationIfNeeded(...args),
+}));
+
+vi.mock("../../../http/utils/generationTokenExtraction", () => ({
+  extractTokenUsageAndCosts: (...args: unknown[]) =>
+    mockExtractTokenUsageAndCosts(...args),
 }));
 
 vi.mock("../../duckdb/graphDb", () => ({
@@ -55,6 +77,13 @@ describe("memoryExtraction", () => {
     mockGetWorkspaceApiKey.mockResolvedValue(null);
     mockCreateRequestTimeout.mockReturnValue({
       signal: new AbortController().signal,
+    });
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue(null);
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: undefined,
+      openrouterGenerationId: undefined,
+      openrouterGenerationIds: [],
+      provisionalCostUsd: undefined,
     });
   });
 
@@ -81,7 +110,7 @@ describe("memoryExtraction", () => {
       conversationText: "User: Hello",
     });
 
-    expect(mockValidateCreditsAndLimits).toHaveBeenCalled();
+    expect(mockValidateCreditsAndLimitsAndReserve).toHaveBeenCalled();
     expect(result?.summary).toBe("Summary text");
     expect(result?.memoryOperations).toHaveLength(1);
   });
@@ -127,7 +156,76 @@ describe("memoryExtraction", () => {
 
     expect(result?.summary).toBe("Recovered summary");
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
-    expect(mockValidateCreditsAndLimits).toHaveBeenCalledTimes(2);
+    expect(mockValidateCreditsAndLimitsAndReserve).toHaveBeenCalledTimes(2);
+  });
+
+  it("adjusts credits after a successful extraction when reservation exists", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: JSON.stringify({
+        summary: "Summary text",
+        memory_operations: [],
+      }),
+    });
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-1",
+      reservedAmount: 100,
+      workspace: { creditBalance: 0, currency: "usd" },
+    });
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 100,
+    });
+
+    const context = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+
+    await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+      context,
+    });
+
+    expect(mockAdjustCreditsAfterLLMCall).toHaveBeenCalled();
+    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalled();
+  });
+
+  it("cleans up reservation when token usage is missing", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: JSON.stringify({
+        summary: "Summary text",
+        memory_operations: [],
+      }),
+    });
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-2",
+      reservedAmount: 100,
+      workspace: { creditBalance: 0, currency: "usd" },
+    });
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: undefined,
+      openrouterGenerationId: undefined,
+      openrouterGenerationIds: [],
+      provisionalCostUsd: undefined,
+    });
+
+    const context = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+
+    await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+      context,
+    });
+
+    expect(mockCleanupReservationWithoutTokenUsage).toHaveBeenCalled();
   });
 
   it("applies memory operations to the graph database", async () => {

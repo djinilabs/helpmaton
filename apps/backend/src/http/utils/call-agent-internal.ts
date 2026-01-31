@@ -491,6 +491,7 @@ const logTargetAgentConversation = async (params: {
   provisionalCostUsd?: number;
   message: string;
   responseText: string;
+  context?: CreditContext;
 }): Promise<void> => {
   const {
     db,
@@ -506,6 +507,7 @@ const logTargetAgentConversation = async (params: {
     provisionalCostUsd,
     message,
     responseText,
+    context,
   } = params;
 
   try {
@@ -541,7 +543,8 @@ const logTargetAgentConversation = async (params: {
       usesByok,
       undefined,
       undefined,
-      "test"
+      "test",
+      context
     );
 
     console.log("[Agent Delegation] Created conversation for target agent:", {
@@ -1113,6 +1116,7 @@ export async function callAgentInternal(
       provisionalCostUsd,
       message,
       responseText: result.text,
+      context,
     });
 
     return {

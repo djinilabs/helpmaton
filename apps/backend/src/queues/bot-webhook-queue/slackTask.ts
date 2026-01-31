@@ -716,7 +716,8 @@ async function logSlackConversation(params: {
       agentUsesByok,
       undefined,
       undefined,
-      "webhook"
+      "webhook",
+      context
     );
   } else {
     await startConversation(db, {
@@ -727,6 +728,7 @@ async function logSlackConversation(params: {
       messages: validMessages,
       tokenUsage: agentResult.tokenUsage,
       usesByok: agentUsesByok,
+      context,
     });
   }
 }

@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import type { UIMessage } from "../../utils/messageTypes";
 import { sendWriteOperation } from "../vectordb/queueClient";
 import type { FactRecord, TemporalGrain } from "../vectordb/types";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 import {
   applyMemoryOperationsToGraph,
@@ -87,6 +88,7 @@ export async function writeToWorkingMemory(
   conversationId: string,
   messages: UIMessage[],
   memoryExtractionConfig?: MemoryExtractionConfig,
+  context?: AugmentedContext,
 ): Promise<void> {
   console.log(
     `[Memory Write] Starting write to working memory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${messages.length} messages`,
@@ -162,6 +164,7 @@ export async function writeToWorkingMemory(
           conversationText,
           modelName: memoryExtractionConfig.modelName,
           prompt: memoryExtractionConfig.prompt,
+          context,
         });
         if (extraction) {
           const summary = extraction.summary.trim();

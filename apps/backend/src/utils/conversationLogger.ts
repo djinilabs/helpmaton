@@ -11,6 +11,7 @@ import {
 import { getMessageCost } from "./messageCostCalculation";
 import type { UIMessage } from "./messageTypes";
 import { Sentry, ensureError } from "./sentry";
+import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
  * Type representing usage information from AI SDK
@@ -824,6 +825,7 @@ export async function startConversation(
     "conversationId" | "startedAt" | "lastMessageAt"
   > & {
     conversationId?: string; // Optional: if provided, use it; otherwise generate one
+    context?: AugmentedContext;
   },
 ): Promise<string> {
   const conversationId = data.conversationId || randomUUID();
@@ -951,13 +953,24 @@ export async function startConversation(
       data.workspaceId,
       data.agentId,
     );
-    await writeToWorkingMemory(
-      data.agentId,
-      data.workspaceId,
-      conversationId,
-      expandedMessages,
-      memoryExtractionConfig,
-    );
+    if (data.context) {
+      await writeToWorkingMemory(
+        data.agentId,
+        data.workspaceId,
+        conversationId,
+        expandedMessages,
+        memoryExtractionConfig,
+        data.context,
+      );
+    } else {
+      await writeToWorkingMemory(
+        data.agentId,
+        data.workspaceId,
+        conversationId,
+        expandedMessages,
+        memoryExtractionConfig,
+      );
+    }
   } catch (error) {
     // Log error but don't throw - memory writes should not block conversation logging
     console.error(
@@ -1229,6 +1242,7 @@ export async function updateConversation(
   error?: ConversationErrorInfo,
   awsRequestId?: string,
   conversationType?: "test" | "webhook" | "stream" | "scheduled",
+  context?: AugmentedContext,
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -1551,13 +1565,24 @@ export async function updateConversation(
         workspaceId,
         agentId,
       );
-      await writeToWorkingMemory(
-        agentId,
-        workspaceId,
-        conversationId,
-        expandedAllMessagesForMemory,
-        memoryExtractionConfig,
-      );
+      if (context) {
+        await writeToWorkingMemory(
+          agentId,
+          workspaceId,
+          conversationId,
+          expandedAllMessagesForMemory,
+          memoryExtractionConfig,
+          context,
+        );
+      } else {
+        await writeToWorkingMemory(
+          agentId,
+          workspaceId,
+          conversationId,
+          expandedAllMessagesForMemory,
+          memoryExtractionConfig,
+        );
+      }
     } catch (error) {
       // Log error but don't throw - memory writes should not block conversation logging
       console.error(

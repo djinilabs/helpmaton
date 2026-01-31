@@ -237,6 +237,7 @@ export async function logConversation(
       });
     }
 
+    const lambdaContext = getContextFromRequestId(context.awsRequestId);
     await updateConversation(
       context.db,
       context.workspaceId,
@@ -247,7 +248,8 @@ export async function logConversation(
       context.usesByok,
       undefined,
       context.awsRequestId,
-      context.endpointType as "test" | "stream"
+      context.endpointType as "test" | "stream",
+      lambdaContext
     ).catch((error) => {
       console.error("[Stream Handler] Error logging conversation:", {
         error: error instanceof Error ? error.message : String(error),
