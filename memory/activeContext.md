@@ -4,9 +4,11 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Agent MCP tool list visibility (2026-01-31)**: Only show MCP tool list when the server is enabled; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **MCP tool map equality fix (2026-01-31)**: Fixed key-set comparison in `areToolNameMapsEqual` to avoid false positives; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent MCP warning placement (2026-01-31)**: Moved the connected tools warning into the Agent Detail overview card (first box). Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent MCP warning dismiss (2026-01-31)**: Added a dismiss button to the Agent Detail connected tools warning, persisted via local preference. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Image model pricing button (2026-01-31)**: Added a model-prices button in Image Generation settings filtered to image-capable models; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent MCP tool list UI (2026-01-31)**: Restored per-tool list + toggles in Agent detail connected tools section; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent MCP warning (2026-01-31)**: Added Agent Detail warning when the workspace has connected tools but the agent has none enabled, with a link that jumps to Connected Tools. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Intercom MCP docs clarity (2026-01-31)**: Documented Intercom search query object format with an email example; ran `pnpm lint --fix` and `pnpm typecheck`.

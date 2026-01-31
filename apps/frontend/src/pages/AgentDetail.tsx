@@ -5012,9 +5012,21 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                   </label>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      Image Model
-                    </label>
+                    <div className="mb-2 flex items-center gap-2">
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        Image Model
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModelPricesFilter("image_generation");
+                          setIsModelPricesOpen(true);
+                        }}
+                        className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        💰 Model prices
+                      </button>
+                    </div>
                     <select
                       disabled={!enableImageGeneration || isLoadingImageModels}
                       value={
