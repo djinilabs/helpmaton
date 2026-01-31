@@ -118,7 +118,11 @@ const buildDelegationTools = async (params: {
     const { createSearchMemoryTool } = await import("./memorySearchTool");
     tools.search_memory = createSearchMemoryTool(
       extractedTargetAgentId,
-      workspaceId
+      workspaceId,
+      {
+        context,
+        conversationId: targetAgentConversationId || conversationId,
+      },
     );
   }
 

@@ -8,6 +8,7 @@ import {
   searchMemory,
 } from "../../../utils/memory/searchMemory";
 import type { TemporalGrain } from "../../../utils/vectordb/types";
+import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -122,6 +123,22 @@ export const registerGetAgentMemory = (app: express.Application) => {
       const db = await database();
       const workspaceId = req.params.workspaceId;
       const agentId = req.params.agentId;
+      const awsRequestIdRaw =
+        req.headers["x-amzn-requestid"] ||
+        req.headers["X-Amzn-Requestid"] ||
+        req.headers["x-request-id"] ||
+        req.headers["X-Request-Id"] ||
+        req.apiGateway?.event?.requestContext?.requestId;
+      const awsRequestId = Array.isArray(awsRequestIdRaw)
+        ? awsRequestIdRaw[0]
+        : awsRequestIdRaw;
+      const context = getContextFromRequestId(awsRequestId);
+      if (
+        !context ||
+        typeof context.addWorkspaceCreditTransaction !== "function"
+      ) {
+        throw new Error("Context not properly configured for credits.");
+      }
 
       // Verify agent belongs to workspace
       const agentPk = `agents/${workspaceId}/${agentId}`;
@@ -206,6 +223,8 @@ export const registerGetAgentMemory = (app: express.Application) => {
         maxResults,
         queryText:
           queryText && queryText.trim().length > 0 ? queryText : undefined,
+        db,
+        context,
       });
 
       const responseRecords =

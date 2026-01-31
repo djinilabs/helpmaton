@@ -215,6 +215,7 @@ async function generateEmbeddingsForFacts(
             reservationId,
             workspaceId,
             usage: embeddingResult.usage,
+            generationId: embeddingResult.id,
             context,
             agentId,
             conversationId,

@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockReserveCredits,
+  mockEnqueueCostVerification,
   mockCalculateTokenCost,
   mockIsSpendingLimitChecksEnabled,
   mockCheckSpendingLimits,
 } = vi.hoisted(() => ({
   mockReserveCredits: vi.fn(),
+  mockEnqueueCostVerification: vi.fn(),
   mockCalculateTokenCost: vi.fn(),
   mockIsSpendingLimitChecksEnabled: vi.fn(),
   mockCheckSpendingLimits: vi.fn(),
@@ -14,6 +16,7 @@ const {
 
 vi.mock("../creditManagement", () => ({
   reserveCredits: mockReserveCredits,
+  enqueueCostVerification: mockEnqueueCostVerification,
 }));
 
 vi.mock("../pricing", () => ({
@@ -181,6 +184,47 @@ describe("embeddingCredits", () => {
       "credit-reservations/res-1",
     );
     expect(mockCalculateTokenCost).not.toHaveBeenCalled();
+  });
+
+  it("queues cost verification when generation id is available", async () => {
+    const mockDb = {
+      "credit-reservations": {
+        get: vi.fn().mockResolvedValue({
+          reservedAmount: 1000,
+          conversationId: "conv-123",
+          agentId: "agent-123",
+        }),
+        update: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    const mockContext = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    };
+
+    await adjustEmbeddingCreditReservation({
+      db: mockDb as never,
+      reservationId: "res-2",
+      workspaceId: "workspace-123",
+      usage: { cost: 0.000002 },
+      generationId: "gen-123",
+      context: mockContext as never,
+    });
+
+    expect(mockDb["credit-reservations"].update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pk: "credit-reservations/res-2",
+        openrouterGenerationId: "gen-123",
+      }),
+    );
+    expect(mockEnqueueCostVerification).toHaveBeenCalledWith(
+      "gen-123",
+      "workspace-123",
+      "res-2",
+      "conv-123",
+      "agent-123",
+    );
+    expect(mockDb["credit-reservations"].delete).not.toHaveBeenCalled();
   });
 
   it("refunds reservation on error", async () => {

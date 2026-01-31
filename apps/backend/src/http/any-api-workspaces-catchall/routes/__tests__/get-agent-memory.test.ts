@@ -9,15 +9,19 @@ import {
   createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
-const { mockDatabase, mockSearchMemory, mockGetMemoryRecord } = vi.hoisted(
-  () => {
-    return {
-      mockDatabase: vi.fn(),
-      mockSearchMemory: vi.fn(),
-      mockGetMemoryRecord: vi.fn(),
-    };
-  },
-);
+const {
+  mockDatabase,
+  mockSearchMemory,
+  mockGetMemoryRecord,
+  mockGetContextFromRequestId,
+} = vi.hoisted(() => {
+  return {
+    mockDatabase: vi.fn(),
+    mockSearchMemory: vi.fn(),
+    mockGetMemoryRecord: vi.fn(),
+    mockGetContextFromRequestId: vi.fn(),
+  };
+});
 
 vi.mock("../../../../tables", () => ({
   database: mockDatabase,
@@ -26,6 +30,10 @@ vi.mock("../../../../tables", () => ({
 vi.mock("../../../../utils/memory/searchMemory", () => ({
   searchMemory: mockSearchMemory,
   getMemoryRecord: mockGetMemoryRecord,
+}));
+
+vi.mock("../../../../utils/workspaceCreditContext", () => ({
+  getContextFromRequestId: mockGetContextFromRequestId,
 }));
 
 import {
@@ -57,6 +65,9 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/memory", () => {
         metadata: { workspaceId: "workspace-123" },
       },
     ]);
+    mockGetContextFromRequestId.mockReturnValue({
+      addWorkspaceCreditTransaction: vi.fn(),
+    });
 
     const { app, getHandler } = createTestAppWithHandlerCapture();
     registerGetAgentMemory(app);
@@ -71,6 +82,9 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/memory", () => {
       },
       query: {
         previewLength: "10",
+      },
+      headers: {
+        "x-request-id": "test-request-id",
       },
     }) as express.Request;
 

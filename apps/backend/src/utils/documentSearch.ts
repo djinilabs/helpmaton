@@ -200,6 +200,7 @@ export async function searchDocuments(
           reservationId,
           workspaceId,
           usage: embeddingResult.usage,
+            generationId: embeddingResult.id,
           context: options!.context!,
           agentId: options?.agentId,
           conversationId: options?.conversationId,

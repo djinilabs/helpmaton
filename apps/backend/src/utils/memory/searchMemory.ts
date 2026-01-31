@@ -1,7 +1,16 @@
-import { generateEmbedding, resolveEmbeddingApiKey } from "../embedding";
+import { database } from "../../tables";
+import type { DatabaseSchema } from "../../tables/schema";
+import { generateEmbeddingWithUsage, resolveEmbeddingApiKey } from "../embedding";
+import {
+  adjustEmbeddingCreditReservation,
+  EMBEDDING_TOOL_CALLS,
+  refundEmbeddingCredits,
+  reserveEmbeddingCredits,
+} from "../embeddingCredits";
 import { MAX_QUERY_LIMIT } from "../vectordb/config";
 import { getRecordById, query } from "../vectordb/readClient";
 import type { TemporalGrain } from "../vectordb/types";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 export interface SearchMemoryOptions {
   agentId: string;
@@ -11,6 +20,9 @@ export interface SearchMemoryOptions {
   maximumDaysAgo?: number;
   maxResults?: number;
   queryText?: string; // Optional text query for semantic search
+  db?: DatabaseSchema;
+  context?: AugmentedContext;
+  conversationId?: string;
 }
 
 export interface SearchMemoryResult {
@@ -70,6 +82,11 @@ export async function searchMemory(
       endDate,
       maxResults,
       queryText,
+      {
+        db: options.db,
+        context: options.context,
+        conversationId: options.conversationId,
+      },
     );
   }
 
@@ -86,21 +103,80 @@ export async function searchMemory(
 
   // If queryText is provided, generate embedding and do semantic search
   if (queryText && queryText.trim().length > 0) {
+    const trimmedQuery = queryText.trim();
+    const hasCreditContext =
+      !!options.context &&
+      typeof options.context.addWorkspaceCreditTransaction === "function";
+    const db = options.db ?? (hasCreditContext ? await database() : undefined);
+    let reservationId: string | undefined;
     try {
-      const { apiKey } = await resolveEmbeddingApiKey(workspaceId);
+      const { apiKey, usesByok } = await resolveEmbeddingApiKey(workspaceId);
+      if (db && hasCreditContext) {
+        const reservation = await reserveEmbeddingCredits({
+          db,
+          workspaceId,
+          text: trimmedQuery,
+          usesByok,
+          context: options.context,
+          agentId: options.agentId,
+          conversationId: options.conversationId,
+        });
+        reservationId = reservation.reservationId;
+      }
 
-      const queryEmbedding = await generateEmbedding(
-        queryText.trim(),
+      const embeddingResult = await generateEmbeddingWithUsage(
+        trimmedQuery,
         apiKey,
         undefined,
         undefined,
       );
-      queryOptions.vector = queryEmbedding;
+      queryOptions.vector = embeddingResult.embedding;
+
+      if (db && hasCreditContext && reservationId) {
+        try {
+          await adjustEmbeddingCreditReservation({
+            db,
+            reservationId,
+            workspaceId,
+            usage: embeddingResult.usage,
+            generationId: embeddingResult.id,
+            context: options.context!,
+            agentId: options.agentId,
+            conversationId: options.conversationId,
+            toolCall: EMBEDDING_TOOL_CALLS.memorySearch,
+            description: "Memory search embeddings",
+          });
+        } catch (adjustError) {
+          console.error(
+            "[Memory Search] Failed to adjust embedding credit reservation:",
+            adjustError,
+          );
+        }
+      }
     } catch (error) {
       console.error(
         "[Memory Search] Failed to generate query embedding:",
         error,
       );
+      if (db && hasCreditContext && reservationId) {
+        try {
+          await refundEmbeddingCredits({
+            db,
+            reservationId,
+            workspaceId,
+            context: options.context!,
+            agentId: options.agentId,
+            conversationId: options.conversationId,
+            toolCall: EMBEDDING_TOOL_CALLS.memorySearch,
+            description: "Memory search embeddings",
+          });
+        } catch (refundError) {
+          console.error(
+            "[Memory Search] Failed to refund embedding credits:",
+            refundError,
+          );
+        }
+      }
       // Continue without semantic search
     }
   }
@@ -167,6 +243,7 @@ async function searchWorkingMemory(
   endDate: Date,
   maxResults: number,
   queryText?: string,
+  options?: Pick<SearchMemoryOptions, "db" | "context" | "conversationId">,
 ): Promise<SearchMemoryResult[]> {
   const hasQueryText = Boolean(queryText && queryText.trim().length > 0);
   const queryOptions: Parameters<typeof query>[2] = {
@@ -179,21 +256,83 @@ async function searchWorkingMemory(
 
   // If queryText is provided, generate embedding and do semantic search
   if (hasQueryText) {
+    const trimmedQuery = queryText!.trim();
+    const creditContext = options?.context;
+    const hasCreditContext =
+      !!creditContext &&
+      typeof creditContext.addWorkspaceCreditTransaction === "function";
+    const db =
+      options?.db ?? (hasCreditContext ? await database() : undefined);
+    const conversationId = options?.conversationId;
+    let reservationId: string | undefined;
     try {
-      const { apiKey } = await resolveEmbeddingApiKey(workspaceId);
+      const { apiKey, usesByok } = await resolveEmbeddingApiKey(workspaceId);
+      if (db && hasCreditContext) {
+        const reservation = await reserveEmbeddingCredits({
+          db,
+          workspaceId,
+          text: trimmedQuery,
+          usesByok,
+          context: creditContext,
+          agentId,
+          conversationId,
+        });
+        reservationId = reservation.reservationId;
+      }
 
-      const queryEmbedding = await generateEmbedding(
-        queryText!.trim(),
+      const embeddingResult = await generateEmbeddingWithUsage(
+        trimmedQuery,
         apiKey,
         undefined,
         undefined,
       );
-      queryOptions.vector = queryEmbedding;
+      queryOptions.vector = embeddingResult.embedding;
+
+      if (db && hasCreditContext && reservationId) {
+        try {
+          await adjustEmbeddingCreditReservation({
+            db,
+            reservationId,
+            workspaceId,
+            usage: embeddingResult.usage,
+            generationId: embeddingResult.id,
+            context: creditContext!,
+            agentId,
+            conversationId,
+            toolCall: EMBEDDING_TOOL_CALLS.memorySearch,
+            description: "Memory search embeddings",
+          });
+        } catch (adjustError) {
+          console.error(
+            "[Memory Search] Failed to adjust embedding credit reservation:",
+            adjustError,
+          );
+        }
+      }
     } catch (error) {
       console.error(
         "[Memory Search] Failed to generate query embedding:",
         error,
       );
+      if (db && hasCreditContext && reservationId) {
+        try {
+          await refundEmbeddingCredits({
+            db,
+            reservationId,
+            workspaceId,
+            context: creditContext!,
+            agentId,
+            conversationId,
+            toolCall: EMBEDDING_TOOL_CALLS.memorySearch,
+            description: "Memory search embeddings",
+          });
+        } catch (refundError) {
+          console.error(
+            "[Memory Search] Failed to refund embedding credits:",
+            refundError,
+          );
+        }
+      }
       // Continue without semantic search
     }
   }

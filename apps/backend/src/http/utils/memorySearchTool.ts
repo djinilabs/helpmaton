@@ -3,12 +3,20 @@ import { z } from "zod";
 
 import { searchMemory } from "../../utils/memory/searchMemory";
 import type { TemporalGrain } from "../../utils/vectordb/types";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 /**
  * Create a search_memory tool for agents
  * Allows agents to search their factual memory across different time grains and ranges
  */
-export function createSearchMemoryTool(agentId: string, workspaceId: string) {
+export function createSearchMemoryTool(
+  agentId: string,
+  workspaceId: string,
+  options?: {
+    context?: AugmentedContext;
+    conversationId?: string;
+  },
+) {
   const searchMemoryParamsSchema = z.object({
     grain: z
       .enum(["working", "daily", "weekly", "monthly", "quarterly", "yearly"])
@@ -98,6 +106,8 @@ export function createSearchMemoryTool(agentId: string, workspaceId: string) {
           maximumDaysAgo: effectiveMaximumDaysAgo,
           maxResults: effectiveMaxResults,
           queryText,
+          context: options?.context,
+          conversationId: options?.conversationId,
         });
 
         // Calculate date range for context

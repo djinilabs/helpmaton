@@ -187,7 +187,10 @@ const addCoreTools = (
   }
 
   if (agent.enableMemorySearch === true) {
-    tools.search_memory = createSearchMemoryTool(agentId, workspaceId);
+    tools.search_memory = createSearchMemoryTool(agentId, workspaceId, {
+      context: effectiveContext,
+      conversationId: options?.conversationId,
+    });
   }
 
   if (agent.notificationChannelId) {

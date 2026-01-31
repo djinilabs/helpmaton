@@ -86,6 +86,7 @@
 - **Credit user errors**: `InsufficientCreditsError` / `SpendingLimitExceededError` are expected 402s; log at `info` and do not report to Sentry or trigger notifications.
 - **LLM Observers**: Wrap models with `llmObserver` to emit events; wrap tools for execution timing; build conversation records from observed events
 - **Embeddings**: Use OpenRouter embeddings (`thenlper/gte-base`) via `@openrouter/sdk`; embeddings can use workspace OpenRouter keys when BYOK is configured, otherwise fall back to the system `OPENROUTER_API_KEY`. Background embedding generation (SQS queue) reserves/adjusts credits when using the system key and skips charges for BYOK.
+- **Embedding credits**: Embedding reservations now follow the 3-step flow when OpenRouter returns a generation ID (reserve → adjust with token usage → enqueue cost verification for finalization).
 - **Memory extraction**: Per-agent extraction can summarize full conversations and emit graph fact operations; extraction validates credits before LLM calls, writes conversation-level working memory with deterministic IDs via SQS updates, and persists graph facts through DuckPGQ.
 - **SQS Queue Processing**: No retries on error via `handlingSQSErrors`
   - Handler failures are logged and reported to Sentry

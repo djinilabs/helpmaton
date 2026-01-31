@@ -3,7 +3,7 @@ import type { DatabaseSchema } from "../tables/schema";
 import { formatCurrencyNanoDollars, fromNanoDollars } from "./creditConversions";
 import { SpendingLimitExceededError } from "./creditErrors";
 import type { CreditReservation } from "./creditManagement";
-import { reserveCredits } from "./creditManagement";
+import { enqueueCostVerification, reserveCredits } from "./creditManagement";
 import type { EmbeddingUsage } from "./embedding";
 import { EMBEDDING_MODEL } from "./embedding";
 import { isSpendingLimitChecksEnabled } from "./featureFlags";
@@ -13,6 +13,7 @@ import type { AugmentedContext } from "./workspaceCreditContext";
 
 const EMBEDDING_PROVIDER = "openrouter";
 const EMBEDDING_TOOL_CALL = "document-search-embedding";
+const MEMORY_EMBEDDING_TOOL_CALL = "memory-search-embedding";
 
 export function estimateEmbeddingTokens(text: string): number {
   const trimmed = text.trim();
@@ -118,9 +119,12 @@ export async function adjustEmbeddingCreditReservation(params: {
   reservationId: string;
   workspaceId: string;
   usage?: EmbeddingUsage;
+  generationId?: string;
   context: AugmentedContext;
   agentId?: string;
   conversationId?: string;
+  toolCall?: string;
+  description?: string;
 }): Promise<void> {
   if (
     params.reservationId === "byok" ||
@@ -173,22 +177,48 @@ export async function adjustEmbeddingCreditReservation(params: {
     usage: params.usage,
   });
 
+  const toolCall = params.toolCall ?? EMBEDDING_TOOL_CALL;
+  const descriptionLabel = params.description ?? "Document search embeddings";
+
   params.context.addWorkspaceCreditTransaction({
     workspaceId: params.workspaceId,
     agentId: params.agentId || undefined,
     conversationId: params.conversationId || undefined,
     source: "tool-execution",
     supplier: "openrouter",
-    tool_call: EMBEDDING_TOOL_CALL,
-    description: `Document search embeddings ${action} ${differenceFormatted} (actual ${actualFormatted}, reserved ${reservedFormatted})`,
+    tool_call: toolCall,
+    description: `${descriptionLabel} ${action} ${differenceFormatted} (actual ${actualFormatted}, reserved ${reservedFormatted})`,
     amountNanoUsd: transactionAmount,
   });
 
-  await params.db["credit-reservations"].delete(reservationPk);
-  console.log(
-    "[adjustEmbeddingCreditReservation] Successfully deleted reservation:",
-    { reservationId: params.reservationId },
-  );
+  if (params.generationId) {
+    await params.db["credit-reservations"].update({
+      pk: reservationPk,
+      tokenUsageBasedCost: actualCostNano,
+      openrouterGenerationId: params.generationId,
+      provider: EMBEDDING_PROVIDER,
+      modelName: EMBEDDING_MODEL,
+      conversationId: params.conversationId || reservation.conversationId,
+    });
+    console.log(
+      "[adjustEmbeddingCreditReservation] Updated reservation for cost verification:",
+      { reservationId: params.reservationId, generationId: params.generationId },
+    );
+
+    await enqueueCostVerification(
+      params.generationId,
+      params.workspaceId,
+      params.reservationId,
+      params.conversationId || reservation.conversationId,
+      params.agentId || reservation.agentId,
+    );
+  } else {
+    await params.db["credit-reservations"].delete(reservationPk);
+    console.log(
+      "[adjustEmbeddingCreditReservation] Successfully deleted reservation:",
+      { reservationId: params.reservationId },
+    );
+  }
 }
 
 export async function refundEmbeddingCredits(params: {
@@ -198,6 +228,8 @@ export async function refundEmbeddingCredits(params: {
   context: AugmentedContext;
   agentId?: string;
   conversationId?: string;
+  toolCall?: string;
+  description?: string;
 }): Promise<void> {
   if (
     params.reservationId === "byok" ||
@@ -229,14 +261,17 @@ export async function refundEmbeddingCredits(params: {
     reservedAmount,
   });
 
+  const toolCall = params.toolCall ?? EMBEDDING_TOOL_CALL;
+  const descriptionLabel = params.description ?? "Document search embeddings";
+
   params.context.addWorkspaceCreditTransaction({
     workspaceId: params.workspaceId,
     agentId: params.agentId || undefined,
     conversationId: params.conversationId || undefined,
     source: "tool-execution",
     supplier: "openrouter",
-    tool_call: EMBEDDING_TOOL_CALL,
-    description: `Document search embedding refund (error occurred) - ${reservedFormatted}`,
+    tool_call: toolCall,
+    description: `${descriptionLabel} refund (error occurred) - ${reservedFormatted}`,
     amountNanoUsd: reservedAmount,
   });
 
@@ -245,3 +280,8 @@ export async function refundEmbeddingCredits(params: {
     reservationId: params.reservationId,
   });
 }
+
+export const EMBEDDING_TOOL_CALLS = {
+  documentSearch: EMBEDDING_TOOL_CALL,
+  memorySearch: MEMORY_EMBEDDING_TOOL_CALL,
+};

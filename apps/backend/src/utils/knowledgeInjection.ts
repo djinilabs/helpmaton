@@ -833,6 +833,9 @@ export async function injectKnowledgeIntoMessages(
           grain: "working",
           maxResults: fetchLimit,
           queryText: query,
+          db,
+          context,
+          conversationId,
         });
         memorySnippets = memoryResults.map((result) => ({
           snippet: result.content,

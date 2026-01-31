@@ -15,6 +15,8 @@ import { writeToWorkingMemory, queueMemoryWrite } from "../writeMemory";
 // Mock dependencies using vi.hoisted
 const {
   mockGenerateEmbedding,
+  mockGenerateEmbeddingWithUsage,
+  mockResolveEmbeddingApiKey,
   mockSendWriteOperation,
   mockQuery,
   mockGetWorkspaceApiKey,
@@ -29,6 +31,8 @@ const {
 } = vi.hoisted(() => {
   return {
     mockGenerateEmbedding: vi.fn(),
+    mockGenerateEmbeddingWithUsage: vi.fn(),
+    mockResolveEmbeddingApiKey: vi.fn(),
     mockSendWriteOperation: vi.fn(),
     mockQuery: vi.fn(),
     mockGetWorkspaceApiKey: vi.fn(),
@@ -54,6 +58,8 @@ vi.mock("../../../http/utils/agent-keys", () => ({
 
 vi.mock("../../embedding", () => ({
   generateEmbedding: mockGenerateEmbedding,
+  generateEmbeddingWithUsage: mockGenerateEmbeddingWithUsage,
+  resolveEmbeddingApiKey: mockResolveEmbeddingApiKey,
 }));
 
 vi.mock("../../vectordb/queueClient", () => ({
@@ -148,6 +154,10 @@ describe("Memory System Integration", () => {
 
     // Mock workspace API key
     mockGetWorkspaceApiKey.mockResolvedValue(null);
+    mockResolveEmbeddingApiKey.mockResolvedValue({
+      apiKey: "test-api-key",
+      usesByok: false,
+    });
 
     mockDatabase.mockResolvedValue({});
     mockValidateCreditsAndLimitsAndReserve.mockResolvedValue(null);
@@ -173,6 +183,20 @@ describe("Memory System Integration", () => {
         return ((hash + i) % 100) / 1000; // Simple deterministic embedding
       });
       return Promise.resolve(embedding);
+    });
+
+    mockGenerateEmbeddingWithUsage.mockImplementation(async (text: string) => {
+      const embedding = await mockGenerateEmbedding(text);
+      return {
+        embedding,
+        usage: {
+          promptTokens: 10,
+          totalTokens: 10,
+          cost: 0.000001,
+        },
+        id: `embedding-${text.length}`,
+        fromCache: false,
+      };
     });
 
     // Mock SQS write operation - store in memory
