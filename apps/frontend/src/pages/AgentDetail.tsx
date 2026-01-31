@@ -32,7 +32,15 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useState, Suspense, useRef, useEffect, lazy } from "react";
+import {
+  useState,
+  Suspense,
+  useRef,
+  useEffect,
+  useMemo,
+  lazy,
+  useCallback,
+} from "react";
 import type { FC, ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -152,11 +160,14 @@ import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
 import type {
   ClientTool,
+  GroupedToolMetadata,
   ModelCapabilities,
   SummarizationPromptGrain,
   SummarizationPromptsInput,
+  ToolMetadata,
 } from "../utils/api";
 import {
+  getMcpServerTools,
   listIntegrations,
   deleteIntegration,
   updateIntegration,
@@ -388,6 +399,29 @@ function useSyncDelegatableAgentIds(
   }, [agent?.id, agent?.delegatableAgentIds, setDelegatableAgentIds]);
 }
 
+function areToolNameMapsEqual(
+  current: Record<string, string[]> | undefined,
+  next: Record<string, string[]> | undefined
+): boolean {
+  const currentKeys = Object.keys(current ?? {});
+  const nextKeys = Object.keys(next ?? {});
+  if (currentKeys.length !== nextKeys.length) {
+    return false;
+  }
+  const nextKeySet = new Set(nextKeys);
+  if (!currentKeys.every((key) => nextKeySet.has(key))) {
+    return false;
+  }
+  return currentKeys.every((key) => {
+    const currentValues = current?.[key] ?? [];
+    const nextValues = next?.[key] ?? [];
+    if (currentValues.length !== nextValues.length) {
+      return false;
+    }
+    return currentValues.every((value, index) => value === nextValues[index]);
+  });
+}
+
 function useSyncEnabledMcpServerIds(
   agent: ReturnType<typeof useAgent>["data"],
   setEnabledMcpServerIds: (value: string[]) => void
@@ -406,6 +440,23 @@ function useSyncEnabledMcpServerIds(
       setEnabledMcpServerIds(currentValue);
     }
   }, [agent?.id, agent?.enabledMcpServerIds, setEnabledMcpServerIds]);
+}
+
+function useSyncEnabledMcpServerToolNames(
+  agent: ReturnType<typeof useAgent>["data"],
+  setEnabledMcpServerToolNames: (value: Record<string, string[]>) => void
+) {
+  const prevToolNamesRef = useRef<Record<string, string[]> | undefined>(
+    agent?.enabledMcpServerToolNames
+  );
+  useEffect(() => {
+    const currentValue = agent?.enabledMcpServerToolNames ?? {};
+    const prevValue = prevToolNamesRef.current ?? {};
+    if (!areToolNameMapsEqual(currentValue, prevValue)) {
+      prevToolNamesRef.current = currentValue;
+      setEnabledMcpServerToolNames(currentValue);
+    }
+  }, [agent?.id, agent?.enabledMcpServerToolNames, setEnabledMcpServerToolNames]);
 }
 
 function useSyncEnableMemorySearch(
@@ -572,6 +623,30 @@ function useAgentDetailState({
   const updateAgent = useUpdateAgent(workspaceId, agentId);
   const { data: allAgents } = useAgents(workspaceId);
   const { data: mcpServersData } = useMcpServers(workspaceId);
+  const mcpServerIds = useMemo(
+    () => mcpServersData?.servers.map((server) => server.id) ?? [],
+    [mcpServersData]
+  );
+  const {
+    data: mcpServerToolsById = {},
+    isLoading: isLoadingMcpServerTools,
+  } = useQuery({
+    queryKey: ["mcp-server-tools", workspaceId, mcpServerIds.join(",")],
+    queryFn: async () => {
+      if (!mcpServersData?.servers?.length) {
+        return {} as Record<string, GroupedToolMetadata[]>;
+      }
+      const entries = await Promise.all(
+        mcpServersData.servers.map(async (server) => {
+          const tools = await getMcpServerTools(workspaceId, server.id);
+          return [server.id, tools] as const;
+        })
+      );
+      return Object.fromEntries(entries);
+    },
+    enabled: mcpServerIds.length > 0,
+    staleTime: 30 * 1000,
+  });
   const { data: emailConnection } = useEmailConnection(workspaceId);
   const { data: streamServerConfig } = useStreamServer(workspaceId, agentId);
   const createStreamServer = useCreateStreamServer(workspaceId, agentId);
@@ -703,6 +778,19 @@ function useAgentDetailState({
     setCommandDialogState(null);
   };
 
+  const handleMcpWarningClick = useCallback(() => {
+    if (expandedSection !== "mcp-servers") {
+      toggleSection("mcp-servers");
+    }
+
+    requestAnimationFrame(() => {
+      const target = document.getElementById("agent-mcp-servers-section");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }, [expandedSection, toggleSection]);
+
   useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
 
   useStreamUrlErrorToast(streamUrlError, toast);
@@ -721,6 +809,23 @@ function useAgentDetailState({
   const [enabledMcpServerIds, setEnabledMcpServerIds] = useState<string[]>(
     () => agent?.enabledMcpServerIds || []
   );
+  const [enabledMcpServerToolNames, setEnabledMcpServerToolNames] = useState<
+    Record<string, string[]>
+  >(() => agent?.enabledMcpServerToolNames || {});
+
+  const [isMcpWarningDismissed, setIsMcpWarningDismissed] =
+    useLocalPreference<boolean>(
+      `agent-detail-${agentId}-mcp-warning-dismissed`,
+      false
+    );
+
+  const hasWorkspaceMcpServers = (mcpServersData?.servers.length ?? 0) > 0;
+  const hasEnabledMcpServers = enabledMcpServerIds.length > 0;
+  const showMcpServersWarning =
+    canEdit &&
+    hasWorkspaceMcpServers &&
+    !hasEnabledMcpServers &&
+    !isMcpWarningDismissed;
 
   // Use agent prop directly for enableMemorySearch, with local state for editing
   const [enableMemorySearch, setEnableMemorySearch] = useState<boolean>(
@@ -1036,6 +1141,7 @@ function useAgentDetailState({
 
   useSyncDelegatableAgentIds(agent, setDelegatableAgentIds);
   useSyncEnabledMcpServerIds(agent, setEnabledMcpServerIds);
+  useSyncEnabledMcpServerToolNames(agent, setEnabledMcpServerToolNames);
   useSyncEnableMemorySearch(agent, setEnableMemorySearch);
 
   const prevSummarizationPromptsRef = useRef(agent?.summarizationPrompts);
@@ -1490,15 +1596,45 @@ function useAgentDetailState({
     });
   };
 
+  const handleMcpServerToolToggle = (
+    serverId: string,
+    toolName: string,
+    allToolNames: string[]
+  ) => {
+    if (allToolNames.length === 0) {
+      return;
+    }
+    setEnabledMcpServerToolNames((prev) => {
+      const currentToolNames = prev[serverId] ?? allToolNames;
+      const nextToolNames = currentToolNames.includes(toolName)
+        ? currentToolNames.filter((name) => name !== toolName)
+        : [...currentToolNames, toolName];
+      return {
+        ...prev,
+        [serverId]: nextToolNames,
+      };
+    });
+  };
+
   const handleSaveMcpServers = async () => {
     try {
       const updated = await updateAgent.mutateAsync({
         enabledMcpServerIds,
+        enabledMcpServerToolNames,
       });
       setEnabledMcpServerIds(updated.enabledMcpServerIds || []);
+      setEnabledMcpServerToolNames(updated.enabledMcpServerToolNames || {});
     } catch {
       // Error is handled by toast in the hook
     }
+  };
+
+  const getMcpServerToolsForServer = (serverId: string): ToolMetadata[] => {
+    const groupedTools = mcpServerToolsById[serverId] ?? [];
+    const toolsGroup =
+      groupedTools.find((group) => group.category === "MCP Server Tools") ??
+      groupedTools[0];
+    return toolsGroup?.tools ?? [];
   };
 
   const handleSaveMemorySearch = async () => {
@@ -1922,6 +2058,8 @@ function useAgentDetailState({
     updateAgent,
     allAgents,
     mcpServersData,
+    mcpServerToolsById,
+    isLoadingMcpServerTools,
     emailConnection,
     streamServerConfig,
     createStreamServer,
@@ -1968,8 +2106,12 @@ function useAgentDetailState({
     queryClient,
     agentIntegrations,
     canEdit,
+    showMcpServersWarning,
+    handleMcpWarningClick,
+    setIsMcpWarningDismissed,
     delegatableAgentIds,
     enabledMcpServerIds,
+    enabledMcpServerToolNames,
     enableMemorySearch,
     setEnableMemorySearch,
     summarizationPrompts,
@@ -2064,7 +2206,9 @@ function useAgentDetailState({
     handleDelegationToggle,
     handleSaveDelegation,
     handleMcpServerToggle,
+    handleMcpServerToolToggle,
     handleSaveMcpServers,
+    getMcpServerToolsForServer,
     handleSaveMemorySearch,
     handleSaveMemoryExtraction,
     handleSummarizationPromptChange,
@@ -2495,6 +2639,9 @@ interface AgentOverviewCardProps {
   onOpenToolsHelp: () => void;
   onEdit: () => void;
   onBack: () => void;
+  showMcpServersWarning: boolean;
+  onMcpWarningClick: () => void;
+  onMcpWarningDismiss: () => void;
   systemPromptRef: React.RefObject<HTMLDivElement | null>;
   showScrollIndicator: boolean;
   setShowScrollIndicator: (value: boolean) => void;
@@ -2518,6 +2665,9 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
   onOpenToolsHelp,
   onEdit,
   onBack,
+  showMcpServersWarning,
+  onMcpWarningClick,
+  onMcpWarningDismiss,
   systemPromptRef,
   showScrollIndicator,
   setShowScrollIndicator,
@@ -2544,6 +2694,34 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
       Set how this assistant behaves, its instructions, and spending limits. Use
       the sections below to test it, view conversations, and check usage.
     </p>
+    {showMcpServersWarning && (
+      <div className="mb-4 rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-yellow-900">
+            <ExclamationTriangleIcon className="size-4" />
+            Connected Tools Not Enabled
+          </p>
+          <button
+            type="button"
+            onClick={onMcpWarningDismiss}
+            className="text-xs font-semibold text-yellow-900 underline decoration-2 underline-offset-4 transition-colors hover:text-yellow-800"
+          >
+            Dismiss
+          </button>
+        </div>
+        <p className="mt-1 text-sm text-yellow-800">
+          This workspace has connected tools, but none are enabled for this
+          agent.
+        </p>
+        <button
+          type="button"
+          onClick={onMcpWarningClick}
+          className="mt-2 text-sm font-semibold text-yellow-900 underline decoration-2 underline-offset-4 transition-colors hover:text-yellow-800"
+        >
+          Go to Connected Tools
+        </button>
+      </div>
+    )}
 
     <div>
       <div className="mb-4 flex items-center gap-4">
@@ -2864,8 +3042,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     queryClient,
     agentIntegrations,
     canEdit,
+    showMcpServersWarning,
+    handleMcpWarningClick,
+    setIsMcpWarningDismissed,
     delegatableAgentIds,
     enabledMcpServerIds,
+    enabledMcpServerToolNames,
+    isLoadingMcpServerTools,
     enableMemorySearch,
     setEnableMemorySearch,
     summarizationPrompts,
@@ -2959,7 +3142,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     handleDelegationToggle,
     handleSaveDelegation,
     handleMcpServerToggle,
+    handleMcpServerToolToggle,
     handleSaveMcpServers,
+    getMcpServerToolsForServer,
     handleSaveMemorySearch,
     handleSaveMemoryExtraction,
     handleSummarizationPromptChange,
@@ -3002,6 +3187,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           onOpenToolsHelp={() => setIsHelpOpen(true)}
           onEdit={handleEdit}
           onBack={() => navigate(`/workspaces/${workspaceId}`)}
+          showMcpServersWarning={showMcpServersWarning}
+          onMcpWarningClick={handleMcpWarningClick}
+          onMcpWarningDismiss={() => setIsMcpWarningDismissed(true)}
           systemPromptRef={systemPromptRef}
           showScrollIndicator={showScrollIndicator}
           setShowScrollIndicator={setShowScrollIndicator}
@@ -4348,17 +4536,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         >
           {/* MCP Servers Section */}
           {canEdit && (
-            <AgentAccordionSection
-              id="mcp-servers"
-              title={
-                <>
-                  <BoltIcon className="mr-2 inline-block size-5" />
-                  CONNECTED TOOLS
-                </>
-              }
-              expandedSection={expandedSection}
-              onToggle={toggleSection}
-            >
+            <div id="agent-mcp-servers-section" className="scroll-mt-8">
+              <AgentAccordionSection
+                id="mcp-servers"
+                title={
+                  <>
+                    <BoltIcon className="mr-2 inline-block size-5" />
+                    CONNECTED TOOLS
+                  </>
+                }
+                expandedSection={expandedSection}
+                onToggle={toggleSection}
+              >
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Enable connected tools from your workspace to make them available
                   as tools to this agent. When enabled, the agent will be able
@@ -4367,28 +4556,97 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                 {mcpServersData && mcpServersData.servers.length > 0 ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      {mcpServersData.servers.map((server) => (
-                        <label
-                          key={server.id}
-                          className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={enabledMcpServerIds.includes(server.id)}
-                            onChange={() => handleMcpServerToggle(server.id)}
-                            className="mt-1 rounded border-2 border-neutral-300"
-                          />
-                          <div className="flex-1">
-                            <div className="font-bold">{server.name}</div>
-                            <div className="mt-1 font-mono text-xs opacity-75 dark:text-neutral-300">
-                              {server.url}
-                            </div>
-                            <div className="mt-1 text-xs uppercase">
-                              Auth: {server.authType}
-                            </div>
+                      {mcpServersData.servers.map((server) => {
+                        const serverTools = getMcpServerToolsForServer(
+                          server.id
+                        );
+                        const allToolNames = serverTools.map(
+                          (tool) => tool.name
+                        );
+                        const enabledToolNames =
+                          enabledMcpServerToolNames[server.id];
+                        const isServerEnabled = enabledMcpServerIds.includes(
+                          server.id
+                        );
+
+                        return (
+                          <div
+                            key={server.id}
+                            className="space-y-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
+                          >
+                            <label className="flex cursor-pointer items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isServerEnabled}
+                                onChange={() =>
+                                  handleMcpServerToggle(server.id)
+                                }
+                                className="mt-1 rounded border-2 border-neutral-300"
+                              />
+                              <div className="flex-1">
+                                <div className="font-bold">{server.name}</div>
+                                <div className="mt-1 font-mono text-xs opacity-75 dark:text-neutral-300">
+                                  {server.url}
+                                </div>
+                                <div className="mt-1 text-xs uppercase">
+                                  Auth: {server.authType}
+                                </div>
+                              </div>
+                            </label>
+                            {isServerEnabled && (
+                              <div className="space-y-2 border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
+                                <div className="text-xs font-semibold uppercase text-neutral-500 dark:text-neutral-400">
+                                  Tools
+                                </div>
+                                {isLoadingMcpServerTools ? (
+                                  <p className="text-xs opacity-70">
+                                    Loading tools...
+                                  </p>
+                                ) : serverTools.length === 0 ? (
+                                  <p className="text-xs opacity-70">
+                                    No tools available for this server.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {serverTools.map((tool) => {
+                                      const isToolEnabled = enabledToolNames
+                                        ? enabledToolNames.includes(tool.name)
+                                        : true;
+                                      return (
+                                        <label
+                                          key={tool.name}
+                                          className="flex cursor-pointer items-start gap-2"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={isToolEnabled}
+                                            onChange={() =>
+                                              handleMcpServerToolToggle(
+                                                server.id,
+                                                tool.name,
+                                                allToolNames
+                                              )
+                                            }
+                                            className="mt-0.5 rounded border-2 border-neutral-300"
+                                          />
+                                          <div className="flex-1">
+                                            <div className="font-mono text-xs font-semibold">
+                                              {tool.name}
+                                            </div>
+                                            <div className="mt-0.5 text-xs opacity-70">
+                                              {tool.description}
+                                            </div>
+                                          </div>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </label>
-                      ))}
+                        );
+                      })}
                     </div>
                     <button
                       onClick={handleSaveMcpServers}
@@ -4407,7 +4665,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     agents.
                   </p>
                 )}
-            </AgentAccordionSection>
+              </AgentAccordionSection>
+            </div>
           )}
 
           {/* Email Tool Section */}
