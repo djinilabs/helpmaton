@@ -302,14 +302,97 @@ describe("documentSearch", () => {
     });
 
     it("should throw error for invalid response format", async () => {
-      // Mock successful response but with invalid structure
-      mockEmbeddingsGenerate.mockResolvedValueOnce({
-        data: [{ notEmbedding: [] }],
-      });
+      vi.useFakeTimers();
+      // Mock responses with invalid structure for all validation attempts
+      mockEmbeddingsGenerate
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        })
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        })
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        });
 
-      await expect(
-        generateEmbedding("test text", "test-api-key", undefined),
-      ).rejects.toThrow("Invalid embedding response format");
+      const embeddingPromise = generateEmbedding(
+        "test text",
+        "test-api-key",
+        undefined,
+      );
+      const expectation = expect(embeddingPromise).rejects.toThrow(
+        "Invalid embedding response format",
+      );
+
+      await vi.runAllTimersAsync();
+      await expectation;
+
+      vi.useRealTimers();
+    });
+
+    it("should retry on response validation failures and succeed", async () => {
+      vi.useFakeTimers();
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      mockEmbeddingsGenerate
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        })
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        })
+        .mockResolvedValueOnce({
+          data: [{ embedding: Array(768).fill(0.1) }],
+        });
+
+      const embeddingPromise = generateEmbedding(
+        "test text",
+        "test-api-key",
+        undefined,
+      );
+
+      await vi.runAllTimersAsync();
+
+      const embedding = await embeddingPromise;
+      expect(embedding.length).toBe(768);
+      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(3);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+
+      warnSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it("should throw after exhausting response validation retries", async () => {
+      vi.useFakeTimers();
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      mockEmbeddingsGenerate
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        })
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        })
+        .mockResolvedValueOnce({
+          data: [{ notEmbedding: [] }],
+        });
+
+      const embeddingPromise = generateEmbedding(
+        "test text",
+        "test-api-key",
+        undefined,
+      );
+      const expectation = expect(embeddingPromise).rejects.toThrow(
+        "Invalid embedding response format",
+      );
+
+      await vi.runAllTimersAsync();
+      await expectation;
+      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(3);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+
+      warnSpy.mockRestore();
+      vi.useRealTimers();
     });
 
     it("should handle network errors with retry", async () => {

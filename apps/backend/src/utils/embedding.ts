@@ -8,6 +8,8 @@ const BACKOFF_INITIAL_DELAY_MS = 1000; // 1 second
 const BACKOFF_MAX_RETRIES = 5;
 const BACKOFF_MAX_DELAY_MS = 60000; // 60 seconds
 const BACKOFF_MULTIPLIER = 2;
+const VALIDATION_MAX_RETRIES = 2;
+const VALIDATION_INITIAL_DELAY_MS = 500;
 
 // In-memory cache for embeddings
 // Key format: `${workspaceId}:${documentId}:${snippetHash}` or custom format
@@ -66,6 +68,30 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function isResponseValidationError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const name = (error as { name?: string }).name;
+  if (name === "ResponseValidationError" || name === "ZodError") {
+    return true;
+  }
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes("response validation") ||
+    message.includes("invalid embedding response format")
+  );
+}
+
+function getErrorPreview(error: unknown): string {
+  if (error instanceof Error) {
+    const preview = `${error.name}: ${error.message}`;
+    return preview.length > 200 ? preview.slice(0, 200) : preview;
+  }
+  const text = String(error);
+  return text.length > 200 ? text.slice(0, 200) : text;
+}
+
 /**
  * Sleep for a given duration, checking abort signal periodically
  */
@@ -120,6 +146,7 @@ export async function generateEmbedding(
 
   // Retry loop with exponential backoff
   let lastError: Error | null = null;
+  let validationAttempts = 0;
   for (let attempt = 0; attempt <= BACKOFF_MAX_RETRIES; attempt++) {
     // Check if aborted before each attempt
     if (signal?.aborted) {
@@ -230,6 +257,34 @@ export async function generateEmbedding(
 
       const status = getErrorStatus(error);
       const errorMessage = getErrorMessage(error);
+
+      if (isResponseValidationError(error)) {
+        if (validationAttempts < VALIDATION_MAX_RETRIES) {
+          const attemptNumber = validationAttempts + 1;
+          validationAttempts += 1;
+          const delay =
+            VALIDATION_INITIAL_DELAY_MS * Math.pow(2, attemptNumber - 1);
+          console.warn(
+            `[generateEmbedding] Response validation failure (attempt ${attemptNumber}/${VALIDATION_MAX_RETRIES + 1}). Retrying after ${delay}ms. Preview: ${getErrorPreview(error)}`,
+          );
+          try {
+            await sleep(delay, signal);
+          } catch (sleepError) {
+            if (
+              sleepError instanceof Error &&
+              sleepError.message === "Operation aborted"
+            ) {
+              throw sleepError;
+            }
+            throw sleepError;
+          }
+          continue;
+        }
+        console.error(
+          `[generateEmbedding] Response validation failure after ${VALIDATION_MAX_RETRIES + 1} attempts. Preview: ${getErrorPreview(error)}`,
+        );
+        throw error;
+      }
 
       if (
         isThrottlingError(status, errorMessage) &&
