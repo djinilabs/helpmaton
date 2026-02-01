@@ -3,6 +3,7 @@ import type { SQSEvent, SQSRecord } from "aws-lambda";
 
 import { database } from "../../tables";
 import { getDefined } from "../../utils";
+import { isCreditUserError } from "../../utils/creditErrors";
 import {
   generateEmbeddingWithUsage,
   resolveEmbeddingApiKey,
@@ -228,6 +229,18 @@ async function generateEmbeddingsForFacts(
         }
       }
     } catch (error) {
+      const ensuredError = ensureError(error);
+      if (isCreditUserError(ensuredError)) {
+        console.info(
+          `[Write Server] Credit user error while generating embedding ${i + 1}/${rawFacts.length}:`,
+          {
+            error: ensuredError.message,
+            name: ensuredError.name,
+          },
+        );
+        continue;
+      }
+
       console.error(
         `[Write Server] Failed to generate embedding ${i + 1}/${
           rawFacts.length
@@ -257,7 +270,7 @@ async function generateEmbeddingsForFacts(
           );
         }
       }
-      Sentry.captureException(ensureError(error), {
+      Sentry.captureException(ensuredError, {
         tags: {
           context: "memory",
           operation: "generate-embedding",

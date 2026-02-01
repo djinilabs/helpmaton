@@ -1,12 +1,12 @@
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { SpendingLimitExceededError } from "../../../utils/creditErrors";
 import type {
   WriteOperationMessage,
   FactRecord,
 } from "../../../utils/vectordb/types";
 import { handler } from "../index";
-
 // Mock dependencies
 vi.mock("@lancedb/lancedb", () => ({
   connect: vi.fn(),
@@ -60,6 +60,7 @@ const {
   mockAdjustEmbeddingCreditReservation,
   mockRefundEmbeddingCredits,
   mockGetCurrentSQSContext,
+  mockSentryCaptureException,
 } = vi.hoisted(() => {
   return {
     mockGenerateEmbeddingWithUsage: vi.fn().mockResolvedValue({
@@ -76,6 +77,7 @@ const {
     mockAdjustEmbeddingCreditReservation: vi.fn().mockResolvedValue(undefined),
     mockRefundEmbeddingCredits: vi.fn().mockResolvedValue(undefined),
     mockGetCurrentSQSContext: vi.fn(),
+    mockSentryCaptureException: vi.fn(),
   };
 });
 
@@ -108,6 +110,33 @@ vi.mock("../../../utils/embeddingCredits", () => ({
     mockRefundEmbeddingCredits(...args),
 }));
 
+vi.mock("../../../utils/sentry", () => ({
+  Sentry: {
+    captureException: mockSentryCaptureException,
+    setTag: vi.fn(),
+    setContext: vi.fn(),
+    startSpan: vi.fn(async (_config: unknown, callback?: () => unknown) => {
+      if (typeof callback === "function") {
+        return callback();
+      }
+      return undefined;
+    }),
+    withScope: vi.fn(
+      async (
+        callback?: (scope: { setTag: () => void; setContext: () => void }) => unknown,
+      ) => {
+        if (typeof callback === "function") {
+          return callback({ setTag: vi.fn(), setContext: vi.fn() });
+        }
+        return undefined;
+      },
+    ),
+  },
+  ensureError: (error: unknown) =>
+    error instanceof Error ? error : new Error(String(error)),
+  initSentry: vi.fn(),
+  flushSentry: vi.fn().mockResolvedValue(undefined),
+}));
 describe("agent-temporal-grain-queue handler", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -708,6 +737,43 @@ describe("agent-temporal-grain-queue handler", () => {
             folderPath: "",
           },
         ]);
+        expect(result).toEqual({ batchItemFailures: [] });
+      });
+
+      it("does not report credit user errors during embedding generation", async () => {
+        mockReserveEmbeddingCredits.mockRejectedValue(
+          new SpendingLimitExceededError([
+            {
+              scope: "agent",
+              timeFrame: "daily",
+              limit: 500000000,
+              current: 610317349,
+            },
+          ])
+        );
+
+        const message: WriteOperationMessage = {
+          operation: "insert",
+          agentId: "agent-123",
+          temporalGrain: "working",
+          workspaceId: "workspace-456",
+          data: {
+            rawFacts: [
+              {
+                id: "raw-fact-1",
+                content: "User said: Hello world",
+                timestamp: "2024-01-01T00:00:00Z",
+                metadata: { conversationId: "conv-1" },
+                cacheKey: "workspace-456:agent-123:abc123",
+              },
+            ],
+          },
+        };
+
+        const event = createSQSEvent([message]);
+        const result = await handler(event);
+
+        expect(mockSentryCaptureException).not.toHaveBeenCalled();
         expect(result).toEqual({ batchItemFailures: [] });
       });
 
