@@ -20,6 +20,7 @@ describe("configureMethodAuthorizers", () => {
     const { configureMethodAuthorizers } = await import("../methods");
     const resources = {
       ApiResource: createResource("api", "RootResource"),
+      HealthResource: createResource("health", "ApiResource"),
       EmailResource: createResource("email", "ApiResource"),
       EmailOauthResource: createResource("oauth", "EmailResource"),
       EmailOauthCallbackResource: createResource(
@@ -34,6 +35,7 @@ describe("configureMethodAuthorizers", () => {
       EmailOauthMethod: createMethod("EmailOauthCallbackResource"),
       McpOauthMethod: createMethod("McpOauthCallbackResource"),
       DiscordMethod: createMethod("DiscordResource"),
+      HealthMethod: createMethod("HealthResource"),
       WorkspacesMethod: createMethod("WorkspacesResource"),
     };
 
@@ -57,6 +59,11 @@ describe("configureMethodAuthorizers", () => {
       AuthorizationType?: string;
       AuthorizerId?: unknown;
     };
+    const healthMethod = updated.Resources.HealthMethod
+      .Properties as {
+      AuthorizationType?: string;
+      AuthorizerId?: unknown;
+    };
     const workspacesMethod = updated.Resources.WorkspacesMethod
       .Properties as {
       AuthorizationType?: string;
@@ -69,6 +76,8 @@ describe("configureMethodAuthorizers", () => {
     expect(mcpMethod.AuthorizerId).toBeUndefined();
     expect(discordMethod.AuthorizationType).toBeUndefined();
     expect(discordMethod.AuthorizerId).toBeUndefined();
+    expect(healthMethod.AuthorizationType).toBeUndefined();
+    expect(healthMethod.AuthorizerId).toBeUndefined();
 
     expect(workspacesMethod.AuthorizationType).toBe("CUSTOM");
     expect(workspacesMethod.AuthorizerId).toEqual({

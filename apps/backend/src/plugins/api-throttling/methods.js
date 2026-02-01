@@ -28,6 +28,7 @@ function configureMethodAuthorizers(cloudformation, authorizerId) {
           path.startsWith("/api/webhook") ||
           path.startsWith("/api/discord") ||
           path.startsWith("/api/scrape") ||
+          path.startsWith("/api/health") ||
           path.startsWith("/api/user") ||
           path.startsWith("/api/streams"))
       ) {
