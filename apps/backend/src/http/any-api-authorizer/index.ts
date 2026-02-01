@@ -128,6 +128,35 @@ export const handler = async (
       `[api-authorizer] Processing request - methodArn: ${methodArn}, extracted path: ${path}`
     );
 
+    if (path === "/api/health") {
+      const allowResponse: APIGatewayAuthorizerResult = {
+        principalId: "public-health",
+        policyDocument: {
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Action: "execute-api:Invoke",
+              Effect: "Allow" as const,
+              Resource: policyArn,
+            },
+          ],
+        },
+        context: {
+          public: "true",
+        },
+      };
+
+      console.log(
+        `[api-authorizer] Allowing public health check: ${JSON.stringify(
+          allowResponse,
+          null,
+          2
+        )}`
+      );
+
+      return allowResponse;
+    }
+
     // Extract workspace ID from path
     const extractedWorkspaceId = extractWorkspaceIdFromPath(path);
     let workspaceId: string | undefined;
