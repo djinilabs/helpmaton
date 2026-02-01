@@ -12,6 +12,14 @@ import { createRequestTimeout, cleanupRequestTimeout } from "./requestTimeout";
 const MAX_SUGGESTIONS = 3;
 const MAX_PROMPT_CHARS = 600;
 
+/**
+ * Check if suggestions should be skipped (e.g., in test environments).
+ * Returns true if running in test environment to avoid LLM API calls during tests.
+ */
+const shouldSkipSuggestions = (): boolean => {
+  return process.env.NODE_ENV === "test";
+};
+
 const suggestionsResponseSchema = z
   .object({
     suggestions: z.array(z.string().min(1)).min(1).max(MAX_SUGGESTIONS),
@@ -308,7 +316,7 @@ export const resolveWorkspaceSuggestions = async (params: {
   apiKeys?: { openrouter?: boolean };
 }): Promise<SuggestionsCache | null> => {
   // Skip suggestion generation in test environments
-  if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "testing") {
+  if (shouldSkipSuggestions()) {
     return null;
   }
 
@@ -393,7 +401,7 @@ export const resolveAgentSuggestions = async (params: {
   };
 }): Promise<SuggestionsCache | null> => {
   // Skip suggestion generation in test environments
-  if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "testing") {
+  if (shouldSkipSuggestions()) {
     return null;
   }
 
