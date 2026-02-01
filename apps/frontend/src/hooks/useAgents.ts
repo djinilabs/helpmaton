@@ -17,9 +17,11 @@ import {
   deleteAgentKey,
   generatePrompt,
   dismissAgentSuggestion,
+  improvePromptFromEvals,
   type CreateAgentInput,
   type UpdateAgentInput,
   type CreateAgentKeyInput,
+  type ImprovePromptFromEvalsInput,
 } from "../utils/api";
 
 import { useToast } from "./useToast";
@@ -247,6 +249,18 @@ export function useDismissAgentSuggestion(
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to dismiss suggestion");
+    },
+  });
+}
+
+export function useImproveAgentPrompt(workspaceId: string, agentId: string) {
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (input: ImprovePromptFromEvalsInput) =>
+      improvePromptFromEvals(workspaceId, agentId, input),
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to improve prompt");
     },
   });
 }

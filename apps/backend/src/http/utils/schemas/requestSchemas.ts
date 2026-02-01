@@ -150,3 +150,29 @@ export const dismissSuggestionRequestSchema = z
     suggestionId: z.string().min(1, "suggestionId is required"),
   })
   .strict();
+
+/**
+ * Schema for improve prompt from evaluations request body
+ * Used in POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-evals
+ */
+export const improvePromptFromEvalsRequestSchema = z
+  .object({
+    userPrompt: z
+      .string()
+      .min(1, "userPrompt is required and must be a non-empty string")
+      .refine((val) => val.trim().length > 0, {
+        message: "userPrompt must not be only whitespace",
+      }),
+    modelName: z.string().nullable().optional(),
+    selectedEvaluations: z
+      .array(
+        z
+          .object({
+            conversationId: z.string().min(1),
+            judgeId: z.string().min(1),
+          })
+          .strict()
+      )
+      .min(1, "selectedEvaluations must include at least one evaluation"),
+  })
+  .strict();

@@ -1043,6 +1043,30 @@ export async function generatePrompt(
   return response.json();
 }
 
+export interface ImprovePromptFromEvalsInput {
+  userPrompt: string;
+  modelName?: string | null;
+  selectedEvaluations: Array<{
+    conversationId: string;
+    judgeId: string;
+  }>;
+}
+
+export async function improvePromptFromEvals(
+  workspaceId: string,
+  agentId: string,
+  input: ImprovePromptFromEvalsInput,
+): Promise<{ prompt: string }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/improve-prompt-from-evals`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+  return response.json();
+}
+
 export async function updateAgent(
   workspaceId: string,
   agentId: string,

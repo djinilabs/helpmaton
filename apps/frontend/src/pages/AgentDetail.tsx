@@ -229,6 +229,11 @@ const ModelPricesDialog = lazy(() =>
     default: module.ModelPricesDialog,
   }))
 );
+const ImproveAgentPromptDialog = lazy(() =>
+  import("../components/ImproveAgentPromptDialog").then((module) => ({
+    default: module.ImproveAgentPromptDialog,
+  }))
+);
 
 // Lazy load ReactMarkdown - heavy dependency
 // Create a wrapper component that loads both ReactMarkdown and remarkGfm
@@ -671,6 +676,7 @@ function useAgentDetailState({
   const [allowedOrigins, setAllowedOrigins] = useState<string>("");
   const [isStreamTestModalOpen, setIsStreamTestModalOpen] = useState(false);
   const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
+  const [isImprovePromptOpen, setIsImprovePromptOpen] = useState(false);
   const [modelPricesFilter, setModelPricesFilter] = useState<
     keyof ModelCapabilities | undefined
   >("text_generation");
@@ -2088,6 +2094,8 @@ function useAgentDetailState({
     setIsStreamTestModalOpen,
     isModelPricesOpen,
     setIsModelPricesOpen,
+    isImprovePromptOpen,
+    setIsImprovePromptOpen,
     modelPricesFilter,
     setModelPricesFilter,
     selectedConversationId,
@@ -2440,6 +2448,8 @@ interface AgentDetailModalsProps {
   onCloseConversation: () => void;
   isHelpOpen: boolean;
   onCloseHelp: () => void;
+  isImprovePromptOpen: boolean;
+  onCloseImprovePrompt: () => void;
   isModelPricesOpen: boolean;
   onCloseModelPrices: () => void;
   modelPricesFilter?: keyof ModelCapabilities;
@@ -2471,6 +2481,8 @@ const AgentDetailModals: FC<AgentDetailModalsProps> = ({
   onCloseConversation,
   isHelpOpen,
   onCloseHelp,
+  isImprovePromptOpen,
+  onCloseImprovePrompt,
   isModelPricesOpen,
   onCloseModelPrices,
   modelPricesFilter,
@@ -2542,6 +2554,17 @@ const AgentDetailModals: FC<AgentDetailModalsProps> = ({
             onClose={onCloseHelp}
             workspaceId={workspaceId}
             agent={agent}
+          />
+        </Suspense>
+      )}
+
+      {isImprovePromptOpen && (
+        <Suspense fallback={<LoadingScreen />}>
+          <ImproveAgentPromptDialog
+            isOpen={isImprovePromptOpen}
+            onClose={onCloseImprovePrompt}
+            workspaceId={workspaceId}
+            agentId={agentId}
           />
         </Suspense>
       )}
@@ -3026,6 +3049,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     setIsStreamTestModalOpen,
     isModelPricesOpen,
     setIsModelPricesOpen,
+    isImprovePromptOpen,
+    setIsImprovePromptOpen,
     modelPricesFilter,
     setModelPricesFilter,
     selectedConversationId,
@@ -3615,6 +3640,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               <EvaluationsRefreshButton
                 workspaceId={workspaceId}
                 agentId={agentId}
+                canEdit={canEdit}
+                onImprovePrompt={() => setIsImprovePromptOpen(true)}
               />
               <div className="space-y-6">
                 <div>
@@ -6997,6 +7024,8 @@ body {
           onCloseConversation={() => setSelectedConversationId(null)}
           isHelpOpen={isHelpOpen}
           onCloseHelp={() => setIsHelpOpen(false)}
+          isImprovePromptOpen={isImprovePromptOpen}
+          onCloseImprovePrompt={() => setIsImprovePromptOpen(false)}
           isModelPricesOpen={isModelPricesOpen}
           onCloseModelPrices={() => setIsModelPricesOpen(false)}
           modelPricesFilter={modelPricesFilter}
@@ -7161,7 +7190,9 @@ const KeyItem: FC<KeyItemProps> = ({
 const EvaluationsRefreshButton: FC<{
   workspaceId: string;
   agentId: string;
-}> = ({ workspaceId, agentId }) => {
+  canEdit?: boolean;
+  onImprovePrompt?: () => void;
+}> = ({ workspaceId, agentId, canEdit = false, onImprovePrompt }) => {
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -7195,7 +7226,15 @@ const EvaluationsRefreshButton: FC<{
   };
 
   return (
-    <div className="mb-4 flex items-center justify-end">
+    <div className="mb-4 flex items-center justify-end gap-2">
+      {canEdit && onImprovePrompt && (
+        <button
+          onClick={onImprovePrompt}
+          className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
+        >
+          Improve Agent Prompt
+        </button>
+      )}
       <button
         onClick={handleRefresh}
         disabled={isRefreshing}

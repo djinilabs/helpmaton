@@ -542,6 +542,35 @@ export async function incrementPromptGenerationBucket(
   );
 }
 
+/**
+ * Increment prompt-generation bucket without surfacing errors to the caller.
+ * Logs errors so metering failures do not cause 5xx responses after a successful prompt generation.
+ */
+export async function incrementPromptGenerationBucketSafe(
+  workspaceId: string
+): Promise<void> {
+  try {
+    console.log(
+      "[Prompt Generation] Incrementing prompt generation bucket for workspace:",
+      workspaceId
+    );
+    await incrementPromptGenerationBucket(workspaceId);
+    console.log(
+      "[Prompt Generation] Successfully incremented prompt generation bucket:",
+      workspaceId
+    );
+  } catch (error) {
+    console.error(
+      "[Prompt Generation] Error incrementing prompt generation bucket:",
+      {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        workspaceId,
+      }
+    );
+  }
+}
+
 // Legacy function names for backward compatibility during migration
 // These will be removed after all call sites are updated
 export async function incrementRequestBucket(
