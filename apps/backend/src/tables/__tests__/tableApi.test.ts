@@ -145,6 +145,48 @@ describe("tableApi", () => {
       expect(mockLowLevelClient.PutItem).toHaveBeenCalledTimes(2);
     });
 
+    it("should retry on transaction conflicts with backoff", async () => {
+      vi.useFakeTimers();
+      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+
+      const existingItem = {
+        pk: "workspaces/workspace-123",
+        sk: "workspace",
+        name: "Test Workspace",
+        currency: "usd",
+        creditBalance: 0,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      const conflictError = new Error(
+        "Transaction is ongoing for the item"
+      ) as Error & { name: string };
+      conflictError.name = "TransactionConflictException";
+
+      mockLowLevelTable.get.mockResolvedValue(existingItem);
+      mockLowLevelClient.PutItem.mockRejectedValueOnce(conflictError).mockResolvedValueOnce({});
+
+      const promise = table.atomicUpdate(
+        "workspaces/workspace-123",
+        "workspace",
+        async () => ({
+          pk: "workspaces/workspace-123",
+          name: "Updated Workspace",
+        }),
+        { maxRetries: 2 }
+      );
+
+      await vi.advanceTimersByTimeAsync(50);
+      const result = await promise;
+
+      expect(result.name).toBe("Updated Workspace");
+      expect(mockLowLevelClient.PutItem).toHaveBeenCalledTimes(2);
+
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
     it("should apply updater function correctly", async () => {
       const existingItem = {
         pk: "workspaces/workspace-123",

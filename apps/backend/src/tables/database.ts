@@ -93,6 +93,29 @@ export const database = once(
       let lastError: Error | undefined;
       let attemptCount = 0;
 
+      const isTransactionConflictError = (error: Error): boolean => {
+        const name = error.name?.toLowerCase() || "";
+        const message = error.message?.toLowerCase() || "";
+        const code = String((error as { code?: string }).code ?? "").toLowerCase();
+        return (
+          name === "transactionconflictexception" ||
+          code === "transactionconflictexception" ||
+          message.includes("transaction is ongoing for the item") ||
+          message.includes("transactionconflict")
+        );
+      };
+
+      const isConditionalCheckError = (error: Error): boolean => {
+        const message = error.message?.toLowerCase() || "";
+        return (
+          message.includes("conditional request failed") ||
+          message.includes("item was outdated") ||
+          message.includes("conditionalcheckfailed") ||
+          message.includes("conditional check failed") ||
+          message.includes("transaction cancelled")
+        );
+      };
+
       while (attemptCount < maxAttempts) {
         attemptCount++;
         try {
@@ -299,18 +322,21 @@ export const database = once(
         } catch (err: unknown) {
           lastError = err instanceof Error ? err : new Error(String(err));
 
-          // Check if it's a conditional check error (version conflict)
-          const isConditionalCheckError =
-            err instanceof Error &&
-            (err.message.toLowerCase().includes("conditional request failed") ||
-              err.message.toLowerCase().includes("item was outdated") ||
-              err.message.toLowerCase().includes("conditionalcheckfailed") ||
-              err.message.toLowerCase().includes("conditional check failed") ||
-              err.message.toLowerCase().includes("transaction cancelled") ||
-              err.message.toLowerCase().includes("transactionconflict"));
-
-          if (isConditionalCheckError && attemptCount < maxAttempts) {
-            // No exponential backoff - just retry immediately
+          // Check if it's a conditional check error (version conflict) or transaction conflict
+          if (
+            lastError &&
+            (isConditionalCheckError(lastError) ||
+              isTransactionConflictError(lastError)) &&
+            attemptCount < maxAttempts
+          ) {
+            const baseDelay = 50 * Math.pow(2, attemptCount - 1);
+            const jitter = Math.random() * baseDelay * 0.2;
+            const backoffMs = Math.round(baseDelay + jitter);
+            console.info(
+              `[atomicUpdate] Transaction conflict, retrying in ${backoffMs}ms (attempt ${attemptCount}/${maxAttempts}):`,
+              { error: lastError.message }
+            );
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
             continue;
           }
 
