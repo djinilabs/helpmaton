@@ -4,6 +4,8 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Workspace/Agent suggestions (2026-02-01)**: Added LLM-generated suggestion caching for workspace/agent records with dismiss endpoints and UI boxes; added backend tests for suggestions + spending limit invalidation; ran `pnpm --filter backend test --run suggestions`, `pnpm --filter backend test --run spendingLimitsManagement`, `pnpm typecheck`, and `pnpm lint --fix`.
+- **Suggestions cache dismiss filter (2026-02-01)**: Ensured fallback cache paths filter dismissed suggestions; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Test Agent padding removal (2026-02-01)**: Removed accordion inner padding for the Test Agent section via a content class override, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Test Agent nested box removal (2026-02-01)**: Added embedded chat styling so the Test Agent accordion no longer shows a framed inner box, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Recent Conversations heading cleanup (2026-02-01)**: Removed duplicate "Recent Conversations" heading inside the conversation list, repositioned refresh button above list items, and ran `pnpm typecheck` + `pnpm lint --fix`.

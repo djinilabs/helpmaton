@@ -76,6 +76,7 @@ import { registerPostAgentEvalJudges } from "./routes/post-agent-eval-judges";
 import { registerPostAgentKeys } from "./routes/post-agent-keys";
 import { registerPostAgentSchedules } from "./routes/post-agent-schedules";
 import { registerPostAgentSpendingLimits } from "./routes/post-agent-spending-limits";
+import { registerPostAgentSuggestionsDismiss } from "./routes/post-agent-suggestions-dismiss";
 import { registerPostEmailConnection } from "./routes/post-email-connection";
 import { registerPostFileUploadUrl } from "./routes/post-file-upload-url";
 import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
@@ -96,6 +97,7 @@ import { registerPostWorkspaceIntegrationsSlackManifest } from "./routes/post-wo
 import { registerPostWorkspaceInvite } from "./routes/post-workspace-invite";
 import { registerPostWorkspaceMembers } from "./routes/post-workspace-members";
 import { registerPostWorkspaceSpendingLimits } from "./routes/post-workspace-spending-limits";
+import { registerPostWorkspaceSuggestionsDismiss } from "./routes/post-workspace-suggestions-dismiss";
 import { registerPostWorkspaces } from "./routes/post-workspaces";
 import { registerPutAgentEvalJudge } from "./routes/put-agent-eval-judge";
 import { registerPutAgentSchedule } from "./routes/put-agent-schedule";
@@ -178,6 +180,7 @@ export const createApp: () => express.Application = () => {
   registerPostAcceptWorkspaceInvite(app);
   registerGetWorkspaceAgents(app);
   registerPostWorkspaceAgents(app);
+  registerPostWorkspaceSuggestionsDismiss(app);
   registerPostGeneratePrompt(app);
   registerPostFileUploadUrl(app);
   registerGetWorkspaceAgent(app);
@@ -185,6 +188,7 @@ export const createApp: () => express.Application = () => {
   registerPutWorkspaceAgent(app);
   registerDeleteWorkspaceAgent(app);
   registerPostAgentSpendingLimits(app);
+  registerPostAgentSuggestionsDismiss(app);
   registerPutAgentSpendingLimits(app);
   registerDeleteAgentSpendingLimits(app);
   registerPostAgentKeys(app);

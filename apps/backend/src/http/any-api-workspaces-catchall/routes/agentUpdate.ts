@@ -864,6 +864,7 @@ export function buildAgentUpdateParams(params: {
           : params.resolvedModelName
         : agent.modelName,
     avatar: resolveOptionalField(body.avatar, agent.avatar),
+    suggestions: null,
     updatedBy: params.updatedBy,
     updatedAt: new Date().toISOString(),
   };
@@ -921,6 +922,12 @@ export function buildAgentResponse(params: {
     modelName: updated.modelName ?? null,
     avatar: updated.avatar ?? null,
     widgetConfig: updated.widgetConfig ?? undefined,
+    suggestions: updated.suggestions
+      ? {
+          items: updated.suggestions.items,
+          generatedAt: updated.suggestions.generatedAt,
+        }
+      : null,
     createdAt: updated.createdAt,
     updatedAt: updated.updatedAt,
   };

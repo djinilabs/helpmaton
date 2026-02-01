@@ -139,3 +139,14 @@ export const generatePromptRequestSchema = z.object({
     }),
   agentId: z.string().optional(),
 }).strict();
+
+/**
+ * Schema for dismissing a suggestion
+ * Used in POST /api/workspaces/:workspaceId/suggestions/dismiss
+ * and POST /api/workspaces/:workspaceId/agents/:agentId/suggestions/dismiss
+ */
+export const dismissSuggestionRequestSchema = z
+  .object({
+    suggestionId: z.string().min(1, "suggestionId is required"),
+  })
+  .strict();

@@ -3,6 +3,16 @@ export interface SpendingLimit {
   amount: number; // nano-dollars (integer)
 }
 
+export interface SuggestionItem {
+  id: string;
+  text: string;
+}
+
+export interface SuggestionsCache {
+  items: SuggestionItem[];
+  generatedAt: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -14,6 +24,7 @@ export interface Workspace {
   apiKeys?: {
     openrouter?: boolean;
   };
+  suggestions?: SuggestionsCache | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -137,6 +148,7 @@ export interface Agent {
     theme?: "light" | "dark" | "auto";
     position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   };
+  suggestions?: SuggestionsCache | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -674,6 +686,20 @@ export async function updateWorkspace(
   return response.json();
 }
 
+export async function dismissWorkspaceSuggestion(
+  workspaceId: string,
+  suggestionId: string,
+): Promise<{ suggestions: SuggestionsCache | null }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/suggestions/dismiss`,
+    {
+      method: "POST",
+      body: JSON.stringify({ suggestionId }),
+    },
+  );
+  return response.json();
+}
+
 export async function deleteWorkspace(id: string): Promise<void> {
   await apiFetch(`/api/workspaces/${id}`, {
     method: "DELETE",
@@ -904,6 +930,21 @@ export async function getAgent(
 ): Promise<Agent> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}`,
+  );
+  return response.json();
+}
+
+export async function dismissAgentSuggestion(
+  workspaceId: string,
+  agentId: string,
+  suggestionId: string,
+): Promise<{ suggestions: SuggestionsCache | null }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/suggestions/dismiss`,
+    {
+      method: "POST",
+      body: JSON.stringify({ suggestionId }),
+    },
   );
   return response.json();
 }

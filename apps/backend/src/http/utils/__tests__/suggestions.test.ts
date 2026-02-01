@@ -1,0 +1,162 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import type { SuggestionsCache } from "../suggestions";
+import {
+  resolveWorkspaceSuggestions,
+  buildWorkspaceSuggestionContext,
+} from "../suggestions";
+
+type SuggestionsDb = Parameters<typeof resolveWorkspaceSuggestions>[0]["db"];
+
+const { mockGenerateText, mockCreateModel, mockGetDefaultModel } = vi.hoisted(
+  () => {
+    return {
+      mockGenerateText: vi.fn(),
+      mockCreateModel: vi.fn(),
+      mockGetDefaultModel: vi.fn(),
+    };
+  },
+);
+
+vi.mock("ai", () => ({
+  generateText: mockGenerateText,
+}));
+
+vi.mock("../modelFactory", () => ({
+  createModel: mockCreateModel,
+  getDefaultModel: mockGetDefaultModel,
+}));
+
+const createMockDb = () => {
+  const queryPaginated = vi.fn().mockResolvedValue({ items: [] });
+  return {
+    workspace: {
+      update: vi.fn(),
+    },
+    agent: {
+      update: vi.fn(),
+      queryPaginated,
+    },
+    "mcp-server": {
+      queryPaginated,
+    },
+    "email-connection": {
+      queryPaginated,
+    },
+    "workspace-document": {
+      queryPaginated,
+    },
+    output_channel: {
+      queryPaginated,
+    },
+  };
+};
+
+describe("suggestions utils", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateModel.mockResolvedValue({});
+    mockGetDefaultModel.mockReturnValue("openrouter/mock-model");
+  });
+
+  it("generates and caches workspace suggestions", async () => {
+    const db = createMockDb();
+    mockGenerateText.mockResolvedValue({
+      text: JSON.stringify({
+        suggestions: ["Connect tools", "Upload your documents"],
+      }),
+    });
+
+    const workspace: {
+      name: string;
+      description: string;
+      creditBalance: number;
+      spendingLimits: never[];
+      suggestions: SuggestionsCache | null;
+    } = {
+      name: "Workspace One",
+      description: "Test",
+      creditBalance: 0,
+      spendingLimits: [],
+      suggestions: null,
+    };
+
+    const result = await resolveWorkspaceSuggestions({
+      db: db as unknown as SuggestionsDb,
+      workspaceId: "workspace-1",
+      workspacePk: "workspaces/workspace-1",
+      workspace,
+      apiKeys: { openrouter: false },
+    });
+
+    expect(result?.items).toHaveLength(2);
+    expect(db.workspace.update).toHaveBeenCalledTimes(1);
+    const updateCall = (db.workspace.update as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(updateCall.suggestions.items).toHaveLength(2);
+    expect(updateCall.suggestions.generatedAt).toBeDefined();
+  });
+
+  it("reuses cached workspace suggestions when context is unchanged", async () => {
+    const db = createMockDb();
+    mockGenerateText.mockResolvedValue({
+      text: JSON.stringify({
+        suggestions: ["Connect tools"],
+      }),
+    });
+
+    const workspace: {
+      name: string;
+      description: string;
+      creditBalance: number;
+      spendingLimits: never[];
+      suggestions: SuggestionsCache | null;
+    } = {
+      name: "Workspace One",
+      description: "Test",
+      creditBalance: 0,
+      spendingLimits: [],
+      suggestions: null,
+    };
+
+    const first = await resolveWorkspaceSuggestions({
+      db: db as unknown as SuggestionsDb,
+      workspaceId: "workspace-1",
+      workspacePk: "workspaces/workspace-1",
+      workspace,
+      apiKeys: { openrouter: false },
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    workspace.suggestions = first ?? null;
+
+    const second = await resolveWorkspaceSuggestions({
+      db: db as unknown as SuggestionsDb,
+      workspaceId: "workspace-1",
+      workspacePk: "workspaces/workspace-1",
+      workspace,
+      apiKeys: { openrouter: false },
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(second?.items).toEqual(first?.items);
+  });
+
+  it("builds workspace context for suggestions", async () => {
+    const db = createMockDb();
+    const context = await buildWorkspaceSuggestionContext({
+      db: db as unknown as SuggestionsDb,
+      workspaceId: "workspace-1",
+      workspace: {
+        name: "Workspace One",
+        description: null,
+        creditBalance: 0,
+        spendingLimits: [],
+      },
+      apiKeys: { openrouter: true },
+    });
+
+    expect(context.workspace.name).toBe("Workspace One");
+    expect(context.connections.hasConnectedTools).toBe(false);
+  });
+});

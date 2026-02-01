@@ -15,6 +15,7 @@ import {
   createAgentKey,
   deleteAgentKey,
   generatePrompt,
+  dismissAgentSuggestion,
   type CreateAgentInput,
   type UpdateAgentInput,
   type CreateAgentKeyInput,
@@ -215,6 +216,36 @@ export function useGeneratePrompt(workspaceId: string) {
       generatePrompt(workspaceId, input),
     onError: (error: Error) => {
       toast.error(error.message || "Failed to generate prompt");
+    },
+  });
+}
+
+export function useDismissAgentSuggestion(
+  workspaceId: string,
+  agentId: string,
+) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (suggestionId: string) =>
+      dismissAgentSuggestion(workspaceId, agentId, suggestionId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(
+        ["workspaces", workspaceId, "agents", agentId],
+        (previous: unknown) => {
+          if (!previous || typeof previous !== "object") {
+            return previous;
+          }
+          return {
+            ...(previous as Record<string, unknown>),
+            suggestions: data.suggestions,
+          };
+        },
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to dismiss suggestion");
     },
   });
 }

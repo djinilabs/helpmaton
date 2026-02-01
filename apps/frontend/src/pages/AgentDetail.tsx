@@ -53,6 +53,7 @@ import { LoadingScreen } from "../components/LoadingScreen";
 import { QueryPanel } from "../components/QueryPanel";
 import { SectionGroup } from "../components/SectionGroup";
 import { Slider } from "../components/Slider";
+import { SuggestionsBox } from "../components/SuggestionsBox";
 // Lazy load accordion components
 const AgentChatWithFunctionUrl = lazy(() =>
   import("../components/AgentChatWithFunctionUrl").then((module) => ({
@@ -143,6 +144,7 @@ import {
   useDeleteAgentKey,
   useAgents,
   useUpdateAgent,
+  useDismissAgentSuggestion,
 } from "../hooks/useAgents";
 import { useEmailConnection } from "../hooks/useEmailConnection";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -624,6 +626,10 @@ function useAgentDetailState({
   const deleteAgent = useDeleteAgent(workspaceId, agentId);
   const createKey = useCreateAgentKey(workspaceId, agentId);
   const updateAgent = useUpdateAgent(workspaceId, agentId);
+  const dismissAgentSuggestion = useDismissAgentSuggestion(
+    workspaceId,
+    agentId,
+  );
   const { data: allAgents } = useAgents(workspaceId);
   const { data: mcpServersData } = useMcpServers(workspaceId);
   const mcpServerIds = useMemo(
@@ -2059,6 +2065,7 @@ function useAgentDetailState({
     navigate,
     createKey,
     updateAgent,
+    dismissAgentSuggestion,
     allAgents,
     mcpServersData,
     mcpServerToolsById,
@@ -2627,6 +2634,7 @@ const AgentDetailModals: FC<AgentDetailModalsProps> = ({
 
 interface AgentOverviewCardProps {
   agent: NonNullable<AgentDetailContentProps["agent"]>;
+  suggestions: NonNullable<AgentDetailContentProps["agent"]>["suggestions"];
   canEdit: boolean;
   isEditing: boolean;
   isLoadingModels: boolean;
@@ -2649,10 +2657,13 @@ interface AgentOverviewCardProps {
   showScrollIndicator: boolean;
   setShowScrollIndicator: (value: boolean) => void;
   setModelName: (value: string | null) => void;
+  onDismissSuggestion: (id: string) => void;
+  isDismissingSuggestion: boolean;
 }
 
 const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
   agent,
+  suggestions,
   canEdit,
   isEditing,
   isLoadingModels,
@@ -2675,6 +2686,8 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
   showScrollIndicator,
   setShowScrollIndicator,
   setModelName,
+  onDismissSuggestion,
+  isDismissingSuggestion,
 }) => (
   <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
     <div className="mb-4 flex items-center justify-between">
@@ -2987,6 +3000,12 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
           )}
         </div>
       </div>
+
+      <SuggestionsBox
+        items={suggestions?.items ?? []}
+        isDismissing={isDismissingSuggestion}
+        onDismiss={onDismissSuggestion}
+      />
     </div>
   </div>
 );
@@ -3000,6 +3019,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     navigate,
     createKey,
     updateAgent,
+    dismissAgentSuggestion,
     allAgents,
     mcpServersData,
     emailConnection,
@@ -3172,6 +3192,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
       <div className="mx-auto max-w-4xl">
         <AgentOverviewCard
           agent={agent}
+          suggestions={agent.suggestions}
           canEdit={canEdit}
           isEditing={isEditing}
           isLoadingModels={isLoadingModels}
@@ -3197,6 +3218,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           showScrollIndicator={showScrollIndicator}
           setShowScrollIndicator={setShowScrollIndicator}
           setModelName={setModelName}
+          onDismissSuggestion={(id) => dismissAgentSuggestion.mutate(id)}
+          isDismissingSuggestion={dismissAgentSuggestion.isPending}
         />
 
         {/*
