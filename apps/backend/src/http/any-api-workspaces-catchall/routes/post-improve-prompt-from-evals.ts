@@ -1,4 +1,4 @@
-import { badRequest, resourceGone, unauthorized } from "@hapi/boom";
+import { badRequest, resourceGone } from "@hapi/boom";
 import { generateText } from "ai";
 import express from "express";
 
@@ -6,7 +6,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
   checkPromptGenerationLimit,
-  incrementPromptGenerationBucket,
+  incrementPromptGenerationBucketSafe,
 } from "../../../utils/requestTracking";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
@@ -17,6 +17,7 @@ import {
 } from "../../utils/requestTimeout";
 import { improvePromptFromEvalsRequestSchema } from "../../utils/schemas/requestSchemas";
 import { extractUserId } from "../../utils/session";
+import { requireWorkspaceContext } from "../../utils/workspaceContext";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 const IMPROVE_PROMPT_SYSTEM_PROMPT = `You are an expert at improving AI agent system prompts using evaluation feedback.
@@ -48,16 +49,6 @@ type EvalPayload = {
   scoreToolEfficiency: number | null;
   scoreFaithfulness: number | null;
   criticalFailureDetected: boolean;
-};
-
-const requireWorkspaceContext = (req: express.Request) => {
-  if (!req.workspaceResource) {
-    throw badRequest("Workspace resource not found");
-  }
-  if (!req.userRef) {
-    throw unauthorized();
-  }
-  return { workspaceId: req.params.workspaceId };
 };
 
 const loadAgentPrompt = async (params: {
@@ -274,7 +265,7 @@ export const registerPostImprovePromptFromEvals = (app: express.Application) => 
             abortSignal: requestTimeout.signal,
           });
 
-          await incrementPromptGenerationBucket(workspaceId);
+          await incrementPromptGenerationBucketSafe(workspaceId);
 
           trackBusinessEvent(
             "agent",

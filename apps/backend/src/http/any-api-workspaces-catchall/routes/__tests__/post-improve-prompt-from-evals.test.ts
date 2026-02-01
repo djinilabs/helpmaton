@@ -12,14 +12,14 @@ const {
   mockCreateModel,
   mockGenerateText,
   mockCheckPromptGenerationLimit,
-  mockIncrementPromptGenerationBucket,
+  mockIncrementPromptGenerationBucketSafe,
   mockDatabase,
   mockTrackBusinessEvent,
 } = vi.hoisted(() => ({
   mockCreateModel: vi.fn(),
   mockGenerateText: vi.fn(),
   mockCheckPromptGenerationLimit: vi.fn(),
-  mockIncrementPromptGenerationBucket: vi.fn(),
+  mockIncrementPromptGenerationBucketSafe: vi.fn(),
   mockDatabase: vi.fn(),
   mockTrackBusinessEvent: vi.fn(),
 }));
@@ -34,7 +34,7 @@ vi.mock("ai", () => ({
 
 vi.mock("../../../../utils/requestTracking", () => ({
   checkPromptGenerationLimit: mockCheckPromptGenerationLimit,
-  incrementPromptGenerationBucket: mockIncrementPromptGenerationBucket,
+  incrementPromptGenerationBucketSafe: mockIncrementPromptGenerationBucketSafe,
 }));
 
 vi.mock("../../../../tables", () => ({
@@ -66,13 +66,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
   beforeEach(() => {
     vi.clearAllMocks();
     mockCheckPromptGenerationLimit.mockResolvedValue(undefined);
-    mockIncrementPromptGenerationBucket.mockResolvedValue({
-      pk: "request-buckets/sub-123/prompt-generation/2024-01-01T00:00:00.000Z",
-      subscriptionId: "sub-123",
-      category: "prompt-generation",
-      hourTimestamp: "2024-01-01T00:00:00.000Z",
-      count: 1,
-    });
+    mockIncrementPromptGenerationBucketSafe.mockResolvedValue(undefined);
   });
 
   it("generates an improved prompt using selected evaluations", async () => {
@@ -151,7 +145,9 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
         ],
       })
     );
-    expect(mockIncrementPromptGenerationBucket).toHaveBeenCalledWith(workspaceId);
+    expect(mockIncrementPromptGenerationBucketSafe).toHaveBeenCalledWith(
+      workspaceId
+    );
     expect(res.json).toHaveBeenCalledWith({
       prompt: "Improved system prompt",
     });
