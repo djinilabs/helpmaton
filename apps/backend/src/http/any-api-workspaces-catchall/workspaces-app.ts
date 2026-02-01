@@ -33,6 +33,7 @@ import {
 } from "./routes/get-agent-memory";
 import { registerGetAgentSchedule } from "./routes/get-agent-schedule";
 import { registerGetAgentSchedules } from "./routes/get-agent-schedules";
+import { registerGetAgentSuggestions } from "./routes/get-agent-suggestions";
 import { registerGetAgentTools } from "./routes/get-agent-tools";
 import { registerGetAgentTransactions } from "./routes/get-agent-transactions";
 import { registerGetAgentUsage } from "./routes/get-agent-usage";
@@ -64,6 +65,7 @@ import { registerGetWorkspaceIntegrations } from "./routes/get-workspace-integra
 import { registerGetWorkspaceInvite } from "./routes/get-workspace-invite";
 import { registerGetWorkspaceInvites } from "./routes/get-workspace-invites";
 import { registerGetWorkspaceMembers } from "./routes/get-workspace-members";
+import { registerGetWorkspaceSuggestions } from "./routes/get-workspace-suggestions";
 import { registerGetWorkspaceTransactions } from "./routes/get-workspace-transactions";
 import { registerGetWorkspaceUsage } from "./routes/get-workspace-usage";
 import { registerGetWorkspaceUsageDaily } from "./routes/get-workspace-usage-daily";
@@ -76,6 +78,7 @@ import { registerPostAgentEvalJudges } from "./routes/post-agent-eval-judges";
 import { registerPostAgentKeys } from "./routes/post-agent-keys";
 import { registerPostAgentSchedules } from "./routes/post-agent-schedules";
 import { registerPostAgentSpendingLimits } from "./routes/post-agent-spending-limits";
+import { registerPostAgentSuggestionsDismiss } from "./routes/post-agent-suggestions-dismiss";
 import { registerPostEmailConnection } from "./routes/post-email-connection";
 import { registerPostFileUploadUrl } from "./routes/post-file-upload-url";
 import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
@@ -97,6 +100,7 @@ import { registerPostWorkspaceIntegrationsSlackManifest } from "./routes/post-wo
 import { registerPostWorkspaceInvite } from "./routes/post-workspace-invite";
 import { registerPostWorkspaceMembers } from "./routes/post-workspace-members";
 import { registerPostWorkspaceSpendingLimits } from "./routes/post-workspace-spending-limits";
+import { registerPostWorkspaceSuggestionsDismiss } from "./routes/post-workspace-suggestions-dismiss";
 import { registerPostWorkspaces } from "./routes/post-workspaces";
 import { registerPutAgentEvalJudge } from "./routes/put-agent-eval-judge";
 import { registerPutAgentSchedule } from "./routes/put-agent-schedule";
@@ -154,10 +158,11 @@ export const createApp: () => express.Application = () => {
     next();
   });
 
-  // Register all routes
+  // Register all routes (more specific paths before generic :id routes)
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);
   registerPostWorkspaceImport(app);
+  registerGetWorkspaceSuggestions(app);
   registerGetWorkspaceById(app);
   registerGetWorkspaceExport(app);
   registerPutWorkspace(app);
@@ -179,14 +184,17 @@ export const createApp: () => express.Application = () => {
   registerPostAcceptWorkspaceInvite(app);
   registerGetWorkspaceAgents(app);
   registerPostWorkspaceAgents(app);
+  registerPostWorkspaceSuggestionsDismiss(app);
   registerPostGeneratePrompt(app);
   registerPostImprovePromptFromEvals(app);
   registerPostFileUploadUrl(app);
+  registerGetAgentSuggestions(app);
   registerGetWorkspaceAgent(app);
   registerGetAgentTools(app);
   registerPutWorkspaceAgent(app);
   registerDeleteWorkspaceAgent(app);
   registerPostAgentSpendingLimits(app);
+  registerPostAgentSuggestionsDismiss(app);
   registerPutAgentSpendingLimits(app);
   registerDeleteAgentSpendingLimits(app);
   registerPostAgentKeys(app);

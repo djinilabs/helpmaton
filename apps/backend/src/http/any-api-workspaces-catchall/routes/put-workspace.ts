@@ -104,6 +104,7 @@ export const registerPutWorkspace = (app: express.Application) => {
           description:
             description !== undefined ? description : workspace.description,
           currency: "usd" as const, // Always use USD
+          suggestions: null,
           updatedBy: req.userRef || "",
           updatedAt: new Date().toISOString(),
         };

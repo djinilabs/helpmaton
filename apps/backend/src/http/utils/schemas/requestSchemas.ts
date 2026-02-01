@@ -141,6 +141,17 @@ export const generatePromptRequestSchema = z.object({
 }).strict();
 
 /**
+ * Schema for dismissing a suggestion
+ * Used in POST /api/workspaces/:workspaceId/suggestions/dismiss
+ * and POST /api/workspaces/:workspaceId/agents/:agentId/suggestions/dismiss
+ */
+export const dismissSuggestionRequestSchema = z
+  .object({
+    suggestionId: z.string().min(1, "suggestionId is required"),
+  })
+  .strict();
+
+/**
  * Schema for improve prompt from evaluations request body
  * Used in POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-evals
  */

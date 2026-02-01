@@ -50,6 +50,7 @@ export async function addSpendingLimit(
       pk: agentPk,
       sk: "agent",
       spendingLimits: updatedLimits,
+      suggestions: null,
     });
   } else {
     // Add limit to workspace
@@ -79,6 +80,7 @@ export async function addSpendingLimit(
       pk: workspacePk,
       sk: "workspace",
       spendingLimits: updatedLimits,
+      suggestions: null,
     });
   }
 }
@@ -120,6 +122,7 @@ export async function updateSpendingLimit(
       pk: agentPk,
       sk: "agent",
       spendingLimits: updatedLimits,
+      suggestions: null,
     });
   } else {
     // Update limit in workspace
@@ -147,6 +150,7 @@ export async function updateSpendingLimit(
       pk: workspacePk,
       sk: "workspace",
       spendingLimits: updatedLimits,
+      suggestions: null,
     });
   }
 }
@@ -178,6 +182,7 @@ export async function removeSpendingLimit(
       pk: agentPk,
       sk: "agent",
       spendingLimits: updatedLimits.length > 0 ? updatedLimits : undefined,
+      suggestions: null,
     });
   } else {
     // Remove limit from workspace
@@ -196,6 +201,7 @@ export async function removeSpendingLimit(
       pk: workspacePk,
       sk: "workspace",
       spendingLimits: updatedLimits.length > 0 ? updatedLimits : undefined,
+      suggestions: null,
     });
   }
 }

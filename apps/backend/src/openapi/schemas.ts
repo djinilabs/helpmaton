@@ -21,6 +21,55 @@ export const openApiSchemas = {
       },
     },
   },
+  SuggestionItem: {
+    type: "object",
+    required: ["id", "text"],
+    properties: {
+      id: {
+        type: "string",
+        description: "Suggestion ID",
+      },
+      text: {
+        type: "string",
+        description: "Suggestion text",
+      },
+    },
+  },
+  SuggestionsCache: {
+    type: "object",
+    required: ["items", "generatedAt"],
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          $ref: "#/components/schemas/SuggestionItem",
+        },
+      },
+      generatedAt: {
+        type: "string",
+        format: "date-time",
+        description: "When the suggestions were generated",
+      },
+    },
+  },
+  SuggestionsResponse: {
+    type: "object",
+    properties: {
+      suggestions: {
+        $ref: "#/components/schemas/SuggestionsCache",
+        nullable: true,
+      },
+    },
+  },
+  DismissSuggestionRequest: {
+    type: "object",
+    required: ["suggestionId"],
+    properties: {
+      suggestionId: {
+        type: "string",
+      },
+    },
+  },
   Workspace: {
     type: "object",
     properties: {
@@ -57,6 +106,10 @@ export const openApiSchemas = {
           $ref: "#/components/schemas/SpendingLimit",
         },
         description: "Spending limits configuration",
+      },
+      suggestions: {
+        $ref: "#/components/schemas/SuggestionsCache",
+        nullable: true,
       },
       createdAt: {
         type: "string",
@@ -171,6 +224,10 @@ export const openApiSchemas = {
           },
         },
         description: "Per-server tool allowlist for MCP servers",
+      },
+      suggestions: {
+        $ref: "#/components/schemas/SuggestionsCache",
+        nullable: true,
       },
       enableMemorySearch: {
         type: "boolean",

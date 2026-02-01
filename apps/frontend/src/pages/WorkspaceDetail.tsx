@@ -28,6 +28,7 @@ import { LoadingScreen } from "../components/LoadingScreen";
 import { QueryPanel } from "../components/QueryPanel";
 import { SectionGroup } from "../components/SectionGroup";
 import { TrialUsageBar } from "../components/TrialUsageBar";
+import { WorkspaceSuggestions } from "../components/WorkspaceSuggestions";
 // Lazy load modals - only load when opened
 const TrialCreditRequestModal = lazy(() =>
   import("../components/TrialCreditRequestModal").then((module) => ({
@@ -556,6 +557,24 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             )}
           </div>
         </div>
+
+        <WorkspaceSuggestions
+          workspaceId={id!}
+          onGoToAction={(action) => {
+            if ("sectionId" in action) {
+              if (expandedSection !== action.sectionId) {
+                toggleSection(action.sectionId);
+              }
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  document
+                    .getElementById(action.sectionId)
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }, 150);
+              });
+            }
+          }}
+        />
 
         {/* Trial Credit Request Button - Show when balance is 0 */}
         {workspace.creditBalance === 0 && canEdit && (

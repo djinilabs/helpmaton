@@ -46,6 +46,7 @@ import { useParams, useNavigate } from "react-router-dom";
 
 
 import { AccordionSection } from "../components/AccordionSection";
+import { AgentSuggestions } from "../components/AgentSuggestions";
 import { ClientToolEditor } from "../components/ClientToolEditor";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LazyAccordionContent } from "../components/LazyAccordionContent";
@@ -3010,6 +3011,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
           )}
         </div>
       </div>
+
     </div>
   </div>
 );
@@ -3032,6 +3034,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     deleteStreamServer,
     streamUrlData,
     isEditing,
+    setIsEditing,
     isDeleting,
     isCreatingKey,
     setIsCreatingKey,
@@ -3222,6 +3225,27 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           showScrollIndicator={showScrollIndicator}
           setShowScrollIndicator={setShowScrollIndicator}
           setModelName={setModelName}
+        />
+
+        <AgentSuggestions
+          workspaceId={workspaceId}
+          agentId={agentId}
+          onGoToAction={(action) => {
+            if ("openEdit" in action && action.openEdit) {
+              setIsEditing(true);
+            } else if ("sectionId" in action && action.sectionId) {
+              if (expandedSection !== action.sectionId) {
+                toggleSection(action.sectionId);
+              }
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  document
+                    .getElementById(action.sectionId)
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }, 150);
+              });
+            }
+          }}
         />
 
         {/*

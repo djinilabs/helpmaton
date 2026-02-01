@@ -8,6 +8,7 @@ import {
 import {
   listAgents,
   getAgent,
+  getAgentSuggestions,
   createAgent,
   updateAgent,
   deleteAgent,
@@ -15,6 +16,7 @@ import {
   createAgentKey,
   deleteAgentKey,
   generatePrompt,
+  dismissAgentSuggestion,
   improvePromptFromEvals,
   type CreateAgentInput,
   type UpdateAgentInput,
@@ -217,6 +219,36 @@ export function useGeneratePrompt(workspaceId: string) {
       generatePrompt(workspaceId, input),
     onError: (error: Error) => {
       toast.error(error.message || "Failed to generate prompt");
+    },
+  });
+}
+
+export function useAgentSuggestions(workspaceId: string, agentId: string) {
+  return useQuery({
+    queryKey: ["workspaces", workspaceId, "agents", agentId, "suggestions"],
+    queryFn: () => getAgentSuggestions(workspaceId, agentId),
+    enabled: !!workspaceId && !!agentId,
+  });
+}
+
+export function useDismissAgentSuggestion(
+  workspaceId: string,
+  agentId: string,
+) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (suggestionId: string) =>
+      dismissAgentSuggestion(workspaceId, agentId, suggestionId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(
+        ["workspaces", workspaceId, "agents", agentId, "suggestions"],
+        () => ({ suggestions: data.suggestions }),
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to dismiss suggestion");
     },
   });
 }

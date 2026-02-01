@@ -3,6 +3,35 @@ export interface SpendingLimit {
   amount: number; // nano-dollars (integer)
 }
 
+/** Action types returned by the suggestions API; used to build "Go to X" links. */
+export type SuggestionActionType =
+  | "workspace_api_keys"
+  | "workspace_spending_limits"
+  | "workspace_team"
+  | "workspace_documents"
+  | "workspace_agents"
+  | "workspace_integrations"
+  | "workspace_credits"
+  | "agent_model"
+  | "agent_memory"
+  | "agent_tools"
+  | "agent_eval_judges"
+  | "agent_schedules"
+  | "agent_document_search"
+  | "agent_knowledge_injection"
+  | "agent_delegation";
+
+export interface SuggestionItem {
+  id: string;
+  text: string;
+  actionType?: SuggestionActionType;
+}
+
+export interface SuggestionsCache {
+  items: SuggestionItem[];
+  generatedAt: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -14,6 +43,7 @@ export interface Workspace {
   apiKeys?: {
     openrouter?: boolean;
   };
+  suggestions?: SuggestionsCache | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -137,6 +167,7 @@ export interface Agent {
     theme?: "light" | "dark" | "auto";
     position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   };
+  suggestions?: SuggestionsCache | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -653,6 +684,15 @@ export async function getWorkspace(id: string): Promise<Workspace> {
   return response.json();
 }
 
+export async function getWorkspaceSuggestions(
+  workspaceId: string,
+): Promise<{ suggestions: SuggestionsCache | null }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/suggestions`,
+  );
+  return response.json();
+}
+
 export async function createWorkspace(
   input: CreateWorkspaceInput,
 ): Promise<Workspace> {
@@ -671,6 +711,20 @@ export async function updateWorkspace(
     method: "PUT",
     body: JSON.stringify(input),
   });
+  return response.json();
+}
+
+export async function dismissWorkspaceSuggestion(
+  workspaceId: string,
+  suggestionId: string,
+): Promise<{ suggestions: SuggestionsCache | null }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/suggestions/dismiss`,
+    {
+      method: "POST",
+      body: JSON.stringify({ suggestionId }),
+    },
+  );
   return response.json();
 }
 
@@ -904,6 +958,31 @@ export async function getAgent(
 ): Promise<Agent> {
   const response = await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}`,
+  );
+  return response.json();
+}
+
+export async function getAgentSuggestions(
+  workspaceId: string,
+  agentId: string,
+): Promise<{ suggestions: SuggestionsCache | null }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/suggestions`,
+  );
+  return response.json();
+}
+
+export async function dismissAgentSuggestion(
+  workspaceId: string,
+  agentId: string,
+  suggestionId: string,
+): Promise<{ suggestions: SuggestionsCache | null }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/suggestions/dismiss`,
+    {
+      method: "POST",
+      body: JSON.stringify({ suggestionId }),
+    },
   );
   return response.json();
 }

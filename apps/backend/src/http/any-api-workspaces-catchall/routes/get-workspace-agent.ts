@@ -101,6 +101,12 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           throw resourceGone("Agent not found");
         }
 
+        const workspacePk = `workspaces/${workspaceId}`;
+        const workspace = await db.workspace.get(workspacePk, "workspace");
+        if (!workspace) {
+          throw resourceGone("Workspace not found");
+        }
+
         // Migrate enableTavilyFetch to fetchWebProvider for backward compatibility
         const fetchWebProvider =
           agent.fetchWebProvider ??
