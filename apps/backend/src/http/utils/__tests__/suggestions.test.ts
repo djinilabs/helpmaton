@@ -4,6 +4,7 @@ import type { SuggestionsCache } from "../suggestions";
 import {
   resolveWorkspaceSuggestions,
   buildWorkspaceSuggestionContext,
+  dismissSuggestion,
 } from "../suggestions";
 
 type SuggestionsDb = Parameters<typeof resolveWorkspaceSuggestions>[0]["db"];
@@ -158,5 +159,52 @@ describe("suggestions utils", () => {
 
     expect(context.workspace.name).toBe("Workspace One");
     expect(context.connections.hasConnectedTools).toBe(false);
+  });
+
+  it("dismissSuggestion removes an existing suggestion", () => {
+    const cache: SuggestionsCache = {
+      items: [
+        { id: "s1", text: "Connect tools" },
+        { id: "s2", text: "Upload documents" },
+      ],
+      generatedAt: "2024-01-01T00:00:00Z",
+      dismissedIds: [],
+    };
+
+    const updated = dismissSuggestion(cache, "s1");
+    expect(updated?.items).toEqual([{ id: "s2", text: "Upload documents" }]);
+    expect(updated?.dismissedIds).toEqual(["s1"]);
+  });
+
+  it("dismissSuggestion is a no-op for missing ids", () => {
+    const cache: SuggestionsCache = {
+      items: [{ id: "s1", text: "Connect tools" }],
+      generatedAt: "2024-01-01T00:00:00Z",
+      dismissedIds: [],
+    };
+
+    const updated = dismissSuggestion(cache, "missing");
+    expect(updated).toEqual(cache);
+  });
+
+  it("dismissSuggestion handles null cache input", () => {
+    const updated = dismissSuggestion(null, "s1");
+    expect(updated).toBeNull();
+  });
+
+  it("dismissSuggestion tracks multiple sequential dismissals", () => {
+    const cache: SuggestionsCache = {
+      items: [
+        { id: "s1", text: "Connect tools" },
+        { id: "s2", text: "Upload documents" },
+      ],
+      generatedAt: "2024-01-01T00:00:00Z",
+      dismissedIds: [],
+    };
+
+    const first = dismissSuggestion(cache, "s1");
+    const second = dismissSuggestion(first, "s2");
+    expect(second?.items).toEqual([]);
+    expect(second?.dismissedIds).toEqual(["s1", "s2"]);
   });
 });

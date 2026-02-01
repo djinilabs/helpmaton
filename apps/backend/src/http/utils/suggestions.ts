@@ -448,11 +448,16 @@ export const dismissSuggestion = (
   suggestionId: string,
 ): SuggestionsCache | null => {
   if (!cache) return null;
+  const hasSuggestion = cache.items.some((item) => item.id === suggestionId);
+  if (!hasSuggestion) {
+    return cache;
+  }
   const dismissed = new Set(cache.dismissedIds ?? []);
   dismissed.add(suggestionId);
+  const dismissedIds = Array.from(dismissed);
   return {
     ...cache,
-    dismissedIds: Array.from(dismissed),
-    items: filterDismissedSuggestions(cache.items, Array.from(dismissed)),
+    dismissedIds,
+    items: filterDismissedSuggestions(cache.items, dismissedIds),
   };
 };

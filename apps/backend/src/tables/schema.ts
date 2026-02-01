@@ -36,6 +36,7 @@ const suggestionsCacheSchema = z
   .object({
     items: z.array(suggestionItemSchema).max(5),
     generatedAt: z.iso.datetime(),
+    // Internal-only cache fields (not exposed in API responses).
     contextHash: z.string().optional(),
     dismissedIds: z.array(z.string()).optional(),
   })
