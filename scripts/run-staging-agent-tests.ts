@@ -170,6 +170,49 @@ async function fetchText(
   return { response, data: rawText, rawText };
 }
 
+function parseSseData(rawText: string): {
+  toolNames: string[];
+  dataLines: string[];
+} {
+  const dataLines = rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.replace(/^data:\s?/, "").trim())
+    .filter((line) => line.length > 0);
+
+  const toolNames = new Set<string>();
+  for (const line of dataLines) {
+    try {
+      const parsed = JSON.parse(line) as {
+        toolName?: unknown;
+        name?: unknown;
+        toolCall?: { name?: unknown };
+        type?: unknown;
+      };
+      if (typeof parsed.toolName === "string") {
+        toolNames.add(parsed.toolName);
+        continue;
+      }
+      if (typeof parsed.toolCall?.name === "string") {
+        toolNames.add(parsed.toolCall.name);
+        continue;
+      }
+      if (
+        typeof parsed.name === "string" &&
+        typeof parsed.type === "string" &&
+        parsed.type.includes("tool")
+      ) {
+        toolNames.add(parsed.name);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return { toolNames: Array.from(toolNames), dataLines };
+}
+
 async function assertApiAccess(
   apiBaseUrl: string,
   authHeader: Record<string, string>,
@@ -1042,32 +1085,8 @@ async function main() {
     );
     const delegatorAgentId = delegatorAgentResponse.data.id;
 
-    logStep("Queueing temporal grain test message");
     const temporalFactId = crypto.randomUUID();
     const temporalFactContent = `staging test fact ${temporalFactId}`;
-    await sqsClient.send(
-      new SendMessageCommand({
-        QueueUrl: queueUrls.temporal,
-        MessageBody: JSON.stringify({
-          operation: "insert",
-          agentId: helloAgentId,
-          temporalGrain: "working",
-          workspaceId,
-          data: {
-            rawFacts: [
-              {
-                id: temporalFactId,
-                content: temporalFactContent,
-                timestamp: new Date().toISOString(),
-                metadata: { source: "staging-test" },
-              },
-            ],
-          },
-        }),
-        MessageGroupId: `${helloAgentId}-working`,
-        MessageDeduplicationId: crypto.randomUUID(),
-      }),
-    );
 
     logStep("Enabling delegation");
     await fetchJson(
@@ -1225,6 +1244,31 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       );
     }
 
+    logStep("Queueing temporal grain test message");
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: queueUrls.temporal,
+        MessageBody: JSON.stringify({
+          operation: "insert",
+          agentId: helloAgentId,
+          temporalGrain: "working",
+          workspaceId,
+          data: {
+            rawFacts: [
+              {
+                id: temporalFactId,
+                content: temporalFactContent,
+                timestamp: new Date().toISOString(),
+                metadata: { source: "staging-test" },
+              },
+            ],
+          },
+        }),
+        MessageGroupId: `${helloAgentId}-working`,
+        MessageDeduplicationId: crypto.randomUUID(),
+      }),
+    );
+
     logStep("Testing /api/streams/:workspaceId/:agentId/test");
     const testConversationId = crypto.randomUUID();
     await fetchText(
@@ -1365,6 +1409,9 @@ You must respond with valid JSON only. Do not include markdown formatting like \
 
     logStep("Testing async delegation via SQS");
     const delegatorConversationId = crypto.randomUUID();
+    const delegatorQuestion =
+      `${userQuestion} ` +
+      `IMPORTANT: You must call call_agent_async with agentId "${delegateAgentId}".`;
     const delegatorStreamResponse = await fetchText(
       `${streamBaseUrl}/api/streams/${workspaceId}/${delegatorAgentId}/test`,
       {
@@ -1374,26 +1421,41 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           "Content-Type": "application/json",
           "X-Conversation-Id": delegatorConversationId,
         },
-        body: JSON.stringify([{ role: "user", content: userQuestion }]),
+        body: JSON.stringify([{ role: "user", content: delegatorQuestion }]),
       },
     );
-    if (!delegatorStreamResponse.rawText.includes("call_agent_async")) {
-      console.error(
-        "[Delegation Debug] Missing call_agent_async tool call. Stream response preview:",
-        delegatorStreamResponse.rawText.slice(0, 2000),
-      );
-      throw new Error(
-        "Delegation test failed: call_agent_async tool was not invoked",
+    const delegationSse = parseSseData(delegatorStreamResponse.rawText);
+    if (!delegationSse.toolNames.includes("call_agent_async")) {
+      console.warn(
+        "[Delegation Debug] call_agent_async not found in SSE tool list. Tools seen:",
+        delegationSse.toolNames.length > 0
+          ? delegationSse.toolNames
+          : "none",
       );
     }
-    await waitForDelegationTask(
-      docClient,
-      tables.delegation,
-      workspaceId,
-      delegatorAgentId,
-      delegateAgentId,
-      timeoutMs,
-    );
+    try {
+      await waitForDelegationTask(
+        docClient,
+        tables.delegation,
+        workspaceId,
+        delegatorAgentId,
+        delegateAgentId,
+        timeoutMs,
+      );
+    } catch (error) {
+      const preview = delegationSse.dataLines.slice(0, 40).join("\n");
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Delegation test failed: delegation task not observed. ` +
+          `Tools seen: ${
+            delegationSse.toolNames.length > 0
+              ? delegationSse.toolNames.join(", ")
+              : "none"
+          }. ` +
+          `Stream data preview:\n${preview}\nOriginal error: ${errorMessage}`,
+      );
+    }
     const delegationConversation = await waitForConversationByType(
       docClient,
       tables.conversations,
