@@ -36,7 +36,7 @@ export class WorkspaceDetailPage extends BasePage {
     // Wait for the workspace detail page to load
     await this.page.waitForLoadState("domcontentloaded");
     // Wait for the heading or accordion sections to appear
-    await this.page.waitForSelector('h2:has-text("Assistants")', {
+    await this.page.waitForSelector('h2:has-text("Agents")', {
       timeout: 15000,
     });
   }
@@ -84,7 +84,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Agents section
    */
   async expandAgentsSection(): Promise<void> {
-    await this.expandAccordion("Assistants");
+    await this.expandAccordion("Agents");
   }
 
   /**

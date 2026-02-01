@@ -59,7 +59,7 @@ const WorkspacesList: FC = () => {
                 </h1>
                 <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300">
                   Workspaces keep each team or project separate. Each workspace
-                  has its own assistants, documents, and spending.
+                  has its own agents, documents, and spending.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -106,7 +106,7 @@ const WorkspacesList: FC = () => {
                 Create your first workspace to get started.
               </p>
               <p className="mb-10 text-base text-neutral-600 dark:text-neutral-300">
-                A workspace is where you&apos;ll create assistants, upload
+                A workspace is where you&apos;ll create agents, upload
                 documents, and manage spending.
               </p>
               <button
