@@ -13,11 +13,14 @@ const MAX_SUGGESTIONS = 3;
 const MAX_PROMPT_CHARS = 600;
 
 /**
- * Check if suggestions should be skipped (e.g., in test environments).
- * Returns true if running in test environment to avoid LLM API calls during tests.
+ * Check if suggestions should be skipped (e.g., in E2E test environments).
+ * Returns true if running in E2E tests to avoid LLM API calls.
+ * Unit tests (running in vitest) are allowed to test suggestion generation.
  */
 const shouldSkipSuggestions = (): boolean => {
-  return process.env.NODE_ENV === "test";
+  // Skip only in E2E tests (NODE_ENV=test but not running in vitest)
+  // Unit tests running in vitest should still test suggestion generation
+  return process.env.NODE_ENV === "test" && !process.env.VITEST;
 };
 
 const suggestionsResponseSchema = z
