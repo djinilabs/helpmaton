@@ -16,7 +16,7 @@ const {
   mockCreateModel,
   mockGenerateText,
   mockCheckPromptGenerationLimit,
-  mockIncrementPromptGenerationBucket,
+  mockIncrementPromptGenerationBucketSafe,
   mockDatabase,
   mockGenerateToolList,
 } = vi.hoisted(() => {
@@ -24,7 +24,7 @@ const {
     mockCreateModel: vi.fn(),
     mockGenerateText: vi.fn(),
     mockCheckPromptGenerationLimit: vi.fn(),
-    mockIncrementPromptGenerationBucket: vi.fn(),
+    mockIncrementPromptGenerationBucketSafe: vi.fn(),
     mockDatabase: vi.fn(),
     mockGenerateToolList: vi.fn(),
   };
@@ -41,7 +41,7 @@ vi.mock("ai", () => ({
 
 vi.mock("../../../../utils/requestTracking", () => ({
   checkPromptGenerationLimit: mockCheckPromptGenerationLimit,
-  incrementPromptGenerationBucket: mockIncrementPromptGenerationBucket,
+  incrementPromptGenerationBucketSafe: mockIncrementPromptGenerationBucketSafe,
 }));
 
 vi.mock("../../../../tables", () => ({
@@ -324,13 +324,7 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
     vi.clearAllMocks();
     // Default mocks
     mockCheckPromptGenerationLimit.mockResolvedValue(undefined);
-    mockIncrementPromptGenerationBucket.mockResolvedValue({
-      pk: "request-buckets/sub-123/prompt-generation/2024-01-01T00:00:00.000Z",
-      subscriptionId: "sub-123",
-      category: "prompt-generation",
-      hourTimestamp: "2024-01-01T00:00:00.000Z",
-      count: 1,
-    });
+    mockIncrementPromptGenerationBucketSafe.mockResolvedValue(undefined);
     const mockDb = createMockDatabase();
     // Add email-connection table mock
     (mockDb as Record<string, unknown>)["email-connection"] = {
@@ -422,12 +416,7 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
         const generatedPrompt = result.text.trim();
 
         // Track successful prompt generation (increment bucket)
-        try {
-          await mockIncrementPromptGenerationBucket(workspaceId);
-        } catch (error) {
-          // Log error but don't fail the request
-          console.error("Error incrementing prompt generation bucket:", error);
-        }
+        await mockIncrementPromptGenerationBucketSafe(workspaceId);
 
         res.json({
           prompt: generatedPrompt,
@@ -486,7 +475,9 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
         },
       ],
     });
-    expect(mockIncrementPromptGenerationBucket).toHaveBeenCalledWith("workspace-123");
+    expect(mockIncrementPromptGenerationBucketSafe).toHaveBeenCalledWith(
+      "workspace-123"
+    );
     expect(res.json).toHaveBeenCalledWith({
       prompt: mockGenerateTextResult.text.trim(),
     });
@@ -773,7 +764,7 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
 
     expect(next).toHaveBeenCalledWith(error);
     // Should not increment bucket on error
-    expect(mockIncrementPromptGenerationBucket).not.toHaveBeenCalled();
+    expect(mockIncrementPromptGenerationBucketSafe).not.toHaveBeenCalled();
   });
 
   it("should check prompt generation limit before LLM call", async () => {
@@ -830,9 +821,13 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
 
     // Verify bucket is incremented after successful generation
     expect(mockGenerateText).toHaveBeenCalledBefore(
-      mockIncrementPromptGenerationBucket as unknown as ReturnType<typeof vi.fn>
+      mockIncrementPromptGenerationBucketSafe as unknown as ReturnType<
+        typeof vi.fn
+      >
     );
-    expect(mockIncrementPromptGenerationBucket).toHaveBeenCalledWith("workspace-123");
+    expect(mockIncrementPromptGenerationBucketSafe).toHaveBeenCalledWith(
+      "workspace-123"
+    );
   });
 
   it("should handle missing subscription gracefully", async () => {
@@ -866,7 +861,7 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
     expect(next).toHaveBeenCalledWith(subscriptionError);
   });
 
-  it("should handle prompt generation bucket increment errors gracefully", async () => {
+  it("should return success when using safe bucket increment (errors are handled inside the safe wrapper)", async () => {
     const mockModel = { model: "mock-model" };
     mockCreateModel.mockResolvedValue(mockModel);
 
@@ -875,8 +870,7 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
     };
     mockGenerateText.mockResolvedValue(mockGenerateTextResult);
 
-    const bucketError = new Error("Failed to increment bucket");
-    mockIncrementPromptGenerationBucket.mockRejectedValue(bucketError);
+    mockIncrementPromptGenerationBucketSafe.mockResolvedValue(undefined);
 
     const req = createMockRequest({
       userRef: "users/user-123",
@@ -892,11 +886,13 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
 
     await callRouteHandler(req, res, next);
 
-    // Should still return success even if bucket increment fails
     expect(res.json).toHaveBeenCalledWith({
       prompt: "Generated prompt",
     });
     expect(res.statusCode).toBe(200);
+    expect(mockIncrementPromptGenerationBucketSafe).toHaveBeenCalledWith(
+      "workspace-123"
+    );
   });
 
   it("should include existing system prompt when agentId is provided", async () => {

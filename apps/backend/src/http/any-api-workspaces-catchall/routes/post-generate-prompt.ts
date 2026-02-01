@@ -1,4 +1,4 @@
-import { badRequest, resourceGone, unauthorized } from "@hapi/boom";
+import { badRequest, resourceGone } from "@hapi/boom";
 import { generateText } from "ai";
 import express from "express";
 
@@ -6,7 +6,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
   checkPromptGenerationLimit,
-  incrementPromptGenerationBucket,
+  incrementPromptGenerationBucketSafe,
 } from "../../../utils/requestTracking";
 import { generateToolList, type ToolMetadata } from "../../../utils/toolMetadata";
 import { trackBusinessEvent } from "../../../utils/tracking";
@@ -18,6 +18,7 @@ import {
 } from "../../utils/requestTimeout";
 import { generatePromptRequestSchema } from "../../utils/schemas/requestSchemas";
 import { extractUserId } from "../../utils/session";
+import { requireWorkspaceContext } from "../../utils/workspaceContext";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 const PROMPT_GENERATOR_SYSTEM_PROMPT = `You are an expert at writing effective system prompts for AI agents. Your task is to generate clear, actionable system prompts based on user-provided goals and available tools.
@@ -69,16 +70,6 @@ type EnabledMcpServer = {
 type ToolGroup = {
   category: string;
   tools: ToolMetadata[];
-};
-
-const requireWorkspaceContext = (req: express.Request) => {
-  if (!req.workspaceResource) {
-    throw badRequest("Workspace resource not found");
-  }
-  if (!req.userRef) {
-    throw unauthorized();
-  }
-  return { workspaceId: req.params.workspaceId };
 };
 
 const loadAgentForPrompt = async (params: {
@@ -323,29 +314,6 @@ const generatePromptText = async (params: {
     return result.text.trim();
   } finally {
     cleanupRequestTimeout(requestTimeout);
-  }
-};
-
-const incrementPromptGenerationBucketSafe = async (workspaceId: string) => {
-  try {
-    console.log(
-      "[Prompt Generation] Incrementing prompt generation bucket for workspace:",
-      workspaceId
-    );
-    await incrementPromptGenerationBucket(workspaceId);
-    console.log(
-      "[Prompt Generation] Successfully incremented prompt generation bucket:",
-      workspaceId
-    );
-  } catch (error) {
-    console.error(
-      "[Prompt Generation] Error incrementing prompt generation bucket:",
-      {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        workspaceId,
-      }
-    );
   }
 };
 
