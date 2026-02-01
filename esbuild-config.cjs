@@ -135,6 +135,12 @@ try {
 
 const enableSourceMaps = process.env.SENTRY_ENABLE_BACKEND_SOURCEMAPS === 'true';
 
+if (enableSourceMaps) {
+  console.log('[esbuild-config] Enabling source maps');
+} else {
+  console.log('[esbuild-config] Disabling source maps');
+}
+
 const config = {
   loader: {
     '.graphqls': 'text',
