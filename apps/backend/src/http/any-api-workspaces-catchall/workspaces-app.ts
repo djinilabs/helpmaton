@@ -79,6 +79,7 @@ import { registerPostAgentSpendingLimits } from "./routes/post-agent-spending-li
 import { registerPostEmailConnection } from "./routes/post-email-connection";
 import { registerPostFileUploadUrl } from "./routes/post-file-upload-url";
 import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
+import { registerPostImprovePromptFromEvals } from "./routes/post-improve-prompt-from-evals";
 import { registerPostMcpServer } from "./routes/post-mcp-server";
 import { registerPostMcpServerOauthDisconnect } from "./routes/post-mcp-server-oauth-disconnect";
 import { registerPostStreamServers } from "./routes/post-stream-servers";
@@ -179,6 +180,7 @@ export const createApp: () => express.Application = () => {
   registerGetWorkspaceAgents(app);
   registerPostWorkspaceAgents(app);
   registerPostGeneratePrompt(app);
+  registerPostImprovePromptFromEvals(app);
   registerPostFileUploadUrl(app);
   registerGetWorkspaceAgent(app);
   registerGetAgentTools(app);

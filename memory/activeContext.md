@@ -4,6 +4,7 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Agent prompt improvement from evals (2026-02-01)**: Added improve-from-evals backend endpoint with strict validation + tests, plus new evaluations dialog to select evals, choose model, generate/review, and save updated system prompt. Fixed DynamoDB GetItem schema error by including `sk: "result"` when loading eval results. Ran `pnpm typecheck`, `pnpm lint --fix`, and backend test `post-improve-prompt-from-evals`.
 - **Credit/spending error admin emails (2026-02-01)**: Added workspace-owner notifications with per-user per-type 1h throttling, enriched error context with workspace/agent, wired emails into credit-error handlers, updated schemas/tests, and ran lint/typecheck + focused backend tests.
 - **Staging delegation test hardening (2026-02-01)**: Replaced brittle `call_agent_async` SSE check with delegation task wait + added SSE tool parsing for debug; reinforced delegator user message. Moved temporal grain queue publish after credit balance update to avoid 0-credit embedding failures. Ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm exec tsx scripts/run-staging-agent-tests.ts --pr 256` (pass; cleaned workspace `3b556663-273e-4b31-a4e1-f01ef03d60f4`). Prior failed run left workspace `e2373467-724a-4b99-ab37-2f2a97622f7f`.
 - **Authorizer cache key fix (2026-02-01)**: Included `context.resourcePath` in API Gateway authorizer identity source to prevent cached unauthorized responses from bleeding across unauthenticated routes; ran `pnpm typecheck` and `pnpm lint --fix`.
