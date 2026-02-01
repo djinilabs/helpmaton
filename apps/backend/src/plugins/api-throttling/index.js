@@ -337,9 +337,10 @@ async function configureApiThrottling({ cloudformation, inventory, arc }) {
           : undefined,
         // For REQUEST authorizers, IdentitySource specifies which parts of the request to pass
         // Configure to forward Authorization header so the authorizer can access Bearer tokens
+        // Include resourcePath to avoid caching across different routes with empty auth headers
         // Note: Header names must be lowercase in IdentitySource
-        // Note: method.request.path is not a valid identity source - path is available in methodArn
-        IdentitySource: "method.request.header.authorization",
+        IdentitySource:
+          "method.request.header.authorization,context.resourcePath",
         AuthorizerResultTtlInSeconds: 300,
       },
     };
