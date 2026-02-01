@@ -3,6 +3,10 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import {
+  buildWorkspaceSuggestionContext,
+  resolveAgentSuggestions,
+} from "../../utils/suggestions";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -101,6 +105,12 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           throw resourceGone("Agent not found");
         }
 
+        const workspacePk = `workspaces/${workspaceId}`;
+        const workspace = await db.workspace.get(workspacePk, "workspace");
+        if (!workspace) {
+          throw resourceGone("Workspace not found");
+        }
+
         // Migrate enableTavilyFetch to fetchWebProvider for backward compatibility
         const fetchWebProvider =
           agent.fetchWebProvider ??
@@ -110,6 +120,21 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
         const searchWebProvider =
           agent.searchWebProvider ??
           (agent.enableTavilySearch === true ? "tavily" : undefined);
+
+        const workspaceContext = await buildWorkspaceSuggestionContext({
+          db,
+          workspaceId,
+          workspace,
+        });
+
+        const suggestions = await resolveAgentSuggestions({
+          db,
+          workspaceId,
+          agentId,
+          agentPk,
+          workspaceContext,
+          agent,
+        });
 
         res.json({
           id: agentId,
@@ -157,6 +182,12 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           modelName: agent.modelName ?? null,
           avatar: agent.avatar ?? null,
           widgetConfig: agent.widgetConfig ?? undefined,
+          suggestions: suggestions
+            ? {
+                items: suggestions.items,
+                generatedAt: suggestions.generatedAt,
+              }
+            : null,
           createdAt: agent.createdAt,
           updatedAt: agent.updatedAt,
         });

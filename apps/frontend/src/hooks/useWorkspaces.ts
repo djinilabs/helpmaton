@@ -5,6 +5,7 @@ import {
   getWorkspace,
   createWorkspace,
   updateWorkspace,
+  dismissWorkspaceSuggestion,
   deleteWorkspace,
   exportWorkspace,
   importWorkspace,
@@ -64,6 +65,33 @@ export function useUpdateWorkspace(id: string) {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update workspace");
+    },
+  });
+}
+
+export function useDismissWorkspaceSuggestion(workspaceId: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (suggestionId: string) =>
+      dismissWorkspaceSuggestion(workspaceId, suggestionId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(
+        ["workspaces", workspaceId],
+        (previous: unknown) => {
+          if (!previous || typeof previous !== "object") {
+            return previous;
+          }
+          return {
+            ...(previous as Record<string, unknown>),
+            suggestions: data.suggestions,
+          };
+        },
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to dismiss suggestion");
     },
   });
 }

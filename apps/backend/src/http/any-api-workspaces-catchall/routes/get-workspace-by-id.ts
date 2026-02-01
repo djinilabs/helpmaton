@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { getUserAuthorizationLevelForResource } from "../../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { resolveWorkspaceSuggestions } from "../../utils/suggestions";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -111,6 +112,14 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           openrouter: providersWithKeys.has("openrouter"),
         };
 
+        const suggestions = await resolveWorkspaceSuggestions({
+          db,
+          workspaceId,
+          workspacePk: workspace.pk,
+          workspace,
+          apiKeys,
+        });
+
         res.json({
           id: workspaceId,
           name: workspace.name,
@@ -120,6 +129,12 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           currency: workspace.currency ?? "usd",
           spendingLimits: workspace.spendingLimits ?? [],
           apiKeys, // Only OpenRouter is supported for BYOK
+          suggestions: suggestions
+            ? {
+                items: suggestions.items,
+                generatedAt: suggestions.generatedAt,
+              }
+            : null,
           createdAt: workspace.createdAt,
         });
       } catch (error) {

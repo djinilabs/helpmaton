@@ -27,6 +27,7 @@ import { LazyAccordionContent } from "../components/LazyAccordionContent";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { QueryPanel } from "../components/QueryPanel";
 import { SectionGroup } from "../components/SectionGroup";
+import { SuggestionsBox } from "../components/SuggestionsBox";
 import { TrialUsageBar } from "../components/TrialUsageBar";
 // Lazy load modals - only load when opened
 const TrialCreditRequestModal = lazy(() =>
@@ -114,6 +115,7 @@ import {
   useUpdateWorkspace,
   useDeleteWorkspace,
   useExportWorkspace,
+  useDismissWorkspaceSuggestion,
 } from "../hooks/useWorkspaces";
 import { useWorkspaceUserLimit } from "../hooks/useWorkspaceUserLimit";
 import {
@@ -318,6 +320,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   const updateWorkspace = useUpdateWorkspace(id!);
   const deleteWorkspace = useDeleteWorkspace(id!);
   const exportWorkspace = useExportWorkspace(id!);
+  const dismissWorkspaceSuggestion = useDismissWorkspaceSuggestion(id!);
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(workspace.name);
@@ -384,6 +387,10 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
       // Error is handled by toast in the hook
       setIsDeleting(false);
     }
+  };
+
+  const handleDismissSuggestion = (suggestionId: string) => {
+    dismissWorkspaceSuggestion.mutate(suggestionId);
   };
 
   return (
@@ -556,6 +563,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             )}
           </div>
         </div>
+
+        <SuggestionsBox
+          items={workspace.suggestions?.items ?? []}
+          isDismissing={dismissWorkspaceSuggestion.isPending}
+          onDismiss={handleDismissSuggestion}
+        />
 
         {/* Trial Credit Request Button - Show when balance is 0 */}
         {workspace.creditBalance === 0 && canEdit && (

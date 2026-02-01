@@ -25,6 +25,22 @@ const TableBaseSchema = z.object({
     .optional(),
 });
 
+const suggestionItemSchema = z
+  .object({
+    id: z.string(),
+    text: z.string(),
+  })
+  .strict();
+
+const suggestionsCacheSchema = z
+  .object({
+    items: z.array(suggestionItemSchema).max(5),
+    generatedAt: z.iso.datetime(),
+    contextHash: z.string().optional(),
+    dismissedIds: z.array(z.string()).optional(),
+  })
+  .strict();
+
 export const tableSchemas = {
   "next-auth": TableBaseSchema.extend({
     pk: z.string(),
@@ -67,6 +83,7 @@ export const tableSchemas = {
     trialCreditAmount: z.number().int().optional(), // nano-dollars
     // Lemon Squeezy integration fields
     lemonSqueezyOrderId: z.string().optional(), // Lemon Squeezy order ID for credit purchases
+    suggestions: suggestionsCacheSchema.nullable().optional(),
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),
@@ -161,6 +178,7 @@ export const tableSchemas = {
       })
       .optional(), // Widget configuration
     avatar: z.string().optional(), // Avatar image path (e.g., "/images/helpmaton_logo_10.svg")
+    suggestions: suggestionsCacheSchema.nullable().optional(),
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),
