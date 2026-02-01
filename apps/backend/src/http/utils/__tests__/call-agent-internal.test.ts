@@ -211,14 +211,18 @@ describe("callAgentInternal", () => {
 
   it("does not report spending limit errors to Sentry", async () => {
     mockValidateCreditsAndLimitsAndReserve.mockRejectedValue(
-      new SpendingLimitExceededError([
-        {
-          scope: "workspace",
-          timeFrame: "daily",
-          limit: 1000,
-          current: 1500,
-        },
-      ])
+      new SpendingLimitExceededError(
+        "workspace-1",
+        [
+          {
+            scope: "workspace",
+            timeFrame: "daily",
+            limit: 1000,
+            current: 1500,
+          },
+        ],
+        "agent-1"
+      )
     );
 
     const result = await callAgentInternal(
