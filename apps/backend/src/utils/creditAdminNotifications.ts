@@ -14,6 +14,16 @@ function formatAmount(nanoDollars: number): string {
 export async function getWorkspaceOwnerEmails(
   workspaceId: string
 ): Promise<string[]> {
+  const recipients = await getWorkspaceOwnerRecipients(workspaceId);
+  return recipients.map((recipient) => recipient.email);
+}
+
+export async function getWorkspaceOwnerRecipients(workspaceId: string): Promise<
+  Array<{
+    userId: string;
+    email: string;
+  }>
+> {
   const db = await database();
   const workspacePk = `workspaces/${workspaceId}`;
   const permissions = await db.permission.query({
@@ -28,10 +38,16 @@ export async function getWorkspaceOwnerEmails(
     .map((permission) => permission.sk.replace("users/", ""));
 
   const emails = await Promise.all(
-    ownerUserIds.map(async (userId) => getUserEmailById(userId))
+    ownerUserIds.map(async (userId) => ({
+      userId,
+      email: await getUserEmailById(userId),
+    }))
   );
 
-  return emails.filter((email): email is string => Boolean(email));
+  return emails.filter(
+    (recipient): recipient is { userId: string; email: string } =>
+      Boolean(recipient.email)
+  );
 }
 
 export async function sendWorkspaceCreditNotifications({

@@ -9,6 +9,7 @@ import { fromNanoDollars } from "./creditConversions";
 export class InsufficientCreditsError extends Error {
   public readonly statusCode = 402;
   public readonly workspaceId: string;
+  public readonly agentId?: string;
   public readonly required: number; // nano-dollars
   public readonly available: number; // nano-dollars
   public readonly currency: string;
@@ -18,6 +19,7 @@ export class InsufficientCreditsError extends Error {
     required: number, // nano-dollars
     available: number, // nano-dollars
     currency: string,
+    agentId?: string,
   ) {
     const requiredDisplay = fromNanoDollars(required);
     const availableDisplay = fromNanoDollars(available);
@@ -26,6 +28,7 @@ export class InsufficientCreditsError extends Error {
     );
     this.name = "InsufficientCreditsError";
     this.workspaceId = workspaceId;
+    this.agentId = agentId;
     this.required = required;
     this.available = available;
     this.currency = currency;
@@ -44,6 +47,7 @@ export class InsufficientCreditsError extends Error {
       body: JSON.stringify({
         error: this.message,
         workspaceId: this.workspaceId,
+        agentId: this.agentId,
         required: this.required, // Return nano-dollars in API response
         available: this.available, // Return nano-dollars in API response
         currency: this.currency,
@@ -58,6 +62,8 @@ export class InsufficientCreditsError extends Error {
  */
 export class SpendingLimitExceededError extends Error {
   public readonly statusCode = 402;
+  public readonly workspaceId: string;
+  public readonly agentId?: string;
   public readonly failedLimits: Array<{
     scope: "workspace" | "agent";
     timeFrame: string;
@@ -66,12 +72,14 @@ export class SpendingLimitExceededError extends Error {
   }>;
 
   constructor(
+    workspaceId: string,
     failedLimits: Array<{
       scope: "workspace" | "agent";
       timeFrame: string;
       limit: number; // nano-dollars
       current: number; // nano-dollars
     }>,
+    agentId?: string,
   ) {
     const limitMessages = failedLimits.map(
       (limit) =>
@@ -79,6 +87,8 @@ export class SpendingLimitExceededError extends Error {
     );
     super(`Spending limits exceeded: ${limitMessages.join(", ")}`);
     this.name = "SpendingLimitExceededError";
+    this.workspaceId = workspaceId;
+    this.agentId = agentId;
     this.failedLimits = failedLimits;
   }
 
@@ -94,6 +104,8 @@ export class SpendingLimitExceededError extends Error {
       },
       body: JSON.stringify({
         error: this.message,
+        workspaceId: this.workspaceId,
+        agentId: this.agentId,
         failedLimits: this.failedLimits, // Return nano-dollars in API response
       }),
     };

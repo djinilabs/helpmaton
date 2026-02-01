@@ -83,7 +83,7 @@
 - **Sentry Tracing**: Use `@sentry/aws-serverless` with wrapper-level `startSpan` for Lambda/SQS/scheduled handlers and flush only in handler `finally` blocks; manual spans for aws-lite S3 calls.
 - **Tool Validation**: MCP tool inputs use `validateToolArgs` with strict Zod schemas; generic MCP tools validate method params against discovered JSON Schemas (Ajv) cached in `mcp-server.config.toolSchemaCache`.
 - **Resource cleanup**: Workspace/agent cleanup is centralized in helper utilities; conversation files are deleted by parsing stored message URLs (no S3 list operations).
-- **Credit user errors**: `InsufficientCreditsError` / `SpendingLimitExceededError` are expected 402s; log at `info` and do not report to Sentry or trigger notifications.
+- **Credit user errors**: `InsufficientCreditsError` / `SpendingLimitExceededError` are expected 402s; log at `info`, skip Sentry, and notify workspace owners via email (rate-limited per user per error type to 1/hr).
 - **LLM Observers**: Wrap models with `llmObserver` to emit events; wrap tools for execution timing; build conversation records from observed events
 - **Embeddings**: Use OpenRouter embeddings (`thenlper/gte-base`) via `@openrouter/sdk`; embeddings can use workspace OpenRouter keys when BYOK is configured, otherwise fall back to the system `OPENROUTER_API_KEY`. Background embedding generation (SQS queue) reserves/adjusts credits when using the system key and skips charges for BYOK.
 - **Embedding credits**: Embedding reservations now follow the 3-step flow when OpenRouter returns a generation ID (reserve → adjust with token usage → enqueue cost verification for finalization).

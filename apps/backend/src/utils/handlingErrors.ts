@@ -15,7 +15,8 @@ import type { Context } from "aws-lambda";
 
 export { isAuthenticationError } from "./authenticationErrorDetection";
 
-import { isCreditUserError } from "./creditErrors";
+import { sendAgentErrorNotification } from "./agentErrorNotifications";
+import { isCreditUserError, type CreditUserError } from "./creditErrors";
 import { initPostHog, flushPostHog } from "./posthog";
 import { initSentry, Sentry, flushSentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
@@ -30,6 +31,30 @@ import {
 initSentry();
 // Initialize PostHog when this module is loaded (before any handlers are called)
 initPostHog();
+
+const maybeNotifyCreditUserError = async (
+  ensuredError: Error,
+  creditUserError: boolean
+): Promise<void> => {
+  if (!creditUserError) {
+    return;
+  }
+
+  if (!("workspaceId" in ensuredError)) {
+    return;
+  }
+
+  const errorType =
+    ensuredError.name === "SpendingLimitExceededError"
+      ? "spendingLimit"
+      : "credit";
+
+  await sendAgentErrorNotification(
+    String((ensuredError as CreditUserError).workspaceId),
+    errorType,
+    ensuredError as CreditUserError
+  );
+};
 
 export const handlingErrors = (
   userHandler: APIGatewayProxyHandlerV2
@@ -149,6 +174,8 @@ export const handlingErrors = (
           const boomed = creditUserError
             ? boomify(ensuredError, { statusCode: 402 })
             : boomify(ensuredError);
+
+          await maybeNotifyCreditUserError(ensuredError, creditUserError);
 
           // Always log the full error details
           console.error("Lambda handler error:", {

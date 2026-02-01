@@ -46,6 +46,10 @@ vi.mock("../posthog", () => ({
   flushPostHog: vi.fn(),
 }));
 
+vi.mock("../agentErrorNotifications", () => ({
+  sendAgentErrorNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../tables/database", () => ({
   database: mockDatabase,
 }));
@@ -272,7 +276,7 @@ describe("handlingErrors", () => {
     });
 
     it("should not report credit user errors to Sentry", async () => {
-      const handlerError = new SpendingLimitExceededError([
+      const handlerError = new SpendingLimitExceededError("workspace-1", [
         {
           scope: "workspace",
           timeFrame: "daily",
@@ -527,7 +531,7 @@ describe("handlingScheduledErrors", () => {
   });
 
   it("does not report credit user errors to Sentry", async () => {
-    const handlerError = new SpendingLimitExceededError([
+    const handlerError = new SpendingLimitExceededError("workspace-1", [
       {
         scope: "workspace",
         timeFrame: "daily",

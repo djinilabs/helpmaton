@@ -1,6 +1,7 @@
 import type { APIGatewayProxyResultV2 } from "aws-lambda";
 import type express from "express";
 
+import { sendAgentErrorNotification } from "../../utils/agentErrorNotifications";
 import {
   InsufficientCreditsError,
   SpendingLimitExceededError,
@@ -136,6 +137,8 @@ export async function handleCreditErrors(
       currency: error.currency,
     });
 
+    await sendAgentErrorNotification(workspaceId, "credit", error);
+
     return {
       handled: true,
       response: {
@@ -159,6 +162,8 @@ export async function handleCreditErrors(
         failedLimits: error.failedLimits,
       },
     );
+
+    await sendAgentErrorNotification(workspaceId, "spendingLimit", error);
 
     return {
       handled: true,
