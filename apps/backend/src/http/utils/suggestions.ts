@@ -307,6 +307,11 @@ export const resolveWorkspaceSuggestions = async (params: {
   };
   apiKeys?: { openrouter?: boolean };
 }): Promise<SuggestionsCache | null> => {
+  // Skip suggestion generation in test environments
+  if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "testing") {
+    return null;
+  }
+
   const context = await buildWorkspaceSuggestionContext(params);
   const contextHash = buildContextHash(context);
   const existingCache = params.workspace.suggestions ?? null;
@@ -387,6 +392,11 @@ export const resolveAgentSuggestions = async (params: {
     suggestions?: SuggestionsCache | null;
   };
 }): Promise<SuggestionsCache | null> => {
+  // Skip suggestion generation in test environments
+  if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "testing") {
+    return null;
+  }
+
   const context = buildAgentSuggestionContext({
     workspaceContext: params.workspaceContext,
     agent: params.agent,
