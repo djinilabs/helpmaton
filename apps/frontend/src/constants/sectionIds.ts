@@ -20,6 +20,11 @@ export const WORKSPACE_SECTION_IDS = {
 } as const;
 
 export const AGENT_SECTION_IDS = {
+  delegation: "delegation",
+  documentSearch: "document-search",
+  evaluations: "evaluations",
+  injectKnowledge: "inject-knowledge",
   memory: "memory",
   mcpServers: "mcp-servers",
+  schedules: "schedules",
 } as const;

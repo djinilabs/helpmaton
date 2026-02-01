@@ -24,6 +24,11 @@ export const SUGGESTION_ACTION_TYPES = [
   "agent_model",
   "agent_memory",
   "agent_tools",
+  "agent_eval_judges",
+  "agent_schedules",
+  "agent_document_search",
+  "agent_knowledge_injection",
+  "agent_delegation",
 ] as const;
 
 export type SuggestionActionType = (typeof SUGGESTION_ACTION_TYPES)[number];
@@ -100,32 +105,54 @@ type AgentSuggestionContext = {
     enabledMcpServerIds?: string[];
     enabledMcpServerToolNames?: Record<string, string[]>;
     clientTools?: Array<{ name: string; description: string }>;
+    evalJudgeCount?: number;
+    scheduleCount?: number;
+    delegatableAgentIds?: string[];
   };
 };
 
-const SUGGESTIONS_SYSTEM_PROMPT = `You are a product onboarding assistant. Given configuration data and a list of things you must NOT suggest, propose up to ${MAX_SUGGESTIONS} short, actionable suggestions a user can take in the UI.
+const SUGGESTIONS_SYSTEM_PROMPT = `You are a product onboarding assistant for Helpmaton.
 
-Guidelines:
+## Product
+Helpmaton is a workspace-based AI agent management platform. Users create workspaces, add AI agents with custom prompts and models, manage documents and knowledge bases, and deploy agents via webhooks and APIs. Workspaces have credits (usage), spending limits, team members, and integrations (MCP servers, Discord, Slack, email).
+
+## Subject and scope
+You will receive a subject: either "workspace" or "agent". Your suggestions must match the subject exactly:
+- When subject is **workspace**: suggest only workspace-level next steps. Use only actionTypes that start with workspace_ (workspace_api_keys, workspace_spending_limits, workspace_team, workspace_documents, workspace_agents, workspace_integrations, workspace_credits). Never suggest agent_* action types.
+- When subject is **agent**: suggest only agent-level next steps for a single agent. Use only actionTypes that start with agent_ (agent_model, agent_memory, agent_tools, agent_eval_judges, agent_schedules, agent_document_search, agent_knowledge_injection, agent_delegation). Never suggest workspace_* action types.
+
+## Workspace capabilities (suggest only when subject is "workspace")
+- **API keys**: Add an OpenRouter API key so the workspace can call LLMs (bring-your-own-key; more model choices and control).
+- **Agents**: Create and configure AI agents (name, system prompt, model).
+- **Documents**: Upload markdown/text documents that agents can search and cite.
+- **Team**: Invite members and set permissions (read/write/owner).
+- **Integrations**: Connect MCP servers (tools, data sources), Discord, Slack, or email for agent workflows.
+- **Credits**: Purchase or request trial credits to pay for model usage.
+- **Spending limits**: Set daily/weekly/monthly caps to control cost.
+
+## Agent capabilities (suggest only when subject is "agent")
+- **Model**: Choose the LLM (e.g. OpenAI, Anthropic via OpenRouter) and parameters.
+- **Memory**: Enable memory search so the agent stores and recalls facts from conversations.
+- **Document search**: Let the agent search workspace documents when answering.
+- **Knowledge injection**: Combine memory and documents for richer context.
+- **Tools**: Enable MCP tools (from connected servers), send email, web search (Tavily/Exa), or image generation.
+- **Eval judges**: In the agent's **Evaluations** section, add evaluation judges to assess conversations. Each judge uses an LLM and a prompt to score agent runs (e.g. goal completion, tool efficiency, faithfulness). Suggest only when the agent has no evaluation judges configured.
+- **Schedules**: In the agent's **Schedules** section, add cron-style schedules so the agent runs periodically (e.g. daily summaries). Suggest only when the agent has no schedules.
+- **Document search**: In the agent's **Document search** section, enable search over workspace documents so the agent can cite documents when answering. Suggest only when document search is not yet enabled.
+- **Knowledge injection**: In the agent's **Knowledge injection** section, enable combining memory and documents for richer context. Suggest only when knowledge injection is not yet enabled.
+- **Delegation**: In the agent's **Delegation** section, configure which other agents this agent can call (call_agent tool). Suggest only when no delegatable agents are configured.
+
+## What to suggest
+- Suggest the next step that adds the most value given the current configuration (e.g. no agents → create first agent; agent has no memory → enable memory).
+- The "Do NOT suggest" list is authoritative: never suggest something already done.
 - Suggestions must be specific and actionable (one sentence each).
-- Only suggest what is actually missing or would improve the setup. Never suggest something that is already done (the "Do NOT suggest" list is authoritative).
-- Return JSON with one of these shapes:
+- Return JSON only. Use one of these shapes:
   - {"suggestions": ["text one", "text two"]}
   - {"suggestions": [{"text": "text one", "actionType": "workspace_api_keys"}, ...]}
-- actionType is optional. When the suggestion maps to a single UI section, set actionType so the app can show a "Go to X" link. Use exactly one of these (omit if none fit):
+- actionType is optional. When the suggestion clearly maps to one UI section, set actionType so the app can show a "Go to X" link. Use exactly one of the following, and only from the list that matches the subject (workspace vs agent):
 
-  Workspace (subject workspace only):
-  - workspace_api_keys: suggestion is about adding or managing API keys (e.g. OpenRouter) in workspace settings
-  - workspace_spending_limits: suggestion is about setting spending limits
-  - workspace_team: suggestion is about inviting or managing team members
-  - workspace_documents: suggestion is about uploading or managing documents
-  - workspace_agents: suggestion is about creating or managing agents
-  - workspace_integrations: suggestion is about connecting MCP servers, Discord, Slack, or other integrations
-  - workspace_credits: suggestion is about buying or managing credits / balance
-
-  Agent (subject agent only):
-  - agent_model: suggestion is about choosing or changing the model
-  - agent_memory: suggestion is about enabling or configuring memory search / memory records
-  - agent_tools: suggestion is about enabling MCP tools, email, web search, or other tools for the agent`;
+  If subject is workspace (use only these): workspace_api_keys, workspace_spending_limits, workspace_team, workspace_documents, workspace_agents, workspace_integrations, workspace_credits
+  If subject is agent (use only these): agent_model, agent_memory, agent_tools, agent_eval_judges, agent_schedules, agent_document_search, agent_knowledge_injection, agent_delegation`;
 
 const truncateText = (value: string, maxChars: number): string => {
   if (value.length <= maxChars) return value;
@@ -181,8 +208,20 @@ function buildProhibitionRules(
     if (agent?.enableSearchDocuments === true) {
       lines.push("- Enabling document search (already enabled).");
     }
+    if (agent?.enableKnowledgeInjection === true) {
+      lines.push("- Enabling knowledge injection (already enabled).");
+    }
     if ((agent?.enabledMcpServerIds?.length ?? 0) > 0) {
       lines.push("- Connecting or enabling MCP tools for this agent (already configured).");
+    }
+    if ((agent?.evalJudgeCount ?? 0) > 0) {
+      lines.push("- Adding evaluation judges (already configured).");
+    }
+    if ((agent?.scheduleCount ?? 0) > 0) {
+      lines.push("- Adding schedules (already configured).");
+    }
+    if ((agent?.delegatableAgentIds?.length ?? 0) > 0) {
+      lines.push("- Configuring delegation (already configured).");
     }
   }
   return lines.join("\n");
@@ -368,6 +407,9 @@ export const buildAgentSuggestionContext = (params: {
     enabledMcpServerIds?: string[];
     enabledMcpServerToolNames?: Record<string, string[]>;
     clientTools?: Array<{ name: string; description: string }>;
+    evalJudgeCount?: number;
+    scheduleCount?: number;
+    delegatableAgentIds?: string[];
   };
 }): AgentSuggestionContext => {
   const preview = truncateText(
@@ -400,6 +442,9 @@ export const buildAgentSuggestionContext = (params: {
       enabledMcpServerIds: params.agent.enabledMcpServerIds ?? [],
       enabledMcpServerToolNames: params.agent.enabledMcpServerToolNames ?? {},
       clientTools: params.agent.clientTools ?? [],
+      evalJudgeCount: params.agent.evalJudgeCount ?? 0,
+      scheduleCount: params.agent.scheduleCount ?? 0,
+      delegatableAgentIds: params.agent.delegatableAgentIds ?? [],
     },
   };
 };
@@ -490,6 +535,9 @@ export const resolveAgentSuggestions = async (params: {
     enabledMcpServerIds?: string[];
     enabledMcpServerToolNames?: Record<string, string[]>;
     clientTools?: Array<{ name: string; description: string }>;
+    evalJudgeCount?: number;
+    scheduleCount?: number;
+    delegatableAgentIds?: string[];
     suggestions?: SuggestionsCache | null;
   };
 }): Promise<SuggestionsCache | null> => {

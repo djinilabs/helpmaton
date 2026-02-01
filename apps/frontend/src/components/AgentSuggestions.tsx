@@ -50,6 +50,7 @@ export const AgentSuggestions: FC<AgentSuggestionsProps> = ({
 
   return (
     <SuggestionsBox
+      title="Agent suggestions"
       items={data.suggestions.items}
       isDismissing={dismissAgentSuggestion.isPending}
       onDismiss={(id) => dismissAgentSuggestion.mutate(id)}

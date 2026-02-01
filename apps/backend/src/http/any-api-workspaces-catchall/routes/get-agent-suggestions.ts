@@ -92,6 +92,30 @@ export const registerGetAgentSuggestions = (app: express.Application) => {
           currentUserRef
         );
 
+        let evalJudgeCount = 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+        for await (const _ of (db as any)["agent-eval-judge"].queryAsync({
+          IndexName: "byAgentId",
+          KeyConditionExpression: "agentId = :agentId",
+          ExpressionAttributeValues: {
+            ":agentId": agentId,
+          },
+        })) {
+          evalJudgeCount += 1;
+        }
+
+        let scheduleCount = 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+        for await (const _ of (db as any)["agent-schedule"].queryAsync({
+          IndexName: "byAgentId",
+          KeyConditionExpression: "agentId = :agentId",
+          ExpressionAttributeValues: {
+            ":agentId": agentId,
+          },
+        })) {
+          scheduleCount += 1;
+        }
+
         const workspaceContext = await buildWorkspaceSuggestionContext({
           db,
           workspaceId,
@@ -104,7 +128,12 @@ export const registerGetAgentSuggestions = (app: express.Application) => {
           agentId,
           agentPk,
           workspaceContext,
-          agent,
+          agent: {
+            ...agent,
+            evalJudgeCount,
+            scheduleCount,
+            delegatableAgentIds: agent.delegatableAgentIds ?? [],
+          },
         });
 
         res.json({

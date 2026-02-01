@@ -66,6 +66,41 @@ export function getSuggestionAction(
             sectionId: AGENT_SECTION_IDS.mcpServers,
           }
         : null,
+    agent_eval_judges:
+      agentId != null
+        ? {
+            label: "Evaluations",
+            sectionId: AGENT_SECTION_IDS.evaluations,
+          }
+        : null,
+    agent_schedules:
+      agentId != null
+        ? {
+            label: "Schedules",
+            sectionId: AGENT_SECTION_IDS.schedules,
+          }
+        : null,
+    agent_document_search:
+      agentId != null
+        ? {
+            label: "Document search",
+            sectionId: AGENT_SECTION_IDS.documentSearch,
+          }
+        : null,
+    agent_knowledge_injection:
+      agentId != null
+        ? {
+            label: "Knowledge injection",
+            sectionId: AGENT_SECTION_IDS.injectKnowledge,
+          }
+        : null,
+    agent_delegation:
+      agentId != null
+        ? {
+            label: "Delegation",
+            sectionId: AGENT_SECTION_IDS.delegation,
+          }
+        : null,
   };
 
   return map[actionType] ?? null;

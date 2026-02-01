@@ -14,7 +14,12 @@ export type SuggestionActionType =
   | "workspace_credits"
   | "agent_model"
   | "agent_memory"
-  | "agent_tools";
+  | "agent_tools"
+  | "agent_eval_judges"
+  | "agent_schedules"
+  | "agent_document_search"
+  | "agent_knowledge_injection"
+  | "agent_delegation";
 
 export interface SuggestionItem {
   id: string;

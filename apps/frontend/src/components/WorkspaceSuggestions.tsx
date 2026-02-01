@@ -42,6 +42,7 @@ export const WorkspaceSuggestions: FC<WorkspaceSuggestionsProps> = ({
 
   return (
     <SuggestionsBox
+      title="Workspace suggestions"
       items={data.suggestions.items}
       isDismissing={dismissWorkspaceSuggestion.isPending}
       onDismiss={(id) => dismissWorkspaceSuggestion.mutate(id)}
