@@ -12,7 +12,8 @@ on:
 
 jobs:
   deploy:
-    runs-on: beefier-runner
+    runs-on:
+      labels: beefier-runner
     outputs:
       pr_number: ${{ steps.pr-info.outputs.pr_number }}
     # Security: Explicit permissions - only what's needed
