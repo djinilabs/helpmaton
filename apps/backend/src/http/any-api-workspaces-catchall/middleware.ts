@@ -2,6 +2,7 @@ import { badRequest, boomify, forbidden, unauthorized } from "@hapi/boom";
 import express from "express";
 
 import { isUserAuthorized } from "../../tables/permissions";
+import { sendAgentErrorNotification } from "../../utils/agentErrorNotifications";
 import {
   InsufficientCreditsError,
   SpendingLimitExceededError,
@@ -43,11 +44,12 @@ export const handleError = (
   next(boomError);
 };
 
-const respondWithCreditError = (
+const respondWithCreditError = async (
   error: unknown,
   res: express.Response,
-  context?: string
-): boolean => {
+  context?: string,
+  params?: { workspaceId?: string; agentId?: string }
+): Promise<boolean> => {
   if (
     error instanceof InsufficientCreditsError ||
     error instanceof SpendingLimitExceededError
@@ -58,6 +60,33 @@ const respondWithCreditError = (
       error: error.message,
       statusCode: response.statusCode,
     });
+    const workspaceId = params?.workspaceId ?? error.workspaceId;
+    const agentId = params?.agentId ?? error.agentId;
+    if (workspaceId) {
+      const errorType =
+        error instanceof InsufficientCreditsError ? "credit" : "spendingLimit";
+      const errorForNotification =
+        agentId && agentId !== error.agentId
+          ? error instanceof InsufficientCreditsError
+            ? new InsufficientCreditsError(
+                workspaceId,
+                error.required,
+                error.available,
+                error.currency,
+                agentId
+              )
+            : new SpendingLimitExceededError(
+                workspaceId,
+                error.failedLimits,
+                agentId
+              )
+          : error;
+      await sendAgentErrorNotification(
+        workspaceId,
+        errorType,
+        errorForNotification
+      );
+    }
     res.status(response.statusCode).set(response.headers).send(response.body);
     return true;
   }
@@ -79,8 +108,13 @@ export const asyncHandler = (
     res: express.Response,
     next: express.NextFunction
   ) => {
-    Promise.resolve(fn(req, res, next)).catch((error) => {
-      if (respondWithCreditError(error, res, "asyncHandler")) {
+    Promise.resolve(fn(req, res, next)).catch(async (error) => {
+      if (
+        await respondWithCreditError(error, res, "asyncHandler", {
+          workspaceId: req.params?.workspaceId,
+          agentId: req.params?.agentId,
+        })
+      ) {
         return;
       }
       handleError(error, next, "asyncHandler");

@@ -236,7 +236,8 @@ export async function reserveCredits(
             workspaceId,
             estimatedCost,
             current.creditBalance,
-            "usd"
+            "usd",
+            agentId
           );
         }
 

@@ -7,6 +7,10 @@ import {
 } from "../../../utils/creditErrors";
 import { asyncHandler } from "../middleware";
 
+vi.mock("../../../utils/agentErrorNotifications", () => ({
+  sendAgentErrorNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
 const createResponse = (): express.Response => {
   const res = {
     status: vi.fn().mockReturnThis(),
@@ -45,7 +49,7 @@ describe("asyncHandler", () => {
 
   it("returns 402 for spending limit errors", async () => {
     const handler = asyncHandler(async () => {
-      throw new SpendingLimitExceededError([
+      throw new SpendingLimitExceededError("workspace-1", [
         {
           scope: "workspace",
           timeFrame: "daily",
