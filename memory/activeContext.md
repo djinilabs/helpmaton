@@ -4,6 +4,8 @@
 
 **Status**: Nano-dollar pricing conversion complete ✅
 
+- **Test Agent padding removal (2026-02-01)**: Removed accordion inner padding for the Test Agent section via a content class override, and ran `pnpm typecheck` + `pnpm lint --fix`.
+- **Test Agent nested box removal (2026-02-01)**: Added embedded chat styling so the Test Agent accordion no longer shows a framed inner box, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Recent Conversations heading cleanup (2026-02-01)**: Removed duplicate "Recent Conversations" heading inside the conversation list, repositioned refresh button above list items, and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **Intercom search shortcuts (2026-02-01)**: Added shortcut params for Intercom search tools (email/name/externalId, contactId(s)/state/createdAfter/updatedAfter), updated tool metadata/docs, added unit tests, and ran `pnpm lint --fix`, `pnpm typecheck`, `pnpm --filter backend test --run intercom`.
 - **Embedding credit user errors (2026-02-01)**: Skipped Sentry capture for credit user errors during embedding generation in `agent-temporal-grain-queue`, added unit coverage, and ran `pnpm lint --fix`, `pnpm typecheck`, and `pnpm --filter backend test --run agent-temporal-grain-queue`.

@@ -34,6 +34,7 @@ interface AgentChatProps {
   agent?: { name?: string; avatar?: string }; // Optional agent data (if provided, useAgent hook is not required)
   isWidget?: boolean; // If true, hide test message and use widget-appropriate styling
   enableFileUpload?: boolean; // If false, hide upload button and file input
+  isEmbedded?: boolean; // If true, render without the outer frame
 }
 
 /**
@@ -62,6 +63,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   agent: agentProp,
   isWidget = false,
   enableFileUpload = true,
+  isEmbedded = false,
 }) => {
   // Use agent prop if provided, otherwise fetch from API
   // When agentProp is provided (e.g., in widget context), skip the query to avoid auth errors
@@ -627,10 +629,14 @@ export const AgentChat: FC<AgentChatProps> = ({
     <div
       className={`flex ${
         isWidget ? "h-full" : "h-[600px]"
-      } flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900`}
+      } flex-col${isEmbedded ? "" : " rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900"}`}
     >
       {!isWidget && (
-        <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
+        <div
+          className={`border-b-2 border-neutral-300 p-5 dark:border-neutral-700${
+            isEmbedded ? " bg-transparent" : " rounded-t-2xl bg-neutral-100 dark:bg-neutral-800"
+          }`}
+        >
           <div className="flex items-center justify-between gap-4">
             <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
               Test your agent by having a conversation. This chat interface lets
@@ -652,7 +658,11 @@ export const AgentChat: FC<AgentChatProps> = ({
         </div>
       )}
       {isWidget && messages.length > 0 && (
-        <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+        <div
+          className={`border-b-2 border-neutral-300 p-3 dark:border-neutral-700${
+            isEmbedded ? " bg-transparent" : " rounded-t-2xl bg-neutral-100 dark:bg-neutral-800"
+          }`}
+        >
           <div className="flex items-center justify-end">
             <button
               onClick={handleClearConversation}
