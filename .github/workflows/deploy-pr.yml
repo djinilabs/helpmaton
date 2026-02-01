@@ -12,7 +12,11 @@ on:
 
 jobs:
   deploy:
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       pr_number: ${{ steps.pr-info.outputs.pr_number }}
     # Security: Explicit permissions - only what's needed
@@ -21,10 +25,6 @@ jobs:
       pull-requests: read
       actions: read
       id-token: write
-    # Only run on PR events or manual dispatch
-    if: |
-      github.event_name == 'pull_request' ||
-      github.event_name == 'workflow_dispatch'
     concurrency:
       group: deploy-pr-${{ github.event.pull_request.number || github.event.inputs.pr_number || 'unknown' }}
       cancel-in-progress: false
@@ -112,6 +112,11 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_DIST: "backend"
+          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "false" # IMPORTANT! DISABLED BECAUSE CRASHES ESBUILD
+          VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
@@ -137,10 +142,16 @@ jobs:
           INTERCOM_OAUTH_CLIENT_SECRET: ${{ secrets.INTERCOM_OAUTH_CLIENT_SECRET }}
           TODOIST_OAUTH_CLIENT_ID: ${{ secrets.TODOIST_OAUTH_CLIENT_ID }}
           TODOIST_OAUTH_CLIENT_SECRET: ${{ secrets.TODOIST_OAUTH_CLIENT_SECRET }}
-          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
-          OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
+          NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
+          NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
           STRIPE_OAUTH_CLIENT_ID: ${{ secrets.STRIPE_OAUTH_CLIENT_ID }}
           STRIPE_OAUTH_CLIENT_SECRET: ${{ secrets.STRIPE_OAUTH_CLIENT_SECRET }}
+          GH_APP_ID: ${{ secrets.GH_APP_ID }}
+          GH_APP_CLIENT_ID: ${{ secrets.GH_APP_CLIENT_ID }}
+          GH_APP_CLIENT_SECRET: ${{ secrets.GH_APP_CLIENT_SECRET }}
+          GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
+          OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
           LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
           LEMON_SQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMON_SQUEEZY_WEBHOOK_SECRET }}
           LEMON_SQUEEZY_STORE_ID: ${{ secrets.LEMON_SQUEEZY_STORE_ID }}
@@ -245,9 +256,12 @@ jobs:
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          HELPMATON_CUSTOM_DOMAIN: ${{ format('{0}.helpmaton.com', steps.pr-info.outputs.pr_number) }}
           AWS_PR_DEPLOY_CERTIFICATE_ARN: ${{ secrets.AWS_PR_DEPLOY_CERTIFICATE_ARN }}
           AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           HELPMATON_S3_BUCKET: ${{ secrets.HELPMATON_PR_ENV_S3_BUCKET }}
           HELPMATON_S3_ENDPOINT: ${{ secrets.HELPMATON_S3_ENDPOINT }}
           HELPMATON_S3_ACCESS_KEY_ID: ${{ secrets.HELPMATON_S3_ACCESS_KEY_ID }}
@@ -256,7 +270,8 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           GITHUB_SHA: ${{ github.sha }}
-          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_DIST: "backend"
+          SENTRY_ENABLE_BACKEND_SOURCEMAPS: "false" # IMPORTANT! DISABLED BECAUSE CRASHES ESBUILD
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
@@ -316,6 +331,7 @@ jobs:
           cd apps/backend
           export PATH=../../node_modules/.bin:$PATH
           export AWS_CERTIFICATE_ARN="${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
+          export AWS_CLOUDFRONT_CERTIFICATE_ARN="${AWS_CLOUDFRONT_CERTIFICATE_ARN}"
 
           # Build array of environment variables to set in batch
           ENV_VARS=(
@@ -325,8 +341,6 @@ jobs:
             GEMINI_API_KEY "${GEMINI_API_KEY}"
             OPENROUTER_API_KEY "${OPENROUTER_API_KEY}"
             HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
-            OAUTH_REDIRECT_BASE_URL "${OAUTH_REDIRECT_BASE_URL}"
-            FRONTEND_URL "${FRONTEND_URL}"
             AWS_CERTIFICATE_ARN "${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
             AWS_ZONE_ID "${AWS_ZONE_ID}"
             ENABLE_CREDIT_VALIDATION "${ENABLE_CREDIT_VALIDATION}"
@@ -343,14 +357,21 @@ jobs:
           [ -n "${HELPMATON_S3_ENDPOINT}" ] && ENV_VARS+=(HELPMATON_S3_ENDPOINT "${HELPMATON_S3_ENDPOINT}")
           [ -n "${SENTRY_DSN}" ] && ENV_VARS+=(SENTRY_DSN "${SENTRY_DSN}")
           [ -n "${SENTRY_RELEASE}" ] && ENV_VARS+=(SENTRY_RELEASE "${SENTRY_RELEASE}")
+          [ -n "${SENTRY_DIST}" ] && ENV_VARS+=(SENTRY_DIST "${SENTRY_DIST}")
           [ -n "${DISCORD_PUBLIC_KEY}" ] && ENV_VARS+=(DISCORD_PUBLIC_KEY "${DISCORD_PUBLIC_KEY}")
           [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
           [ -n "${GOOGLE_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(GOOGLE_OAUTH_CLIENT_ID "${GOOGLE_OAUTH_CLIENT_ID}")
           [ -n "${GOOGLE_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(GOOGLE_OAUTH_CLIENT_SECRET "${GOOGLE_OAUTH_CLIENT_SECRET}")
           [ -n "${LINEAR_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(LINEAR_OAUTH_CLIENT_ID "${LINEAR_OAUTH_CLIENT_ID}")
           [ -n "${LINEAR_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(LINEAR_OAUTH_CLIENT_SECRET "${LINEAR_OAUTH_CLIENT_SECRET}")
+          [ -n "${HUBSPOT_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(HUBSPOT_OAUTH_CLIENT_ID "${HUBSPOT_OAUTH_CLIENT_ID}")
+          [ -n "${HUBSPOT_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(HUBSPOT_OAUTH_CLIENT_SECRET "${HUBSPOT_OAUTH_CLIENT_SECRET}")
+          [ -n "${SHOPIFY_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(SHOPIFY_OAUTH_CLIENT_ID "${SHOPIFY_OAUTH_CLIENT_ID}")
+          [ -n "${SHOPIFY_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(SHOPIFY_OAUTH_CLIENT_SECRET "${SHOPIFY_OAUTH_CLIENT_SECRET}")
           [ -n "${SALESFORCE_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(SALESFORCE_OAUTH_CLIENT_ID "${SALESFORCE_OAUTH_CLIENT_ID}")
           [ -n "${SALESFORCE_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(SALESFORCE_OAUTH_CLIENT_SECRET "${SALESFORCE_OAUTH_CLIENT_SECRET}")
+          [ -n "${SLACK_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(SLACK_OAUTH_CLIENT_ID "${SLACK_OAUTH_CLIENT_ID}")
+          [ -n "${SLACK_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(SLACK_OAUTH_CLIENT_SECRET "${SLACK_OAUTH_CLIENT_SECRET}")
           [ -n "${INTERCOM_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(INTERCOM_OAUTH_CLIENT_ID "${INTERCOM_OAUTH_CLIENT_ID}")
           [ -n "${INTERCOM_OAUTH_CLIENT_SECRET}" ] && ENV_VARS+=(INTERCOM_OAUTH_CLIENT_SECRET "${INTERCOM_OAUTH_CLIENT_SECRET}")
           [ -n "${TODOIST_OAUTH_CLIENT_ID}" ] && ENV_VARS+=(TODOIST_OAUTH_CLIENT_ID "${TODOIST_OAUTH_CLIENT_ID}")
@@ -380,6 +401,21 @@ jobs:
           [ -n "${TWOCAPTCHA_API_KEY}" ] && ENV_VARS+=(TWOCAPTCHA_API_KEY "${TWOCAPTCHA_API_KEY}")
           [ -n "${E2E_OVERRIDE_MAX_USERS}" ] && ENV_VARS+=(E2E_OVERRIDE_MAX_USERS "${E2E_OVERRIDE_MAX_USERS}")
           [ -n "${E2E_AUTH_GATE_BYPASS}" ] && ENV_VARS+=(E2E_AUTH_GATE_BYPASS "${E2E_AUTH_GATE_BYPASS}")
+          [ -n "${AWS_ACCESS_KEY_ID}" ] && ENV_VARS+=(AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}")
+          [ -n "${AWS_SECRET_ACCESS_KEY}" ] && ENV_VARS+=(AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}")
+
+          # Handle variables with fallback values
+          if [ -n "${OAUTH_REDIRECT_BASE_URL}" ]; then
+            ENV_VARS+=(OAUTH_REDIRECT_BASE_URL "${OAUTH_REDIRECT_BASE_URL}")
+          else
+            ENV_VARS+=(OAUTH_REDIRECT_BASE_URL "${BASE_URL}")
+          fi
+
+          if [ -n "${FRONTEND_URL}" ]; then
+            ENV_VARS+=(FRONTEND_URL "${FRONTEND_URL}")
+          else
+            ENV_VARS+=(FRONTEND_URL "${BASE_URL}")
+          fi
 
           # Environment variables are now injected directly into Lambda bundles at build time
           # via esbuild's define option (see esbuild-config.cjs). This ensures each PR deployment
@@ -389,6 +425,17 @@ jobs:
           echo "📝 Environment variables will be injected into Lambda bundles at build time..."
 
           cd ../..
+          # Verify PostHog environment variables are set (for debugging)
+          if [ -z "${VITE_POSTHOG_API_KEY}" ]; then
+            echo "⚠️  Warning: VITE_POSTHOG_API_KEY is not set. PostHog will not be initialized."
+          else
+            echo "✅ VITE_POSTHOG_API_KEY is set (length: ${#VITE_POSTHOG_API_KEY})"
+          fi
+          if [ -z "${VITE_POSTHOG_API_HOST}" ]; then
+            echo "ℹ️  VITE_POSTHOG_API_HOST not set, will use default: https://us.i.posthog.com"
+          else
+            echo "✅ VITE_POSTHOG_API_HOST is set: ${VITE_POSTHOG_API_HOST}"
+          fi
           # Verify Cloudflare Turnstile environment variable is set
           if [ -z "${CLOUDFLARE_TURNSTILE_SITE_KEY}" ]; then
             echo "⚠️  Warning: CLOUDFLARE_TURNSTILE_SITE_KEY is not set. CAPTCHA will not work."
@@ -402,7 +449,7 @@ jobs:
           export ARC_STACK_NAME="HelpmatonStagingPR${PR_NUMBER}"
           export LAMBDA_IMAGE_TAG="${{ github.sha }}"
           export LAMBDA_IMAGES_ECR_REPOSITORY="helpmaton-lambda-images"
-          pnpm arc deploy --name "PR${PR_NUMBER}" --staging --no-hydrate --verbose
+          pnpm arc deploy --name "PR${PR_NUMBER}" --staging --no-hydrate --verbose --debug
 
       - name: Trigger API Gateway deployment
         run: |
