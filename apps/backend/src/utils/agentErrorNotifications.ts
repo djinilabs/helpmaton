@@ -6,7 +6,7 @@
 
 import { sendEmail } from "../send-email";
 import { database } from "../tables";
-import type { AgentRecord, WorkspaceRecord } from "../tables/schema";
+import type { AgentRecord, TableRecord, WorkspaceRecord } from "../tables/schema";
 
 import { getWorkspaceOwnerRecipients } from "./creditAdminNotifications";
 import { fromNanoDollars } from "./creditConversions";
@@ -19,13 +19,32 @@ import { Sentry, ensureError } from "./sentry";
 const BASE_URL = process.env.BASE_URL || "https://app.helpmaton.com";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
-type NextAuthUserRecord = {
+type NextAuthUserRecord = TableRecord & {
   pk: string;
   sk: string;
   email?: string;
   lastCreditErrorEmailSentAt?: string;
   lastSpendingLimitErrorEmailSentAt?: string;
 };
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeSubjectValue(value?: string): string {
+  const input = value || "";
+  let output = "";
+  for (const char of input) {
+    const code = char.charCodeAt(0);
+    output += code < 32 || code === 127 ? " " : char;
+  }
+  return output.replace(/\s+/g, " ").trim();
+}
 
 function formatAmount(nanoDollars: number, currency: string): string {
   const value = fromNanoDollars(nanoDollars)
@@ -79,6 +98,59 @@ function shouldSendUserErrorEmail(
   return timeSinceLastEmail > ONE_HOUR_MS;
 }
 
+async function reserveUserNotificationWindow(params: {
+  db: Awaited<ReturnType<typeof database>>;
+  userPk: string;
+  userSk: string;
+  errorType: "credit" | "spendingLimit";
+}): Promise<{ updated: boolean; timestamp?: string; skipReason?: string }> {
+  const { db, userPk, userSk, errorType } = params;
+  const now = new Date().toISOString();
+  let skipReason: string | undefined;
+
+  const updated = await db.atomicUpdate(
+    new Map([
+      [
+        "user",
+        {
+          table: "next-auth",
+          pk: userPk,
+          sk: userSk,
+        },
+      ],
+    ]),
+    async (fetched) => {
+      const existing = fetched.get("user") as NextAuthUserRecord | undefined;
+      if (!existing) {
+        skipReason = "missing_record";
+        return [];
+      }
+
+      if (!shouldSendUserErrorEmail(existing, errorType)) {
+        skipReason = "rate_limited";
+        return [];
+      }
+
+      skipReason = undefined;
+      const updateFields =
+        errorType === "credit"
+          ? { lastCreditErrorEmailSentAt: now }
+          : { lastSpendingLimitErrorEmailSentAt: now };
+      const updatedRecord: TableRecord = {
+        ...(existing as TableRecord),
+        ...updateFields,
+      };
+      return [updatedRecord];
+    }
+  );
+
+  return {
+    updated: updated.length > 0,
+    timestamp: updated.length > 0 ? now : undefined,
+    skipReason,
+  };
+}
+
 async function sendCreditErrorEmail(params: {
   workspace: WorkspaceRecord;
   agent?: AgentRecord;
@@ -93,8 +165,9 @@ async function sendCreditErrorEmail(params: {
   const agentSummary = buildAgentSummary(agentId, agent);
   const required = formatAmount(error.required, error.currency);
   const available = formatAmount(error.available, error.currency);
+  const safeWorkspaceName = sanitizeSubjectValue(workspace.name) || "Workspace";
 
-  const subject = `Insufficient Credits - ${workspace.name}`;
+  const subject = `Insufficient Credits - ${safeWorkspaceName}`;
   const text = `A request failed due to insufficient credits.
 
 Workspace: ${workspace.name} (${workspaceId})
@@ -110,6 +183,14 @@ ${creditPurchaseUrl}
 
 Best regards,
 The Helpmaton Team`;
+
+  const htmlWorkspaceName = escapeHtml(workspace.name);
+  const htmlWorkspaceUrl = escapeHtml(workspaceUrl);
+  const htmlAgentSummary = escapeHtml(agentSummary);
+  const htmlErrorMessage = escapeHtml(error.message);
+  const htmlRequired = escapeHtml(required);
+  const htmlAvailable = escapeHtml(available);
+  const htmlPurchaseUrl = escapeHtml(creditPurchaseUrl);
 
   const html = `
 <!DOCTYPE html>
@@ -133,15 +214,15 @@ The Helpmaton Team`;
     </div>
     <div class="content">
       <p class="summary">
-        <span class="label">Workspace:</span> ${workspace.name} (${workspaceId})
+        <span class="label">Workspace:</span> ${htmlWorkspaceName} (${workspaceId})
       </p>
-      <p><span class="label">Workspace link:</span> <a href="${workspaceUrl}">${workspaceUrl}</a></p>
-      <p><span class="label">${agentSummary}</span></p>
-      <p><span class="label">Error:</span> ${error.message}</p>
-      <p><span class="label">Required:</span> ${required}</p>
-      <p><span class="label">Available:</span> ${available}</p>
+      <p><span class="label">Workspace link:</span> <a href="${htmlWorkspaceUrl}">${htmlWorkspaceUrl}</a></p>
+      <p><span class="label">${htmlAgentSummary}</span></p>
+      <p><span class="label">Error:</span> ${htmlErrorMessage}</p>
+      <p><span class="label">Required:</span> ${htmlRequired}</p>
+      <p><span class="label">Available:</span> ${htmlAvailable}</p>
       <p>
-        <a href="${creditPurchaseUrl}" class="button">Buy Credits</a>
+        <a href="${htmlPurchaseUrl}" class="button">Buy Credits</a>
       </p>
       <p>Best regards,<br>The Helpmaton Team</p>
     </div>
@@ -175,6 +256,7 @@ async function sendSpendingLimitErrorEmail(params: {
   const settingsUrl = buildWorkspaceSettingsUrl(workspaceId);
   const agentSummary = buildAgentSummary(agentId, agent);
   const currency = workspace.currency || "usd";
+  const safeWorkspaceName = sanitizeSubjectValue(workspace.name) || "Workspace";
   const limitsSummary = error.failedLimits
     .map(
       (limit) =>
@@ -187,14 +269,16 @@ async function sendSpendingLimitErrorEmail(params: {
   const limitsHtml = error.failedLimits
     .map(
       (limit) =>
-        `<li>${limit.scope} ${limit.timeFrame}: ${formatAmount(
-          limit.current,
-          currency
-        )}/${formatAmount(limit.limit, currency)}</li>`
+        `<li>${escapeHtml(
+          `${limit.scope} ${limit.timeFrame}: ${formatAmount(
+            limit.current,
+            currency
+          )}/${formatAmount(limit.limit, currency)}`
+        )}</li>`
     )
     .join("");
 
-  const subject = `Spending Limit Reached - ${workspace.name}`;
+  const subject = `Spending Limit Reached - ${safeWorkspaceName}`;
   const text = `A request failed due to spending limits being reached.
 
 Workspace: ${workspace.name} (${workspaceId})
@@ -210,6 +294,12 @@ ${settingsUrl}
 
 Best regards,
 The Helpmaton Team`;
+
+  const htmlWorkspaceName = escapeHtml(workspace.name);
+  const htmlWorkspaceUrl = escapeHtml(workspaceUrl);
+  const htmlAgentSummary = escapeHtml(agentSummary);
+  const htmlErrorMessage = escapeHtml(error.message);
+  const htmlSettingsUrl = escapeHtml(settingsUrl);
 
   const html = `
 <!DOCTYPE html>
@@ -233,15 +323,15 @@ The Helpmaton Team`;
     </div>
     <div class="content">
       <p class="summary">
-        <span class="label">Workspace:</span> ${workspace.name} (${workspaceId})
+        <span class="label">Workspace:</span> ${htmlWorkspaceName} (${workspaceId})
       </p>
-      <p><span class="label">Workspace link:</span> <a href="${workspaceUrl}">${workspaceUrl}</a></p>
-      <p><span class="label">${agentSummary}</span></p>
-      <p><span class="label">Error:</span> ${error.message}</p>
+      <p><span class="label">Workspace link:</span> <a href="${htmlWorkspaceUrl}">${htmlWorkspaceUrl}</a></p>
+      <p><span class="label">${htmlAgentSummary}</span></p>
+      <p><span class="label">Error:</span> ${htmlErrorMessage}</p>
       <p><span class="label">Failed limits:</span></p>
       <ul>${limitsHtml}</ul>
       <p>
-        <a href="${settingsUrl}" class="button">Manage Settings</a>
+        <a href="${htmlSettingsUrl}" class="button">Manage Settings</a>
       </p>
       <p>Best regards,<br>The Helpmaton Team</p>
     </div>
@@ -307,32 +397,23 @@ export async function sendAgentErrorNotification(
     for (const recipient of recipients) {
       const userPk = `USER#${recipient.userId}`;
       const userSk = `USER#${recipient.userId}`;
-      const userRecord = (await db["next-auth"].get(
+      const reservation = await reserveUserNotificationWindow({
+        db,
         userPk,
-        userSk
-      )) as NextAuthUserRecord | undefined;
+        userSk,
+        errorType,
+      });
 
-      if (!userRecord) {
-        console.error(
-          "[agentErrorNotifications] User record not found for rate limiting:",
-          recipient.userId
-        );
-        continue;
-      }
-
-      if (!shouldSendUserErrorEmail(userRecord, errorType)) {
-        console.log(
-          "[agentErrorNotifications] Skipping email due to rate limiting:",
-          {
-            workspaceId,
-            userId: recipient.userId,
-            errorType,
-            lastEmailSentAt:
-              errorType === "credit"
-                ? userRecord.lastCreditErrorEmailSentAt
-                : userRecord.lastSpendingLimitErrorEmailSentAt,
-          }
-        );
+      if (!reservation.updated) {
+        const logContext =
+          reservation.skipReason === "missing_record"
+            ? "User record not found for rate limiting"
+            : "Skipping email due to rate limiting";
+        console.log(`[agentErrorNotifications] ${logContext}:`, {
+          workspaceId,
+          userId: recipient.userId,
+          errorType,
+        });
         continue;
       }
 
@@ -353,24 +434,11 @@ export async function sendAgentErrorNotification(
           error: error as SpendingLimitExceededError,
         });
       }
-
-      const now = new Date().toISOString();
-      const updateFields =
-        errorType === "credit"
-          ? { lastCreditErrorEmailSentAt: now }
-          : { lastSpendingLimitErrorEmailSentAt: now };
-
-      await db["next-auth"].update({
-        pk: userRecord.pk,
-        sk: userRecord.sk,
-        ...updateFields,
-      });
-
       console.log("[agentErrorNotifications] Updated email timestamp:", {
         workspaceId,
         userId: recipient.userId,
         errorType,
-        timestamp: now,
+        timestamp: reservation.timestamp,
       });
     }
   } catch (error) {

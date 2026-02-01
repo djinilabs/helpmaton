@@ -66,7 +66,7 @@ const respondWithCreditError = async (
       const errorType =
         error instanceof InsufficientCreditsError ? "credit" : "spendingLimit";
       const errorForNotification =
-        agentId && agentId !== error.agentId
+        agentId && error.agentId === undefined
           ? error instanceof InsufficientCreditsError
             ? new InsufficientCreditsError(
                 workspaceId,

@@ -51,10 +51,7 @@ describe("sendAgentErrorNotification", () => {
     agent: {
       get: ReturnType<typeof vi.fn>;
     };
-    "next-auth": {
-      get: ReturnType<typeof vi.fn>;
-      update: ReturnType<typeof vi.fn>;
-    };
+    atomicUpdate: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -67,10 +64,7 @@ describe("sendAgentErrorNotification", () => {
       agent: {
         get: vi.fn(),
       },
-      "next-auth": {
-        get: vi.fn(),
-        update: vi.fn(),
-      },
+      atomicUpdate: vi.fn(),
     };
 
     mockDatabase.mockResolvedValue(mockDb as never);
@@ -89,13 +83,19 @@ describe("sendAgentErrorNotification", () => {
       workspaceId,
     });
 
-    mockDb["next-auth"].get.mockResolvedValue({
-      pk: `USER#${userId}`,
-      sk: `USER#${userId}`,
-      email: userEmail,
+    mockDb.atomicUpdate.mockImplementation(async (_spec, callback) => {
+      const fetched = new Map([
+        [
+          "user",
+          {
+            pk: `USER#${userId}`,
+            sk: `USER#${userId}`,
+            email: userEmail,
+          },
+        ],
+      ]);
+      return callback(fetched);
     });
-
-    mockDb["next-auth"].update.mockResolvedValue({});
 
     mockGetWorkspaceOwnerRecipients.mockResolvedValue([
       { userId, email: userEmail },
@@ -122,20 +122,24 @@ describe("sendAgentErrorNotification", () => {
         subject: `Insufficient Credits - ${workspaceName}`,
       })
     );
-    expect(mockDb["next-auth"].update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lastCreditErrorEmailSentAt: expect.any(String),
-      })
-    );
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("skips credit error emails when user is rate limited", async () => {
     const oneHourAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    mockDb["next-auth"].get.mockResolvedValue({
-      pk: `USER#${userId}`,
-      sk: `USER#${userId}`,
-      email: userEmail,
-      lastCreditErrorEmailSentAt: oneHourAgo,
+    mockDb.atomicUpdate.mockImplementation(async (_spec, callback) => {
+      const fetched = new Map([
+        [
+          "user",
+          {
+            pk: `USER#${userId}`,
+            sk: `USER#${userId}`,
+            email: userEmail,
+            lastCreditErrorEmailSentAt: oneHourAgo,
+          },
+        ],
+      ]);
+      return callback(fetched);
     });
 
     const error = new InsufficientCreditsError(
@@ -149,7 +153,7 @@ describe("sendAgentErrorNotification", () => {
     await sendAgentErrorNotification(workspaceId, "credit", error);
 
     expect(mockSendEmail).not.toHaveBeenCalled();
-    expect(mockDb["next-auth"].update).not.toHaveBeenCalled();
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("sends spending limit emails to workspace owners", async () => {
@@ -175,11 +179,7 @@ describe("sendAgentErrorNotification", () => {
         subject: `Spending Limit Reached - ${workspaceName}`,
       })
     );
-    expect(mockDb["next-auth"].update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lastSpendingLimitErrorEmailSentAt: expect.any(String),
-      })
-    );
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("sends emails per user with per-type throttling", async () => {
@@ -188,22 +188,26 @@ describe("sendAgentErrorNotification", () => {
       { userId: "user-2", email: "user2@example.com" },
     ]);
 
-    mockDb["next-auth"].get.mockImplementation((pk: string) => {
-      if (pk === "USER#user-1") {
-        return {
-          pk,
-          sk: pk,
-          email: "user1@example.com",
-          lastCreditErrorEmailSentAt: new Date(
-            Date.now() - 10 * 60 * 1000
-          ).toISOString(),
-        };
-      }
-      return {
-        pk,
-        sk: pk,
-        email: "user2@example.com",
-      };
+    mockDb.atomicUpdate.mockImplementation(async (spec, callback) => {
+      const userSpec = (spec as Map<string, { pk: string }>).get("user");
+      const pk = userSpec?.pk || "";
+      const record =
+        pk === "USER#user-1"
+          ? {
+              pk,
+              sk: pk,
+              email: "user1@example.com",
+              lastCreditErrorEmailSentAt: new Date(
+                Date.now() - 10 * 60 * 1000
+              ).toISOString(),
+            }
+          : {
+              pk,
+              sk: pk,
+              email: "user2@example.com",
+            };
+      const fetched = new Map([["user", record]]);
+      return callback(fetched);
     });
 
     const error = new InsufficientCreditsError(
@@ -222,6 +226,7 @@ describe("sendAgentErrorNotification", () => {
         to: "user2@example.com",
       })
     );
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(2);
   });
 
   it("does not throw when email sending fails", async () => {
@@ -257,7 +262,10 @@ describe("sendAgentErrorNotification", () => {
   });
 
   it("skips users without a rate-limit record", async () => {
-    mockDb["next-auth"].get.mockResolvedValue(undefined);
+    mockDb.atomicUpdate.mockImplementation(async (_spec, callback) => {
+      const fetched = new Map([["user", undefined]]);
+      return callback(fetched);
+    });
     const error = new InsufficientCreditsError(
       workspaceId,
       1000000,
