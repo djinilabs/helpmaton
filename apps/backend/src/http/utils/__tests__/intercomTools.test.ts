@@ -5,6 +5,8 @@ import { database } from "../../../tables";
 import * as intercomClient from "../../../utils/intercom/client";
 import {
   createIntercomListContactsTool,
+  createIntercomSearchContactsTool,
+  createIntercomSearchConversationsTool,
   createIntercomReplyConversationTool,
 } from "../intercomTools";
 
@@ -14,6 +16,8 @@ vi.mock("../../../tables", () => ({
 
 vi.mock("../../../utils/intercom/client", () => ({
   listContacts: vi.fn(),
+  searchContacts: vi.fn(),
+  searchConversations: vi.fn(),
   replyConversation: vi.fn(),
   getCurrentAdmin: vi.fn(),
 }));
@@ -137,6 +141,77 @@ describe("Intercom Tools", () => {
 
       expect(result).toContain("Intercom admin ID is missing");
       expect(intercomClient.replyConversation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createIntercomSearchContactsTool", () => {
+    it("should build a query from email shortcut", async () => {
+      mockDb["mcp-server"].get.mockResolvedValue({
+        pk: `mcp-servers/${workspaceId}/${serverId}`,
+        sk: "server",
+        authType: "oauth",
+        config: { accessToken: "token-123" },
+      });
+
+      vi.mocked(intercomClient.searchContacts).mockResolvedValue({
+        data: [{ id: "contact-1" }],
+      });
+
+      const tool = createIntercomSearchContactsTool(workspaceId, serverId);
+      const result = await (tool as any).execute({ email: "email@projectmap.com" });
+
+      expect(intercomClient.searchContacts).toHaveBeenCalledWith(
+        workspaceId,
+        serverId,
+        {
+          query: { field: "email", operator: "=", value: "email@projectmap.com" },
+          pagination: undefined,
+        }
+      );
+      expect(result).toContain("contact-1");
+    });
+
+    it("should return validation error when no query or shortcuts provided", async () => {
+      mockDb["mcp-server"].get.mockResolvedValue({
+        pk: `mcp-servers/${workspaceId}/${serverId}`,
+        sk: "server",
+        authType: "oauth",
+        config: { accessToken: "token-123" },
+      });
+
+      const tool = createIntercomSearchContactsTool(workspaceId, serverId);
+      const result = await (tool as any).execute({});
+
+      expect(result).toContain("Invalid tool arguments");
+      expect(intercomClient.searchContacts).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createIntercomSearchConversationsTool", () => {
+    it("should build a query from contactId shortcut", async () => {
+      mockDb["mcp-server"].get.mockResolvedValue({
+        pk: `mcp-servers/${workspaceId}/${serverId}`,
+        sk: "server",
+        authType: "oauth",
+        config: { accessToken: "token-123" },
+      });
+
+      vi.mocked(intercomClient.searchConversations).mockResolvedValue({
+        data: [{ id: "conv-1" }],
+      });
+
+      const tool = createIntercomSearchConversationsTool(workspaceId, serverId);
+      const result = await (tool as any).execute({ contactId: "contact-1" });
+
+      expect(intercomClient.searchConversations).toHaveBeenCalledWith(
+        workspaceId,
+        serverId,
+        {
+          query: { field: "contact_ids", operator: "=", value: "contact-1" },
+          pagination: undefined,
+        }
+      );
+      expect(result).toContain("conv-1");
     });
   });
 });

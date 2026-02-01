@@ -501,6 +501,7 @@ interface AgentAccordionSectionProps {
   onToggle: (id: string) => void;
   children: ReactNode;
   lazy?: boolean;
+  contentClassName?: string;
 }
 
 const AgentAccordionSection: FC<AgentAccordionSectionProps> = ({
@@ -510,6 +511,7 @@ const AgentAccordionSection: FC<AgentAccordionSectionProps> = ({
   onToggle,
   children,
   lazy = true,
+  contentClassName,
 }) => {
   const isExpanded = expandedSection === id;
   return (
@@ -518,6 +520,7 @@ const AgentAccordionSection: FC<AgentAccordionSectionProps> = ({
       title={title}
       isExpanded={isExpanded}
       onToggle={() => onToggle(id)}
+      contentClassName={contentClassName}
     >
       {lazy ? (
         <LazyAccordionContent isExpanded={isExpanded}>
@@ -3538,12 +3541,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
             }
             expandedSection={expandedSection}
             onToggle={toggleSection}
+            contentClassName="p-0 lg:p-0"
           >
             <AgentChatWithFunctionUrl
               key={chatClearKey}
               workspaceId={workspaceId}
               agentId={agentId}
               onClear={() => setChatClearKey((prev) => prev + 1)}
+              isEmbedded
             />
           </AgentAccordionSection>
 

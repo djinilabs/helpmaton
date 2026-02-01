@@ -814,6 +814,19 @@ Intercom search tools (`intercom_search_contacts_*`, `intercom_search_conversati
 }
 ```
 
+**Shortcut Inputs**:
+
+You can also provide shortcut parameters instead of a full query object:
+
+- `intercom_search_contacts_*`: `email`, `name`, `externalId`
+- `intercom_search_conversations_*`: `conversationId`, `contactId` or `contactIds`, `state`, `createdAfter`, `updatedAfter`
+
+If `query` is provided, shortcuts are ignored.
+
+**Common Pitfalls**:
+
+- `contact_id` and `q` are not valid Intercom search fields. Use `contactId` as a shortcut or `contact_ids` in the query object.
+
 **Important Notes**:
 
 - Intercom OAuth does not provide refresh tokens; reconnect if the token is revoked

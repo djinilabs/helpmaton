@@ -10,6 +10,7 @@ interface AgentChatWithFunctionUrlProps {
   workspaceId: string;
   agentId: string;
   onClear?: () => void;
+  isEmbedded?: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
   workspaceId,
   agentId,
   onClear,
+  isEmbedded = false,
 }) => {
   const toast = useToast();
   const { data: testAgentUrlData, isLoading, error } = useTestAgentUrl();
@@ -61,6 +63,7 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
       agentId={agentId}
       api={functionUrl}
       onClear={onClear}
+      isEmbedded={isEmbedded}
     />
   );
 };

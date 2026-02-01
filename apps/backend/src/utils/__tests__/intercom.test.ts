@@ -77,6 +77,32 @@ describe("Intercom API Client", () => {
     );
   });
 
+  it("should search contacts", async () => {
+    const mockResponse = { data: [] };
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue(mockResponse),
+      headers: new Headers({ "content-type": "application/json" }),
+    } as Partial<Response> as Response);
+
+    const result = await intercomClient.searchContacts("workspace-1", "server-1", {
+      query: { field: "email", operator: "=", value: "email@projectmap.com" },
+    });
+
+    expect(result).toEqual(mockResponse);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.intercom.io/contacts/search",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          query: { field: "email", operator: "=", value: "email@projectmap.com" },
+        }),
+      })
+    );
+  });
+
   it("should reply to a conversation", async () => {
     const mockResponse = { id: "conv-1", type: "conversation" };
 

@@ -2544,7 +2544,7 @@ function getMcpServerToolMetadata(
     tools.push({
       name: `intercom_search_contacts${suffix}`,
       description:
-        "Search Intercom contacts using the Intercom search query format.",
+        "Search Intercom contacts. Provide a query object, or use shortcuts (email, name, externalId). If query is provided, shortcuts are ignored.",
       category: "MCP Server Tools",
       alwaysAvailable: false,
       condition,
@@ -2552,8 +2552,27 @@ function getMcpServerToolMetadata(
         {
           name: "query",
           type: "object",
-          required: true,
-          description: "Intercom search query object",
+          required: false,
+          description:
+            "Intercom search query object. Example: {\"operator\":\"AND\",\"value\":[{\"field\":\"email\",\"operator\":\"=\",\"value\":\"alice@example.com\"}]}",
+        },
+        {
+          name: "email",
+          type: "string",
+          required: false,
+          description: "Shortcut: search by contact email",
+        },
+        {
+          name: "name",
+          type: "string",
+          required: false,
+          description: "Shortcut: search by contact name",
+        },
+        {
+          name: "externalId",
+          type: "string",
+          required: false,
+          description: "Shortcut: search by contact external_id",
         },
         {
           name: "pagination",
@@ -2651,7 +2670,7 @@ function getMcpServerToolMetadata(
     tools.push({
       name: `intercom_search_conversations${suffix}`,
       description:
-        "Search Intercom conversations using the Intercom search query format.",
+        "Search Intercom conversations. Provide a query object, or use shortcuts (conversationId, contactId(s), state, createdAfter, updatedAfter). If query is provided, shortcuts are ignored.",
       category: "MCP Server Tools",
       alwaysAvailable: false,
       condition,
@@ -2659,8 +2678,45 @@ function getMcpServerToolMetadata(
         {
           name: "query",
           type: "object",
-          required: true,
-          description: "Intercom search query object",
+          required: false,
+          description:
+            "Intercom search query object. Example: {\"operator\":\"AND\",\"value\":[{\"field\":\"id\",\"operator\":\"=\",\"value\":\"123456\"}]}",
+        },
+        {
+          name: "conversationId",
+          type: "string",
+          required: false,
+          description: "Shortcut: search by conversation ID",
+        },
+        {
+          name: "contactId",
+          type: "string",
+          required: false,
+          description: "Shortcut: search by contact ID (maps to contact_ids)",
+        },
+        {
+          name: "contactIds",
+          type: "string[]",
+          required: false,
+          description: "Shortcut: search by multiple contact IDs",
+        },
+        {
+          name: "state",
+          type: "string",
+          required: false,
+          description: "Shortcut: search by conversation state",
+        },
+        {
+          name: "createdAfter",
+          type: "number",
+          required: false,
+          description: "Shortcut: created_at > (UNIX timestamp)",
+        },
+        {
+          name: "updatedAfter",
+          type: "number",
+          required: false,
+          description: "Shortcut: updated_at > (UNIX timestamp)",
         },
         {
           name: "pagination",

@@ -89,10 +89,7 @@ export const ConversationList: FC<ConversationListProps> = ({
   if (isLoading && !data) {
     return (
       <>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-            Recent Conversations
-          </h2>
+        <div className="mb-4 flex items-center justify-end">
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
@@ -109,10 +106,7 @@ export const ConversationList: FC<ConversationListProps> = ({
   if (error) {
     return (
       <>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-            Recent Conversations
-          </h2>
+        <div className="mb-4 flex items-center justify-end">
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
@@ -135,18 +129,6 @@ export const ConversationList: FC<ConversationListProps> = ({
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-          Recent Conversations
-        </h2>
-        <button
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
-        >
-          {isRefetching ? "Refreshing..." : "Refresh"}
-        </button>
-      </div>
       <div className="mb-4 space-y-2">
         <p className="text-sm text-neutral-600 dark:text-neutral-300">
           View all conversations this agent has participated in. Each
@@ -162,9 +144,29 @@ export const ConversationList: FC<ConversationListProps> = ({
       </div>
 
       {conversations.length === 0 ? (
-        <p className="text-sm text-neutral-600 dark:text-neutral-300">No conversations yet.</p>
+        <>
+          <div className="mb-4 flex items-center justify-end">
+            <button
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            >
+              {isRefetching ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300">No conversations yet.</p>
+        </>
       ) : (
         <>
+          <div className="mb-4 flex items-center justify-end">
+            <button
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            >
+              {isRefetching ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
           <div className="mb-4 space-y-2">
             {conversations.map((conversation) => (
               <div

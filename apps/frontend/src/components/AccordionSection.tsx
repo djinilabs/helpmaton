@@ -9,6 +9,7 @@ interface AccordionSectionProps {
   isExpanded: boolean;
   onToggle: () => void;
   children: ReactNode;
+  contentClassName?: string;
 }
 
 export const AccordionSection: FC<AccordionSectionProps> = ({
@@ -17,6 +18,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   isExpanded,
   onToggle,
   children,
+  contentClassName,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const innerContentRef = useRef<HTMLDivElement>(null);
@@ -226,7 +228,9 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       >
         <div
           ref={innerContentRef}
-          className="border-t border-neutral-200 p-6 dark:border-neutral-700 lg:p-8"
+          className={`border-t border-neutral-200 p-6 dark:border-neutral-700 lg:p-8 ${
+            contentClassName ?? ""
+          }`}
         >
           <LazyAccordionContent isExpanded={isExpanded}>
             {children}
