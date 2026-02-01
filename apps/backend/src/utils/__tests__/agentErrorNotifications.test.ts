@@ -5,21 +5,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sendAgentErrorNotification } from "../agentErrorNotifications";
-import { InsufficientCreditsError } from "../creditErrors";
+import {
+  InsufficientCreditsError,
+  SpendingLimitExceededError,
+} from "../creditErrors";
 
-// Mock dependencies using vi.hoisted
-const { mockDatabase, mockSendEmail, mockGetSubscriptionById } = vi.hoisted(
-  () => {
-    const database = vi.fn();
-    const sendEmail = vi.fn();
-    const getSubscriptionById = vi.fn();
-    return {
-      mockDatabase: database,
-      mockSendEmail: sendEmail,
-      mockGetSubscriptionById: getSubscriptionById,
-    };
-  }
-);
+const {
+  mockDatabase,
+  mockSendEmail,
+  mockGetWorkspaceOwnerRecipients,
+} = vi.hoisted(() => {
+  const database = vi.fn();
+  const sendEmail = vi.fn();
+  const getWorkspaceOwnerRecipients = vi.fn();
+  return {
+    mockDatabase: database,
+    mockSendEmail: sendEmail,
+    mockGetWorkspaceOwnerRecipients: getWorkspaceOwnerRecipients,
+  };
+});
 
 vi.mock("../../tables", () => ({
   database: mockDatabase,
@@ -29,378 +33,249 @@ vi.mock("../../send-email", () => ({
   sendEmail: mockSendEmail,
 }));
 
-vi.mock("../subscriptionUtils", () => ({
-  getSubscriptionById: mockGetSubscriptionById,
+vi.mock("../creditAdminNotifications", () => ({
+  getWorkspaceOwnerRecipients: mockGetWorkspaceOwnerRecipients,
 }));
 
 describe("sendAgentErrorNotification", () => {
   const workspaceId = "test-workspace-id";
-  const subscriptionId = "test-subscription-id";
+  const workspaceName = "Test Workspace";
   const userId = "test-user-id";
   const userEmail = "test@example.com";
+  const agentId = "agent-123";
 
   let mockDb: {
     workspace: {
       get: ReturnType<typeof vi.fn>;
     };
-    "next-auth": {
+    agent: {
       get: ReturnType<typeof vi.fn>;
     };
-    subscription: {
-      update: ReturnType<typeof vi.fn>;
-    };
+    atomicUpdate: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Setup mock database
     mockDb = {
       workspace: {
         get: vi.fn(),
       },
-      "next-auth": {
+      agent: {
         get: vi.fn(),
       },
-      subscription: {
-        update: vi.fn(),
-      },
+      atomicUpdate: vi.fn(),
     };
 
     mockDatabase.mockResolvedValue(mockDb as never);
 
-    // Setup default workspace mock
     mockDb.workspace.get.mockResolvedValue({
       pk: `workspaces/${workspaceId}`,
       sk: "workspace",
-      subscriptionId,
+      name: workspaceName,
+      currency: "usd",
     });
 
-    // Setup default subscription mock
-    mockGetSubscriptionById.mockResolvedValue({
-      pk: `subscriptions/${subscriptionId}`,
-      sk: "subscription",
-      userId,
-      plan: "starter",
-      status: "active",
-      version: 1,
-      createdAt: new Date().toISOString(),
-    } as never);
-
-    // Setup default user mock
-    mockDb["next-auth"].get.mockResolvedValue({
-      pk: `users/${userId}`,
-      sk: "USER",
-      email: userEmail,
+    mockDb.agent.get.mockResolvedValue({
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      name: "Agent One",
+      workspaceId,
     });
 
-    // Setup default email mock to resolve successfully
-    mockSendEmail.mockResolvedValue({});
-
-    // Setup default subscription update mock
-    mockDb.subscription.update.mockResolvedValue({});
-  });
-
-  describe("Credit Error Notifications", () => {
-    it("should send email for credit error when no previous email sent", async () => {
-      const error = new InsufficientCreditsError(
-        workspaceId,
-        1_000_000_000, // 1 USD in nano-dollars
-        500_000_000, // 0.5 USD in nano-dollars
-        "usd"
-      );
-
-      await sendAgentErrorNotification(workspaceId, "credit", error);
-
-      // Should send email
-      expect(mockSendEmail).toHaveBeenCalledTimes(1);
-      expect(mockSendEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: userEmail,
-          subject: "Insufficient Credits - Helpmaton",
-        })
-      );
-
-      // Should update subscription with timestamp
-      expect(mockDb.subscription.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          lastCreditErrorEmailSentAt: expect.any(String),
-        })
-      );
-    });
-
-    it("should not send email if sent within last hour", async () => {
-      const oneHourAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // 30 minutes ago
-
-      mockGetSubscriptionById.mockResolvedValue({
-        pk: `subscriptions/${subscriptionId}`,
-        sk: "subscription",
-        userId,
-        plan: "starter",
-        status: "active",
-        lastCreditErrorEmailSentAt: oneHourAgo,
-        version: 1,
-        createdAt: new Date().toISOString(),
-      } as never);
-
-      const error = new InsufficientCreditsError(
-        workspaceId,
-        1000000,
-        500000,
-        "usd"
-      );
-
-      await sendAgentErrorNotification(workspaceId, "credit", error);
-
-      // Should NOT send email
-      expect(mockSendEmail).not.toHaveBeenCalled();
-      // Should NOT update subscription
-      expect(mockDb.subscription.update).not.toHaveBeenCalled();
-    });
-
-    it("should send email if more than 1 hour passed since last email", async () => {
-      const twoHoursAgo = new Date(
-        Date.now() - 2 * 60 * 60 * 1000
-      ).toISOString();
-
-      mockGetSubscriptionById.mockResolvedValue({
-        pk: `subscriptions/${subscriptionId}`,
-        sk: "subscription",
-        userId,
-        plan: "starter",
-        status: "active",
-        lastCreditErrorEmailSentAt: twoHoursAgo,
-        version: 1,
-        createdAt: new Date().toISOString(),
-      } as never);
-
-      const error = new InsufficientCreditsError(
-        workspaceId,
-        1000000,
-        500000,
-        "usd"
-      );
-
-      await sendAgentErrorNotification(workspaceId, "credit", error);
-
-      // Should send email
-      expect(mockSendEmail).toHaveBeenCalledTimes(1);
-      // Should update subscription
-      expect(mockDb.subscription.update).toHaveBeenCalled();
-    });
-
-    it("should not throw error if email sending fails", async () => {
-      mockSendEmail.mockRejectedValue(new Error("Email sending failed"));
-
-      const error = new InsufficientCreditsError(
-        workspaceId,
-        1000000,
-        500000,
-        "usd"
-      );
-
-      // Should not throw
-      await expect(
-        sendAgentErrorNotification(workspaceId, "credit", error)
-      ).resolves.not.toThrow();
-    });
-
-    it("should handle missing workspace gracefully", async () => {
-      mockDb.workspace.get.mockResolvedValue(undefined);
-
-      const error = new InsufficientCreditsError(
-        workspaceId,
-        1000000,
-        500000,
-        "usd"
-      );
-
-      // Should not throw
-      await expect(
-        sendAgentErrorNotification(workspaceId, "credit", error)
-      ).resolves.not.toThrow();
-
-      // Should not send email
-      expect(mockSendEmail).not.toHaveBeenCalled();
-    });
-
-    it("should handle missing user email gracefully", async () => {
-      mockDb["next-auth"].get.mockResolvedValue({
-        pk: `users/${userId}`,
-        sk: "USER",
-        // No email field
-      });
-
-      const error = new InsufficientCreditsError(
-        workspaceId,
-        1000000,
-        500000,
-        "usd"
-      );
-
-      // Should not throw
-      await expect(
-        sendAgentErrorNotification(workspaceId, "credit", error)
-      ).resolves.not.toThrow();
-
-      // Should not send email
-      expect(mockSendEmail).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("Spending Limit Error Notifications", () => {
-    it("should send email for spending limit error when no previous email sent", async () => {
-      const error = {
-        name: "SpendingLimitExceededError",
-        message: "Spending limit exceeded",
-        statusCode: 402,
-        failedLimits: [
+    mockDb.atomicUpdate.mockImplementation(async (_spec, callback) => {
+      const fetched = new Map([
+        [
+          "user",
           {
-            scope: "workspace" as const,
-            timeFrame: "daily",
-            limit: 1000000,
-            current: 1200000,
+            pk: `USER#${userId}`,
+            sk: `USER#${userId}`,
+            email: userEmail,
           },
         ],
-      };
-
-      await sendAgentErrorNotification(
-        workspaceId,
-        "spendingLimit",
-        error as never
-      );
-
-      // Should send email
-      expect(mockSendEmail).toHaveBeenCalledTimes(1);
-      expect(mockSendEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: userEmail,
-          subject: "Spending Limit Reached - Helpmaton",
-        })
-      );
-
-      // Should update subscription with timestamp
-      expect(mockDb.subscription.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          lastSpendingLimitErrorEmailSentAt: expect.any(String),
-        })
-      );
+      ]);
+      return callback(fetched);
     });
 
-    it("should not send email if sent within last hour", async () => {
-      const thirtyMinutesAgo = new Date(
-        Date.now() - 30 * 60 * 1000
-      ).toISOString();
+    mockGetWorkspaceOwnerRecipients.mockResolvedValue([
+      { userId, email: userEmail },
+    ]);
 
-      mockGetSubscriptionById.mockResolvedValue({
-        pk: `subscriptions/${subscriptionId}`,
-        sk: "subscription",
-        userId,
-        plan: "pro",
-        status: "active",
-        lastSpendingLimitErrorEmailSentAt: thirtyMinutesAgo,
-        version: 1,
-        createdAt: new Date().toISOString(),
-      } as never);
-
-      const error = {
-        name: "SpendingLimitExceededError",
-        message: "Spending limit exceeded",
-        statusCode: 402,
-        failedLimits: [],
-      };
-
-      await sendAgentErrorNotification(
-        workspaceId,
-        "spendingLimit",
-        error as never
-      );
-
-      // Should NOT send email
-      expect(mockSendEmail).not.toHaveBeenCalled();
-    });
-
-    it("should send email if more than 1 hour passed since last email", async () => {
-      const ninetyMinutesAgo = new Date(
-        Date.now() - 90 * 60 * 1000
-      ).toISOString();
-
-      mockGetSubscriptionById.mockResolvedValue({
-        pk: `subscriptions/${subscriptionId}`,
-        sk: "subscription",
-        userId,
-        plan: "pro",
-        status: "active",
-        lastSpendingLimitErrorEmailSentAt: ninetyMinutesAgo,
-        version: 1,
-        createdAt: new Date().toISOString(),
-      } as never);
-
-      const error = {
-        name: "SpendingLimitExceededError",
-        message: "Spending limit exceeded",
-        statusCode: 402,
-        failedLimits: [],
-      };
-
-      await sendAgentErrorNotification(
-        workspaceId,
-        "spendingLimit",
-        error as never
-      );
-
-      // Should send email
-      expect(mockSendEmail).toHaveBeenCalledTimes(1);
-      // Should update subscription
-      expect(mockDb.subscription.update).toHaveBeenCalled();
-    });
+    mockSendEmail.mockResolvedValue({});
   });
 
-  describe("Rate Limiting", () => {
-    it("should track separate timestamps for credit and spending limit errors", async () => {
-      const thirtyMinutesAgo = new Date(
-        Date.now() - 30 * 60 * 1000
-      ).toISOString();
+  it("sends credit error emails to workspace owners", async () => {
+    const error = new InsufficientCreditsError(
+      workspaceId,
+      1_000_000_000,
+      500_000_000,
+      "usd",
+      agentId
+    );
 
-      mockGetSubscriptionById.mockResolvedValue({
-        pk: `subscriptions/${subscriptionId}`,
-        sk: "subscription",
-        userId,
-        plan: "starter",
-        status: "active",
-        lastCreditErrorEmailSentAt: thirtyMinutesAgo,
-        // No lastSpendingLimitErrorEmailSentAt
-        version: 1,
-        createdAt: new Date().toISOString(),
-      } as never);
+    await sendAgentErrorNotification(workspaceId, "credit", error);
 
-      const creditError = new InsufficientCreditsError(
-        workspaceId,
-        1000000,
-        500000,
-        "usd"
-      );
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: userEmail,
+        subject: `Insufficient Credits - ${workspaceName}`,
+      })
+    );
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(1);
+  });
 
-      const spendingError = {
-        name: "SpendingLimitExceededError",
-        message: "Spending limit exceeded",
-        statusCode: 402,
-        failedLimits: [],
-      };
-
-      // Credit error should be rate limited
-      await sendAgentErrorNotification(workspaceId, "credit", creditError);
-      expect(mockSendEmail).not.toHaveBeenCalled();
-
-      // Spending error should NOT be rate limited (different timestamp)
-      await sendAgentErrorNotification(
-        workspaceId,
-        "spendingLimit",
-        spendingError as never
-      );
-      expect(mockSendEmail).toHaveBeenCalledTimes(1);
+  it("skips credit error emails when user is rate limited", async () => {
+    const oneHourAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    mockDb.atomicUpdate.mockImplementation(async (_spec, callback) => {
+      const fetched = new Map([
+        [
+          "user",
+          {
+            pk: `USER#${userId}`,
+            sk: `USER#${userId}`,
+            email: userEmail,
+            lastCreditErrorEmailSentAt: oneHourAgo,
+          },
+        ],
+      ]);
+      return callback(fetched);
     });
+
+    const error = new InsufficientCreditsError(
+      workspaceId,
+      1_000_000_000,
+      500_000_000,
+      "usd",
+      agentId
+    );
+
+    await sendAgentErrorNotification(workspaceId, "credit", error);
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends spending limit emails to workspace owners", async () => {
+    const error = new SpendingLimitExceededError(
+      workspaceId,
+      [
+        {
+          scope: "workspace",
+          timeFrame: "daily",
+          limit: 1000,
+          current: 1500,
+        },
+      ],
+      agentId
+    );
+
+    await sendAgentErrorNotification(workspaceId, "spendingLimit", error);
+
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: userEmail,
+        subject: `Spending Limit Reached - ${workspaceName}`,
+      })
+    );
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends emails per user with per-type throttling", async () => {
+    mockGetWorkspaceOwnerRecipients.mockResolvedValue([
+      { userId: "user-1", email: "user1@example.com" },
+      { userId: "user-2", email: "user2@example.com" },
+    ]);
+
+    mockDb.atomicUpdate.mockImplementation(async (spec, callback) => {
+      const userSpec = (spec as Map<string, { pk: string }>).get("user");
+      const pk = userSpec?.pk || "";
+      const record =
+        pk === "USER#user-1"
+          ? {
+              pk,
+              sk: pk,
+              email: "user1@example.com",
+              lastCreditErrorEmailSentAt: new Date(
+                Date.now() - 10 * 60 * 1000
+              ).toISOString(),
+            }
+          : {
+              pk,
+              sk: pk,
+              email: "user2@example.com",
+            };
+      const fetched = new Map([["user", record]]);
+      return callback(fetched);
+    });
+
+    const error = new InsufficientCreditsError(
+      workspaceId,
+      1_000_000_000,
+      500_000_000,
+      "usd",
+      agentId
+    );
+
+    await sendAgentErrorNotification(workspaceId, "credit", error);
+
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "user2@example.com",
+      })
+    );
+    expect(mockDb.atomicUpdate).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not throw when email sending fails", async () => {
+    mockSendEmail.mockRejectedValue(new Error("Email sending failed"));
+    const error = new InsufficientCreditsError(
+      workspaceId,
+      1000000,
+      500000,
+      "usd",
+      agentId
+    );
+
+    await expect(
+      sendAgentErrorNotification(workspaceId, "credit", error)
+    ).resolves.not.toThrow();
+  });
+
+  it("handles missing workspace gracefully", async () => {
+    mockDb.workspace.get.mockResolvedValue(undefined);
+    const error = new InsufficientCreditsError(
+      workspaceId,
+      1000000,
+      500000,
+      "usd",
+      agentId
+    );
+
+    await expect(
+      sendAgentErrorNotification(workspaceId, "credit", error)
+    ).resolves.not.toThrow();
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("skips users without a rate-limit record", async () => {
+    mockDb.atomicUpdate.mockImplementation(async (_spec, callback) => {
+      const fetched = new Map([["user", undefined]]);
+      return callback(fetched);
+    });
+    const error = new InsufficientCreditsError(
+      workspaceId,
+      1000000,
+      500000,
+      "usd",
+      agentId
+    );
+
+    await sendAgentErrorNotification(workspaceId, "credit", error);
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
   });
 });
-
-

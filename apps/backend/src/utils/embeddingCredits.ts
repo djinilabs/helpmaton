@@ -86,7 +86,11 @@ export async function reserveEmbeddingCredits(params: {
       estimatedCostUsd,
     );
     if (!limitCheck.passed) {
-      throw new SpendingLimitExceededError(limitCheck.failedLimits);
+      throw new SpendingLimitExceededError(
+        params.workspaceId,
+        limitCheck.failedLimits,
+        params.agentId
+      );
     }
   }
 

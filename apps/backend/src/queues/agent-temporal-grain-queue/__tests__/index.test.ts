@@ -742,14 +742,18 @@ describe("agent-temporal-grain-queue handler", () => {
 
       it("does not report credit user errors during embedding generation", async () => {
         mockReserveEmbeddingCredits.mockRejectedValue(
-          new SpendingLimitExceededError([
-            {
-              scope: "agent",
-              timeFrame: "daily",
-              limit: 500000000,
-              current: 610317349,
-            },
-          ])
+          new SpendingLimitExceededError(
+            "workspace-456",
+            [
+              {
+                scope: "agent",
+                timeFrame: "daily",
+                limit: 500000000,
+                current: 610317349,
+              },
+            ],
+            "agent-123"
+          )
         );
 
         const message: WriteOperationMessage = {

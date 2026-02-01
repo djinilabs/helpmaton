@@ -130,6 +130,28 @@ describe("API Authorizer", () => {
     };
   }
 
+  describe("Public routes", () => {
+    it("should allow public health check without authentication", async () => {
+      const event = createAuthorizerEvent({
+        methodArn:
+          "arn:aws:execute-api:eu-west-2:123456789012:abc123/default/GET/api/health",
+        path: "/api/health",
+        resource: "/api/health",
+      });
+
+      const result = await handler(event);
+
+      expect(result.policyDocument.Statement[0].Effect).toBe("Allow");
+      expect(result.principalId).toBe("public-health");
+      expect(result.usageIdentifierKey).toBeUndefined();
+      expect(result.context?.public).toBe("true");
+      expect(mockGetWorkspaceSubscription).not.toHaveBeenCalled();
+      expect(mockGetUserSubscription).not.toHaveBeenCalled();
+      expect(mockGetSubscriptionById).not.toHaveBeenCalled();
+      expect(mockVerifyAccessToken).not.toHaveBeenCalled();
+    });
+  });
+
   describe("Workspace-based authentication", () => {
     it("should authorize request with workspace ID in webhook path", async () => {
       const event = createAuthorizerEvent({

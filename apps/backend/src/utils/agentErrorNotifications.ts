@@ -1,87 +1,94 @@
 /**
  * Agent Error Notification System
  * Sends email notifications to workspace owners when credit or spending limit errors occur
- * Implements 1-hour rate limiting per error type to avoid email flooding
+ * Implements 1-hour rate limiting per user per error type to avoid email flooding
  */
 
 import { sendEmail } from "../send-email";
 import { database } from "../tables";
-import type { SubscriptionRecord, WorkspaceRecord } from "../tables/schema";
+import type { AgentRecord, TableRecord, WorkspaceRecord } from "../tables/schema";
 
+import { getWorkspaceOwnerRecipients } from "./creditAdminNotifications";
+import { fromNanoDollars } from "./creditConversions";
 import type {
   InsufficientCreditsError,
   SpendingLimitExceededError,
 } from "./creditErrors";
 import { Sentry, ensureError } from "./sentry";
-import { getSubscriptionById } from "./subscriptionUtils";
 
 const BASE_URL = process.env.BASE_URL || "https://app.helpmaton.com";
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
-/**
- * Get user email from workspace owner
- */
-async function getUserEmailFromWorkspace(
-  workspaceId: string
-): Promise<string | null> {
-  try {
-    const db = await database();
-    const workspacePk = `workspaces/${workspaceId}`;
-    const workspace = (await db.workspace.get(workspacePk, "workspace")) as
-      | WorkspaceRecord
-      | undefined;
+type NextAuthUserRecord = TableRecord & {
+  pk: string;
+  sk: string;
+  email?: string;
+  lastCreditErrorEmailSentAt?: string;
+  lastSpendingLimitErrorEmailSentAt?: string;
+};
 
-    if (!workspace || !workspace.subscriptionId) {
-      console.error(
-        "[agentErrorNotifications] Workspace not found or has no subscription:",
-        { workspaceId }
-      );
-      return null;
-    }
-
-    const subscription = await getSubscriptionById(workspace.subscriptionId);
-    if (!subscription) {
-      console.error(
-        "[agentErrorNotifications] Subscription not found:",
-        workspace.subscriptionId
-      );
-      return null;
-    }
-
-    // Get user email from next-auth table
-    const userPk = `users/${subscription.userId}`;
-    const userSk = "USER";
-    const user = await db["next-auth"].get(userPk, userSk);
-
-    if (!user || !user.email) {
-      console.error(
-        "[agentErrorNotifications] User email not found:",
-        subscription.userId
-      );
-      return null;
-    }
-
-    return user.email;
-  } catch (error) {
-    console.error("[agentErrorNotifications] Error getting user email:", error);
-    return null;
-  }
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-/**
- * Check if we should send an error email based on rate limiting
- */
-function shouldSendErrorEmail(
-  subscription: SubscriptionRecord,
+function sanitizeSubjectValue(value?: string): string {
+  const input = value || "";
+  let output = "";
+  for (const char of input) {
+    const code = char.charCodeAt(0);
+    output += code < 32 || code === 127 ? " " : char;
+  }
+  return output.replace(/\s+/g, " ").trim();
+}
+
+function formatAmount(nanoDollars: number, currency: string): string {
+  const value = fromNanoDollars(nanoDollars)
+    .toFixed(12)
+    .replace(/\.?0+$/, "");
+  return `${value} ${currency.toUpperCase()}`;
+}
+
+function buildWorkspaceUrl(workspaceId: string): string {
+  return `${BASE_URL}/workspaces/${workspaceId}`;
+}
+
+function buildWorkspaceCreditsUrl(workspaceId: string): string {
+  return `${BASE_URL}/workspaces/${workspaceId}/credits`;
+}
+
+function buildWorkspaceSettingsUrl(workspaceId: string): string {
+  return `${BASE_URL}/workspaces/${workspaceId}/settings`;
+}
+
+function buildAgentSummary(
+  agentId: string | undefined,
+  agent?: AgentRecord
+): string {
+  if (!agentId) {
+    return "Agent: (not specified)";
+  }
+  if (agent) {
+    return `Agent: ${agent.name} (${agentId})`;
+  }
+  return `Agent: ${agentId}`;
+}
+
+function shouldSendUserErrorEmail(
+  user: NextAuthUserRecord,
   errorType: "credit" | "spendingLimit"
 ): boolean {
   const lastEmailField =
     errorType === "credit"
-      ? subscription.lastCreditErrorEmailSentAt
-      : subscription.lastSpendingLimitErrorEmailSentAt;
+      ? user.lastCreditErrorEmailSentAt
+      : user.lastSpendingLimitErrorEmailSentAt;
 
   if (!lastEmailField) {
-    return true; // Never sent before
+    return true;
   }
 
   const lastEmailTime = new Date(lastEmailField).getTime();
@@ -91,24 +98,99 @@ function shouldSendErrorEmail(
   return timeSinceLastEmail > ONE_HOUR_MS;
 }
 
-/**
- * Send credit error email to workspace owner
- */
-async function sendCreditErrorEmail(
-  workspaceId: string,
-  userEmail: string
-): Promise<void> {
-  const creditPurchaseUrl = `${BASE_URL}/workspaces/${workspaceId}/credits`;
+async function reserveUserNotificationWindow(params: {
+  db: Awaited<ReturnType<typeof database>>;
+  userPk: string;
+  userSk: string;
+  errorType: "credit" | "spendingLimit";
+}): Promise<{ updated: boolean; timestamp?: string; skipReason?: string }> {
+  const { db, userPk, userSk, errorType } = params;
+  const now = new Date().toISOString();
+  let skipReason: string | undefined;
 
-  const subject = "Insufficient Credits - Helpmaton";
-  const text = `Your workspace has insufficient credits to complete agent requests.
+  const updated = await db.atomicUpdate(
+    new Map([
+      [
+        "user",
+        {
+          table: "next-auth",
+          pk: userPk,
+          sk: userSk,
+        },
+      ],
+    ]),
+    async (fetched) => {
+      const existing = fetched.get("user") as NextAuthUserRecord | undefined;
+      if (!existing) {
+        skipReason = "missing_record";
+        return [];
+      }
 
-To continue, please purchase additional credits.
+      if (!shouldSendUserErrorEmail(existing, errorType)) {
+        skipReason = "rate_limited";
+        return [];
+      }
 
-Visit: ${creditPurchaseUrl}
+      skipReason = undefined;
+      const updateFields =
+        errorType === "credit"
+          ? { lastCreditErrorEmailSentAt: now }
+          : { lastSpendingLimitErrorEmailSentAt: now };
+      const updatedRecord: TableRecord = {
+        ...(existing as TableRecord),
+        ...updateFields,
+      };
+      return [updatedRecord];
+    }
+  );
+
+  return {
+    updated: updated.length > 0,
+    timestamp: updated.length > 0 ? now : undefined,
+    skipReason,
+  };
+}
+
+async function sendCreditErrorEmail(params: {
+  workspace: WorkspaceRecord;
+  agent?: AgentRecord;
+  agentId?: string;
+  recipientEmail: string;
+  error: InsufficientCreditsError;
+}): Promise<void> {
+  const { workspace, agent, agentId, recipientEmail, error } = params;
+  const workspaceId = workspace.pk.replace("workspaces/", "");
+  const workspaceUrl = buildWorkspaceUrl(workspaceId);
+  const creditPurchaseUrl = buildWorkspaceCreditsUrl(workspaceId);
+  const agentSummary = buildAgentSummary(agentId, agent);
+  const required = formatAmount(error.required, error.currency);
+  const available = formatAmount(error.available, error.currency);
+  const safeWorkspaceName = sanitizeSubjectValue(workspace.name) || "Workspace";
+
+  const subject = `Insufficient Credits - ${safeWorkspaceName}`;
+  const text = `A request failed due to insufficient credits.
+
+Workspace: ${workspace.name} (${workspaceId})
+Workspace link: ${workspaceUrl}
+${agentSummary}
+
+Error: ${error.message}
+Required: ${required}
+Available: ${available}
+
+To continue, please purchase additional credits:
+${creditPurchaseUrl}
 
 Best regards,
 The Helpmaton Team`;
+
+  const htmlWorkspaceName = escapeHtml(workspace.name);
+  const htmlWorkspaceUrl = escapeHtml(workspaceUrl);
+  const htmlAgentSummary = escapeHtml(agentSummary);
+  const htmlErrorMessage = escapeHtml(error.message);
+  const htmlRequired = escapeHtml(required);
+  const htmlAvailable = escapeHtml(available);
+  const htmlPurchaseUrl = escapeHtml(creditPurchaseUrl);
 
   const html = `
 <!DOCTYPE html>
@@ -120,6 +202,8 @@ The Helpmaton Team`;
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
     .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
     .content { padding: 20px; }
+    .summary { background: #eef2ff; padding: 12px; border-radius: 6px; margin: 16px 0; }
+    .label { font-weight: bold; }
     .button { display: inline-block; padding: 12px 24px; background: #000; color: #fff; text-decoration: none; border-radius: 6px; margin: 20px 0; }
   </style>
 </head>
@@ -129,10 +213,16 @@ The Helpmaton Team`;
       <h1>Insufficient Credits</h1>
     </div>
     <div class="content">
-      <p>Your workspace has insufficient credits to complete agent requests.</p>
-      <p>To continue, please purchase additional credits.</p>
+      <p class="summary">
+        <span class="label">Workspace:</span> ${htmlWorkspaceName} (${workspaceId})
+      </p>
+      <p><span class="label">Workspace link:</span> <a href="${htmlWorkspaceUrl}">${htmlWorkspaceUrl}</a></p>
+      <p><span class="label">${htmlAgentSummary}</span></p>
+      <p><span class="label">Error:</span> ${htmlErrorMessage}</p>
+      <p><span class="label">Required:</span> ${htmlRequired}</p>
+      <p><span class="label">Available:</span> ${htmlAvailable}</p>
       <p>
-        <a href="${creditPurchaseUrl}" class="button">Buy Credits</a>
+        <a href="${htmlPurchaseUrl}" class="button">Buy Credits</a>
       </p>
       <p>Best regards,<br>The Helpmaton Team</p>
     </div>
@@ -141,7 +231,7 @@ The Helpmaton Team`;
 </html>`;
 
   await sendEmail({
-    to: userEmail,
+    to: recipientEmail,
     subject,
     text,
     html,
@@ -149,28 +239,67 @@ The Helpmaton Team`;
 
   console.log("[agentErrorNotifications] Sent credit error email:", {
     workspaceId,
-    userEmail,
+    recipientEmail,
   });
 }
 
-/**
- * Send spending limit error email to workspace owner
- */
-async function sendSpendingLimitErrorEmail(
-  workspaceId: string,
-  userEmail: string
-): Promise<void> {
-  const settingsUrl = `${BASE_URL}/workspaces/${workspaceId}/settings`;
+async function sendSpendingLimitErrorEmail(params: {
+  workspace: WorkspaceRecord;
+  agent?: AgentRecord;
+  agentId?: string;
+  recipientEmail: string;
+  error: SpendingLimitExceededError;
+}): Promise<void> {
+  const { workspace, agent, agentId, recipientEmail, error } = params;
+  const workspaceId = workspace.pk.replace("workspaces/", "");
+  const workspaceUrl = buildWorkspaceUrl(workspaceId);
+  const settingsUrl = buildWorkspaceSettingsUrl(workspaceId);
+  const agentSummary = buildAgentSummary(agentId, agent);
+  const currency = workspace.currency || "usd";
+  const safeWorkspaceName = sanitizeSubjectValue(workspace.name) || "Workspace";
+  const limitsSummary = error.failedLimits
+    .map(
+      (limit) =>
+        `${limit.scope} ${limit.timeFrame}: ${formatAmount(
+          limit.current,
+          currency
+        )}/${formatAmount(limit.limit, currency)}`
+    )
+    .join("\n");
+  const limitsHtml = error.failedLimits
+    .map(
+      (limit) =>
+        `<li>${escapeHtml(
+          `${limit.scope} ${limit.timeFrame}: ${formatAmount(
+            limit.current,
+            currency
+          )}/${formatAmount(limit.limit, currency)}`
+        )}</li>`
+    )
+    .join("");
 
-  const subject = "Spending Limit Reached - Helpmaton";
-  const text = `Your self-imposed spending limit has been reached.
+  const subject = `Spending Limit Reached - ${safeWorkspaceName}`;
+  const text = `A request failed due to spending limits being reached.
 
-Agent requests are currently blocked. If you'd like to continue, you can adjust your spending limits in workspace settings.
+Workspace: ${workspace.name} (${workspaceId})
+Workspace link: ${workspaceUrl}
+${agentSummary}
 
-Visit: ${settingsUrl}
+Error: ${error.message}
+Failed limits:
+${limitsSummary}
+
+You can adjust spending limits in workspace settings:
+${settingsUrl}
 
 Best regards,
 The Helpmaton Team`;
+
+  const htmlWorkspaceName = escapeHtml(workspace.name);
+  const htmlWorkspaceUrl = escapeHtml(workspaceUrl);
+  const htmlAgentSummary = escapeHtml(agentSummary);
+  const htmlErrorMessage = escapeHtml(error.message);
+  const htmlSettingsUrl = escapeHtml(settingsUrl);
 
   const html = `
 <!DOCTYPE html>
@@ -182,6 +311,8 @@ The Helpmaton Team`;
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
     .header { background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
     .content { padding: 20px; }
+    .summary { background: #eef2ff; padding: 12px; border-radius: 6px; margin: 16px 0; }
+    .label { font-weight: bold; }
     .button { display: inline-block; padding: 12px 24px; background: #000; color: #fff; text-decoration: none; border-radius: 6px; margin: 20px 0; }
   </style>
 </head>
@@ -191,10 +322,16 @@ The Helpmaton Team`;
       <h1>Spending Limit Reached</h1>
     </div>
     <div class="content">
-      <p>Your self-imposed spending limit has been reached.</p>
-      <p>Agent requests are currently blocked. If you'd like to continue, you can adjust your spending limits in workspace settings.</p>
+      <p class="summary">
+        <span class="label">Workspace:</span> ${htmlWorkspaceName} (${workspaceId})
+      </p>
+      <p><span class="label">Workspace link:</span> <a href="${htmlWorkspaceUrl}">${htmlWorkspaceUrl}</a></p>
+      <p><span class="label">${htmlAgentSummary}</span></p>
+      <p><span class="label">Error:</span> ${htmlErrorMessage}</p>
+      <p><span class="label">Failed limits:</span></p>
+      <ul>${limitsHtml}</ul>
       <p>
-        <a href="${settingsUrl}" class="button">Manage Settings</a>
+        <a href="${htmlSettingsUrl}" class="button">Manage Settings</a>
       </p>
       <p>Best regards,<br>The Helpmaton Team</p>
     </div>
@@ -203,7 +340,7 @@ The Helpmaton Team`;
 </html>`;
 
   await sendEmail({
-    to: userEmail,
+    to: recipientEmail,
     subject,
     text,
     html,
@@ -211,95 +348,99 @@ The Helpmaton Team`;
 
   console.log("[agentErrorNotifications] Sent spending limit error email:", {
     workspaceId,
-    userEmail,
+    recipientEmail,
   });
 }
 
-/**
- * Main function to send agent error notifications
- * Handles rate limiting and email sending for credit and spending limit errors
- */
 export async function sendAgentErrorNotification(
   workspaceId: string,
   errorType: "credit" | "spendingLimit",
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   error: InsufficientCreditsError | SpendingLimitExceededError
 ): Promise<void> {
   try {
-    // 1. Get workspace subscription
     const db = await database();
     const workspacePk = `workspaces/${workspaceId}`;
     const workspace = (await db.workspace.get(workspacePk, "workspace")) as
       | WorkspaceRecord
       | undefined;
 
-    if (!workspace || !workspace.subscriptionId) {
+    if (!workspace) {
       console.error(
-        "[agentErrorNotifications] Workspace not found or has no subscription:",
-        { workspaceId }
-      );
-      return;
-    }
-
-    const subscription = await getSubscriptionById(workspace.subscriptionId);
-    if (!subscription) {
-      console.error(
-        "[agentErrorNotifications] Subscription not found:",
-        workspace.subscriptionId
-      );
-      return;
-    }
-
-    // 2. Check rate limiting
-    if (!shouldSendErrorEmail(subscription, errorType)) {
-      console.log(
-        "[agentErrorNotifications] Skipping email due to rate limiting:",
-        {
-          workspaceId,
-          errorType,
-          lastEmailSentAt:
-            errorType === "credit"
-              ? subscription.lastCreditErrorEmailSentAt
-              : subscription.lastSpendingLimitErrorEmailSentAt,
-        }
-      );
-      return;
-    }
-
-    // 3. Get user email
-    const userEmail = await getUserEmailFromWorkspace(workspaceId);
-    if (!userEmail) {
-      console.error(
-        "[agentErrorNotifications] Could not get user email for workspace:",
+        "[agentErrorNotifications] Workspace not found:",
         workspaceId
       );
       return;
     }
 
-    // 4. Send appropriate email
-    if (errorType === "credit") {
-      await sendCreditErrorEmail(workspaceId, userEmail);
-    } else {
-      await sendSpendingLimitErrorEmail(workspaceId, userEmail);
+    const agentId = error.agentId;
+    let agent: AgentRecord | undefined;
+    if (agentId) {
+      const agentPk = `agents/${workspaceId}/${agentId}`;
+      agent = await db.agent.get(agentPk, "agent");
+      if (!agent) {
+        console.warn(
+          "[agentErrorNotifications] Agent not found for error notification:",
+          { workspaceId, agentId }
+        );
+      }
     }
 
-    // 5. Update lastXxxEmailSentAt timestamp
-    const now = new Date().toISOString();
-    const updateFields =
-      errorType === "credit"
-        ? { lastCreditErrorEmailSentAt: now }
-        : { lastSpendingLimitErrorEmailSentAt: now };
+    const recipients = await getWorkspaceOwnerRecipients(workspaceId);
+    if (recipients.length === 0) {
+      console.log(
+        "[agentErrorNotifications] No workspace owners with email found:",
+        { workspaceId }
+      );
+      return;
+    }
 
-    await db.subscription.update({
-      ...subscription,
-      ...updateFields,
-    });
+    for (const recipient of recipients) {
+      const userPk = `USER#${recipient.userId}`;
+      const userSk = `USER#${recipient.userId}`;
+      const reservation = await reserveUserNotificationWindow({
+        db,
+        userPk,
+        userSk,
+        errorType,
+      });
 
-    console.log("[agentErrorNotifications] Updated email timestamp:", {
-      workspaceId,
-      errorType,
-      timestamp: now,
-    });
+      if (!reservation.updated) {
+        const logContext =
+          reservation.skipReason === "missing_record"
+            ? "User record not found for rate limiting"
+            : "Skipping email due to rate limiting";
+        console.log(`[agentErrorNotifications] ${logContext}:`, {
+          workspaceId,
+          userId: recipient.userId,
+          errorType,
+        });
+        continue;
+      }
+
+      if (errorType === "credit") {
+        await sendCreditErrorEmail({
+          workspace,
+          agent,
+          agentId,
+          recipientEmail: recipient.email,
+          error: error as InsufficientCreditsError,
+        });
+      } else {
+        await sendSpendingLimitErrorEmail({
+          workspace,
+          agent,
+          agentId,
+          recipientEmail: recipient.email,
+          error: error as SpendingLimitExceededError,
+        });
+      }
+      console.log("[agentErrorNotifications] Updated email timestamp:", {
+        workspaceId,
+        userId: recipient.userId,
+        errorType,
+        timestamp: reservation.timestamp,
+      });
+    }
   } catch (error) {
     console.error("[agentErrorNotifications] Error sending notification:", {
       workspaceId,
@@ -313,7 +454,6 @@ export async function sendAgentErrorNotification(
         operation: "send-agent-error-email",
       },
     });
-    // Don't throw - email sending should not break agent requests
   }
 }
 

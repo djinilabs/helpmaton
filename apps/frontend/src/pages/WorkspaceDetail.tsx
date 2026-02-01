@@ -441,7 +441,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               </div>
             </div>
             <p className="mb-6 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
-              This workspace is where your assistants, documents, and settings
+              This workspace is where your agents, documents, and settings
               live. Use the sections below to manage spending, channels, and
               content.
             </p>
@@ -610,7 +610,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <CpuChipIcon className="mr-2 inline-block size-5" />
-                Assistants
+                Agents
               </>
             }
             isExpanded={expandedSection === "agents"}
@@ -619,7 +619,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             <LazyAccordionContent isExpanded={expandedSection === "agents"}>
               <QueryPanel
                 fallback={
-                  <LoadingScreen compact message="Loading assistants..." />
+                  <LoadingScreen compact message="Loading agents..." />
                 }
               >
                 <AgentList workspaceId={id!} canEdit={!!canEdit} />
@@ -963,7 +963,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             onToggle={() => toggleSection("danger")}
           >
             <p className="mb-4 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
-              Deleting a workspace permanently removes all assistants,
+              Deleting a workspace permanently removes all agents,
               documents, conversations, and settings.
             </p>
             <p className="mb-6 font-medium text-neutral-700 dark:text-neutral-300">

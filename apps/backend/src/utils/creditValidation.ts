@@ -129,7 +129,8 @@ export async function validateCreditsAndLimits(
         workspaceId,
         estimatedCost,
         workspace.creditBalance,
-        "usd"
+        "usd",
+        agentId
       );
     }
   }
@@ -145,7 +146,11 @@ export async function validateCreditsAndLimits(
     );
 
     if (!limitCheck.passed) {
-      throw new SpendingLimitExceededError(limitCheck.failedLimits);
+      throw new SpendingLimitExceededError(
+        workspaceId,
+        limitCheck.failedLimits,
+        agentId
+      );
     }
   }
 }
@@ -249,7 +254,8 @@ export async function validateCreditsAndLimitsAndReserve(
         workspaceId,
         estimatedCost,
         workspace.creditBalance,
-        "usd"
+        "usd",
+        agentId
       );
     }
   }
@@ -265,7 +271,11 @@ export async function validateCreditsAndLimitsAndReserve(
     );
 
     if (!limitCheck.passed) {
-      throw new SpendingLimitExceededError(limitCheck.failedLimits);
+      throw new SpendingLimitExceededError(
+        workspaceId,
+        limitCheck.failedLimits,
+        agentId
+      );
     }
   }
 

@@ -47,6 +47,10 @@ vi.mock("../../../utils/sentry", () => ({
   },
 }));
 
+vi.mock("../../../utils/agentErrorNotifications", () => ({
+  sendAgentErrorNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("streamErrorHandling", () => {
   beforeEach(() => {
     vi.clearAllMocks();

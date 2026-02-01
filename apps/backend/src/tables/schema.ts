@@ -51,6 +51,8 @@ export const tableSchemas = {
     image: z.string().optional(),
     id: z.string().optional(),
     type: z.string().optional(), // "USER" for user records, undefined for account records
+    lastCreditErrorEmailSentAt: z.iso.datetime().optional(),
+    lastSpendingLimitErrorEmailSentAt: z.iso.datetime().optional(),
     gsi1pk: z.string().optional(), // GSI1 partition key for email lookups
     gsi1sk: z.string().optional(), // GSI1 sort key for email lookups
     version: z.number().default(1),

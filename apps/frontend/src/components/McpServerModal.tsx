@@ -101,7 +101,7 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     value: "google-calendar",
     name: "Google Calendar",
     description:
-      "Full calendar management - list, search, read, create, update, and delete events. Perfect for scheduling assistants.",
+      "Full calendar management - list, search, read, create, update, and delete events. Perfect for scheduling agents.",
     icon: CalendarIcon,
   },
   {

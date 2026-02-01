@@ -51,8 +51,8 @@ const Home: FC = () => {
               </div>
             </div>
             <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300">
-              Start here to organize your workspaces, set up assistants (agents),
-              and see usage at a glance.
+              Start here to organize your workspaces, set up agents, and see
+              usage at a glance.
             </p>
           </div>
         </div>
@@ -64,7 +64,7 @@ const Home: FC = () => {
             </h2>
             <p className="mb-8 text-base font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
               A workspace is a place for one team or project. It keeps your
-              assistants, documents, and spending in one spot.
+              agents, documents, and spending in one spot.
             </p>
             <Link
               to="/workspaces"

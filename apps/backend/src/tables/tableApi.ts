@@ -856,6 +856,28 @@ export const tableApi = <
       let lastError: Error | undefined;
       let retryCount = 0;
 
+      const isTransactionConflictError = (error: Error): boolean => {
+        const name = error.name?.toLowerCase() || "";
+        const message = error.message?.toLowerCase() || "";
+        const code = String((error as { code?: string }).code ?? "").toLowerCase();
+        return (
+          name === "transactionconflictexception" ||
+          code === "transactionconflictexception" ||
+          message.includes("transaction is ongoing for the item") ||
+          message.includes("transactionconflict")
+        );
+      };
+
+      const isVersionConflictError = (error: Error): boolean => {
+        const message = error.message?.toLowerCase() || "";
+        return (
+          message.includes("conditional request failed") ||
+          message.includes("item was outdated") ||
+          message.includes("conditionalcheckfailed") ||
+          message.includes("conditional check failed")
+        );
+      };
+
       while (retryCount <= maxRetries) {
         try {
           // Fetch current record (or undefined if not exists)
@@ -929,11 +951,9 @@ export const tableApi = <
 
           // Check if it's a version conflict error
           if (
-            err instanceof Error &&
-            (err.message.toLowerCase().includes("conditional request failed") ||
-              err.message.toLowerCase().includes("item was outdated") ||
-              err.message.toLowerCase().includes("conditionalcheckfailed") ||
-              err.message.toLowerCase().includes("conditional check failed"))
+            lastError &&
+            (isVersionConflictError(lastError) ||
+              isTransactionConflictError(lastError))
           ) {
             retryCount++;
             if (retryCount > maxRetries) {
@@ -942,8 +962,10 @@ export const tableApi = <
               );
             }
 
-            // Exponential backoff: 50ms, 100ms, 200ms
-            const backoffMs = 50 * Math.pow(2, retryCount - 1);
+            // Exponential backoff: 50ms, 100ms, 200ms (with jitter)
+            const baseDelay = 50 * Math.pow(2, retryCount - 1);
+            const jitter = Math.random() * baseDelay * 0.2;
+            const backoffMs = Math.round(baseDelay + jitter);
             console.info(
               `[atomicUpdate] Version conflict, retrying in ${backoffMs}ms (attempt ${retryCount}/${maxRetries}):`,
               {

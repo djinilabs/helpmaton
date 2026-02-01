@@ -324,6 +324,62 @@ describe("database atomicUpdate", () => {
       expect(mockClient.workspace.get).toHaveBeenCalledTimes(2);
     });
 
+    it("should retry on transaction conflict and succeed on second attempt", async () => {
+      vi.useFakeTimers();
+      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+
+      const existingRecord = {
+        pk: "workspaces/workspace-123",
+        sk: "workspace",
+        name: "Workspace",
+        currency: "usd" as const,
+        creditBalance: 1000000,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockClient.workspace.get.mockResolvedValue(existingRecord);
+      const conflictError = new Error(
+        "Transaction is ongoing for the item"
+      ) as Error & { name: string };
+      conflictError.name = "TransactionConflictException";
+
+      mockClient._client.TransactWriteItems.mockRejectedValueOnce(
+        conflictError
+      ).mockResolvedValueOnce({});
+
+      const recordSpec = new Map([
+        [
+          "workspace1",
+          {
+            table: "workspace" as const,
+            pk: "workspaces/workspace-123",
+            sk: "workspace",
+          },
+        ],
+      ]);
+
+      const promise = db.atomicUpdate(recordSpec, async (records) => {
+        const current = records.get("workspace1");
+        return [
+          {
+            ...current!,
+            name: "Updated Workspace",
+          },
+        ];
+      });
+
+      await vi.advanceTimersByTimeAsync(50);
+      const result = await promise;
+
+      expect(result).toHaveLength(1);
+      expect(mockClient._client.TransactWriteItems).toHaveBeenCalledTimes(2);
+      expect(mockClient.workspace.get).toHaveBeenCalledTimes(2);
+
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
     it("should throw conflict error after max retries", async () => {
       const existingRecord = {
         pk: "workspaces/workspace-123",
