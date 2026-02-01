@@ -1,8 +1,14 @@
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 
 import {
   listWorkspaces,
   getWorkspace,
+  getWorkspaceSuggestions,
   createWorkspace,
   updateWorkspace,
   dismissWorkspaceSuggestion,
@@ -69,6 +75,14 @@ export function useUpdateWorkspace(id: string) {
   });
 }
 
+export function useWorkspaceSuggestions(workspaceId: string) {
+  return useQuery({
+    queryKey: ["workspaces", workspaceId, "suggestions"],
+    queryFn: () => getWorkspaceSuggestions(workspaceId),
+    enabled: !!workspaceId,
+  });
+}
+
 export function useDismissWorkspaceSuggestion(workspaceId: string) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -78,16 +92,8 @@ export function useDismissWorkspaceSuggestion(workspaceId: string) {
       dismissWorkspaceSuggestion(workspaceId, suggestionId),
     onSuccess: (data) => {
       queryClient.setQueryData(
-        ["workspaces", workspaceId],
-        (previous: unknown) => {
-          if (!previous || typeof previous !== "object") {
-            return previous;
-          }
-          return {
-            ...(previous as Record<string, unknown>),
-            suggestions: data.suggestions,
-          };
-        },
+        ["workspaces", workspaceId, "suggestions"],
+        () => ({ suggestions: data.suggestions }),
       );
     },
     onError: (error: Error) => {

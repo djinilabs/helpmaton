@@ -33,6 +33,7 @@ import {
 } from "./routes/get-agent-memory";
 import { registerGetAgentSchedule } from "./routes/get-agent-schedule";
 import { registerGetAgentSchedules } from "./routes/get-agent-schedules";
+import { registerGetAgentSuggestions } from "./routes/get-agent-suggestions";
 import { registerGetAgentTools } from "./routes/get-agent-tools";
 import { registerGetAgentTransactions } from "./routes/get-agent-transactions";
 import { registerGetAgentUsage } from "./routes/get-agent-usage";
@@ -64,6 +65,7 @@ import { registerGetWorkspaceIntegrations } from "./routes/get-workspace-integra
 import { registerGetWorkspaceInvite } from "./routes/get-workspace-invite";
 import { registerGetWorkspaceInvites } from "./routes/get-workspace-invites";
 import { registerGetWorkspaceMembers } from "./routes/get-workspace-members";
+import { registerGetWorkspaceSuggestions } from "./routes/get-workspace-suggestions";
 import { registerGetWorkspaceTransactions } from "./routes/get-workspace-transactions";
 import { registerGetWorkspaceUsage } from "./routes/get-workspace-usage";
 import { registerGetWorkspaceUsageDaily } from "./routes/get-workspace-usage-daily";
@@ -155,10 +157,11 @@ export const createApp: () => express.Application = () => {
     next();
   });
 
-  // Register all routes
+  // Register all routes (more specific paths before generic :id routes)
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);
   registerPostWorkspaceImport(app);
+  registerGetWorkspaceSuggestions(app);
   registerGetWorkspaceById(app);
   registerGetWorkspaceExport(app);
   registerPutWorkspace(app);
@@ -183,6 +186,7 @@ export const createApp: () => express.Application = () => {
   registerPostWorkspaceSuggestionsDismiss(app);
   registerPostGeneratePrompt(app);
   registerPostFileUploadUrl(app);
+  registerGetAgentSuggestions(app);
   registerGetWorkspaceAgent(app);
   registerGetAgentTools(app);
   registerPutWorkspaceAgent(app);

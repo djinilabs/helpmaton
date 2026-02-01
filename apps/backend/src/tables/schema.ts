@@ -29,6 +29,7 @@ const suggestionItemSchema = z
   .object({
     id: z.string(),
     text: z.string(),
+    actionType: z.string().optional(),
   })
   .strict();
 

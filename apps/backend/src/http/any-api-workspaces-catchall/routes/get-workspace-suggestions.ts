@@ -4,14 +4,15 @@ import express from "express";
 import { database } from "../../../tables";
 import { getUserAuthorizationLevelForResource } from "../../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { resolveWorkspaceSuggestions } from "../../utils/suggestions";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
  * @openapi
- * /api/workspaces/{workspaceId}:
+ * /api/workspaces/{workspaceId}/suggestions:
  *   get:
- *     summary: Get workspace by ID
- *     description: Returns detailed information for a specific workspace including name, description, credit balance, currency, spending limits, permission level, and Google API key status. Requires READ permission or higher.
+ *     summary: Get workspace suggestions
+ *     description: Returns LLM-generated suggestions for the workspace. May take a few seconds on first load. Does not block the main workspace response.
  *     tags:
  *       - Workspaces
  *     security:
@@ -25,21 +26,11 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *           type: string
  *     responses:
  *       200:
- *         description: Workspace details
+ *         description: Suggestions (or null if none)
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Workspace'
- *                 - type: object
- *                   properties:
- *                     apiKeys:
- *                       type: object
- *                       description: API key status for supported providers (only OpenRouter is supported for BYOK)
- *                       properties:
- *                         openrouter:
- *                           type: boolean
- *                           description: Whether workspace has an OpenRouter API key configured
+ *               $ref: '#/components/schemas/SuggestionsResponse'
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -55,9 +46,9 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
-export const registerGetWorkspaceById = (app: express.Application) => {
+export const registerGetWorkspaceSuggestions = (app: express.Application) => {
   app.get(
-    "/api/workspaces/:workspaceId",
+    "/api/workspaces/:workspaceId/suggestions",
     requireAuth,
     requirePermission(PERMISSION_LEVELS.READ),
     async (req, res, next) => {
@@ -71,7 +62,6 @@ export const registerGetWorkspaceById = (app: express.Application) => {
         if (!currentUserRef) {
           throw unauthorized();
         }
-        const userRef = currentUserRef;
 
         const workspace = await db.workspace.get(
           workspaceResource,
@@ -81,15 +71,13 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           throw resourceGone("Workspace not found");
         }
 
-        const permissionLevel = await getUserAuthorizationLevelForResource(
+        await getUserAuthorizationLevelForResource(
           workspaceResource,
-          userRef
+          currentUserRef
         );
 
-        // Check API key status for OpenRouter
         const workspaceId = workspace.pk.replace("workspaces/", "");
 
-        // Query all API keys for this workspace using GSI
         const result = await db["workspace-api-key"].query({
           IndexName: "byWorkspaceId",
           KeyConditionExpression: "workspaceId = :workspaceId",
@@ -98,7 +86,6 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           },
         });
 
-        // Extract providers from the keys
         const providersWithKeys = new Set<string>();
         for (const item of result.items || []) {
           if (item.provider) {
@@ -106,25 +93,33 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           }
         }
 
-        // Build API keys object (only OpenRouter is supported for BYOK)
         const apiKeys: Record<string, boolean> = {
           openrouter: providersWithKeys.has("openrouter"),
         };
 
+        const suggestions = await resolveWorkspaceSuggestions({
+          db,
+          workspaceId,
+          workspacePk: workspace.pk,
+          workspace,
+          apiKeys,
+        });
+
         res.json({
-          id: workspaceId,
-          name: workspace.name,
-          description: workspace.description,
-          permissionLevel: permissionLevel || null,
-          creditBalance: workspace.creditBalance ?? 0,
-          currency: workspace.currency ?? "usd",
-          spendingLimits: workspace.spendingLimits ?? [],
-          apiKeys, // Only OpenRouter is supported for BYOK
-          createdAt: workspace.createdAt,
+          suggestions: suggestions
+            ? {
+                items: suggestions.items,
+                generatedAt: suggestions.generatedAt,
+              }
+            : null,
         });
       } catch (error) {
-        handleError(error, next, "GET /api/workspaces/:workspaceId");
+        handleError(
+          error,
+          next,
+          "GET /api/workspaces/:workspaceId/suggestions",
+        );
       }
-    }
+    },
   );
 };

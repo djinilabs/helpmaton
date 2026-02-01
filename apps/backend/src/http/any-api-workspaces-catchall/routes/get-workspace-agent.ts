@@ -3,10 +3,6 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
-import {
-  buildWorkspaceSuggestionContext,
-  resolveAgentSuggestions,
-} from "../../utils/suggestions";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -121,21 +117,6 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           agent.searchWebProvider ??
           (agent.enableTavilySearch === true ? "tavily" : undefined);
 
-        const workspaceContext = await buildWorkspaceSuggestionContext({
-          db,
-          workspaceId,
-          workspace,
-        });
-
-        const suggestions = await resolveAgentSuggestions({
-          db,
-          workspaceId,
-          agentId,
-          agentPk,
-          workspaceContext,
-          agent,
-        });
-
         res.json({
           id: agentId,
           name: agent.name,
@@ -182,12 +163,6 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           modelName: agent.modelName ?? null,
           avatar: agent.avatar ?? null,
           widgetConfig: agent.widgetConfig ?? undefined,
-          suggestions: suggestions
-            ? {
-                items: suggestions.items,
-                generatedAt: suggestions.generatedAt,
-              }
-            : null,
           createdAt: agent.createdAt,
           updatedAt: agent.updatedAt,
         });

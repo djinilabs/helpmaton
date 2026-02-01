@@ -8,6 +8,7 @@ import {
 import {
   listAgents,
   getAgent,
+  getAgentSuggestions,
   createAgent,
   updateAgent,
   deleteAgent,
@@ -220,6 +221,14 @@ export function useGeneratePrompt(workspaceId: string) {
   });
 }
 
+export function useAgentSuggestions(workspaceId: string, agentId: string) {
+  return useQuery({
+    queryKey: ["workspaces", workspaceId, "agents", agentId, "suggestions"],
+    queryFn: () => getAgentSuggestions(workspaceId, agentId),
+    enabled: !!workspaceId && !!agentId,
+  });
+}
+
 export function useDismissAgentSuggestion(
   workspaceId: string,
   agentId: string,
@@ -232,16 +241,8 @@ export function useDismissAgentSuggestion(
       dismissAgentSuggestion(workspaceId, agentId, suggestionId),
     onSuccess: (data) => {
       queryClient.setQueryData(
-        ["workspaces", workspaceId, "agents", agentId],
-        (previous: unknown) => {
-          if (!previous || typeof previous !== "object") {
-            return previous;
-          }
-          return {
-            ...(previous as Record<string, unknown>),
-            suggestions: data.suggestions,
-          };
-        },
+        ["workspaces", workspaceId, "agents", agentId, "suggestions"],
+        () => ({ suggestions: data.suggestions }),
       );
     },
     onError: (error: Error) => {
