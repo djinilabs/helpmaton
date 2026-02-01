@@ -51,6 +51,72 @@ const searchQuerySchema = z
     "Intercom search query object. Example: {\"operator\":\"AND\",\"value\":[{\"field\":\"email\",\"operator\":\"=\",\"value\":\"alice@example.com\"}]}",
   );
 
+type IntercomSearchFilter = {
+  field: string;
+  operator: string;
+  value: unknown;
+};
+
+function buildSearchQuery(filters: IntercomSearchFilter[]) {
+  if (filters.length === 1) {
+    return filters[0];
+  }
+  return { operator: "AND", value: filters };
+}
+
+function buildContactSearchQuery(data: {
+  email?: string;
+  name?: string;
+  externalId?: string;
+}) {
+  const filters: IntercomSearchFilter[] = [];
+  if (data.email) {
+    filters.push({ field: "email", operator: "=", value: data.email });
+  }
+  if (data.name) {
+    filters.push({ field: "name", operator: "=", value: data.name });
+  }
+  if (data.externalId) {
+    filters.push({ field: "external_id", operator: "=", value: data.externalId });
+  }
+  if (filters.length === 0) {
+    return null;
+  }
+  return buildSearchQuery(filters);
+}
+
+function buildConversationSearchQuery(data: {
+  conversationId?: string;
+  contactId?: string;
+  contactIds?: string[];
+  state?: string;
+  createdAfter?: number;
+  updatedAfter?: number;
+}) {
+  const filters: IntercomSearchFilter[] = [];
+  if (data.conversationId) {
+    filters.push({ field: "id", operator: "=", value: data.conversationId });
+  }
+  if (data.contactIds?.length) {
+    filters.push({ field: "contact_ids", operator: "IN", value: data.contactIds });
+  } else if (data.contactId) {
+    filters.push({ field: "contact_ids", operator: "=", value: data.contactId });
+  }
+  if (data.state) {
+    filters.push({ field: "state", operator: "=", value: data.state });
+  }
+  if (typeof data.createdAfter === "number") {
+    filters.push({ field: "created_at", operator: ">", value: data.createdAfter });
+  }
+  if (typeof data.updatedAfter === "number") {
+    filters.push({ field: "updated_at", operator: ">", value: data.updatedAfter });
+  }
+  if (filters.length === 0) {
+    return null;
+  }
+  return buildSearchQuery(filters);
+}
+
 export function createIntercomListContactsTool(
   workspaceId: string,
   serverId: string
@@ -155,14 +221,28 @@ export function createIntercomSearchContactsTool(
 ) {
   const schema = z
     .object({
-      query: searchQuerySchema,
+      query: searchQuerySchema
+        .optional()
+        .describe(
+          "Intercom search query object. If provided, shortcut filters are ignored."
+        ),
+      email: z.string().optional().describe("Shortcut: search by contact email"),
+      name: z.string().optional().describe("Shortcut: search by contact name"),
+      externalId: z
+        .string()
+        .optional()
+        .describe("Shortcut: search by contact external_id"),
       pagination: paginationSchema.optional(),
     })
-    .strict();
+    .strict()
+    .refine((data) => data.query || data.email || data.name || data.externalId, {
+      message: "Provide query or at least one of email, name, or externalId.",
+      path: ["query"],
+    });
 
   return tool({
     description:
-      "Search Intercom contacts using the Intercom search query format. Example query: {\"operator\":\"AND\",\"value\":[{\"field\":\"email\",\"operator\":\"=\",\"value\":\"alice@example.com\"}]}",
+      "Search Intercom contacts. Provide a query object, or use shortcuts (email, name, externalId). If query is provided, shortcuts are ignored.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -178,14 +258,21 @@ export function createIntercomSearchContactsTool(
           return parsed.error;
         }
 
-        const result = await intercomClient.searchContacts(
-          workspaceId,
-          serverId,
-          {
-            query: parsed.data.query,
-            pagination: parsed.data.pagination,
-          }
-        );
+        const query =
+          parsed.data.query ??
+          buildContactSearchQuery({
+            email: parsed.data.email,
+            name: parsed.data.name,
+            externalId: parsed.data.externalId,
+          });
+        if (!query) {
+          return "Error: Provide query or at least one of email, name, or externalId.";
+        }
+
+        const result = await intercomClient.searchContacts(workspaceId, serverId, {
+          query,
+          pagination: parsed.data.pagination,
+        });
         return JSON.stringify(result, null, 2);
       } catch (error) {
         console.error("Error in Intercom search contacts tool:", error);
@@ -362,14 +449,83 @@ export function createIntercomSearchConversationsTool(
 ) {
   const schema = z
     .object({
-      query: searchQuerySchema,
+      query: searchQuerySchema
+        .optional()
+        .describe(
+          "Intercom search query object. If provided, shortcut filters are ignored."
+        ),
+      conversationId: z
+        .string()
+        .optional()
+        .describe("Shortcut: search by conversation ID"),
+      id: z.string().optional().describe("Alias for conversationId"),
+      conversation_id: z.string().optional().describe("Alias for conversationId"),
+      contactId: z
+        .string()
+        .optional()
+        .describe("Shortcut: search by contact ID (maps to contact_ids)"),
+      contact_id: z.string().optional().describe("Alias for contactId"),
+      contactIds: z
+        .array(z.string())
+        .min(1)
+        .optional()
+        .describe("Shortcut: search by multiple contact IDs (contact_ids IN)"),
+      contact_ids: z
+        .array(z.string())
+        .min(1)
+        .optional()
+        .describe("Alias for contactIds"),
+      state: z
+        .string()
+        .optional()
+        .describe("Shortcut: search by conversation state"),
+      createdAfter: z
+        .number()
+        .int()
+        .optional()
+        .describe("Shortcut: created_at > (UNIX timestamp)"),
+      updatedAfter: z
+        .number()
+        .int()
+        .optional()
+        .describe("Shortcut: updated_at > (UNIX timestamp)"),
       pagination: paginationSchema.optional(),
     })
-    .strict();
+    .strict()
+    .refine(
+      (data) =>
+        !(
+          (data.contactId || data.contact_id) &&
+          (data.contactIds || data.contact_ids)
+        ),
+      {
+        message: "Provide either contactId or contactIds, not both.",
+        path: ["contactId"],
+      }
+    )
+    .refine(
+      (data) =>
+        data.query ||
+        data.conversationId ||
+        data.id ||
+        data.conversation_id ||
+        data.contactId ||
+        data.contact_id ||
+        data.contactIds ||
+        data.contact_ids ||
+        data.state ||
+        typeof data.createdAfter === "number" ||
+        typeof data.updatedAfter === "number",
+      {
+        message:
+          "Provide query or at least one shortcut (conversationId, contactId(s), state, createdAfter, updatedAfter).",
+        path: ["query"],
+      }
+    );
 
   return tool({
     description:
-      "Search Intercom conversations using the Intercom search query format. Example query: {\"operator\":\"AND\",\"value\":[{\"field\":\"id\",\"operator\":\"=\",\"value\":\"123456\"}]}",
+      "Search Intercom conversations. Provide a query object, or use shortcuts (conversationId, contactId(s), state, createdAfter, updatedAfter). If query is provided, shortcuts are ignored.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -385,14 +541,28 @@ export function createIntercomSearchConversationsTool(
           return parsed.error;
         }
 
-        const result = await intercomClient.searchConversations(
-          workspaceId,
-          serverId,
-          {
-            query: parsed.data.query,
-            pagination: parsed.data.pagination,
-          }
-        );
+        const conversationId =
+          parsed.data.conversationId || parsed.data.id || parsed.data.conversation_id;
+        const contactId = parsed.data.contactId || parsed.data.contact_id;
+        const contactIds = parsed.data.contactIds || parsed.data.contact_ids;
+        const query =
+          parsed.data.query ??
+          buildConversationSearchQuery({
+            conversationId,
+            contactId,
+            contactIds,
+            state: parsed.data.state,
+            createdAfter: parsed.data.createdAfter,
+            updatedAfter: parsed.data.updatedAfter,
+          });
+        if (!query) {
+          return "Error: Provide query or at least one shortcut (conversationId, contactId(s), state, createdAfter, updatedAfter).";
+        }
+
+        const result = await intercomClient.searchConversations(workspaceId, serverId, {
+          query,
+          pagination: parsed.data.pagination,
+        });
         return JSON.stringify(result, null, 2);
       } catch (error) {
         console.error("Error in Intercom search conversations tool:", error);
