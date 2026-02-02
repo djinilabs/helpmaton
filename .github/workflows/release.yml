@@ -51,7 +51,7 @@ jobs:
       - name: Commit and push version
         run: |
           git add package.json
-          git commit -m "chore: release v${{ steps.bump.outputs.version }}"
+          git commit -m "chore: release ${{ steps.bump.outputs.version }}"
           git push origin HEAD:${{ github.event.repository.default_branch }}
 
       # If this step fails after "Commit and push version" succeeded, the next run will bump again
@@ -61,7 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          TAG="v${{ steps.bump.outputs.version }}"
+          TAG="${{ steps.bump.outputs.version }}"
           git tag "$TAG"
           git push origin "$TAG"
           gh release create "$TAG" --generate-notes
