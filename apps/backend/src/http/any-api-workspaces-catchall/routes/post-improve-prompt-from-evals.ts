@@ -9,8 +9,18 @@ import {
   incrementPromptGenerationBucketSafe,
 } from "../../../utils/requestTracking";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
+import { getWorkspaceApiKey } from "../../utils/agentUtils";
 import { validateBody } from "../../utils/bodyValidation";
-import { createModel } from "../../utils/modelFactory";
+import {
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded,
+  validateAndReserveCredits,
+} from "../../utils/generationCreditManagement";
+import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction";
+import { createModel, getDefaultModel } from "../../utils/modelFactory";
 import {
   createRequestTimeout,
   cleanupRequestTimeout,
@@ -18,7 +28,7 @@ import {
 import { improvePromptFromEvalsRequestSchema } from "../../utils/schemas/requestSchemas";
 import { extractUserId } from "../../utils/session";
 import { requireWorkspaceContext } from "../../utils/workspaceContext";
-import { handleError, requireAuth, requirePermission } from "../middleware";
+import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 const IMPROVE_PROMPT_SYSTEM_PROMPT = `You are an expert at improving AI agent system prompts using evaluation feedback.
 
@@ -206,88 +216,209 @@ const buildUserMessage = (params: {
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
+const ENDPOINT = "improve-prompt-from-evals" as const;
+
 export const registerPostImprovePromptFromEvals = (app: express.Application) => {
   app.post(
     "/api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-evals",
     requireAuth,
     requirePermission(PERMISSION_LEVELS.WRITE),
-    async (req, res, next) => {
+    asyncHandler(async (req, res) => {
+      const body = validateBody(req.body, improvePromptFromEvalsRequestSchema);
+      const { userPrompt, modelName, selectedEvaluations } = body;
+
+      const { workspaceId } = requireWorkspaceContext(req);
+      const agentId = req.params.agentId;
+
+      const awsRequestIdRaw =
+        req.headers["x-amzn-requestid"] ||
+        req.headers["X-Amzn-Requestid"] ||
+        req.headers["x-request-id"] ||
+        req.headers["X-Request-Id"] ||
+        req.apiGateway?.event?.requestContext?.requestId;
+      const awsRequestId = Array.isArray(awsRequestIdRaw)
+        ? awsRequestIdRaw[0]
+        : awsRequestIdRaw;
+      const context = getContextFromRequestId(awsRequestId);
+      if (
+        !context ||
+        typeof context.addWorkspaceCreditTransaction !== "function"
+      ) {
+        throw new Error("Context not properly configured for credits.");
+      }
+
+      const db = await database();
+
+      const currentSystemPrompt = await loadAgentPrompt({
+        db,
+        workspaceId,
+        agentId,
+      });
+
+      const evaluations = await loadEvalResults({
+        db,
+        workspaceId,
+        agentId,
+        selectedEvaluations,
+      });
+
+      await checkPromptGenerationLimit(workspaceId);
+
+      const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
+      const usesByok = workspaceKey !== null;
+      const finalModelName = modelName ?? getDefaultModel();
+
+      const userMessageContent = buildUserMessage({
+        userPrompt,
+        currentSystemPrompt,
+        evaluations,
+      });
+      const modelMessages = [{ role: "user" as const, content: userMessageContent }];
+
+      const reservationId = await validateAndReserveCredits(
+        db,
+        workspaceId,
+        agentId,
+        "openrouter",
+        finalModelName,
+        modelMessages,
+        IMPROVE_PROMPT_SYSTEM_PROMPT,
+        undefined,
+        usesByok,
+        ENDPOINT,
+        context,
+        undefined
+      );
+
+      const userId = extractUserId(req);
+      const model = await createModel(
+        "openrouter",
+        finalModelName,
+        workspaceId,
+        "http://localhost:3000/api/improve-agent-prompt",
+        userId
+      );
+
+      const requestTimeout = createRequestTimeout();
+      let result: Awaited<ReturnType<typeof generateText>>;
       try {
-        const body = validateBody(req.body, improvePromptFromEvalsRequestSchema);
-        const { userPrompt, modelName, selectedEvaluations } = body;
-
-        const { workspaceId } = requireWorkspaceContext(req);
-        const agentId = req.params.agentId;
-
-        const db = await database();
-
-        const currentSystemPrompt = await loadAgentPrompt({
-          db,
-          workspaceId,
-          agentId,
+        result = await generateText({
+          model: model as unknown as Parameters<
+            typeof generateText
+          >[0]["model"],
+          system: IMPROVE_PROMPT_SYSTEM_PROMPT,
+          messages: modelMessages,
+          abortSignal: requestTimeout.signal,
         });
-
-        const evaluations = await loadEvalResults({
-          db,
-          workspaceId,
-          agentId,
-          selectedEvaluations,
-        });
-
-        await checkPromptGenerationLimit(workspaceId);
-
-        const userId = extractUserId(req);
-        const model = await createModel(
-          "openrouter",
-          modelName ?? undefined,
-          workspaceId,
-          "http://localhost:3000/api/improve-agent-prompt",
-          userId
-        );
-
-        const requestTimeout = createRequestTimeout();
-        try {
-          const result = await generateText({
-            model: model as unknown as Parameters<
-              typeof generateText
-            >[0]["model"],
-            system: IMPROVE_PROMPT_SYSTEM_PROMPT,
-            messages: [
-              {
-                role: "user",
-                content: buildUserMessage({
-                  userPrompt,
-                  currentSystemPrompt,
-                  evaluations,
-                }),
-              },
-            ],
-            abortSignal: requestTimeout.signal,
-          });
-
-          await incrementPromptGenerationBucketSafe(workspaceId);
-
-          trackBusinessEvent(
-            "agent",
-            "prompt_improved_from_evals",
-            {
-              workspace_id: workspaceId,
-              agent_id: agentId,
-            },
-            req
-          );
-
-          res.json({ prompt: result.text.trim() });
-        } finally {
-          cleanupRequestTimeout(requestTimeout);
-        }
       } catch (error) {
-        handleError(
-          error,
-          next,
-          "POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-evals"
+        if (
+          reservationId &&
+          reservationId !== "byok" &&
+          context
+        ) {
+          await cleanupReservationOnError(
+            db,
+            reservationId,
+            workspaceId,
+            agentId,
+            "openrouter",
+            finalModelName,
+            error,
+            true,
+            usesByok,
+            ENDPOINT,
+            context
+          );
+        }
+        throw error;
+      } finally {
+        cleanupRequestTimeout(requestTimeout);
+      }
+
+      const extractionResult = extractTokenUsageAndCosts(
+        result,
+        undefined,
+        finalModelName,
+        ENDPOINT
+      );
+      const tokenUsage = extractionResult.tokenUsage;
+
+      if (context && reservationId) {
+        const dbWithAtomic = db as Parameters<
+          typeof adjustCreditsAfterLLMCall
+        >[0];
+        await adjustCreditsAfterLLMCall(
+          dbWithAtomic,
+          workspaceId,
+          agentId,
+          reservationId,
+          "openrouter",
+          finalModelName,
+          tokenUsage,
+          usesByok,
+          extractionResult.openrouterGenerationId,
+          extractionResult.openrouterGenerationIds,
+          ENDPOINT,
+          context,
+          undefined
         );
       }
-    }
+
+      const hasGenerationIds =
+        extractionResult.openrouterGenerationIds.length > 0 ||
+        Boolean(extractionResult.openrouterGenerationId);
+      if (
+        reservationId &&
+        reservationId !== "byok" &&
+        (!tokenUsage ||
+          (tokenUsage.promptTokens === 0 &&
+            tokenUsage.completionTokens === 0)) &&
+        !hasGenerationIds
+      ) {
+        await cleanupReservationWithoutTokenUsage(
+          db,
+          reservationId,
+          workspaceId,
+          agentId,
+          ENDPOINT
+        );
+      } else if (
+        reservationId &&
+        reservationId !== "byok" &&
+        (!tokenUsage ||
+          (tokenUsage.promptTokens === 0 &&
+            tokenUsage.completionTokens === 0)) &&
+        hasGenerationIds
+      ) {
+        console.warn(
+          "[improve-prompt-from-evals] No token usage available, keeping reservation for verification",
+          { workspaceId, agentId, reservationId }
+        );
+      }
+
+      await enqueueCostVerificationIfNeeded(
+        extractionResult.openrouterGenerationId,
+        extractionResult.openrouterGenerationIds,
+        workspaceId,
+        reservationId,
+        undefined,
+        agentId,
+        ENDPOINT
+      );
+
+      await incrementPromptGenerationBucketSafe(workspaceId);
+
+      trackBusinessEvent(
+        "agent",
+        "prompt_improved_from_evals",
+        {
+          workspace_id: workspaceId,
+          agent_id: agentId,
+        },
+        req
+      );
+
+      res.json({ prompt: result.text.trim() });
+    })
   );
 };

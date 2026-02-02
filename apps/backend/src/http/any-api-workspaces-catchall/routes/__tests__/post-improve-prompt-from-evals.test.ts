@@ -10,22 +10,41 @@ import {
 
 const {
   mockCreateModel,
+  mockGetDefaultModel,
   mockGenerateText,
   mockCheckPromptGenerationLimit,
   mockIncrementPromptGenerationBucketSafe,
   mockDatabase,
   mockTrackBusinessEvent,
+  mockGetContextFromRequestId,
+  mockGetWorkspaceApiKey,
+  mockValidateAndReserveCredits,
+  mockAdjustCreditsAfterLLMCall,
+  mockEnqueueCostVerificationIfNeeded,
+  mockCleanupReservationOnError,
+  mockCleanupReservationWithoutTokenUsage,
+  mockExtractTokenUsageAndCosts,
 } = vi.hoisted(() => ({
   mockCreateModel: vi.fn(),
+  mockGetDefaultModel: vi.fn(),
   mockGenerateText: vi.fn(),
   mockCheckPromptGenerationLimit: vi.fn(),
   mockIncrementPromptGenerationBucketSafe: vi.fn(),
   mockDatabase: vi.fn(),
   mockTrackBusinessEvent: vi.fn(),
+  mockGetContextFromRequestId: vi.fn(),
+  mockGetWorkspaceApiKey: vi.fn(),
+  mockValidateAndReserveCredits: vi.fn(),
+  mockAdjustCreditsAfterLLMCall: vi.fn(),
+  mockEnqueueCostVerificationIfNeeded: vi.fn(),
+  mockCleanupReservationOnError: vi.fn(),
+  mockCleanupReservationWithoutTokenUsage: vi.fn(),
+  mockExtractTokenUsageAndCosts: vi.fn(),
 }));
 
 vi.mock("../../../utils/modelFactory", () => ({
   createModel: mockCreateModel,
+  getDefaultModel: mockGetDefaultModel,
 }));
 
 vi.mock("ai", () => ({
@@ -43,6 +62,26 @@ vi.mock("../../../../tables", () => ({
 
 vi.mock("../../../../utils/tracking", () => ({
   trackBusinessEvent: mockTrackBusinessEvent,
+}));
+
+vi.mock("../../../../utils/workspaceCreditContext", () => ({
+  getContextFromRequestId: mockGetContextFromRequestId,
+}));
+
+vi.mock("../../../utils/agentUtils", () => ({
+  getWorkspaceApiKey: mockGetWorkspaceApiKey,
+}));
+
+vi.mock("../../../utils/generationCreditManagement", () => ({
+  validateAndReserveCredits: mockValidateAndReserveCredits,
+  adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
+  enqueueCostVerificationIfNeeded: mockEnqueueCostVerificationIfNeeded,
+  cleanupReservationOnError: mockCleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage: mockCleanupReservationWithoutTokenUsage,
+}));
+
+vi.mock("../../../utils/generationTokenExtraction", () => ({
+  extractTokenUsageAndCosts: mockExtractTokenUsageAndCosts,
 }));
 
 import { registerPostImprovePromptFromEvals } from "../post-improve-prompt-from-evals";
@@ -67,9 +106,23 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
     vi.clearAllMocks();
     mockCheckPromptGenerationLimit.mockResolvedValue(undefined);
     mockIncrementPromptGenerationBucketSafe.mockResolvedValue(undefined);
+    mockGetDefaultModel.mockReturnValue("google/gemini-2.5-flash");
+    mockGetContextFromRequestId.mockReturnValue({
+      addWorkspaceCreditTransaction: vi.fn(),
+    });
+    mockGetWorkspaceApiKey.mockResolvedValue(null);
+    mockValidateAndReserveCredits.mockResolvedValue("res-1");
+    mockAdjustCreditsAfterLLMCall.mockResolvedValue(undefined);
+    mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: { promptTokens: 10, completionTokens: 20 },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 1000,
+    });
   });
 
-  it("generates an improved prompt using selected evaluations", async () => {
+  it("generates an improved prompt using selected evaluations and charges workspace", async () => {
     const handler = capturePostHandler(registerPostImprovePromptFromEvals);
     const mockDb = createMockDatabase();
     const workspaceId = "workspace-123";
@@ -114,6 +167,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
       userRef: "users/user-123",
       workspaceResource: `workspaces/${workspaceId}`,
       params: { workspaceId, agentId },
+      headers: { "x-request-id": "test-req-id" },
       body: {
         userPrompt: "Please improve the prompt",
         modelName: "google/gemini-2.5-flash",
@@ -122,9 +176,40 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
     });
     const res = createMockResponse();
     const next = vi.fn();
+    const handlerDone = new Promise<void>((resolve) => {
+      const origJson = (res.json as ReturnType<typeof vi.fn>).getMockImplementation() as
+        | ((this: unknown, ...args: unknown[]) => unknown)
+        | undefined;
+      (res.json as ReturnType<typeof vi.fn>).mockImplementation(
+        function (this: unknown, ...args: unknown[]) {
+          origJson?.apply(this, args);
+          resolve();
+        }
+      );
+    });
 
-    await handler(req as never, res as never, next);
+    handler(req as never, res as never, next);
+    await handlerDone;
 
+    expect(mockGetContextFromRequestId).toHaveBeenCalledWith("test-req-id");
+    expect(mockGetWorkspaceApiKey).toHaveBeenCalledWith(
+      workspaceId,
+      "openrouter"
+    );
+    expect(mockValidateAndReserveCredits).toHaveBeenCalledWith(
+      mockDb,
+      workspaceId,
+      agentId,
+      "openrouter",
+      "google/gemini-2.5-flash",
+      expect.any(Array),
+      expect.stringContaining("improving AI agent system prompts"),
+      undefined,
+      false,
+      "improve-prompt-from-evals",
+      expect.anything(),
+      undefined
+    );
     expect(mockCheckPromptGenerationLimit).toHaveBeenCalledWith(workspaceId);
     expect(mockCreateModel).toHaveBeenCalledWith(
       "openrouter",
@@ -145,12 +230,173 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
         ],
       })
     );
+    expect(mockExtractTokenUsageAndCosts).toHaveBeenCalled();
+    expect(mockAdjustCreditsAfterLLMCall).toHaveBeenCalled();
+    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalledWith(
+      "gen-1",
+      ["gen-1"],
+      workspaceId,
+      "res-1",
+      undefined,
+      agentId,
+      "improve-prompt-from-evals"
+    );
     expect(mockIncrementPromptGenerationBucketSafe).toHaveBeenCalledWith(
       workspaceId
     );
     expect(res.json).toHaveBeenCalledWith({
       prompt: "Improved system prompt",
     });
+  });
+
+  it("skips reservation when BYOK (workspace has OpenRouter key)", async () => {
+    mockGetWorkspaceApiKey.mockResolvedValue({ apiKey: "key" });
+    mockValidateAndReserveCredits.mockResolvedValue(undefined);
+
+    const handler = capturePostHandler(registerPostImprovePromptFromEvals);
+    const mockDb = createMockDatabase();
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const conversationId = "conversation-789";
+    const judgeId = "judge-abc";
+
+    mockDb.agent.get = vi.fn().mockResolvedValue({
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      agentId,
+      systemPrompt: "Current system prompt",
+    });
+    (mockDb as Record<string, unknown>)["agent-eval-result"] = {
+      get: vi.fn().mockResolvedValue({
+        pk: `agent-eval-results/${workspaceId}/${agentId}/${conversationId}/${judgeId}`,
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId,
+        status: "completed",
+        summary: "Summary",
+        scoreGoalCompletion: 80,
+        scoreToolEfficiency: 80,
+        scoreFaithfulness: 90,
+        criticalFailureDetected: false,
+        evaluatedAt: new Date().toISOString(),
+      }),
+    };
+    mockDatabase.mockResolvedValue(mockDb);
+    mockCreateModel.mockResolvedValue({ model: "mock" });
+    mockGenerateText.mockResolvedValue({ text: "Improved prompt" });
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: `workspaces/${workspaceId}`,
+      params: { workspaceId, agentId },
+      headers: { "x-request-id": "test-req-id" },
+      body: {
+        userPrompt: "Improve",
+        selectedEvaluations: [{ conversationId, judgeId }],
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+    const handlerDone = new Promise<void>((resolve) => {
+      const origJson = (res.json as ReturnType<typeof vi.fn>).getMockImplementation() as
+        | ((this: unknown, ...args: unknown[]) => unknown)
+        | undefined;
+      (res.json as ReturnType<typeof vi.fn>).mockImplementation(
+        function (this: unknown, ...args: unknown[]) {
+          origJson?.apply(this, args);
+          resolve();
+        }
+      );
+    });
+
+    handler(req as never, res as never, next);
+    await handlerDone;
+
+    expect(mockValidateAndReserveCredits).toHaveBeenCalledWith(
+      expect.anything(),
+      workspaceId,
+      agentId,
+      "openrouter",
+      expect.any(String),
+      expect.any(Array),
+      expect.any(String),
+      undefined,
+      true,
+      "improve-prompt-from-evals",
+      expect.anything(),
+      undefined
+    );
+    expect(res.json).toHaveBeenCalledWith({ prompt: "Improved prompt" });
+  });
+
+  it("refunds reservation when generateText throws", async () => {
+    const handler = capturePostHandler(registerPostImprovePromptFromEvals);
+    const mockDb = createMockDatabase();
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const conversationId = "conversation-789";
+    const judgeId = "judge-abc";
+
+    mockDb.agent.get = vi.fn().mockResolvedValue({
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      agentId,
+      systemPrompt: "Current system prompt",
+    });
+    (mockDb as Record<string, unknown>)["agent-eval-result"] = {
+      get: vi.fn().mockResolvedValue({
+        pk: `agent-eval-results/${workspaceId}/${agentId}/${conversationId}/${judgeId}`,
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId,
+        status: "completed",
+        summary: "Summary",
+        scoreGoalCompletion: 80,
+        scoreToolEfficiency: 80,
+        scoreFaithfulness: 90,
+        criticalFailureDetected: false,
+        evaluatedAt: new Date().toISOString(),
+      }),
+    };
+    mockDatabase.mockResolvedValue(mockDb);
+    mockCreateModel.mockResolvedValue({ model: "mock" });
+    mockGenerateText.mockRejectedValue(new Error("LLM failed"));
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: `workspaces/${workspaceId}`,
+      params: { workspaceId, agentId },
+      headers: { "x-request-id": "test-req-id" },
+      body: {
+        userPrompt: "Improve",
+        modelName: "google/gemini-2.5-flash",
+        selectedEvaluations: [{ conversationId, judgeId }],
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    handler(req as never, res as never, next);
+    await new Promise((r) => setImmediate(r));
+
+    expect(mockCleanupReservationOnError).toHaveBeenCalledWith(
+      mockDb,
+      "res-1",
+      workspaceId,
+      agentId,
+      "openrouter",
+      "google/gemini-2.5-flash",
+      expect.any(Error),
+      true,
+      false,
+      "improve-prompt-from-evals",
+      expect.anything()
+    );
+    expect(next).toHaveBeenCalledWith(expect.any(Error));
   });
 
   it("rejects when userPrompt is missing", async () => {
@@ -166,7 +412,8 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
     const res = createMockResponse();
     const next = vi.fn();
 
-    await handler(req as never, res as never, next);
+    handler(req as never, res as never, next);
+    await new Promise((r) => setImmediate(r));
 
     expect(next).toHaveBeenCalled();
     const error = next.mock.calls[0][0];
@@ -188,7 +435,8 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
     const res = createMockResponse();
     const next = vi.fn();
 
-    await handler(req as never, res as never, next);
+    handler(req as never, res as never, next);
+    await new Promise((r) => setImmediate(r));
 
     expect(next).toHaveBeenCalled();
     const error = next.mock.calls[0][0];
@@ -214,7 +462,8 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
     const res = createMockResponse();
     const next = vi.fn();
 
-    await handler(req as never, res as never, next);
+    handler(req as never, res as never, next);
+    await new Promise((r) => setImmediate(r));
 
     expect(next).toHaveBeenCalled();
     const error = next.mock.calls[0][0];
@@ -249,7 +498,8 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
     const res = createMockResponse();
     const next = vi.fn();
 
-    await handler(req as never, res as never, next);
+    handler(req as never, res as never, next);
+    await new Promise((r) => setImmediate(r));
 
     expect(next).toHaveBeenCalled();
     const error = next.mock.calls[0][0];
@@ -272,7 +522,8 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/improve-prompt-from-
     const res = createMockResponse();
     const next = vi.fn();
 
-    await handler(req as never, res as never, next);
+    handler(req as never, res as never, next);
+    await new Promise((r) => setImmediate(r));
 
     expect(next).toHaveBeenCalled();
     const error = next.mock.calls[0][0];
