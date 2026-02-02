@@ -4,8 +4,12 @@ import { expressErrorHandler } from "../utils/errorHandler";
 
 // Import user API key route handlers
 import { registerDeleteUserApiKeys } from "./routes/delete-user-api-keys";
+import { registerGetPasskeyLoginOptions } from "./routes/get-passkey-login-options";
 import { registerGetUserApiKeys } from "./routes/get-user-api-keys";
 import { registerPostGenerateTokens } from "./routes/post-generate-tokens";
+import { registerPostPasskeyLoginVerify } from "./routes/post-passkey-login-verify";
+import { registerPostPasskeyRegisterOptions } from "./routes/post-passkey-register-options";
+import { registerPostPasskeyRegisterVerify } from "./routes/post-passkey-register-verify";
 import { registerPostRefreshToken } from "./routes/post-refresh-token";
 import { registerPostUserApiKeys } from "./routes/post-user-api-keys";
 import { registerPostVerifyAuthGate } from "./routes/post-verify-auth-gate";
@@ -31,6 +35,12 @@ export const createApp = (): express.Application => {
   registerPostGenerateTokens(app);
   registerPostRefreshToken(app);
   registerPostVerifyAuthGate(app);
+
+  // Passkey (WebAuthn) routes
+  registerPostPasskeyRegisterOptions(app);
+  registerPostPasskeyRegisterVerify(app);
+  registerGetPasskeyLoginOptions(app);
+  registerPostPasskeyLoginVerify(app);
 
   // Error handler must be last
   app.use(expressErrorHandler);

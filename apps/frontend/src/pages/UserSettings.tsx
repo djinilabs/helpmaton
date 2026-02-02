@@ -1,14 +1,23 @@
+import {
+  startRegistration,
+  type PublicKeyCredentialCreationOptionsJSON,
+} from "@simplewebauthn/browser";
 import { useState, lazy, Suspense, useEffect } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useToast } from "../hooks/useToast";
 import {
   useUserApiKeys,
   useCreateUserApiKey,
   useDeleteUserApiKey,
 } from "../hooks/useUserApiKeys";
+import {
+  getPasskeyRegisterOptions,
+  verifyPasskeyRegistration,
+} from "../utils/passkeyApi";
 import { trackEvent } from "../utils/tracking";
 
 // Lazy load SubscriptionPanel
@@ -19,11 +28,13 @@ const SubscriptionPanel = lazy(() =>
 );
 
 const UserSettings: FC = () => {
+  const toast = useToast();
   const { data: apiKeys } = useUserApiKeys();
   const createApiKeyMutation = useCreateUserApiKey();
   const deleteApiKeyMutation = useDeleteUserApiKey();
   const [newKeyName, setNewKeyName] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<{
     id: string;
     key: string;
@@ -93,6 +104,35 @@ const UserSettings: FC = () => {
 
   useEscapeKey(!!newlyCreatedKey, () => setNewlyCreatedKey(null));
 
+  const handleCreatePasskey = async () => {
+    setIsPasskeyLoading(true);
+    try {
+      const options = await getPasskeyRegisterOptions();
+      const credential = await startRegistration({
+        optionsJSON:
+          options as unknown as PublicKeyCredentialCreationOptionsJSON,
+      });
+      await verifyPasskeyRegistration(
+        credential as unknown as Record<string, unknown>
+      );
+      toast.success("Passkey added. You can now sign in with passkey.");
+      trackEvent("passkey_created", {});
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create passkey";
+      if (
+        message.includes("cancel") ||
+        message.toLowerCase().includes("abort") ||
+        message.toLowerCase().includes("user")
+      ) {
+        return;
+      }
+      toast.error(message);
+    } finally {
+      setIsPasskeyLoading(false);
+    }
+  };
+
   // Track user settings viewing
   useEffect(() => {
     trackEvent("user_settings_viewed", {});
@@ -105,6 +145,26 @@ const UserSettings: FC = () => {
           <Suspense fallback={<LoadingScreen compact />}>
             <SubscriptionPanel />
           </Suspense>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+          <h1 className="mb-2 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
+            Sign-in methods
+          </h1>
+          <p className="mb-6 text-lg text-neutral-600 dark:text-neutral-300">
+            Add a passkey to sign in without email. You can use your device
+            biometrics or security key.
+          </p>
+          <div className="mb-8">
+            <button
+              type="button"
+              disabled={isPasskeyLoading}
+              onClick={handleCreatePasskey}
+              className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
+            >
+              {isPasskeyLoading ? "Creating passkey..." : "Create passkey"}
+            </button>
+          </div>
         </div>
 
         <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">

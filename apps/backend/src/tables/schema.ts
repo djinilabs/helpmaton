@@ -628,6 +628,17 @@ export const tableSchemas = {
     createdAt: z.iso.datetime().default(new Date().toISOString()),
     updatedAt: z.iso.datetime().optional(),
   }),
+  "user-passkey": TableBaseSchema.extend({
+    pk: z.string(), // USER#<userId>
+    sk: z.string(), // PASSKEY#<credentialIdBase64>
+    gsi1pk: z.string().optional(), // CREDENTIAL#<credentialIdBase64> for GSI byCredentialId
+    gsi1sk: z.string().optional(), // USER#<userId>
+    credentialPublicKey: z.string(), // base64-encoded COSE key
+    counter: z.number().int(),
+    transports: z.string().optional(),
+    version: z.number().default(1),
+    createdAt: z.iso.datetime().default(new Date().toISOString()),
+  }),
 } as const;
 
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
@@ -659,7 +670,8 @@ export type TableName =
   | "bot-integration"
   | "agent-eval-judge"
   | "agent-eval-result"
-  | "agent-schedule";
+  | "agent-schedule"
+  | "user-passkey";
 
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
@@ -715,6 +727,9 @@ export type BotIntegrationRecord = z.infer<
 >;
 export type AgentScheduleRecord = z.infer<
   (typeof tableSchemas)["agent-schedule"]
+>;
+export type UserPasskeyRecord = z.infer<
+  (typeof tableSchemas)["user-passkey"]
 >;
 
 export const PERMISSION_LEVELS = {
@@ -840,6 +855,7 @@ export type DatabaseSchema = {
   "agent-delegation-tasks": TableAPI<"agent-delegation-tasks">;
   "bot-integration": TableAPI<"bot-integration">;
   "agent-schedule": TableAPI<"agent-schedule">;
+  "user-passkey": TableAPI<"user-passkey">;
 };
 
 /**
@@ -884,7 +900,8 @@ export type TableRecord =
   | z.infer<(typeof tableSchemas)["user-refresh-token"]>
   | z.infer<(typeof tableSchemas)["workspace-credit-transactions"]>
   | z.infer<(typeof tableSchemas)["bot-integration"]>
-  | z.infer<(typeof tableSchemas)["agent-schedule"]>;
+  | z.infer<(typeof tableSchemas)["agent-schedule"]>
+  | z.infer<(typeof tableSchemas)["user-passkey"]>;
 
 /**
  * Callback function for atomic update operations

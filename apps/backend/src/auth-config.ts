@@ -1,10 +1,16 @@
+import Credentials from "@auth/core/providers/credentials";
 import { ExpressAuthConfig } from "@auth/express";
 
 import { getDefined, once } from "./utils";
 import { ensureSubscriptionApiKeyActive } from "./utils/apiGatewayUsagePlans";
 import { getDynamoDBAdapter } from "./utils/authUtils";
 import { Sentry, ensureError, initSentry } from "./utils/sentry";
-import { getUserSubscription, getUserByEmail } from "./utils/subscriptionUtils";
+import {
+  getUserSubscription,
+  getUserByEmail,
+  getUserById,
+} from "./utils/subscriptionUtils";
+import { verifyPasskeyLoginToken } from "./utils/tokenUtils";
 
 // Initialize Sentry when this module is loaded
 initSentry();
@@ -110,10 +116,63 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
       brandColor: "#008080",
       buttonText: "Sign in",
     },
-    providers: [customEmailProvider],
+    providers: [
+      customEmailProvider,
+      Credentials({
+        id: "passkey",
+        name: "Passkey",
+        credentials: {
+          token: { label: "Token", type: "text" },
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Auth.js authorize(credentials, request) signature
+        async authorize(credentials, _request) {
+          const token =
+            credentials && typeof credentials.token === "string"
+              ? credentials.token.trim()
+              : undefined;
+          if (!token) return null;
+          try {
+            const { userId } = await verifyPasskeyLoginToken(token);
+            const user = await getUserById(userId);
+            if (!user?.email) return null;
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name ?? undefined,
+            };
+          } catch {
+            return null;
+          }
+        },
+      }),
+    ],
     adapter: databaseAdapter,
     callbacks: {
       async signIn({ user, account }) {
+        // For passkey (Credentials provider)
+        if (account?.provider === "passkey" && user?.id) {
+          const userId = user.id;
+          try {
+            const subscription = await getUserSubscription(userId);
+            const subscriptionId = subscription.pk.replace(
+              "subscriptions/",
+              ""
+            );
+            await ensureSubscriptionApiKeyActive(
+              subscriptionId,
+              subscription.plan
+            );
+            return true;
+          } catch (error) {
+            console.error(
+              "[signIn] Passkey: failed to ensure subscription for user:",
+              userId,
+              error instanceof Error ? error.message : String(error)
+            );
+            return true;
+          }
+        }
+
         // For email authentication
         if (account?.type === "email") {
           // Ensure user has a subscription (create free subscription if needed)
@@ -376,6 +435,14 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
         return false;
       },
       async jwt({ token, account, user }) {
+        // Handle passkey (Credentials) authentication
+        if (account?.provider === "passkey" && user) {
+          token.email = user.email;
+          token.id = token.sub ?? user.id;
+          if (user.name) {
+            token.name = user.name;
+          }
+        }
         // Handle email authentication
         if (account?.type === "email" && account.providerAccountId) {
           token.email = account.providerAccountId;

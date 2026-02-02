@@ -1,12 +1,24 @@
+import {
+  startAuthentication,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
 import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
 import type { FC } from "react";
 
+import { useToast } from "../hooks/useToast";
+import {
+  getPasskeyLoginOptions,
+  verifyPasskeyLogin,
+} from "../utils/passkeyApi";
+
 const Login: FC = () => {
   const { status } = useSession();
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +43,43 @@ const Login: FC = () => {
     if (e.key === "Enter" && !isSubmitting && email.trim()) {
       e.preventDefault();
       handleEmailSignIn(e as unknown as React.FormEvent);
+    }
+  };
+
+  const handlePasskeySignIn = async () => {
+    setIsPasskeyLoading(true);
+    try {
+      const options = await getPasskeyLoginOptions();
+      const assertion = await startAuthentication({
+        optionsJSON: options as PublicKeyCredentialRequestOptionsJSON,
+      });
+      const { token } = await verifyPasskeyLogin(
+        assertion as unknown as Record<string, unknown>
+      );
+      const result = await signIn("passkey", {
+        token,
+        callbackUrl: window.location.href,
+        redirect: false,
+      });
+      if (result?.error) {
+        toast.error(result.error);
+      } else if (result?.ok) {
+        window.location.reload();
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Passkey sign-in failed";
+      if (
+        message.includes("cancel") ||
+        message.toLowerCase().includes("abort") ||
+        message.toLowerCase().includes("user")
+      ) {
+        // User cancelled or no passkey - don't show harsh error
+        return;
+      }
+      toast.error(message);
+    } finally {
+      setIsPasskeyLoading(false);
     }
   };
 
@@ -125,6 +174,23 @@ const Login: FC = () => {
               className="w-full transform rounded-xl bg-gradient-primary px-4 py-3.5 font-semibold text-white transition-all duration-200 hover:scale-[1.02] hover:shadow-colored active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               {isSubmitting ? "Sending..." : "Send sign-in link"}
+            </button>
+
+            <div className="relative my-4 flex items-center">
+              <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
+              <span className="mx-3 text-sm text-neutral-500 dark:text-neutral-400">
+                or
+              </span>
+              <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
+            </div>
+
+            <button
+              type="button"
+              disabled={isPasskeyLoading}
+              onClick={handlePasskeySignIn}
+              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3.5 font-semibold text-neutral-700 transition-all duration-200 hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
+            >
+              {isPasskeyLoading ? "Signing in..." : "Sign in with passkey"}
             </button>
           </form>
         )}
