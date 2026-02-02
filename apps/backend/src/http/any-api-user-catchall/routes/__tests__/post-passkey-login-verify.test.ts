@@ -12,7 +12,10 @@ const mockVerifyPasskeyAuthentication = vi.hoisted(() => vi.fn());
 const mockUpdatePasskeyCounter = vi.hoisted(() => vi.fn());
 const mockGeneratePasskeyLoginToken = vi.hoisted(() => vi.fn());
 
+const mockClearPasskeyChallengeCookie = vi.hoisted(() => vi.fn());
+
 vi.mock("../../../../utils/passkeyChallengeCookie", () => ({
+  clearPasskeyChallengeCookie: mockClearPasskeyChallengeCookie,
   getPasskeyChallengeFromCookie: mockGetPasskeyChallengeFromCookie,
 }));
 
@@ -76,7 +79,15 @@ describe("POST /api/user/passkey/login/verify", () => {
         }
         const { userId, newCounter } = result;
         const credentialIdBase64 = body.id;
-        await mockUpdatePasskeyCounter(userId, credentialIdBase64, newCounter);
+        const counterUpdated = await mockUpdatePasskeyCounter(
+          userId,
+          credentialIdBase64,
+          newCounter
+        );
+        if (!counterUpdated) {
+          throw badRequest("Passkey authentication verification failed");
+        }
+        mockClearPasskeyChallengeCookie(res);
         const token = await mockGeneratePasskeyLoginToken(userId);
         res.status(200).json({ token });
       } catch (error) {
@@ -159,7 +170,7 @@ describe("POST /api/user/passkey/login/verify", () => {
       userId: "user-123",
       newCounter: 1,
     });
-    mockUpdatePasskeyCounter.mockResolvedValue(undefined);
+    mockUpdatePasskeyCounter.mockResolvedValue(true);
     mockGeneratePasskeyLoginToken.mockResolvedValue("one-time-jwt");
 
     const req = createMockRequest({
@@ -182,8 +193,39 @@ describe("POST /api/user/passkey/login/verify", () => {
       "cred-id-base64",
       1
     );
+    expect(mockClearPasskeyChallengeCookie).toHaveBeenCalledWith(res);
     expect(mockGeneratePasskeyLoginToken).toHaveBeenCalledWith("user-123");
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should call next with badRequest when counter update returns false (rollback)", async () => {
+    mockGetPasskeyChallengeFromCookie.mockResolvedValue("challenge");
+    mockVerifyPasskeyAuthentication.mockResolvedValue({
+      userId: "user-123",
+      newCounter: 1,
+    });
+    mockUpdatePasskeyCounter.mockResolvedValue(false);
+
+    const req = createMockRequest({
+      body: validBody,
+      headers: {},
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message: expect.stringContaining("verification failed"),
+          }),
+        }),
+      })
+    );
+    expect(mockGeneratePasskeyLoginToken).not.toHaveBeenCalled();
   });
 
   it("should accept body with authenticatorAttachment (browser may send it)", async () => {
@@ -192,7 +234,7 @@ describe("POST /api/user/passkey/login/verify", () => {
       userId: "user-456",
       newCounter: 2,
     });
-    mockUpdatePasskeyCounter.mockResolvedValue(undefined);
+    mockUpdatePasskeyCounter.mockResolvedValue(true);
     mockGeneratePasskeyLoginToken.mockResolvedValue("one-time-jwt");
 
     const req = createMockRequest({

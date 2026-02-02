@@ -115,17 +115,36 @@ export async function verifyPasskeyRegistration(
 
   const db = await database();
   const table = db["user-passkey"];
-  await table.create({
-    pk,
-    sk,
-    gsi1pk,
-    gsi1sk,
-    credentialPublicKey: credentialPublicKeyBase64,
-    counter,
-    transports: transportsStr,
-    credentialDeviceType,
-    credentialBackedUp,
-  } as Omit<UserPasskeyRecord, "version" | "createdAt">);
+  try {
+    await table.create({
+      pk,
+      sk,
+      gsi1pk,
+      gsi1sk,
+      credentialPublicKey: credentialPublicKeyBase64,
+      counter,
+      transports: transportsStr,
+      credentialDeviceType,
+      credentialBackedUp,
+    } as Omit<UserPasskeyRecord, "version" | "createdAt">);
+  } catch (error: unknown) {
+    const err = error as { code?: unknown; message?: unknown };
+    const code = typeof err.code === "string" ? err.code : "";
+    const message = typeof err.message === "string" ? err.message : "";
+    const isDuplicateError =
+      code.includes("ConditionalCheckFailed") ||
+      code.includes("Duplicate") ||
+      code.includes("AlreadyExists") ||
+      message.includes("duplicate") ||
+      message.includes("Duplicate") ||
+      message.includes("already exists") ||
+      message.includes("AlreadyExists");
+
+    if (isDuplicateError) {
+      return { verified: true };
+    }
+    throw error;
+  }
 
   return { verified: true };
 }
@@ -204,24 +223,35 @@ export async function verifyPasskeyAuthentication(
 
 /**
  * Update passkey counter after successful authentication (GetItem then UpdateItem by pk/sk).
+ * Only rejects when newCounter is less than the stored counter (rollback) to prevent cloned authenticator replay.
+ * Accepts same counter so first login after registration works (many authenticators send 0 both times)
+ * and passkeys that always report 0 (e.g. synced) still work.
+ * @returns true if the counter was updated or accepted, false if rejected (rollback or item not found).
  */
 export async function updatePasskeyCounter(
   userId: string,
   credentialIdBase64: string,
   newCounter: number
-): Promise<void> {
+): Promise<boolean> {
   const db = await database();
   const table = db["user-passkey"];
   const pk = `USER#${userId}`;
   const sk = `PASSKEY#${credentialIdBase64}`;
   const existing = await table.get(pk, sk);
   if (!existing) {
-    return;
+    return false;
   }
-  await table.update({
-    ...existing,
-    counter: newCounter,
-  });
+  const storedCounter = existing.counter ?? 0;
+  if (newCounter < storedCounter) {
+    return false;
+  }
+  if (newCounter > storedCounter) {
+    await table.update({
+      ...existing,
+      counter: newCounter,
+    });
+  }
+  return true;
 }
 
 /**

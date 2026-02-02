@@ -123,7 +123,7 @@ describe("passkey utils", () => {
   });
 
   describe("updatePasskeyCounter", () => {
-    it("should get then update when item exists", async () => {
+    it("should get then update and return true when item exists and newCounter > stored", async () => {
       const userId = "user-1";
       const credentialIdBase64 = "cred1";
       const existing = {
@@ -140,8 +140,9 @@ describe("passkey utils", () => {
         },
       });
 
-      await updatePasskeyCounter(userId, credentialIdBase64, 1);
+      const result = await updatePasskeyCounter(userId, credentialIdBase64, 1);
 
+      expect(result).toBe(true);
       expect(mockGet).toHaveBeenCalledWith("USER#user-1", "PASSKEY#cred1");
       expect(mockUpdate).toHaveBeenCalledWith({
         ...existing,
@@ -149,7 +150,7 @@ describe("passkey utils", () => {
       });
     });
 
-    it("should not update when item does not exist", async () => {
+    it("should return false when item does not exist", async () => {
       const mockGet = vi.fn().mockResolvedValue(null);
       const mockUpdate = vi.fn();
       mockDatabase.mockResolvedValue({
@@ -159,8 +160,51 @@ describe("passkey utils", () => {
         },
       });
 
-      await updatePasskeyCounter("user-1", "cred1", 1);
+      const result = await updatePasskeyCounter("user-1", "cred1", 1);
 
+      expect(result).toBe(false);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should return false when newCounter < stored counter (rollback)", async () => {
+      const existing = {
+        pk: "USER#user-1",
+        sk: "PASSKEY#cred1",
+        counter: 5,
+      };
+      const mockGet = vi.fn().mockResolvedValue(existing);
+      const mockUpdate = vi.fn();
+      mockDatabase.mockResolvedValue({
+        "user-passkey": {
+          get: mockGet,
+          update: mockUpdate,
+        },
+      });
+
+      const result = await updatePasskeyCounter("user-1", "cred1", 3);
+
+      expect(result).toBe(false);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should return true without update when newCounter equals stored (e.g. first login or zero counter)", async () => {
+      const existing = {
+        pk: "USER#user-1",
+        sk: "PASSKEY#cred1",
+        counter: 0,
+      };
+      const mockGet = vi.fn().mockResolvedValue(existing);
+      const mockUpdate = vi.fn();
+      mockDatabase.mockResolvedValue({
+        "user-passkey": {
+          get: mockGet,
+          update: mockUpdate,
+        },
+      });
+
+      const result = await updatePasskeyCounter("user-1", "cred1", 0);
+
+      expect(result).toBe(true);
       expect(mockUpdate).not.toHaveBeenCalled();
     });
   });

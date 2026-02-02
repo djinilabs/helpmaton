@@ -122,12 +122,17 @@ const Login: FC = () => {
           </h1>
         </div>
         <h2
-          className={`mb-10 text-3xl font-bold text-neutral-900 dark:text-neutral-50 ${
-            emailSent ? "text-center" : ""
+          className={`text-3xl font-bold text-neutral-900 dark:text-neutral-50 ${
+            emailSent ? "mb-10 text-center" : "mb-2"
           }`}
         >
-          {emailSent ? "Check your inbox" : "Sign in"}
+          {emailSent ? "Check your inbox" : "Sign in or sign up"}
         </h2>
+        {!emailSent && (
+          <p className="mb-10 text-sm text-neutral-600 dark:text-neutral-400">
+            Enter your email to sign in or create a new Helpmaton account.
+          </p>
+        )}
 
         {emailSent ? (
           <div className="space-y-4 text-center">

@@ -2,7 +2,10 @@ import { badRequest, unauthorized } from "@hapi/boom";
 import express from "express";
 
 import { verifyPasskeyRegistration } from "../../../utils/passkey";
-import { getPasskeyChallengeFromCookie } from "../../../utils/passkeyChallengeCookie";
+import {
+  clearPasskeyChallengeCookie,
+  getPasskeyChallengeFromCookie,
+} from "../../../utils/passkeyChallengeCookie";
 import {
   handleError,
   requireAuthOrSession,
@@ -51,6 +54,7 @@ export const registerPostPasskeyRegisterVerify = (
           throw badRequest("Passkey registration verification failed");
         }
 
+        clearPasskeyChallengeCookie(res);
         res.status(200).json({ verified: true });
       } catch (error) {
         handleError(error, next, "POST /api/user/passkey/register/verify");

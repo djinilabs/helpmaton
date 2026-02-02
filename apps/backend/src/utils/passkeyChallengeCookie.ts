@@ -8,6 +8,23 @@ import { SignJWT, jwtVerify } from "jose";
 const CHALLENGE_EXPIRY_SECONDS = 5 * 60; // 5 minutes
 const COOKIE_NAME = "passkey_challenge";
 
+/**
+ * Clear the passkey challenge cookie on the response to prevent replay attacks.
+ */
+export function clearPasskeyChallengeCookie(
+  res: { setHeader: (name: string, value: string) => void }
+): void {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const isSecure = frontendUrl.startsWith("https");
+  const cookieParts = [
+    `${COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`,
+  ];
+  if (isSecure) {
+    cookieParts.push("Secure");
+  }
+  res.setHeader("Set-Cookie", cookieParts.join("; "));
+}
+
 function getSecret(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {

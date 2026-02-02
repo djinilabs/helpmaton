@@ -3,10 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   generateAccessToken,
+  generatePasskeyLoginToken,
   generateRefreshToken,
   hashRefreshToken,
   validateRefreshToken,
   verifyAccessToken,
+  verifyPasskeyLoginToken,
 } from "../tokenUtils";
 
 // Mock jose using vi.hoisted
@@ -160,6 +162,59 @@ describe("tokenUtils", () => {
       const isValid = await validateRefreshToken(wrongToken, hash, salt);
 
       expect(isValid).toBe(false);
+    });
+  });
+
+  describe("generatePasskeyLoginToken", () => {
+    it("should generate a JWT with correct claims", async () => {
+      const mockToken = "passkey.jwt.token";
+      mockSignJWT.mockResolvedValue(mockToken);
+
+      const token = await generatePasskeyLoginToken("user-456");
+
+      expect(token).toBe(mockToken);
+      expect(mockSignJWT).toHaveBeenCalled();
+    });
+  });
+
+  describe("verifyPasskeyLoginToken", () => {
+    it("should verify and return userId for valid passkey token", async () => {
+      mockJwtVerify.mockResolvedValue({
+        payload: { userId: "user-789", purpose: "passkey-login" },
+      });
+
+      const result = await verifyPasskeyLoginToken("valid.passkey.jwt");
+
+      expect(result).toEqual({ userId: "user-789" });
+      expect(mockJwtVerify).toHaveBeenCalled();
+    });
+
+    it("should throw unauthorized for invalid or expired token", async () => {
+      mockJwtVerify.mockRejectedValue(new Error("Token expired"));
+
+      await expect(verifyPasskeyLoginToken("bad.token")).rejects.toThrow(
+        unauthorized("Invalid or expired passkey login token")
+      );
+    });
+
+    it("should throw unauthorized when purpose is not passkey-login", async () => {
+      mockJwtVerify.mockResolvedValue({
+        payload: { userId: "user-1", purpose: "other" },
+      });
+
+      await expect(verifyPasskeyLoginToken("token")).rejects.toThrow(
+        unauthorized("Invalid passkey login token")
+      );
+    });
+
+    it("should throw unauthorized when userId is missing", async () => {
+      mockJwtVerify.mockResolvedValue({
+        payload: { purpose: "passkey-login" },
+      });
+
+      await expect(verifyPasskeyLoginToken("token")).rejects.toThrow(
+        unauthorized("Invalid passkey login token")
+      );
     });
   });
 });

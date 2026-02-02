@@ -5,7 +5,10 @@ import {
   updatePasskeyCounter,
   verifyPasskeyAuthentication,
 } from "../../../utils/passkey";
-import { getPasskeyChallengeFromCookie } from "../../../utils/passkeyChallengeCookie";
+import {
+  clearPasskeyChallengeCookie,
+  getPasskeyChallengeFromCookie,
+} from "../../../utils/passkeyChallengeCookie";
 import { generatePasskeyLoginToken } from "../../../utils/tokenUtils";
 import { handleError } from "../../any-api-workspaces-catchall/middleware";
 import { validateBody } from "../../utils/bodyValidation";
@@ -46,8 +49,16 @@ export const registerPostPasskeyLoginVerify = (app: express.Application) => {
         const { userId, newCounter } = result;
         const credentialIdBase64 = body.id;
 
-        await updatePasskeyCounter(userId, credentialIdBase64, newCounter);
+        const counterUpdated = await updatePasskeyCounter(
+          userId,
+          credentialIdBase64,
+          newCounter
+        );
+        if (!counterUpdated) {
+          throw badRequest("Passkey authentication verification failed");
+        }
 
+        clearPasskeyChallengeCookie(res);
         const token = await generatePasskeyLoginToken(userId);
         res.status(200).json({ token });
       } catch (error) {
