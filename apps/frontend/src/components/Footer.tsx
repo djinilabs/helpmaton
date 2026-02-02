@@ -1,6 +1,8 @@
 import type { FC } from "react";
 import { Link } from "react-router-dom";
 
+import { Logo } from "./Logo";
+
 export const Footer: FC = () => {
   const currentYear = new Date().getFullYear();
   const version = import.meta.env.VITE_APP_VERSION || "0.0.0";
@@ -10,12 +12,8 @@ export const Footer: FC = () => {
       <div className="mx-auto max-w-6xl px-8 py-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <img
-                src="/images/helpmaton_logo.svg"
-                alt="Helmaton Logo"
-                className="relative z-10 size-8 opacity-60"
-              />
+            <div className="relative size-8 shrink-0">
+              <Logo className="relative z-10 h-full w-full opacity-60" aria-label="Helpmaton Logo" />
             </div>
             <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
               Helpmaton

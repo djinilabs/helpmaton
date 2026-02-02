@@ -2,6 +2,7 @@ import type { FC } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { ThemeToggle } from "./ThemeToggle";
+import { Logo } from "./Logo";
 
 export const Header: FC = () => {
   const location = useLocation();
@@ -14,12 +15,8 @@ export const Header: FC = () => {
             to="/"
             className="group flex items-center gap-3 transition-all duration-200 hover:opacity-80"
           >
-            <div className="relative">
-              <img
-                src="/images/helpmaton_logo.svg"
-                alt="Helmaton Logo"
-                className="relative z-10 size-11 transition-transform duration-200 group-hover:scale-105"
-              />
+            <div className="relative h-10 w-10 shrink-0">
+              <Logo className="h-full w-full" />
             </div>
             <span className="bg-gradient-to-r from-primary-700 to-accent-700 bg-clip-text text-2xl font-black tracking-tight text-transparent">
               Helpmaton

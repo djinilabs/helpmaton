@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { Link } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
+import { Logo } from "../components/Logo";
 import { useUserUsage, useUserDailyUsage } from "../hooks/useUsage";
 import { clearTokens, getUserHasPasskey } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
@@ -34,12 +35,8 @@ const Home: FC = () => {
           <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
             <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-              <div className="relative">
-                <img
-                  src="/images/helpmaton_logo.svg"
-                  alt="Helmaton Logo"
-                  className="relative z-10 size-20"
-                />
+              <div className="relative size-20 shrink-0">
+                <Logo className="relative z-10 h-full w-full" aria-label="Helpmaton Logo" />
               </div>
               <div>
                 <h1 className="mb-3 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">

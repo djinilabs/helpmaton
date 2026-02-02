@@ -1,5 +1,5 @@
 <div align="center" style="background-color: white; padding: 20px; display: inline-block; border-radius: 8px;">
-  <img src="apps/frontend/public/images/helpmaton_logo.svg" alt="Helpmaton Logo" width="200">
+  <img src="apps/frontend/public/images/helpmaton_logo_new.svg" alt="Helpmaton Logo" width="200">
 </div>
 
 # Helpmaton
