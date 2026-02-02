@@ -1,8 +1,8 @@
 import type { FC } from "react";
 import { Link, useLocation } from "react-router-dom";
 
-import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
+import { ThemeToggle } from "./ThemeToggle";
 
 export const Header: FC = () => {
   const location = useLocation();
@@ -15,8 +15,8 @@ export const Header: FC = () => {
             to="/"
             className="group flex items-center gap-3 transition-all duration-200 hover:opacity-80"
           >
-            <div className="relative h-10 w-10 shrink-0">
-              <Logo className="h-full w-full" />
+            <div className="relative size-10 shrink-0">
+              <Logo className="size-full" />
             </div>
             <span className="bg-gradient-to-r from-primary-700 to-accent-700 bg-clip-text text-2xl font-black tracking-tight text-transparent">
               Helpmaton

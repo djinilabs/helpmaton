@@ -13,7 +13,7 @@ export const Footer: FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative size-8 shrink-0">
-              <Logo className="relative z-10 h-full w-full opacity-60" aria-label="Helpmaton Logo" />
+              <Logo className="relative z-10 size-full opacity-60" aria-label="Helpmaton Logo" />
             </div>
             <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
               Helpmaton

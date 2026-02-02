@@ -104,7 +104,7 @@ const Login: FC = () => {
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-neutral-200 bg-white/90 p-10 shadow-large backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-900/90">
         <div className="mb-10 flex items-center gap-4">
           <div className="relative size-16 shrink-0">
-            <Logo className="relative z-10 h-full w-full" aria-label="Helpmaton Logo" />
+            <Logo className="relative z-10 size-full" aria-label="Helpmaton Logo" />
           </div>
           <h1 className="text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
             Helpmaton

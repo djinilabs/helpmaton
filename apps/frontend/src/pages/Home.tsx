@@ -36,7 +36,7 @@ const Home: FC = () => {
           <div className="relative z-10">
             <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
               <div className="relative size-20 shrink-0">
-                <Logo className="relative z-10 h-full w-full" aria-label="Helpmaton Logo" />
+                <Logo className="relative z-10 size-full" aria-label="Helpmaton Logo" />
               </div>
               <div>
                 <h1 className="mb-3 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">
