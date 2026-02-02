@@ -11,10 +11,9 @@ import {
 } from "@simplewebauthn/server";
 import type {
   AuthenticationResponseJSON,
-  AuthenticatorDevice,
-  PublicKeyCredentialDescriptorFuture,
   RegistrationResponseJSON,
-} from "@simplewebauthn/types";
+  WebAuthnCredential,
+} from "@simplewebauthn/server";
 
 import { database } from "../tables/database";
 import type { UserPasskeyRecord } from "../tables/schema";
@@ -56,17 +55,19 @@ export async function generatePasskeyRegistrationOptions(
   excludeCredentialIds?: string[]
 ) {
   const { rpId, rpName, origin } = getRpConfig();
+  const userIDBytes = new TextEncoder().encode(userId);
   const options = await generateRegistrationOptions({
     rpName,
     rpID: rpId,
-    userID: userId,
+    userID: userIDBytes,
     userName: userEmail,
     attestationType: "none",
-    excludeCredentials: (excludeCredentialIds?.map((id) => ({
-      id,
-      type: "public-key",
-      transports: [],
-    })) ?? []) as unknown as PublicKeyCredentialDescriptorFuture[],
+    excludeCredentials:
+      excludeCredentialIds?.map((id) => ({
+        id,
+        type: "public-key" as const,
+        transports: [],
+      })) ?? [],
     authenticatorSelection: {
       residentKey: "preferred",
       userVerification: "preferred",
@@ -94,22 +95,23 @@ export async function verifyPasskeyRegistration(
   if (!verification.verified || !verification.registrationInfo) {
     return { verified: false };
   }
-  const {
-    credentialID,
-    credentialPublicKey,
-    counter,
-    credentialDeviceType,
-    credentialBackedUp,
-  } = verification.registrationInfo;
-  const credentialIdBase64 = Buffer.from(credentialID).toString("base64url");
+  const { credential, credentialDeviceType, credentialBackedUp } =
+    verification.registrationInfo;
+  const credentialIdBase64 = credential.id;
   const pk = `USER#${userId}`;
   const sk = `PASSKEY#${credentialIdBase64}`;
   const gsi1pk = `CREDENTIAL#${credentialIdBase64}`;
   const gsi1sk = `USER#${userId}`;
-  const credentialPublicKeyBase64 = Buffer.from(credentialPublicKey).toString(
+  const credentialPublicKeyBase64 = Buffer.from(credential.publicKey).toString(
     "base64"
   );
-  const transportsStr = undefined;
+  const counter = credential.counter;
+  // Transports from registrationInfo.credential (v13) or client response
+  const transportsArr = credential.transports;
+  const transportsStr =
+    Array.isArray(transportsArr) && transportsArr.length > 0
+      ? transportsArr.join(",")
+      : undefined;
 
   const db = await database();
   const table = db["user-passkey"];
@@ -121,10 +123,10 @@ export async function verifyPasskeyRegistration(
     credentialPublicKey: credentialPublicKeyBase64,
     counter,
     transports: transportsStr,
+    credentialDeviceType,
+    credentialBackedUp,
   } as Omit<UserPasskeyRecord, "version" | "createdAt">);
 
-  void credentialDeviceType;
-  void credentialBackedUp;
   return { verified: true };
 }
 
@@ -174,16 +176,13 @@ export async function verifyPasskeyAuthentication(
   const credentialPublicKeyUint8 = new Uint8Array(
     Buffer.from(passkey.credentialPublicKey, "base64")
   );
-  const credentialIDUint8 = new Uint8Array(
-    Buffer.from(credentialIdBase64, "base64url")
-  );
   const { rpId, origin } = getRpConfig();
-  const authenticator: AuthenticatorDevice = {
-    credentialID: credentialIDUint8,
-    credentialPublicKey: credentialPublicKeyUint8,
+  const credential: WebAuthnCredential = {
+    id: credentialIdBase64,
+    publicKey: credentialPublicKeyUint8,
     counter: passkey.counter,
     transports: passkey.transports
-      ? (passkey.transports.split(",") as AuthenticatorDevice["transports"])
+      ? (passkey.transports.split(",") as WebAuthnCredential["transports"])
       : undefined,
   };
   const verification = await verifyAuthenticationResponse({
@@ -191,7 +190,7 @@ export async function verifyPasskeyAuthentication(
     expectedChallenge,
     expectedOrigin: origin,
     expectedRPID: rpId,
-    authenticator,
+    credential,
   });
   if (!verification.verified || !verification.authenticationInfo) {
     return null;

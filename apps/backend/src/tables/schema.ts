@@ -636,6 +636,8 @@ export const tableSchemas = {
     credentialPublicKey: z.string(), // base64-encoded COSE key
     counter: z.number().int(),
     transports: z.string().optional(),
+    credentialDeviceType: z.string().optional(), // single-device vs multi-device; for audit
+    credentialBackedUp: z.boolean().optional(), // backup eligibility; for audit
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),
