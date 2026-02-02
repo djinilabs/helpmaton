@@ -1,6 +1,6 @@
 /**
  * Passkey (WebAuthn) utilities: registration options/verify and authentication options/verify.
- * Stores credentials in user-passkey table; login lookup uses GSI byCredentialId only (no Scan).
+ * Stores credentials in next-auth table (pk=USER#userId, sk=PASSKEY#credentialId); login lookup uses GSI byCredentialId only (no Scan).
  */
 
 import {
@@ -77,7 +77,7 @@ export async function generatePasskeyRegistrationOptions(
 }
 
 /**
- * Verify registration response and store credential in user-passkey (PutItem with GSI keys).
+ * Verify registration response and store credential in next-auth table (PutItem with GSI keys).
  * Resolves challenge from caller (stored when generating options).
  */
 export async function verifyPasskeyRegistration(
@@ -100,8 +100,8 @@ export async function verifyPasskeyRegistration(
   const credentialIdBase64 = credential.id;
   const pk = `USER#${userId}`;
   const sk = `PASSKEY#${credentialIdBase64}`;
-  const gsi1pk = `CREDENTIAL#${credentialIdBase64}`;
-  const gsi1sk = `USER#${userId}`;
+  const gsi2pk = `CREDENTIAL#${credentialIdBase64}`;
+  const gsi2sk = `USER#${userId}`;
   const credentialPublicKeyBase64 = Buffer.from(credential.publicKey).toString(
     "base64"
   );
@@ -114,13 +114,13 @@ export async function verifyPasskeyRegistration(
       : undefined;
 
   const db = await database();
-  const table = db["user-passkey"];
+  const table = db["next-auth"];
   try {
     await table.create({
       pk,
       sk,
-      gsi1pk,
-      gsi1sk,
+      gsi2pk,
+      gsi2sk,
       credentialPublicKey: credentialPublicKeyBase64,
       counter,
       transports: transportsStr,
@@ -169,19 +169,19 @@ export async function getPasskeyByCredentialId(
   credentialIdBase64: string
 ): Promise<UserPasskeyRecord | undefined> {
   const db = await database();
-  const table = db["user-passkey"];
-  const gsi1Pk = `CREDENTIAL#${credentialIdBase64}`;
+  const table = db["next-auth"];
+  const gsi2Pk = `CREDENTIAL#${credentialIdBase64}`;
   const result = await table.query({
     IndexName: "byCredentialId",
-    KeyConditionExpression: "gsi1pk = :gsi1Pk",
-    ExpressionAttributeValues: { ":gsi1Pk": gsi1Pk },
+    KeyConditionExpression: "gsi2pk = :gsi2Pk",
+    ExpressionAttributeValues: { ":gsi2Pk": gsi2Pk },
   });
-  return result.items[0];
+  return result.items[0] as UserPasskeyRecord | undefined;
 }
 
 /**
  * Verify authentication response and return userId. Looks up credential by id via GSI (no Scan).
- * Caller must update counter in user-passkey after successful login.
+ * Caller must update counter in next-auth passkey record after successful login.
  */
 export async function verifyPasskeyAuthentication(
   response: AuthenticationResponseJSON,
@@ -214,7 +214,7 @@ export async function verifyPasskeyAuthentication(
   if (!verification.verified || !verification.authenticationInfo) {
     return null;
   }
-  const userId = passkey.gsi1sk?.replace(/^USER#/, "") ?? passkey.pk.replace(/^USER#/, "");
+  const userId = passkey.gsi2sk?.replace(/^USER#/, "") ?? passkey.pk.replace(/^USER#/, "");
   return {
     userId,
     newCounter: verification.authenticationInfo.newCounter,
@@ -234,20 +234,20 @@ export async function updatePasskeyCounter(
   newCounter: number
 ): Promise<boolean> {
   const db = await database();
-  const table = db["user-passkey"];
+  const table = db["next-auth"];
   const pk = `USER#${userId}`;
   const sk = `PASSKEY#${credentialIdBase64}`;
   const existing = await table.get(pk, sk);
   if (!existing) {
     return false;
   }
-  const storedCounter = existing.counter ?? 0;
+  const storedCounter = (existing as UserPasskeyRecord).counter ?? 0;
   if (newCounter < storedCounter) {
     return false;
   }
   if (newCounter > storedCounter) {
     await table.update({
-      ...existing,
+      ...(existing as UserPasskeyRecord),
       counter: newCounter,
     });
   }
@@ -255,18 +255,18 @@ export async function updatePasskeyCounter(
 }
 
 /**
- * List passkeys for a user (Query main table by pk, sk begins_with PASSKEY#). No Scan.
+ * List passkeys for a user (Query next-auth table by pk, sk begins_with PASSKEY#). No Scan.
  */
 export async function listPasskeysForUser(
   userId: string
 ): Promise<UserPasskeyRecord[]> {
   const db = await database();
-  const table = db["user-passkey"];
+  const table = db["next-auth"];
   const pk = `USER#${userId}`;
   const result = await table.query({
     KeyConditionExpression: "pk = :pk AND begins_with(sk, :skPrefix)",
     ExpressionAttributeValues: { ":pk": pk, ":skPrefix": "PASSKEY#" },
   });
-  return result.items;
+  return result.items as UserPasskeyRecord[];
 }
 

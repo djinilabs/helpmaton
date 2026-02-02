@@ -56,14 +56,14 @@ describe("passkey utils", () => {
       const mockItem = {
         pk: "USER#user-1",
         sk: "PASSKEY#abc123",
-        gsi1pk: "CREDENTIAL#abc123",
-        gsi1sk: "USER#user-1",
+        gsi2pk: "CREDENTIAL#abc123",
+        gsi2sk: "USER#user-1",
         credentialPublicKey: "key",
         counter: 0,
       };
       const mockQuery = vi.fn().mockResolvedValue({ items: [mockItem] });
       mockDatabase.mockResolvedValue({
-        "user-passkey": {
+        "next-auth": {
           query: mockQuery,
         },
       });
@@ -73,14 +73,14 @@ describe("passkey utils", () => {
       expect(result).toEqual(mockItem);
       expect(mockQuery).toHaveBeenCalledWith({
         IndexName: "byCredentialId",
-        KeyConditionExpression: "gsi1pk = :gsi1Pk",
-        ExpressionAttributeValues: { ":gsi1Pk": "CREDENTIAL#abc123" },
+        KeyConditionExpression: "gsi2pk = :gsi2Pk",
+        ExpressionAttributeValues: { ":gsi2Pk": "CREDENTIAL#abc123" },
       });
     });
 
     it("should return undefined when no item found", async () => {
       mockDatabase.mockResolvedValue({
-        "user-passkey": {
+        "next-auth": {
           query: vi.fn().mockResolvedValue({ items: [] }),
         },
       });
@@ -104,7 +104,7 @@ describe("passkey utils", () => {
       ];
       const mockQuery = vi.fn().mockResolvedValue({ items: mockItems });
       mockDatabase.mockResolvedValue({
-        "user-passkey": {
+        "next-auth": {
           query: mockQuery,
         },
       });
@@ -134,7 +134,7 @@ describe("passkey utils", () => {
       const mockGet = vi.fn().mockResolvedValue(existing);
       const mockUpdate = vi.fn().mockResolvedValue(undefined);
       mockDatabase.mockResolvedValue({
-        "user-passkey": {
+        "next-auth": {
           get: mockGet,
           update: mockUpdate,
         },
@@ -154,7 +154,7 @@ describe("passkey utils", () => {
       const mockGet = vi.fn().mockResolvedValue(null);
       const mockUpdate = vi.fn();
       mockDatabase.mockResolvedValue({
-        "user-passkey": {
+        "next-auth": {
           get: mockGet,
           update: mockUpdate,
         },
@@ -175,7 +175,7 @@ describe("passkey utils", () => {
       const mockGet = vi.fn().mockResolvedValue(existing);
       const mockUpdate = vi.fn();
       mockDatabase.mockResolvedValue({
-        "user-passkey": {
+        "next-auth": {
           get: mockGet,
           update: mockUpdate,
         },
@@ -196,7 +196,7 @@ describe("passkey utils", () => {
       const mockGet = vi.fn().mockResolvedValue(existing);
       const mockUpdate = vi.fn();
       mockDatabase.mockResolvedValue({
-        "user-passkey": {
+        "next-auth": {
           get: mockGet,
           update: mockUpdate,
         },

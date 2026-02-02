@@ -6,7 +6,6 @@ import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import type { FC } from "react";
 
-import { useToast } from "../hooks/useToast";
 import {
   getPasskeyLoginOptions,
   verifyPasskeyLogin,
@@ -14,11 +13,11 @@ import {
 
 const Login: FC = () => {
   const { status } = useSession();
-  const toast = useToast();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [passkeyAvailable, setPasskeyAvailable] = useState<boolean | null>(
     null
   );
@@ -63,6 +62,7 @@ const Login: FC = () => {
   };
 
   const handlePasskeySignIn = async () => {
+    setPasskeyError(null);
     setIsPasskeyLoading(true);
     try {
       const options = await getPasskeyLoginOptions();
@@ -77,23 +77,28 @@ const Login: FC = () => {
         callbackUrl: window.location.href,
         redirect: false,
       });
-      if (result?.error) {
-        toast.error(result.error);
-      } else if (result?.ok) {
+      if (result?.ok) {
         window.location.reload();
+      } else if (result?.error) {
+        setPasskeyError(result.error);
+      } else {
+        setPasskeyError("Passkey sign-in failed. Please try again.");
       }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Passkey sign-in failed";
-      if (
-        message.includes("cancel") ||
-        message.toLowerCase().includes("abort") ||
-        message.toLowerCase().includes("user")
-      ) {
-        // User cancelled or no passkey - don't show harsh error
+      const lower = message.toLowerCase();
+      const isUserCancellation =
+        lower.includes("cancel") ||
+        lower.includes("abort") ||
+        lower.includes("notallowederror") ||
+        lower.includes("the operation either timed out or was not allowed");
+      if (isUserCancellation) {
         return;
       }
-      toast.error(message);
+      setPasskeyError(
+        message.trim() || "Passkey sign-in failed. Please try again."
+      );
     } finally {
       setIsPasskeyLoading(false);
     }
@@ -206,6 +211,15 @@ const Login: FC = () => {
                   </span>
                   <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
                 </div>
+
+                {passkeyError && (
+                  <p
+                    role="alert"
+                    className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200"
+                  >
+                    {passkeyError}
+                  </p>
+                )}
 
                 <button
                   type="button"

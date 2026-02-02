@@ -55,8 +55,15 @@ export const tableSchemas = {
     type: z.string().optional(), // "USER" for user records, undefined for account records
     lastCreditErrorEmailSentAt: z.iso.datetime().optional(),
     lastSpendingLimitErrorEmailSentAt: z.iso.datetime().optional(),
-    gsi1pk: z.string().optional(), // GSI1 partition key for email lookups
-    gsi1sk: z.string().optional(), // GSI1 sort key for email lookups
+    gsi1pk: z.string().optional(), // GSI1 partition key for email lookups (GSI2)
+    gsi1sk: z.string().optional(), // GSI1 sort key for email lookups (GSI2)
+    gsi2pk: z.string().optional(), // GSI2 partition key for passkey lookup by credential id (byCredentialId)
+    gsi2sk: z.string().optional(), // GSI2 sort key for passkey lookup (byCredentialId)
+    credentialPublicKey: z.string().optional(), // passkey: base64-encoded COSE key
+    counter: z.number().int().optional(), // passkey: signature counter
+    transports: z.string().optional(), // passkey
+    credentialDeviceType: z.string().optional(), // passkey
+    credentialBackedUp: z.boolean().optional(), // passkey
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
     expires: z.number().optional(),
@@ -628,20 +635,22 @@ export const tableSchemas = {
     createdAt: z.iso.datetime().default(new Date().toISOString()),
     updatedAt: z.iso.datetime().optional(),
   }),
-  "user-passkey": TableBaseSchema.extend({
-    pk: z.string(), // USER#<userId>
-    sk: z.string(), // PASSKEY#<credentialIdBase64>
-    gsi1pk: z.string().optional(), // CREDENTIAL#<credentialIdBase64> for GSI byCredentialId
-    gsi1sk: z.string().optional(), // USER#<userId>
-    credentialPublicKey: z.string(), // base64-encoded COSE key
-    counter: z.number().int(),
-    transports: z.string().optional(),
-    credentialDeviceType: z.string().optional(), // single-device vs multi-device; for audit
-    credentialBackedUp: z.boolean().optional(), // backup eligibility; for audit
-    version: z.number().default(1),
-    createdAt: z.iso.datetime().default(new Date().toISOString()),
-  }),
 } as const;
+
+/** Schema for passkey records stored in the next-auth table (pk=USER#userId, sk=PASSKEY#credentialId). */
+export const passkeyRecordSchema = TableBaseSchema.extend({
+  pk: z.string(),
+  sk: z.string(),
+  gsi2pk: z.string().optional(),
+  gsi2sk: z.string().optional(),
+  credentialPublicKey: z.string(),
+  counter: z.number().int(),
+  transports: z.string().optional(),
+  credentialDeviceType: z.string().optional(),
+  credentialBackedUp: z.boolean().optional(),
+  version: z.number().default(1),
+  createdAt: z.iso.datetime().default(new Date().toISOString()),
+});
 
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
 export type TableSchemas = typeof tableSchemas;
@@ -672,8 +681,7 @@ export type TableName =
   | "bot-integration"
   | "agent-eval-judge"
   | "agent-eval-result"
-  | "agent-schedule"
-  | "user-passkey";
+  | "agent-schedule";
 
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
@@ -730,9 +738,7 @@ export type BotIntegrationRecord = z.infer<
 export type AgentScheduleRecord = z.infer<
   (typeof tableSchemas)["agent-schedule"]
 >;
-export type UserPasskeyRecord = z.infer<
-  (typeof tableSchemas)["user-passkey"]
->;
+export type UserPasskeyRecord = z.infer<typeof passkeyRecordSchema>;
 
 export const PERMISSION_LEVELS = {
   READ: 1,
@@ -857,7 +863,6 @@ export type DatabaseSchema = {
   "agent-delegation-tasks": TableAPI<"agent-delegation-tasks">;
   "bot-integration": TableAPI<"bot-integration">;
   "agent-schedule": TableAPI<"agent-schedule">;
-  "user-passkey": TableAPI<"user-passkey">;
 };
 
 /**
@@ -902,8 +907,7 @@ export type TableRecord =
   | z.infer<(typeof tableSchemas)["user-refresh-token"]>
   | z.infer<(typeof tableSchemas)["workspace-credit-transactions"]>
   | z.infer<(typeof tableSchemas)["bot-integration"]>
-  | z.infer<(typeof tableSchemas)["agent-schedule"]>
-  | z.infer<(typeof tableSchemas)["user-passkey"]>;
+  | z.infer<(typeof tableSchemas)["agent-schedule"]>;
 
 /**
  * Callback function for atomic update operations

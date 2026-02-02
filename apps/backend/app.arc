@@ -169,11 +169,6 @@ agent-schedule
   sk **String
   encrypt true
 
-user-passkey
-  pk *String
-  sk **String
-  encrypt true
-
 @tables-indexes
 
 next-auth
@@ -181,9 +176,9 @@ next-auth
   gsi1sk **String
   name GSI2
 
-user-passkey
-  gsi1pk *String
-  gsi1sk **String
+next-auth
+  gsi2pk *String
+  gsi2sk **String
   name byCredentialId
 
 permission
