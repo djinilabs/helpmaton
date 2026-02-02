@@ -1,15 +1,6 @@
-import {
-  startAuthentication,
-  type PublicKeyCredentialRequestOptionsJSON,
-} from "@simplewebauthn/browser";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import type { FC } from "react";
-
-import {
-  getPasskeyLoginOptions,
-  verifyPasskeyLogin,
-} from "../utils/passkeyApi";
 
 const Login: FC = () => {
   const { status } = useSession();
@@ -65,13 +56,8 @@ const Login: FC = () => {
     setPasskeyError(null);
     setIsPasskeyLoading(true);
     try {
-      const options = await getPasskeyLoginOptions();
-      const assertion = await startAuthentication({
-        optionsJSON: options as PublicKeyCredentialRequestOptionsJSON,
-      });
-      const { token } = await verifyPasskeyLogin(
-        assertion as unknown as Record<string, unknown>
-      );
+      const { signInWithPasskey } = await import("../utils/passkeyLogin");
+      const token = await signInWithPasskey();
       const result = await signIn("passkey", {
         token,
         callbackUrl: window.location.href,
