@@ -6,6 +6,7 @@ import { expressErrorHandler } from "../utils/errorHandler";
 import { registerDeleteUserApiKeys } from "./routes/delete-user-api-keys";
 import { registerGetPasskeyLoginOptions } from "./routes/get-passkey-login-options";
 import { registerGetUserApiKeys } from "./routes/get-user-api-keys";
+import { registerGetUserPasskeys } from "./routes/get-user-passkeys";
 import { registerPostGenerateTokens } from "./routes/post-generate-tokens";
 import { registerPostPasskeyLoginVerify } from "./routes/post-passkey-login-verify";
 import { registerPostPasskeyRegisterOptions } from "./routes/post-passkey-register-options";
@@ -28,6 +29,7 @@ export const createApp = (): express.Application => {
 
   // Register user API key routes
   registerGetUserApiKeys(app);
+  registerGetUserPasskeys(app);
   registerPostUserApiKeys(app);
   registerDeleteUserApiKeys(app);
 

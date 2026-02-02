@@ -2828,6 +2828,15 @@ export async function deleteUserApiKey(keyId: string): Promise<void> {
   });
 }
 
+export interface UserPasskeysResponse {
+  hasPasskey: boolean;
+}
+
+export async function getUserHasPasskey(): Promise<UserPasskeysResponse> {
+  const response = await apiFetch("/api/user/passkeys");
+  return response.json();
+}
+
 // Evaluation Judge Management API
 
 export interface EvalJudge {

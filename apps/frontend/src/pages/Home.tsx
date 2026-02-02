@@ -4,6 +4,10 @@ import type { FC } from "react";
 import { Link } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
+import { useUserUsage, useUserDailyUsage } from "../hooks/useUsage";
+import { clearTokens, getUserHasPasskey } from "../utils/api";
+import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
+import { trackEvent } from "../utils/tracking";
 // Lazy load components
 const SubscriptionPanel = lazy(() =>
   import("../components/SubscriptionPanel").then((module) => ({
@@ -15,10 +19,6 @@ const UsageDashboard = lazy(() =>
     default: module.UsageDashboard,
   }))
 );
-import { useUserUsage, useUserDailyUsage } from "../hooks/useUsage";
-import { clearTokens } from "../utils/api";
-import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
-import { trackEvent } from "../utils/tracking";
 
 const Home: FC = () => {
   const { data: session } = useSession();
@@ -92,6 +92,8 @@ const Home: FC = () => {
           </Suspense>
         </div>
 
+        <AddPasskeyPrompt />
+
         <UserUsageSection />
 
         <div className="flex justify-end rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
@@ -107,6 +109,69 @@ const Home: FC = () => {
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+/**
+ * Shown only when: user is logged in, device supports passkeys, and user has no passkey stored.
+ * Renders a box with copy and a button to add a passkey (links to settings).
+ */
+const AddPasskeyPrompt: FC = () => {
+  const [deviceSupportsPasskey, setDeviceSupportsPasskey] = useState<
+    boolean | null
+  >(null);
+  const [hasPasskey, setHasPasskey] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const check =
+      window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable?.();
+    if (typeof check?.then !== "function") {
+      queueMicrotask(() => setDeviceSupportsPasskey(false));
+      return;
+    }
+    check.then((available) => {
+      setDeviceSupportsPasskey(available === true);
+      if (!available) return;
+      getUserHasPasskey()
+        .then((res) => setHasPasskey(res.hasPasskey))
+        .catch(() => setHasPasskey(null));
+    });
+  }, []);
+
+  const show =
+    deviceSupportsPasskey === true && hasPasskey === false;
+  if (!show) return null;
+
+  return (
+    <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-3 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
+        Sign in faster with a passkey
+      </h2>
+      <p className="mb-6 text-base font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
+        Add a passkey to sign in without email next time. Use your device
+        biometrics or security key for a quick, secure login.
+      </p>
+      <Link
+        to="/settings"
+        className="inline-flex transform items-center gap-2 rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+      >
+        Add passkey
+        <svg
+          className="size-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </Link>
     </div>
   );
 };
