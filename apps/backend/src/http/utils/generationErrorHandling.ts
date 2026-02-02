@@ -18,7 +18,8 @@ export type GenerationEndpoint =
   | "bridge"
   | "scheduled"
   | "knowledge-injection"
-  | "memory-extraction";
+  | "memory-extraction"
+  | "improve-prompt-from-evals";
 
 /**
  * Checks if an error is a NoOutputGeneratedError
