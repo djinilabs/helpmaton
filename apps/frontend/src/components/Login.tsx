@@ -3,7 +3,7 @@ import {
   type PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
 import { signIn, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FC } from "react";
 
 import { useToast } from "../hooks/useToast";
@@ -19,6 +19,22 @@ const Login: FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [passkeyAvailable, setPasskeyAvailable] = useState<boolean | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const check =
+      window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable?.();
+    if (typeof check?.then !== "function") {
+      setPasskeyAvailable(false);
+      return;
+    }
+    check
+      .then((available) => setPasskeyAvailable(available === true))
+      .catch(() => setPasskeyAvailable(false));
+  }, []);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,22 +192,26 @@ const Login: FC = () => {
               {isSubmitting ? "Sending..." : "Send sign-in link"}
             </button>
 
-            <div className="relative my-4 flex items-center">
-              <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
-              <span className="mx-3 text-sm text-neutral-500 dark:text-neutral-400">
-                or
-              </span>
-              <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
-            </div>
+            {passkeyAvailable === true && (
+              <>
+                <div className="relative my-4 flex items-center">
+                  <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
+                  <span className="mx-3 text-sm text-neutral-500 dark:text-neutral-400">
+                    or
+                  </span>
+                  <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
+                </div>
 
-            <button
-              type="button"
-              disabled={isPasskeyLoading}
-              onClick={handlePasskeySignIn}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3.5 font-semibold text-neutral-700 transition-all duration-200 hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
-            >
-              {isPasskeyLoading ? "Signing in..." : "Sign in with passkey"}
-            </button>
+                <button
+                  type="button"
+                  disabled={isPasskeyLoading}
+                  onClick={handlePasskeySignIn}
+                  className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3.5 font-semibold text-neutral-700 transition-all duration-200 hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
+                >
+                  {isPasskeyLoading ? "Signing in..." : "Sign in with passkey"}
+                </button>
+              </>
+            )}
           </form>
         )}
       </div>
