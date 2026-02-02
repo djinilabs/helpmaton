@@ -256,3 +256,50 @@ export async function generateScrapeAuthToken(
 
   return token;
 }
+
+const PASSKEY_LOGIN_TOKEN_EXPIRY_SECONDS = 5 * 60; // 5 minutes
+
+/**
+ * Generate a one-time JWT for passkey login. After verifying the passkey assertion,
+ * the backend issues this token; the frontend calls signIn("passkey", { token }) to create a session.
+ */
+export async function generatePasskeyLoginToken(
+  userId: string
+): Promise<string> {
+  const secret = getJwtSecret();
+  const now = Math.floor(Date.now() / 1000);
+  return new SignJWT({ userId, purpose: "passkey-login" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt(now)
+    .setExpirationTime(now + PASSKEY_LOGIN_TOKEN_EXPIRY_SECONDS)
+    .setIssuer("helpmaton")
+    .setAudience("helpmaton-passkey")
+    .sign(secret);
+}
+
+/**
+ * Verify a one-time passkey login token and return userId.
+ */
+export async function verifyPasskeyLoginToken(
+  token: string
+): Promise<{ userId: string }> {
+  try {
+    const secret = getJwtSecret();
+    const { payload } = await jwtVerify(token, secret, {
+      issuer: "helpmaton",
+      audience: "helpmaton-passkey",
+    });
+    if (
+      payload.purpose === "passkey-login" &&
+      typeof payload.userId === "string"
+    ) {
+      return { userId: payload.userId };
+    }
+    throw unauthorized("Invalid passkey login token");
+  } catch (error) {
+    if (error && typeof error === "object" && "isBoom" in error) {
+      throw error;
+    }
+    throw unauthorized("Invalid or expired passkey login token");
+  }
+}

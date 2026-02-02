@@ -10,7 +10,8 @@ Helpmaton supports multiple authentication methods:
 2. **JWT Tokens**: For API access
 3. **API Keys**: For programmatic access
 4. **Magic Links**: Passwordless email authentication
-5. **OAuth**: Gmail and Outlook integration
+5. **Passkeys (WebAuthn)**: Passwordless sign-in with device biometrics or security key
+6. **OAuth**: Gmail and Outlook integration
 
 ## Session-Based Authentication
 
@@ -273,6 +274,37 @@ https://app.helpmaton.com/api/auth/callback/email?token=secure_token_123
 - Tokens expire after 24 hours
 - Tokens are cryptographically secure
 
+## Passkey (WebAuthn) Authentication
+
+### How It Works
+
+Passwordless sign-in using WebAuthn:
+
+1. **Registration (after login)**: User creates a passkey from Settings (Sign-in methods). Backend generates creation options, browser creates credential, backend verifies and stores it in the `next-auth` table (DynamoDB).
+2. **Login**: User clicks "Sign in with passkey" on the login page. Backend returns authentication options (challenge stored in signed cookie). Browser prompts for authenticator; backend verifies assertion, looks up user by credential ID, issues a short-lived one-time JWT. Frontend calls Auth.js Credentials provider with that token to establish the same session as magic link.
+
+### Registration Flow
+
+**Endpoints** (require session):
+
+- `POST /api/user/passkey/register/options` – Returns WebAuthn creation options and sets challenge cookie.
+- `POST /api/user/passkey/register/verify` – Body: credential (RegistrationResponseJSON). Verifies and stores passkey; returns `{ verified: true }`.
+
+### Login Flow
+
+**Endpoints** (no auth):
+
+- `GET /api/user/passkey/login/options` – Returns WebAuthn request options and sets challenge cookie.
+- `POST /api/user/passkey/login/verify` – Body: assertion (AuthenticationResponseJSON). Verifies assertion, updates counter, returns `{ token }` (one-time JWT for Auth.js).
+
+Frontend then calls `signIn("passkey", { token, callbackUrl, redirect: false })`; Auth.js Credentials provider verifies the token and creates the same session as email sign-in.
+
+### Data and Security
+
+- **Storage**: Passkeys stored in the `next-auth` table (pk=USER#userId, sk=PASSKEY#credentialId). GSI `byCredentialId` (gsi2pk/gsi2sk) for login lookup (no table scans).
+- **Challenges**: Register challenge bound to session; login challenge in signed HTTP-only cookie. Verified once and discarded.
+- **Origin/rpId**: Set from backend config (e.g. `FRONTEND_URL`); verification rejects wrong origin.
+
 ## OAuth Authentication
 
 ### Supported Providers
@@ -437,6 +469,10 @@ export const requireAuthOrSession = async (req, res, next) => {
 - `GET /api/auth/callback/email` - Magic link callback
 - `GET /api/auth/callback/google` - Google OAuth callback
 - `GET /api/auth/callback/outlook` - Outlook OAuth callback
+- `POST /api/user/passkey/register/options` - Passkey registration options (session required)
+- `POST /api/user/passkey/register/verify` - Passkey registration verify (session required)
+- `GET /api/user/passkey/login/options` - Passkey login options (no auth)
+- `POST /api/user/passkey/login/verify` - Passkey login verify, returns one-time token (no auth)
 - `POST /api/user/tokens` - Generate access/refresh tokens
 - `POST /api/user/refresh` - Refresh access token
 - `POST /api/user/api-keys` - Create user API key

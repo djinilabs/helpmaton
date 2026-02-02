@@ -55,8 +55,15 @@ export const tableSchemas = {
     type: z.string().optional(), // "USER" for user records, undefined for account records
     lastCreditErrorEmailSentAt: z.iso.datetime().optional(),
     lastSpendingLimitErrorEmailSentAt: z.iso.datetime().optional(),
-    gsi1pk: z.string().optional(), // GSI1 partition key for email lookups
-    gsi1sk: z.string().optional(), // GSI1 sort key for email lookups
+    gsi1pk: z.string().optional(), // GSI1 partition key for email lookups (GSI2)
+    gsi1sk: z.string().optional(), // GSI1 sort key for email lookups (GSI2)
+    gsi2pk: z.string().optional(), // GSI2 partition key for passkey lookup by credential id (byCredentialId)
+    gsi2sk: z.string().optional(), // GSI2 sort key for passkey lookup (byCredentialId)
+    credentialPublicKey: z.string().optional(), // passkey: base64-encoded COSE key
+    counter: z.number().int().min(0).optional(), // passkey: signature counter
+    transports: z.string().optional(), // passkey
+    credentialDeviceType: z.string().optional(), // passkey
+    credentialBackedUp: z.boolean().optional(), // passkey
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
     expires: z.number().optional(),
@@ -630,6 +637,21 @@ export const tableSchemas = {
   }),
 } as const;
 
+/** Schema for passkey records stored in the next-auth table (pk=USER#userId, sk=PASSKEY#credentialId). */
+export const passkeyRecordSchema = TableBaseSchema.extend({
+  pk: z.string(),
+  sk: z.string(),
+  gsi2pk: z.string().optional(),
+  gsi2sk: z.string().optional(),
+  credentialPublicKey: z.string(),
+  counter: z.number().int().min(0),
+  transports: z.string().optional(),
+  credentialDeviceType: z.string().optional(),
+  credentialBackedUp: z.boolean().optional(),
+  version: z.number().default(1),
+  createdAt: z.iso.datetime().default(new Date().toISOString()),
+});
+
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
 export type TableSchemas = typeof tableSchemas;
 export type TableName =
@@ -716,6 +738,7 @@ export type BotIntegrationRecord = z.infer<
 export type AgentScheduleRecord = z.infer<
   (typeof tableSchemas)["agent-schedule"]
 >;
+export type UserPasskeyRecord = z.infer<typeof passkeyRecordSchema>;
 
 export const PERMISSION_LEVELS = {
   READ: 1,

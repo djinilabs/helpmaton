@@ -890,6 +890,34 @@ export async function getUserEmailById(
 }
 
 /**
+ * Get user by ID (GetItem on next-auth by pk/sk). No Scan.
+ * @param userId - User ID
+ * @returns User id, email, name or undefined if not found
+ */
+export async function getUserById(
+  userId: string
+): Promise<{ id: string; email: string; name: string | null } | undefined> {
+  try {
+    const client = await database();
+    const table = client["next-auth"];
+    const pk = `USER#${userId}`;
+    const sk = `USER#${userId}`;
+    const user = await table.get(pk, sk);
+    if (!user || !user.email) {
+      return undefined;
+    }
+    return {
+      id: user.id ?? userId,
+      email: user.email,
+      name: typeof user.name === "string" ? user.name : null,
+    };
+  } catch (error) {
+    console.error("[getUserById] Error getting user by id:", error);
+    return undefined;
+  }
+}
+
+/**
  * Get user by email address
  * @param email - Email address
  * @returns User ID and email, or undefined if not found

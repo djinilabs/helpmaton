@@ -1,5 +1,5 @@
 import { signIn, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FC } from "react";
 
 const Login: FC = () => {
@@ -7,6 +7,24 @@ const Login: FC = () => {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [passkeyAvailable, setPasskeyAvailable] = useState<boolean | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const check =
+      window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable?.();
+    if (typeof check?.then !== "function") {
+      setPasskeyAvailable(false);
+      return;
+    }
+    check
+      .then((available) => setPasskeyAvailable(available === true))
+      .catch(() => setPasskeyAvailable(false));
+  }, []);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +52,44 @@ const Login: FC = () => {
     }
   };
 
+  const handlePasskeySignIn = async () => {
+    setPasskeyError(null);
+    setIsPasskeyLoading(true);
+    try {
+      const { signInWithPasskey } = await import("../utils/passkeyLogin");
+      const token = await signInWithPasskey();
+      const result = await signIn("passkey", {
+        token,
+        callbackUrl: window.location.href,
+        redirect: false,
+      });
+      if (result?.ok) {
+        window.location.reload();
+      } else if (result?.error) {
+        setPasskeyError(result.error);
+      } else {
+        setPasskeyError("Passkey sign-in failed. Please try again.");
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Passkey sign-in failed";
+      const lower = message.toLowerCase();
+      const isUserCancellation =
+        lower.includes("cancel") ||
+        lower.includes("abort") ||
+        lower.includes("notallowederror") ||
+        lower.includes("the operation either timed out or was not allowed");
+      if (isUserCancellation) {
+        return;
+      }
+      setPasskeyError(
+        message.trim() || "Passkey sign-in failed. Please try again."
+      );
+    } finally {
+      setIsPasskeyLoading(false);
+    }
+  };
+
   if (status === "authenticated") {
     return null;
   }
@@ -57,12 +113,17 @@ const Login: FC = () => {
           </h1>
         </div>
         <h2
-          className={`mb-10 text-3xl font-bold text-neutral-900 dark:text-neutral-50 ${
-            emailSent ? "text-center" : ""
+          className={`text-3xl font-bold text-neutral-900 dark:text-neutral-50 ${
+            emailSent ? "mb-10 text-center" : "mb-2"
           }`}
         >
-          {emailSent ? "Check your inbox" : "Sign in"}
+          {emailSent ? "Check your inbox" : "Sign in or sign up"}
         </h2>
+        {!emailSent && (
+          <p className="mb-10 text-sm text-neutral-600 dark:text-neutral-400">
+            Enter your email to sign in or create a new Helpmaton account.
+          </p>
+        )}
 
         {emailSent ? (
           <div className="space-y-4 text-center">
@@ -126,6 +187,36 @@ const Login: FC = () => {
             >
               {isSubmitting ? "Sending..." : "Send sign-in link"}
             </button>
+
+            {passkeyAvailable === true && (
+              <>
+                <div className="relative my-4 flex items-center">
+                  <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
+                  <span className="mx-3 text-sm text-neutral-500 dark:text-neutral-400">
+                    or
+                  </span>
+                  <div className="flex-grow border-t border-neutral-300 dark:border-neutral-600" />
+                </div>
+
+                {passkeyError && (
+                  <p
+                    role="alert"
+                    className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200"
+                  >
+                    {passkeyError}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  disabled={isPasskeyLoading}
+                  onClick={handlePasskeySignIn}
+                  className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3.5 font-semibold text-neutral-700 transition-all duration-200 hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
+                >
+                  {isPasskeyLoading ? "Signing in..." : "Sign in with passkey"}
+                </button>
+              </>
+            )}
           </form>
         )}
       </div>

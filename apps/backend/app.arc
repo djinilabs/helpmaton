@@ -176,6 +176,11 @@ next-auth
   gsi1sk **String
   name GSI2
 
+next-auth
+  gsi2pk *String
+  gsi2sk **String
+  name byCredentialId
+
 permission
   resourceType *String
   sk **String

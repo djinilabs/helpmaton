@@ -20,7 +20,7 @@ import {
 import { useToast } from "../hooks/useToast";
 import { trackEvent } from "../utils/tracking";
 
-// eslint-disable-next-line complexity
+/* eslint-disable-next-line complexity -- subscription UI has many states and callbacks */
 const SubscriptionManagement: FC = () => {
   const { data: session } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
