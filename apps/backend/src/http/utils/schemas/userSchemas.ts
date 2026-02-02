@@ -41,11 +41,16 @@ export const authGateVerificationSchema = z
 
 /**
  * Passkey registration verify body (RegistrationResponseJSON from browser).
+ * Browser/SimpleWebAuthn may include extra fields (transports, publicKey, etc.); allow them so validation passes.
  */
 const passkeyAttestationResponseSchema = z
   .object({
     clientDataJSON: z.string().min(1),
     attestationObject: z.string().min(1),
+    transports: z.array(z.string()).optional(),
+    publicKeyAlgorithm: z.number().optional(),
+    publicKey: z.string().optional(),
+    authenticatorData: z.string().optional(),
   })
   .strict();
 
@@ -56,6 +61,7 @@ export const passkeyRegisterVerifySchema = z
     response: passkeyAttestationResponseSchema,
     clientExtensionResults: z.record(z.string(), z.unknown()).optional(),
     type: z.literal("public-key"),
+    authenticatorAttachment: z.string().optional(),
   })
   .strict();
 
@@ -78,5 +84,6 @@ export const passkeyLoginVerifySchema = z
     response: passkeyAssertionResponseSchema,
     clientExtensionResults: z.record(z.string(), z.unknown()).optional(),
     type: z.literal("public-key"),
+    authenticatorAttachment: z.string().optional(),
   })
   .strict();

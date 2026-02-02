@@ -48,9 +48,15 @@ export function useTokenGeneration(): boolean {
 
       // Mark as generating and create the promise
       tokenGenerationPromiseRef.current = (async () => {
-        try {
-          // Generate tokens by calling the endpoint
-          // This requires a valid cookie-based session (temporary migration step)
+        const showSessionError = (message: string) => {
+          if (typeof window !== "undefined") {
+            alert(message);
+          }
+          tokensGeneratedRef.current = false;
+          setTokensReady(false);
+        };
+
+        const attemptGenerateTokens = async (): Promise<boolean> => {
           const response = await fetch("/api/user/generate-tokens", {
             method: "POST",
             credentials: "include", // Include cookies for this one-time call
@@ -66,46 +72,80 @@ export function useTokenGeneration(): boolean {
               console.log("[useTokenGeneration] Tokens generated and stored");
               tokensGeneratedRef.current = true;
               setTokensReady(true);
-            } else {
-              console.error(
-                "[useTokenGeneration] Invalid response: missing tokens"
-              );
-              // Show user-facing error
-              if (typeof window !== "undefined") {
-                alert(
-                  "Failed to initialize session. Please refresh the page and try again."
+              return true;
+            }
+            console.error(
+              "[useTokenGeneration] Invalid response: missing tokens"
+            );
+            return false;
+          }
+
+          const errorText = await response.text();
+          console.error(
+            "[useTokenGeneration] Failed to generate tokens:",
+            response.status,
+            response.statusText,
+            errorText
+          );
+          return false;
+        };
+
+        try {
+          let success = await attemptGenerateTokens();
+          // Retry once after a short delay (handles session cookie / timing after login or reload)
+          if (!success) {
+            await new Promise((r) => setTimeout(r, 500));
+            success = await attemptGenerateTokens();
+          }
+          if (!success) {
+            showSessionError(
+              "Failed to initialize session. Please refresh the page and try again."
+            );
+          }
+        } catch (error) {
+          const isAbort =
+            error instanceof Error && error.name === "AbortError";
+          if (isAbort) {
+            // Request was aborted (e.g. React Strict Mode unmount); don't alert – next mount may retry
+            console.warn(
+              "[useTokenGeneration] Generate-tokens request was aborted"
+            );
+            tokensGeneratedRef.current = false;
+            setTokensReady(false);
+          } else {
+            console.error(
+              "[useTokenGeneration] Error generating tokens:",
+              error
+            );
+            // Retry once on network/other errors (e.g. session not ready right after login)
+            let recovered = false;
+            try {
+              await new Promise((r) => setTimeout(r, 500));
+              recovered = await attemptGenerateTokens();
+              if (!recovered) {
+                showSessionError(
+                  "Failed to initialize session. Please check your connection and refresh the page."
                 );
               }
+            } catch (retryError) {
+              const retryAbort =
+                retryError instanceof Error &&
+                retryError.name === "AbortError";
+              if (!retryAbort) {
+                console.error(
+                  "[useTokenGeneration] Retry failed:",
+                  retryError
+                );
+                showSessionError(
+                  "Failed to initialize session. Please check your connection and refresh the page."
+                );
+              }
+            }
+            if (!recovered) {
               tokensGeneratedRef.current = false;
               setTokensReady(false);
             }
-          } else {
-            const errorText = await response.text();
-            console.error(
-              "[useTokenGeneration] Failed to generate tokens:",
-              response.status,
-              response.statusText,
-              errorText
-            );
-            // Show user-facing error
-            if (typeof window !== "undefined") {
-              alert(
-                "Failed to initialize session. Please refresh the page and try again."
-              );
-            }
-            tokensGeneratedRef.current = false;
-            setTokensReady(false);
           }
-        } catch (error) {
-          console.error("[useTokenGeneration] Error generating tokens:", error);
-          // Show user-facing error
-          if (typeof window !== "undefined") {
-            alert(
-              "Failed to initialize session. Please check your connection and refresh the page."
-            );
-          }
-          tokensGeneratedRef.current = false;
-          setTokensReady(false);
         } finally {
           tokenGenerationPromiseRef.current = null;
         }

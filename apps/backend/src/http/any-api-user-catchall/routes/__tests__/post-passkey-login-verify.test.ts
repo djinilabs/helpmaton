@@ -185,4 +185,37 @@ describe("POST /api/user/passkey/login/verify", () => {
     expect(mockGeneratePasskeyLoginToken).toHaveBeenCalledWith("user-123");
     expect(next).not.toHaveBeenCalled();
   });
+
+  it("should accept body with authenticatorAttachment (browser may send it)", async () => {
+    mockGetPasskeyChallengeFromCookie.mockResolvedValue("challenge");
+    mockVerifyPasskeyAuthentication.mockResolvedValue({
+      userId: "user-456",
+      newCounter: 2,
+    });
+    mockUpdatePasskeyCounter.mockResolvedValue(undefined);
+    mockGeneratePasskeyLoginToken.mockResolvedValue("one-time-jwt");
+
+    const req = createMockRequest({
+      body: {
+        ...validBody,
+        authenticatorAttachment: "platform",
+      },
+      headers: {},
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callHandler(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ token: "one-time-jwt" });
+    expect(mockVerifyPasskeyAuthentication).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "cred-id-base64",
+        authenticatorAttachment: "platform",
+      }),
+      "challenge"
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
 });
