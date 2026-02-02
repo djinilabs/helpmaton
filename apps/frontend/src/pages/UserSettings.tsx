@@ -1,7 +1,3 @@
-import {
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-} from "@simplewebauthn/browser";
 import { useState, lazy, Suspense, useEffect } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
@@ -14,10 +10,6 @@ import {
   useCreateUserApiKey,
   useDeleteUserApiKey,
 } from "../hooks/useUserApiKeys";
-import {
-  getPasskeyRegisterOptions,
-  verifyPasskeyRegistration,
-} from "../utils/passkeyApi";
 import { trackEvent } from "../utils/tracking";
 
 // Lazy load SubscriptionPanel
@@ -107,27 +99,22 @@ const UserSettings: FC = () => {
   const handleCreatePasskey = async () => {
     setIsPasskeyLoading(true);
     try {
-      const options = await getPasskeyRegisterOptions();
-      const credential = await startRegistration({
-        optionsJSON:
-          options as unknown as PublicKeyCredentialCreationOptionsJSON,
-      });
-      await verifyPasskeyRegistration(
-        credential as unknown as Record<string, unknown>
-      );
+      const { createPasskey } = await import("../utils/passkeyRegistration");
+      await createPasskey();
       toast.success("Passkey added. You can now sign in with passkey.");
       trackEvent("passkey_created", {});
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to create passkey";
-      if (
-        message.includes("cancel") ||
-        message.toLowerCase().includes("abort") ||
-        message.toLowerCase().includes("user")
-      ) {
-        return;
+      const lower = message.toLowerCase();
+      const isUserCancellation =
+        lower.includes("cancel") ||
+        lower.includes("abort") ||
+        lower.includes("notallowederror") ||
+        lower.includes("the operation either timed out or was not allowed");
+      if (!isUserCancellation) {
+        toast.error(message);
       }
-      toast.error(message);
     } finally {
       setIsPasskeyLoading(false);
     }

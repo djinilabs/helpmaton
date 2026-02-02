@@ -115,13 +115,15 @@ const Home: FC = () => {
 
 /**
  * Shown only when: user is logged in, device supports passkeys, and user has no passkey stored.
- * Renders a box with copy and a button to add a passkey (links to settings).
+ * "Create passkey" opens the system passkey dialog immediately; registration code is loaded only on click.
  */
 const AddPasskeyPrompt: FC = () => {
   const [deviceSupportsPasskey, setDeviceSupportsPasskey] = useState<
     boolean | null
   >(null);
   const [hasPasskey, setHasPasskey] = useState<boolean | null>(null);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -140,6 +142,31 @@ const AddPasskeyPrompt: FC = () => {
     });
   }, []);
 
+  const handleCreatePasskey = async () => {
+    setPasskeyError(null);
+    setIsPasskeyLoading(true);
+    try {
+      const { createPasskey } = await import("../utils/passkeyRegistration");
+      await createPasskey();
+      trackEvent("passkey_created", {});
+      setHasPasskey(true);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create passkey";
+      const lower = message.toLowerCase();
+      const isUserCancellation =
+        lower.includes("cancel") ||
+        lower.includes("abort") ||
+        lower.includes("notallowederror") ||
+        lower.includes("the operation either timed out or was not allowed");
+      if (!isUserCancellation) {
+        setPasskeyError(message.trim() || "Failed to create passkey.");
+      }
+    } finally {
+      setIsPasskeyLoading(false);
+    }
+  };
+
   const show =
     deviceSupportsPasskey === true && hasPasskey === false;
   if (!show) return null;
@@ -153,25 +180,37 @@ const AddPasskeyPrompt: FC = () => {
         Add a passkey to sign in without email next time. Use your device
         biometrics or security key for a quick, secure login.
       </p>
-      <Link
-        to="/settings"
-        className="inline-flex transform items-center gap-2 rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
-      >
-        Add passkey
-        <svg
-          className="size-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      {passkeyError && (
+        <p
+          role="alert"
+          className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 5l7 7-7 7"
-          />
-        </svg>
-      </Link>
+          {passkeyError}
+        </p>
+      )}
+      <button
+        type="button"
+        disabled={isPasskeyLoading}
+        onClick={handleCreatePasskey}
+        className="inline-flex transform items-center gap-2 rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+      >
+        {isPasskeyLoading ? "Creating passkey..." : "Create passkey"}
+        {!isPasskeyLoading && (
+          <svg
+            className="size-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        )}
+      </button>
     </div>
   );
 };
