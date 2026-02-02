@@ -3,10 +3,7 @@
  * Intended to be dynamic-imported so @simplewebauthn/browser and passkeyApi
  * are only loaded when the user actually starts creating a passkey.
  */
-import {
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-} from "@simplewebauthn/browser";
+import { startRegistration } from "@simplewebauthn/browser";
 
 import {
   getPasskeyRegisterOptions,
@@ -19,9 +16,7 @@ import {
  */
 export async function createPasskey(): Promise<void> {
   const options = await getPasskeyRegisterOptions();
-  const credential = await startRegistration({
-    optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
-  });
+  const credential = await startRegistration({ optionsJSON: options });
   await verifyPasskeyRegistration(
     credential as unknown as Record<string, unknown>
   );

@@ -214,7 +214,9 @@ export async function verifyPasskeyAuthentication(
   if (!verification.verified || !verification.authenticationInfo) {
     return null;
   }
-  const userId = passkey.gsi2sk?.replace(/^USER#/, "") ?? passkey.pk.replace(/^USER#/, "");
+  const userId = passkey.gsi2sk
+    ? passkey.gsi2sk.replace(/^USER#/, "")
+    : passkey.pk.replace(/^USER#/, "");
   return {
     userId,
     newCounter: verification.authenticationInfo.newCounter,

@@ -280,7 +280,7 @@ https://app.helpmaton.com/api/auth/callback/email?token=secure_token_123
 
 Passwordless sign-in using WebAuthn:
 
-1. **Registration (after login)**: User creates a passkey from Settings (Sign-in methods). Backend generates creation options, browser creates credential, backend verifies and stores it in `user-passkey` (DynamoDB).
+1. **Registration (after login)**: User creates a passkey from Settings (Sign-in methods). Backend generates creation options, browser creates credential, backend verifies and stores it in the `next-auth` table (DynamoDB).
 2. **Login**: User clicks "Sign in with passkey" on the login page. Backend returns authentication options (challenge stored in signed cookie). Browser prompts for authenticator; backend verifies assertion, looks up user by credential ID, issues a short-lived one-time JWT. Frontend calls Auth.js Credentials provider with that token to establish the same session as magic link.
 
 ### Registration Flow
@@ -301,7 +301,7 @@ Frontend then calls `signIn("passkey", { token, callbackUrl, redirect: false })`
 
 ### Data and Security
 
-- **Storage**: Passkeys stored in `user-passkey` table (encrypted). GSI `byCredentialId` for login lookup (no table scans).
+- **Storage**: Passkeys stored in the `next-auth` table (pk=USER#userId, sk=PASSKEY#credentialId). GSI `byCredentialId` (gsi2pk/gsi2sk) for login lookup (no table scans).
 - **Challenges**: Register challenge bound to session; login challenge in signed HTTP-only cookie. Verified once and discarded.
 - **Origin/rpId**: Set from backend config (e.g. `FRONTEND_URL`); verification rejects wrong origin.
 

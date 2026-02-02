@@ -72,7 +72,7 @@
 - **OpenAPI**: Auto-generated from code annotations
 - **MCP Integrations**: Non-OAuth MCP services (e.g., PostHog) use API keys in `mcp-server.config.apiKey` and validate base URLs against approved regions before requests.
 - **MCP OAuth (per-server creds)**: Some OAuth MCP servers (Zendesk) store client credentials + subdomain in `mcp-server.config` instead of env vars, and OAuth endpoints are built from the stored subdomain.
-- **Passkeys (WebAuthn)**: Custom flow with `@simplewebauthn/server` (backend) and `@simplewebauthn/browser` (frontend). Passkeys stored in `user-passkey` table with GSI `byCredentialId` for login lookup. Login issues a short-lived one-time JWT; Auth.js Credentials provider (`passkey`) verifies the token and creates the same session as email sign-in. Challenges: register bound to session, login in signed cookie.
+- **Passkeys (WebAuthn)**: Custom flow with `@simplewebauthn/server` (backend) and `@simplewebauthn/browser` (frontend). Passkeys stored in `next-auth` table (pk=USER#userId, sk=PASSKEY#credentialId) with GSI `byCredentialId` for login lookup. Login issues a short-lived one-time JWT; Auth.js Credentials provider (`passkey`) verifies the token and creates the same session as email sign-in. Challenges: register bound to session, login in signed cookie.
 
 ### Code Patterns
 

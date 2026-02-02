@@ -3,28 +3,21 @@
  * Uses fetch with credentials: "include" so challenge and session cookies are sent.
  */
 
-/** WebAuthn authentication options from GET /api/user/passkey/login/options */
-export interface PasskeyLoginOptions {
-  challenge: string;
-  rpId?: string;
-  timeout?: number;
-  allowCredentials?: Array<{ id: string; type: string; transports?: string[] }>;
-}
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
+
+/** WebAuthn authentication options from GET /api/user/passkey/login/options (matches library type). */
+export type PasskeyLoginOptions = PublicKeyCredentialRequestOptionsJSON;
 
 /** Response from POST /api/user/passkey/login/verify */
 export interface PasskeyLoginVerifyResponse {
   token: string;
 }
 
-/** WebAuthn registration options from POST /api/user/passkey/register/options */
-export interface PasskeyRegisterOptions {
-  challenge: string;
-  rp: { name: string; id?: string };
-  user: { id: string; name: string; displayName: string };
-  pubKeyCredParams: Array<{ type: string; alg: number }>;
-  timeout?: number;
-  excludeCredentials?: Array<{ id: string; type: string; transports?: string[] }>;
-}
+/** WebAuthn registration options from POST /api/user/passkey/register/options (matches library type). */
+export type PasskeyRegisterOptions = PublicKeyCredentialCreationOptionsJSON;
 
 /** Response from POST /api/user/passkey/register/verify */
 export interface PasskeyRegisterVerifyResponse {

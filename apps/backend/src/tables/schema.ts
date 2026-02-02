@@ -60,7 +60,7 @@ export const tableSchemas = {
     gsi2pk: z.string().optional(), // GSI2 partition key for passkey lookup by credential id (byCredentialId)
     gsi2sk: z.string().optional(), // GSI2 sort key for passkey lookup (byCredentialId)
     credentialPublicKey: z.string().optional(), // passkey: base64-encoded COSE key
-    counter: z.number().int().optional(), // passkey: signature counter
+    counter: z.number().int().min(0).optional(), // passkey: signature counter
     transports: z.string().optional(), // passkey
     credentialDeviceType: z.string().optional(), // passkey
     credentialBackedUp: z.boolean().optional(), // passkey
@@ -644,7 +644,7 @@ export const passkeyRecordSchema = TableBaseSchema.extend({
   gsi2pk: z.string().optional(),
   gsi2sk: z.string().optional(),
   credentialPublicKey: z.string(),
-  counter: z.number().int(),
+  counter: z.number().int().min(0),
   transports: z.string().optional(),
   credentialDeviceType: z.string().optional(),
   credentialBackedUp: z.boolean().optional(),
