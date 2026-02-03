@@ -137,15 +137,17 @@ describe("memoryExtraction", () => {
     expect(result?.memoryOperations).toHaveLength(0);
   });
 
-  it("retries with repair when JSON parsing fails", async () => {
-    mockGenerateText
-      .mockResolvedValueOnce({ text: "```json\n{ invalid }\n```" })
-      .mockResolvedValueOnce({
-        text: JSON.stringify({
-          summary: "Recovered summary",
-          memory_operations: [],
-        }),
-      });
+  it("parses valid JSON inside code block with surrounding text", async () => {
+    const payload = {
+      summary: "Summary from block",
+      memory_operations: [],
+    };
+    mockGenerateText.mockResolvedValue({
+      text:
+        "Here is the result:\n\n```json\n" +
+        JSON.stringify(payload) +
+        "\n```\n\nDone.",
+    });
 
     const result = await extractConversationMemory({
       workspaceId: "workspace-1",
@@ -154,9 +156,26 @@ describe("memoryExtraction", () => {
       conversationText: "User: Hello",
     });
 
-    expect(result?.summary).toBe("Recovered summary");
-    expect(mockGenerateText).toHaveBeenCalledTimes(2);
-    expect(mockValidateCreditsAndLimitsAndReserve).toHaveBeenCalledTimes(2);
+    expect(result?.summary).toBe("Summary from block");
+    expect(result?.memoryOperations).toHaveLength(0);
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws when JSON is invalid and does not call LLM again", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: "```json\n{ invalid }\n```",
+    });
+
+    await expect(
+      extractConversationMemory({
+        workspaceId: "workspace-1",
+        agentId: "agent-1",
+        conversationId: "conversation-1",
+        conversationText: "User: Hello",
+      }),
+    ).rejects.toThrow();
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
   it("adjusts credits after a successful extraction when reservation exists", async () => {

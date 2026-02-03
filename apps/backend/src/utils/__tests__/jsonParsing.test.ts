@@ -35,4 +35,22 @@ describe("jsonParsing utilities", () => {
   it("throws when no JSON is available", () => {
     expect(() => parseJsonWithFallback("{oops")).toThrow();
   });
+
+  it("parses JSON from code block with leading and trailing text", () => {
+    const payload = { summary: "Done", memory_operations: [] };
+    const input =
+      "Here is the JSON:\n\n```json\n" +
+      JSON.stringify(payload) +
+      "\n```\n\nHope that helps!";
+    const result = parseJsonWithFallback<typeof payload>(input);
+    expect(result).toEqual(payload);
+  });
+
+  it("parses JSON from generic code block with surrounding text", () => {
+    const payload = { a: 1, b: 2 };
+    const input =
+      "Result:\n```\n" + JSON.stringify(payload) + "\n```\nDone.";
+    const result = parseJsonWithFallback<typeof payload>(input);
+    expect(result).toEqual(payload);
+  });
 });
