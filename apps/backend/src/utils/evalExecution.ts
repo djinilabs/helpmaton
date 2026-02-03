@@ -294,6 +294,7 @@ export function buildEvalFailureRecord(input: {
     usesByok: input.usesByok,
     tokenUsage: input.tokenUsage,
     evaluatedAt: input.evaluatedAt,
+    agentIdEvaluatedAt: `${input.agentId}#${input.evaluatedAt}`,
     version: 1,
     createdAt: input.evaluatedAt,
   };
@@ -655,6 +656,7 @@ Please provide your evaluation as a JSON object following the specified format.`
       usesByok,
       tokenUsage: totalTokenUsage,
       evaluatedAt: now,
+      agentIdEvaluatedAt: `${agentId}#${now}`,
       version: 1,
       createdAt: now,
     };

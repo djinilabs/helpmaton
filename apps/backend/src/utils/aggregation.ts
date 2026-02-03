@@ -386,22 +386,18 @@ export function aggregateConversations(
     const originalModelName = modelName;
     modelName = normalizeModelNameForAggregation(modelName);
 
-    // Extract cost from conversation record (costUsd field)
-    const conversationCostUsd = (conv.costUsd as number | undefined) || 0;
+    // Cost: do NOT add conversation costUsd (text-generation) here — for recent dates that
+    // comes from transactions (aggregateTransactionsStream), and adding both would double-count.
+    // Do not add conv.rerankingCostUsd here: reranking is written as tool-execution transactions
+    // (tool_call "rerank") and aggregated in aggregateToolTransactionsStream into rerankingCostUsd.
+    // Adding conversation rerankingCostUsd would double-count with those transactions.
 
-    // Extract reranking cost from conversation record (rerankingCostUsd field)
-    const rerankingCostUsd = (conv.rerankingCostUsd as number | undefined) || 0;
-
-    // Aggregate totals
+    // Aggregate totals (tokens and counts; cost from transactions, reranking from tool stream)
     stats.inputTokens += inputTokens;
     stats.outputTokens += outputTokens;
     stats.totalTokens += totalTokens;
-    stats.costUsd += conversationCostUsd;
-    stats.rerankingCostUsd += rerankingCostUsd;
-    stats.costByType.textGeneration += conversationCostUsd;
-    stats.costByType.reranking += rerankingCostUsd;
 
-    // Aggregate by model
+    // Aggregate by model (tokens only)
     if (!stats.byModel[modelName]) {
       stats.byModel[modelName] = {
         inputTokens: 0,
@@ -413,7 +409,6 @@ export function aggregateConversations(
     stats.byModel[modelName].inputTokens += inputTokens;
     stats.byModel[modelName].outputTokens += outputTokens;
     stats.byModel[modelName].totalTokens += totalTokens;
-    stats.byModel[modelName].costUsd += conversationCostUsd;
 
     // Aggregate by provider - extract supplier from model name, not from conv.provider (which is "openrouter")
     const supplier = extractSupplierFromModelName(originalModelName); // Use original model name to extract provider
@@ -428,15 +423,13 @@ export function aggregateConversations(
     stats.byProvider[supplier].inputTokens += inputTokens;
     stats.byProvider[supplier].outputTokens += outputTokens;
     stats.byProvider[supplier].totalTokens += totalTokens;
-    stats.byProvider[supplier].costUsd += conversationCostUsd;
 
-    // Aggregate by BYOK
+    // Aggregate by BYOK (tokens only)
     const isByok = conv.usesByok === true;
     const byokKey = isByok ? "byok" : "platform";
     stats.byByok[byokKey].inputTokens += inputTokens;
     stats.byByok[byokKey].outputTokens += outputTokens;
     stats.byByok[byokKey].totalTokens += totalTokens;
-    stats.byByok[byokKey].costUsd += conversationCostUsd;
   }
 
   return stats;
@@ -707,8 +700,29 @@ async function* queryTransactionsForDateRange(
 ): AsyncGenerator<WorkspaceCreditTransactionRecord, void, unknown> {
   const { workspaceId, agentId, startDate, endDate } = options;
 
-  if (agentId) {
-    // Query by agentId using GSI with queryAsync to handle pagination
+  if (workspaceId && agentId) {
+    // Query by GSI byWorkspaceIdAndAgentId: key-only, no scan/filter
+    const agentIdCreatedAtStart = `${agentId}#${startDate.toISOString()}`;
+    const agentIdCreatedAtEnd = `${agentId}#${endDate.toISOString()}`;
+    for await (const transaction of db[
+      "workspace-credit-transactions"
+    ].queryAsync({
+      IndexName: "byWorkspaceIdAndAgentId",
+      KeyConditionExpression:
+        "workspaceId = :workspaceId AND agentIdCreatedAt BETWEEN :start AND :end",
+      ExpressionAttributeValues: {
+        ":workspaceId": workspaceId,
+        ":start": agentIdCreatedAtStart,
+        ":end": agentIdCreatedAtEnd,
+      },
+    })) {
+      const createdAt = new Date(transaction.createdAt);
+      if (createdAt >= startDate && createdAt <= endDate) {
+        yield transaction;
+      }
+    }
+  } else if (agentId) {
+    // Query by agentId only (no workspace scope)
     for await (const transaction of db[
       "workspace-credit-transactions"
     ].queryAsync({
@@ -724,7 +738,6 @@ async function* queryTransactionsForDateRange(
       },
       FilterExpression: "#createdAt BETWEEN :startDate AND :endDate",
     })) {
-      // Apply date filtering inline (additional safety check)
       const createdAt = new Date(transaction.createdAt);
       if (createdAt >= startDate && createdAt <= endDate) {
         yield transaction;
@@ -904,8 +917,9 @@ async function aggregateTransactionsStream(
 /**
  * Aggregate tool transactions - streaming version
  * Processes transactions incrementally as they stream from the database
+ * Rerank (tool_call "rerank") costs go to rerankingCostUsd, not costUsd, to avoid double-count with conversation rerankingCostUsd.
  */
-async function aggregateToolTransactionsStream(
+export async function aggregateToolTransactionsStream(
   transactions: AsyncGenerator<WorkspaceCreditTransactionRecord, void, unknown>
 ): Promise<UsageStats> {
   const stats: UsageStats = {
@@ -953,9 +967,16 @@ async function aggregateToolTransactionsStream(
     const toolCall = txn.tool_call || "unknown";
     const supplier = txn.supplier || "unknown";
     const key = `${toolCall}-${supplier}`;
+    const isRerank = toolCall === "rerank";
 
-    // Aggregate totals
-    stats.costUsd += costUsd;
+    // Reranking cost goes to rerankingCostUsd (single source with transactions); adding to costUsd
+    // would double-count with conversation rerankingCostUsd, so we keep it only here.
+    if (isRerank) {
+      stats.rerankingCostUsd += costUsd;
+    } else {
+      stats.costUsd += costUsd;
+    }
+
     const chargeType = classifyToolChargeType(toolCall, supplier);
     if (chargeType) {
       stats.costByType[chargeType] += costUsd;
@@ -968,7 +989,6 @@ async function aggregateToolTransactionsStream(
         callCount: 0,
       };
     }
-    // Use the same cost calculation for tool expenses (already calculated above as costUsd)
     stats.toolExpenses[key].costUsd += costUsd;
     stats.toolExpenses[key].callCount += 1;
   }
@@ -991,7 +1011,20 @@ async function queryToolAggregatesForDate(
   const { workspaceId, agentId, userId, date } = options;
   const aggregates: ToolUsageAggregateRecord[] = [];
 
-  if (agentId) {
+  if (workspaceId && agentId) {
+    // Query by GSI byWorkspaceIdAndAgentId: key-only, no scan/filter
+    const agentIdDate = `${agentId}#${date}`;
+    const query = await db["tool-usage-aggregates"].query({
+      IndexName: "byWorkspaceIdAndAgentId",
+      KeyConditionExpression:
+        "workspaceId = :workspaceId AND agentIdDate = :agentIdDate",
+      ExpressionAttributeValues: {
+        ":workspaceId": workspaceId,
+        ":agentIdDate": agentIdDate,
+      },
+    });
+    aggregates.push(...query.items);
+  } else if (agentId) {
     const query = await db["tool-usage-aggregates"].query({
       IndexName: "byAgentIdAndDate",
       KeyConditionExpression: "agentId = :agentId AND #date = :date",
@@ -1074,12 +1107,19 @@ function aggregateToolAggregates(
 
   for (const agg of aggregates) {
     const costUsd = agg.costUsd || 0;
-    const key = `${agg.toolCall}-${agg.supplier}`;
+    const toolCall = agg.toolCall || "unknown";
+    const key = `${toolCall}-${agg.supplier || "unknown"}`;
+    const isRerank = toolCall === "rerank";
 
-    // Aggregate totals
-    stats.costUsd += costUsd;
+    // Reranking cost goes to rerankingCostUsd (same as aggregateToolTransactionsStream).
+    if (isRerank) {
+      stats.rerankingCostUsd += costUsd;
+    } else {
+      stats.costUsd += costUsd;
+    }
+
     const chargeType = classifyToolChargeType(
-      agg.toolCall || "unknown",
+      toolCall,
       agg.supplier || "unknown"
     );
     if (chargeType) {
@@ -1251,8 +1291,23 @@ async function queryConversationsForDateRange(
   const { workspaceId, agentId, startDate, endDate } = options;
   const conversations: AgentConversationRecord[] = [];
 
-  if (agentId) {
-    // Query by agentId using GSI
+  if (workspaceId && agentId) {
+    // Query by GSI byWorkspaceIdAndAgentId: key-only, no scan/filter
+    const agentIdStartedAtStart = `${agentId}#${startDate.toISOString()}`;
+    const agentIdStartedAtEnd = `${agentId}#${endDate.toISOString()}`;
+    const query = await db["agent-conversations"].query({
+      IndexName: "byWorkspaceIdAndAgentId",
+      KeyConditionExpression:
+        "workspaceId = :workspaceId AND agentIdStartedAt BETWEEN :start AND :end",
+      ExpressionAttributeValues: {
+        ":workspaceId": workspaceId,
+        ":start": agentIdStartedAtStart,
+        ":end": agentIdStartedAtEnd,
+      },
+    });
+    conversations.push(...query.items);
+  } else if (agentId) {
+    // Query by agentId only (no workspace scope)
     const query = await db["agent-conversations"].query({
       IndexName: "byAgentId",
       KeyConditionExpression: "agentId = :agentId",
@@ -1266,7 +1321,6 @@ async function queryConversationsForDateRange(
       },
       FilterExpression: "#startedAt BETWEEN :startDate AND :endDate",
     });
-
     conversations.push(...query.items);
   } else if (workspaceId) {
     // Query all agents in the workspace first, then query conversations for each agent
@@ -1375,13 +1429,30 @@ async function queryEvalCostsForDateRange(
     toolExpenses: {},
   };
 
-  // Query eval results using available GSIs
-  // Note: We need to filter by evaluatedAt date in memory since there's no GSI with evaluatedAt as sort key
+  // Query eval results by GSI byWorkspaceIdAndAgentId when possible (key-only, no scan/filter)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const evalResultTable = (db as any)["agent-eval-result"];
 
-  if (agentId) {
-    // Query by agentId using GSI with queryAsync for memory efficiency
+  if (workspaceId && agentId) {
+    // Key-only query: workspaceId + agentIdEvaluatedAt BETWEEN agentId#startDate..agentId#endDate
+    const startSk = `${agentId}#${startDate.toISOString()}`;
+    const endSk = `${agentId}#${endDate.toISOString()}`;
+    for await (const result of evalResultTable.queryAsync({
+      IndexName: "byWorkspaceIdAndAgentId",
+      KeyConditionExpression:
+        "workspaceId = :workspaceId AND agentIdEvaluatedAt BETWEEN :start AND :end",
+      ExpressionAttributeValues: {
+        ":workspaceId": workspaceId,
+        ":start": startSk,
+        ":end": endSk,
+      },
+    })) {
+      const costUsd = (result.costUsd as number | undefined) || 0;
+      stats.evalCostUsd += costUsd;
+      stats.costByType.eval += costUsd;
+    }
+  } else if (agentId) {
+    // No workspaceId: query by agentId only (byAgentId GSI), filter by date in memory
     for await (const result of evalResultTable.queryAsync({
       IndexName: "byAgentId",
       KeyConditionExpression: "agentId = :agentId",
@@ -1389,7 +1460,6 @@ async function queryEvalCostsForDateRange(
         ":agentId": agentId,
       },
     })) {
-      // Filter by date range in memory
       const evaluatedAt = new Date(result.evaluatedAt);
       if (evaluatedAt >= startDate && evaluatedAt <= endDate) {
         const costUsd = (result.costUsd as number | undefined) || 0;
@@ -1398,8 +1468,7 @@ async function queryEvalCostsForDateRange(
       }
     }
   } else if (workspaceId) {
-    // Query all agents in the workspace first, then query eval results for each agent
-    // This is more efficient than scanning the entire eval results table
+    // Workspace-only: query agents in workspace, then key-only query per agent (no filter)
     const agentsQuery = await db.agent.query({
       IndexName: "byWorkspaceId",
       KeyConditionExpression: "workspaceId = :workspaceId",
@@ -1409,35 +1478,36 @@ async function queryEvalCostsForDateRange(
     });
 
     const agentIds = agentsQuery.items.map((agent) => {
-      // Extract agentId from pk (format: "agents/{workspaceId}/{agentId}")
       const parts = agent.pk.split("/");
       return parts[parts.length - 1];
     });
 
-    // Query eval results for each agent using queryAsync for memory efficiency
+    const startSkSuffix = startDate.toISOString();
+    const endSkSuffix = endDate.toISOString();
+
     for (const aid of agentIds) {
       try {
+        const startSk = `${aid}#${startSkSuffix}`;
+        const endSk = `${aid}#${endSkSuffix}`;
         for await (const evalResult of evalResultTable.queryAsync({
-          IndexName: "byAgentId",
-          KeyConditionExpression: "agentId = :agentId",
+          IndexName: "byWorkspaceIdAndAgentId",
+          KeyConditionExpression:
+            "workspaceId = :workspaceId AND agentIdEvaluatedAt BETWEEN :start AND :end",
           ExpressionAttributeValues: {
-            ":agentId": aid,
+            ":workspaceId": workspaceId,
+            ":start": startSk,
+            ":end": endSk,
           },
         })) {
-          // Filter by date range in memory
-          const evaluatedAt = new Date(evalResult.evaluatedAt);
-          if (evaluatedAt >= startDate && evaluatedAt <= endDate) {
-            const costUsd = (evalResult.costUsd as number | undefined) || 0;
-            stats.evalCostUsd += costUsd;
-            stats.costByType.eval += costUsd;
-          }
+          const costUsd = (evalResult.costUsd as number | undefined) || 0;
+          stats.evalCostUsd += costUsd;
+          stats.costByType.eval += costUsd;
         }
       } catch (error) {
         console.error(
           `[queryEvalCostsForDateRange] Failed to query eval results for agent ${aid}:`,
           error
         );
-        // Continue with other agents even if one fails
       }
     }
   }
@@ -1460,7 +1530,20 @@ async function queryAggregatesForDate(
   const { workspaceId, agentId, userId, date } = options;
   const aggregates: TokenUsageAggregateRecord[] = [];
 
-  if (agentId) {
+  if (workspaceId && agentId) {
+    // Query by GSI byWorkspaceIdAndAgentId: key-only, no scan/filter
+    const agentIdDate = `${agentId}#${date}`;
+    const query = await db["token-usage-aggregates"].query({
+      IndexName: "byWorkspaceIdAndAgentId",
+      KeyConditionExpression:
+        "workspaceId = :workspaceId AND agentIdDate = :agentIdDate",
+      ExpressionAttributeValues: {
+        ":workspaceId": workspaceId,
+        ":agentIdDate": agentIdDate,
+      },
+    });
+    aggregates.push(...query.items);
+  } else if (agentId) {
     const query = await db["token-usage-aggregates"].query({
       IndexName: "byAgentIdAndDate",
       KeyConditionExpression: "agentId = :agentId AND #date = :date",

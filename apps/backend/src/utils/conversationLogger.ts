@@ -935,6 +935,7 @@ export async function startConversation(
       totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
     awsRequestIds,
     startedAt: now,
+    agentIdStartedAt: `${data.agentId}#${now}`,
     lastMessageAt: now,
     expires: calculateTTL(),
     createdAt: now,
@@ -1143,6 +1144,7 @@ export async function trackDelegation(
         messages: [],
         delegations: [newDelegation],
         startedAt: new Date().toISOString(),
+        agentIdStartedAt: `${agentId}#${new Date().toISOString()}`,
         lastMessageAt: new Date().toISOString(),
         expires: calculateTTL(),
       });
@@ -1375,6 +1377,7 @@ export async function updateConversation(
             totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
           awsRequestIds,
           startedAt: now,
+          agentIdStartedAt: `${agentId}#${now}`,
           lastMessageAt: now,
           expires: calculateTTL(),
         };
@@ -1551,6 +1554,9 @@ export async function updateConversation(
           existing.usesByok !== undefined ? existing.usesByok : usesByok,
         error: error ?? (existing as { error?: ConversationErrorInfo }).error,
         startedAt: existing.startedAt,
+        agentIdStartedAt:
+          (existing as { agentIdStartedAt?: string }).agentIdStartedAt ??
+          `${existing.agentId}#${existing.startedAt}`,
         awsRequestIds: updatedRequestIds,
         // Always preserve delegations if they exist (even if empty array)
         // This is critical to prevent overwriting delegations added by trackDelegation

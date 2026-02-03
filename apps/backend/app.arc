@@ -256,6 +256,11 @@ agent-conversations
   lastMessageAt **String
   name byAgentIdAndLastMessageAt
 
+agent-conversations
+  workspaceId *String
+  agentIdStartedAt **String
+  name byWorkspaceIdAndAgentId
+
 token-usage-aggregates
   workspaceId *String
   date **String
@@ -265,6 +270,11 @@ token-usage-aggregates
   agentId *String
   date **String
   name byAgentIdAndDate
+
+token-usage-aggregates
+  workspaceId *String
+  agentIdDate **String
+  name byWorkspaceIdAndAgentId
 
 token-usage-aggregates
   userId *String
@@ -280,6 +290,11 @@ tool-usage-aggregates
   agentId *String
   date **String
   name byAgentIdAndDate
+
+tool-usage-aggregates
+  workspaceId *String
+  agentIdDate **String
+  name byWorkspaceIdAndAgentId
 
 tool-usage-aggregates
   userId *String
@@ -316,6 +331,11 @@ workspace-credit-transactions
   sk **String
   name byAgentId
 
+workspace-credit-transactions
+  workspaceId *String
+  agentIdCreatedAt **String
+  name byWorkspaceIdAndAgentId
+
 agent-delegation-tasks
   gsi1pk *String
   gsi1sk **String
@@ -345,6 +365,11 @@ agent-eval-result
   conversationId *String
   pk **String
   name byConversationId
+
+agent-eval-result
+  workspaceId *String
+  agentIdEvaluatedAt **String
+  name byWorkspaceIdAndAgentId
 
 agent-schedule
   agentId *String

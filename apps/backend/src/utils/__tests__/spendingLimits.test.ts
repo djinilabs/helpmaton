@@ -149,7 +149,7 @@ describe("spendingLimits", () => {
 
       expect(spending).toBe(5_000_000_000); // nano-dollars
       expect(mockQueryUsageStats).toHaveBeenCalledWith(mockDb, {
-        workspaceId: undefined,
+        workspaceId: "workspace-123",
         agentId: "agent-456",
         startDate,
         endDate: expect.any(Date),
@@ -179,6 +179,34 @@ describe("spendingLimits", () => {
 
       const callArgs = mockQueryUsageStats.mock.calls[0][1];
       expect(callArgs.endDate.getTime()).toBe(now.getTime());
+    });
+
+    it("should include costUsd, rerankingCostUsd, and evalCostUsd in total (matches displayed total)", async () => {
+      mockQueryUsageStats.mockResolvedValue({
+        costUsd: 1_000_000_000, // 1 USD (text, embeddings, tool calls)
+        rerankingCostUsd: 100_000_000, // 0.10 USD
+        evalCostUsd: 50_000_000, // 0.05 USD
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+        },
+        toolExpenses: {},
+      });
+
+      const startDate = new Date("2024-01-01T00:00:00Z");
+      const spending = await getSpendingInWindow(
+        mockDb,
+        "workspace-123",
+        undefined,
+        startDate
+      );
+
+      expect(spending).toBe(1_150_000_000); // 1 + 0.10 + 0.05 USD in nano-dollars
     });
   });
 
@@ -444,6 +472,47 @@ describe("spendingLimits", () => {
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
       expect(result.failedLimits[0].scope).toBe("agent");
+
+      // When checking agent limits, queryUsageStats must receive both workspaceId and agentId
+      // so aggregation is workspace-scoped (avoids summing across workspaces).
+      expect(mockQueryUsageStats).toHaveBeenCalledTimes(2);
+      const workspaceCall = mockQueryUsageStats.mock.calls[0][1];
+      const agentCall = mockQueryUsageStats.mock.calls[1][1];
+      expect(workspaceCall.workspaceId).toBe("workspace-123");
+      expect(workspaceCall.agentId).toBeUndefined();
+      expect(agentCall.workspaceId).toBe("workspace-123");
+      expect(agentCall.agentId).toBe("agent-456");
+    });
+
+    it("when checking agent spending limits, passes both workspaceId and agentId to queryUsageStats for workspace-scoped aggregation", async () => {
+      mockQueryUsageStats.mockResolvedValue({
+        costUsd: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+        },
+        toolExpenses: {},
+      });
+
+      await getSpendingInWindow(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        new Date("2024-01-01T00:00:00Z")
+      );
+
+      expect(mockQueryUsageStats).toHaveBeenCalledWith(
+        mockDb,
+        expect.objectContaining({
+          workspaceId: "workspace-123",
+          agentId: "agent-456",
+        })
+      );
     });
 
     it("should handle workspace ID extraction from pk", async () => {

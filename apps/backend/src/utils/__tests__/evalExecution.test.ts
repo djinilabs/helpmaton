@@ -487,6 +487,9 @@ describe("evalExecution", () => {
       });
       expect(record.createdAt).toBe("2025-01-01T00:00:00.000Z");
       expect(record.evaluatedAt).toBe("2025-01-01T00:00:00.000Z");
+      expect(record.agentIdEvaluatedAt).toBe(
+        "agent#2025-01-01T00:00:00.000Z"
+      );
     });
   });
 

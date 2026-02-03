@@ -294,6 +294,7 @@ const writeTokenUsageAggregates = async (params: {
         totalMessages: 0,
       };
 
+    const agentIdDate = `${aggData.agentId ?? "workspace"}#${params.dateStr}`;
     const aggregate: Omit<TokenUsageAggregateRecord, "version"> = {
       pk,
       sk,
@@ -301,6 +302,7 @@ const writeTokenUsageAggregates = async (params: {
       aggregateType: aggData.agentId ? "agent" : "workspace",
       workspaceId: aggData.workspaceId,
       agentId: aggData.agentId,
+      agentIdDate,
       modelName: aggData.modelName,
       provider: aggData.provider,
       usesByok: aggData.usesByok ? true : undefined,
@@ -429,6 +431,7 @@ const writeToolUsageAggregates = async (params: {
     const pk = `tool-aggregates/${aggData.workspaceId}/${params.dateStr}`;
     const sk = `${aggData.toolCall}:${aggData.supplier}`;
 
+    const agentIdDate = `${aggData.agentId ?? "workspace"}#${params.dateStr}`;
     const aggregate: Omit<ToolUsageAggregateRecord, "version"> = {
       pk,
       sk,
@@ -436,6 +439,7 @@ const writeToolUsageAggregates = async (params: {
       aggregateType: aggData.agentId ? "agent" : "workspace",
       workspaceId: aggData.workspaceId,
       agentId: aggData.agentId,
+      agentIdDate,
       toolCall: aggData.toolCall,
       supplier: aggData.supplier,
       costUsd: aggData.costUsd,

@@ -278,12 +278,15 @@ export async function commitTransactions(
         // Update running balance for next transaction
         runningBalance = balanceAfter;
 
+        const createdAt = new Date().toISOString();
+        const agentIdCreatedAt = `${transaction.agentId ?? "workspace"}#${createdAt}`;
         recordsToPut.push({
           pk: workspacePk,
           sk,
           requestId,
           workspaceId: transaction.workspaceId,
           agentId: transaction.agentId,
+          agentIdCreatedAt,
           conversationId: transaction.conversationId,
           source: transaction.source,
           supplier: transaction.supplier,
@@ -294,7 +297,7 @@ export async function commitTransactions(
           workspaceCreditsBeforeNanoUsd: balanceBefore,
           workspaceCreditsAfterNanoUsd: balanceAfter,
           version: 1,
-          createdAt: new Date().toISOString(),
+          createdAt,
           expires: calculateTransactionTTL(),
         });
       }

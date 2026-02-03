@@ -53,16 +53,23 @@ export async function getSpendingInWindow(
 ): Promise<number> {
   const endDate = new Date();
 
-  // Query usage stats for the date range
+  // Query usage stats for the date range.
+  // When agentId is set, pass both workspaceId and agentId so aggregation scopes
+  // agent spending to this workspace (avoids summing across workspaces that share an agentId).
   const stats = await queryUsageStats(db, {
-    workspaceId: agentId ? undefined : workspaceId,
+    workspaceId,
     agentId: agentId || undefined,
     startDate,
     endDate,
   });
 
-  // Return cost in USD
-  return stats.costUsd;
+  // Return total cost for limits: text gen, embeddings, tool calls (in costUsd),
+  // plus reranking and eval (separate fields), so limits match the displayed total.
+  return (
+    (stats.costUsd || 0) +
+    (stats.rerankingCostUsd || 0) +
+    (stats.evalCostUsd || 0)
+  );
 }
 
 /**

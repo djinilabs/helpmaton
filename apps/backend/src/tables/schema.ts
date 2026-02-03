@@ -290,6 +290,7 @@ export const tableSchemas = {
       )
       .optional(), // array of delegation calls made during this conversation
     startedAt: z.iso.datetime(), // when conversation started
+    agentIdStartedAt: z.string().optional(), // GSI byWorkspaceIdAndAgentId sort key: "${agentId}#${startedAt}"
     lastMessageAt: z.iso.datetime(), // when last message was added
     expires: z.number(), // TTL timestamp
     version: z.number().default(1),
@@ -329,6 +330,7 @@ export const tableSchemas = {
     aggregateType: z.enum(["workspace", "agent", "user"]), // type of aggregation
     workspaceId: z.string().optional(), // workspace ID (required for workspace/agent aggregates)
     agentId: z.string().optional(), // agent ID (required for agent aggregates)
+    agentIdDate: z.string().optional(), // GSI byWorkspaceIdAndAgentId sort key: "${agentId || 'workspace'}#${date}"
     userId: z.string().optional(), // user ID (required for user aggregates)
     modelName: z.string(), // model name
     provider: z.string(), // provider name (e.g., "google", "openai") - extracted from model name, not "openrouter"
@@ -351,6 +353,7 @@ export const tableSchemas = {
     aggregateType: z.enum(["workspace", "agent", "user"]), // type of aggregation
     workspaceId: z.string().optional(), // workspace ID (required for workspace/agent aggregates)
     agentId: z.string().optional(), // agent ID (required for agent aggregates)
+    agentIdDate: z.string().optional(), // GSI byWorkspaceIdAndAgentId sort key: "${agentId || 'workspace'}#${date}"
     userId: z.string().optional(), // user ID (required for user aggregates)
     toolCall: z.string(), // tool name (e.g., "search_web", "fetch_url")
     supplier: z.string(), // supplier name (e.g., "tavily")
@@ -520,6 +523,7 @@ export const tableSchemas = {
     requestId: z.string(), // AWS request id to match against the cloudwatch logs if needed
     workspaceId: z.string(),
     agentId: z.string().optional(),
+    agentIdCreatedAt: z.string().optional(), // GSI byWorkspaceIdAndAgentId sort key: "${agentId || 'workspace'}#${createdAt}"
     conversationId: z.string().optional(),
     source: z.enum([
       "embedding-generation",
@@ -615,6 +619,7 @@ export const tableSchemas = {
       })
       .optional(), // token usage for the evaluation call
     evaluatedAt: z.iso.datetime(), // when the evaluation was performed
+    agentIdEvaluatedAt: z.string().optional(), // GSI byWorkspaceIdAndAgentId sort key: "${agentId}#${evaluatedAt}"
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),
