@@ -925,6 +925,24 @@ export function buildConversationErrorInfo(
   return cleanErrorInfo;
 }
 
+/**
+ * Returns true if the stored conversation error indicates a budget limit or
+ * workspace credit failure (402). Such conversations should not be evaluated
+ * by eval judges.
+ */
+export function isCreditOrBudgetConversationError(
+  info: ConversationErrorInfo,
+): boolean {
+  if (info.statusCode === 402) {
+    return true;
+  }
+  const name = info.name;
+  return (
+    name === "InsufficientCreditsError" ||
+    name === "SpendingLimitExceededError"
+  );
+}
+
 export function extractErrorMessage(error: unknown): string {
   if (typeof error === "string") {
     try {

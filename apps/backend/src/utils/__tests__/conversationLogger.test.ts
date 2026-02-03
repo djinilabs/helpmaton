@@ -12,6 +12,13 @@ import {
   expandMessagesWithToolCalls,
 } from "../conversationLogger";
 
+const mockEnqueueEvaluations = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
+vi.mock("../evalEnqueue", () => ({
+  enqueueEvaluations: mockEnqueueEvaluations,
+}));
+
 describe("conversationLogger", () => {
   describe("expandMessagesWithToolCalls", () => {
     it("deduplicates tool result entries inside assistant content", () => {
@@ -1700,6 +1707,94 @@ describe("conversationLogger", () => {
           statusCode: 504,
         }),
       );
+    });
+  });
+
+  describe("eval enqueue - skip on credit/budget error", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockDb: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockWriteToWorkingMemory: any;
+
+    beforeEach(async () => {
+      mockEnqueueEvaluations.mockClear().mockResolvedValue(undefined);
+
+      mockDb = {
+        "agent-conversations": {
+          upsert: vi.fn().mockResolvedValue(undefined),
+          atomicUpdate: vi.fn(
+            async (
+              _pk: string,
+              _sk: unknown,
+              callback: (existing: unknown) => unknown,
+            ) => {
+              return callback(null);
+            },
+          ),
+        },
+      };
+
+      const memoryWriteModule = await import("../memory/writeMemory");
+      mockWriteToWorkingMemory = vi.fn().mockResolvedValue(undefined);
+      vi.spyOn(memoryWriteModule, "writeToWorkingMemory").mockImplementation(
+        mockWriteToWorkingMemory,
+      );
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("does not call enqueueEvaluations when startConversation has credit/budget error", async () => {
+      await startConversation(mockDb, {
+        workspaceId: "w1",
+        agentId: "a1",
+        conversationType: "test",
+        messages: [{ role: "user", content: "hi" }],
+        error: {
+          message: "Insufficient credits",
+          statusCode: 402,
+        },
+      });
+
+      expect(mockEnqueueEvaluations).not.toHaveBeenCalled();
+    });
+
+    it("does not call enqueueEvaluations when updateConversation has credit/budget error", async () => {
+      await updateConversation(
+        mockDb,
+        "w1",
+        "a1",
+        "c1",
+        [{ role: "user", content: "hi" }],
+        undefined,
+        undefined,
+        {
+          message: "Spending limit exceeded",
+          name: "SpendingLimitExceededError",
+        },
+      );
+
+      expect(mockEnqueueEvaluations).not.toHaveBeenCalled();
+    });
+
+    it("calls enqueueEvaluations when updateConversation has non-credit/budget error", async () => {
+      await updateConversation(
+        mockDb,
+        "w1",
+        "a1",
+        "c1",
+        [{ role: "user", content: "hi" }],
+        undefined,
+        undefined,
+        {
+          message: "Provider timeout",
+          statusCode: 504,
+        },
+      );
+
+      expect(mockEnqueueEvaluations).toHaveBeenCalledTimes(1);
+      expect(mockEnqueueEvaluations).toHaveBeenCalledWith("w1", "a1", "c1");
     });
   });
 

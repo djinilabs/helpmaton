@@ -13,6 +13,7 @@ import {
   cleanupRequestTimeout,
 } from "../http/utils/requestTimeout";
 
+import { isCreditOrBudgetConversationError } from "./conversationErrorInfo";
 import type { TokenUsage } from "./conversationLogger";
 import { validateCreditsAndLimitsAndReserve } from "./creditValidation";
 import type { UIMessage } from "./messageTypes";
@@ -376,6 +377,18 @@ export async function executeEvaluation(
   const conversation = await db["agent-conversations"].get(conversationPk);
   if (!conversation) {
     throw new Error(`Conversation ${conversationId} not found`);
+  }
+
+  // Do not evaluate conversations that failed due to credit/budget (402)
+  if (
+    conversation.error &&
+    isCreditOrBudgetConversationError(conversation.error)
+  ) {
+    console.log(
+      "[Eval Execution] Skipping evaluation - conversation failed due to credit/budget:",
+      { workspaceId, agentId, conversationId, judgeId },
+    );
+    return;
   }
 
   // Get the agent to get the system prompt (agent goal)

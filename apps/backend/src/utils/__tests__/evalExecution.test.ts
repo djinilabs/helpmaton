@@ -680,5 +680,67 @@ describe("evalExecution", () => {
         })
       );
     });
+
+    it("skips evaluation when conversation has credit/budget error (402)", async () => {
+      const db = buildDb();
+      (db["agent-conversations"].get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        workspaceId,
+        agentId,
+        conversationId,
+        messages: baseMessages,
+        error: {
+          message: "Insufficient credits",
+          statusCode: 402,
+        },
+      });
+
+      const generateTextMock = vi.mocked(generateText);
+
+      await executeEvaluation(
+        db,
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId,
+        {
+          addWorkspaceCreditTransaction: vi.fn(),
+          awsRequestId: "req-credit",
+        } as unknown as AugmentedContext
+      );
+
+      expect(generateTextMock).not.toHaveBeenCalled();
+      expect(db["agent-eval-result"].create).not.toHaveBeenCalled();
+    });
+
+    it("skips evaluation when conversation error name is InsufficientCreditsError", async () => {
+      const db = buildDb();
+      (db["agent-conversations"].get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        workspaceId,
+        agentId,
+        conversationId,
+        messages: baseMessages,
+        error: {
+          message: "Insufficient credits",
+          name: "InsufficientCreditsError",
+        },
+      });
+
+      const generateTextMock = vi.mocked(generateText);
+
+      await executeEvaluation(
+        db,
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId,
+        {
+          addWorkspaceCreditTransaction: vi.fn(),
+          awsRequestId: "req-credit",
+        } as unknown as AugmentedContext
+      );
+
+      expect(generateTextMock).not.toHaveBeenCalled();
+      expect(db["agent-eval-result"].create).not.toHaveBeenCalled();
+    });
   });
 });

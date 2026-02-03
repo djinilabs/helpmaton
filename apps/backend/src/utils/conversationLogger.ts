@@ -2,7 +2,10 @@ import { randomUUID } from "crypto";
 
 import type { DatabaseSchema } from "../tables/schema";
 
-import type { ConversationErrorInfo } from "./conversationErrorInfo";
+import {
+  type ConversationErrorInfo,
+  isCreditOrBudgetConversationError,
+} from "./conversationErrorInfo";
 import { expandMessagesWithToolCalls } from "./conversationMessageExpander";
 import {
   writeToWorkingMemory,
@@ -995,19 +998,28 @@ export async function startConversation(
   }
 
   // Enqueue evaluations for enabled judges after conversation logging completes
-  // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
-  try {
-    const { enqueueEvaluations } = await import("./evalEnqueue");
-    // Must await to ensure SQS messages are published before Lambda terminates
-    await enqueueEvaluations(data.workspaceId, data.agentId, conversationId);
-  } catch (error) {
-    // Log error but don't throw - evaluation enqueueing should not block conversation logging
-    console.error("[Conversation Logger] Failed to enqueue evaluations:", {
-      error: error instanceof Error ? error.message : String(error),
+  // Skip eval for conversations that failed due to credit/budget (402)
+  if (data.error && isCreditOrBudgetConversationError(data.error)) {
+    console.log("[Conversation Logger] Skipping eval enqueue - conversation failed due to credit/budget:", {
       workspaceId: data.workspaceId,
       agentId: data.agentId,
       conversationId,
     });
+  } else {
+    // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
+    try {
+      const { enqueueEvaluations } = await import("./evalEnqueue");
+      // Must await to ensure SQS messages are published before Lambda terminates
+      await enqueueEvaluations(data.workspaceId, data.agentId, conversationId);
+    } catch (error) {
+      // Log error but don't throw - evaluation enqueueing should not block conversation logging
+      console.error("[Conversation Logger] Failed to enqueue evaluations:", {
+        error: error instanceof Error ? error.message : String(error),
+        workspaceId: data.workspaceId,
+        agentId: data.agentId,
+        conversationId,
+      });
+    }
   }
 
   return conversationId;
@@ -1609,18 +1621,27 @@ export async function updateConversation(
   }
 
   // Enqueue evaluations for enabled judges after conversation logging completes
-  // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
-  try {
-    const { enqueueEvaluations } = await import("./evalEnqueue");
-    // Must await to ensure SQS messages are published before Lambda terminates
-    await enqueueEvaluations(workspaceId, agentId, conversationId);
-  } catch (error) {
-    // Log error but don't throw - evaluation enqueueing should not block conversation logging
-    console.error("[Conversation Logger] Failed to enqueue evaluations:", {
-      error: error instanceof Error ? error.message : String(error),
+  // Skip eval for conversations that failed due to credit/budget (402)
+  if (error && isCreditOrBudgetConversationError(error)) {
+    console.log("[Conversation Logger] Skipping eval enqueue - conversation failed due to credit/budget:", {
       workspaceId,
       agentId,
       conversationId,
     });
+  } else {
+    // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
+    try {
+      const { enqueueEvaluations } = await import("./evalEnqueue");
+      // Must await to ensure SQS messages are published before Lambda terminates
+      await enqueueEvaluations(workspaceId, agentId, conversationId);
+    } catch (enqueueError) {
+      // Log error but don't throw - evaluation enqueueing should not block conversation logging
+      console.error("[Conversation Logger] Failed to enqueue evaluations:", {
+        error: enqueueError instanceof Error ? enqueueError.message : String(enqueueError),
+        workspaceId,
+        agentId,
+        conversationId,
+      });
+    }
   }
 }

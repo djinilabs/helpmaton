@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { buildConversationErrorInfo } from "../conversationErrorInfo";
+import {
+  buildConversationErrorInfo,
+  isCreditOrBudgetConversationError,
+} from "../conversationErrorInfo";
 
 describe("conversationErrorInfo", () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
@@ -65,5 +68,60 @@ describe("conversationErrorInfo", () => {
     const info = buildConversationErrorInfo({ statusCode: 503 });
 
     expect(info.statusCode).toBe(503);
+  });
+
+  describe("isCreditOrBudgetConversationError", () => {
+    it("returns true when statusCode is 402", () => {
+      expect(
+        isCreditOrBudgetConversationError({
+          message: "Payment required",
+          statusCode: 402,
+        }),
+      ).toBe(true);
+    });
+
+    it("returns true when name is InsufficientCreditsError", () => {
+      expect(
+        isCreditOrBudgetConversationError({
+          message: "Insufficient credits",
+          name: "InsufficientCreditsError",
+        }),
+      ).toBe(true);
+    });
+
+    it("returns true when name is SpendingLimitExceededError", () => {
+      expect(
+        isCreditOrBudgetConversationError({
+          message: "Spending limit exceeded",
+          name: "SpendingLimitExceededError",
+        }),
+      ).toBe(true);
+    });
+
+    it("returns false when statusCode is not 402", () => {
+      expect(
+        isCreditOrBudgetConversationError({
+          message: "Server error",
+          statusCode: 500,
+        }),
+      ).toBe(false);
+    });
+
+    it("returns false when name is not a credit/budget error", () => {
+      expect(
+        isCreditOrBudgetConversationError({
+          message: "Rate limited",
+          name: "RateLimitError",
+        }),
+      ).toBe(false);
+    });
+
+    it("returns false when error has no statusCode and no matching name", () => {
+      expect(
+        isCreditOrBudgetConversationError({
+          message: "Something went wrong",
+        }),
+      ).toBe(false);
+    });
   });
 });
