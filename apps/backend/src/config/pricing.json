@@ -2295,9 +2295,9 @@
         },
         "minimax/minimax-m2": {
           "usd": {
-            "input": 0.19999999999999998,
+            "input": 0.255,
             "output": 1,
-            "cachedInput": 0.02
+            "cachedInput": 0.025500000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -3112,9 +3112,9 @@
         },
         "deepseek/deepseek-v3.2-exp": {
           "usd": {
-            "input": 0.21,
-            "output": 0.32,
-            "cachedInput": 0.021
+            "input": 0.27,
+            "output": 0.41,
+            "cachedInput": 0.027000000000000003
           },
           "capabilities": {
             "input_modalities": [
@@ -6869,7 +6869,7 @@
         "qwen/qwen3-8b": {
           "usd": {
             "input": 0.049999999999999996,
-            "output": 0.25,
+            "output": 0.39999999999999997,
             "cachedInput": 0.005
           },
           "capabilities": {
@@ -12277,9 +12277,81 @@
             "structured_output": true,
             "image": false
           }
+        },
+        "openrouter/free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "stepfun/step-3.5-flash:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "stop",
+              "temperature",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          }
         }
       }
     }
   },
-  "lastUpdated": "2026-01-30T00:18:04.596Z"
+  "lastUpdated": "2026-02-03T00:19:59.264Z"
 }
