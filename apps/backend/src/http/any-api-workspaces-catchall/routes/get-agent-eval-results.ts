@@ -137,15 +137,18 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
           throw badRequest("Agent does not belong to this workspace");
         }
 
-        // Build query with FilterExpression for judgeId (database-level filtering)
+        // Use byWorkspaceIdAndAgentId so results are ordered by evaluatedAt (sort key agentIdEvaluatedAt = agentId#evaluatedAt).
+        // byAgentId sorts by pk (lexicographic), so the first page was not "most recent first" and recent evals could be missing from the list.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const query: any = {
-          IndexName: "byAgentId",
-          KeyConditionExpression: "agentId = :agentId",
+          IndexName: "byWorkspaceIdAndAgentId",
+          KeyConditionExpression:
+            "workspaceId = :workspaceId AND begins_with(agentIdEvaluatedAt, :agentIdPrefix)",
           ExpressionAttributeValues: {
-            ":agentId": agentId,
+            ":workspaceId": workspaceId,
+            ":agentIdPrefix": `${agentId}#`,
           },
-          ScanIndexForward: false, // Sort descending (most recent first by evaluatedAt in sk or pk)
+          ScanIndexForward: false, // Most recent first
         };
 
         // Add FilterExpression for judgeId if provided (database-level filtering)
