@@ -11267,7 +11267,7 @@
         "meta-llama/llama-3-8b-instruct": {
           "usd": {
             "input": 0.03,
-            "output": 0.06,
+            "output": 0.04,
             "cachedInput": 0.003
           },
           "capabilities": {
@@ -12207,9 +12207,9 @@
         },
         "moonshotai/kimi-k2.5": {
           "usd": {
-            "input": 0.5,
-            "output": 2.8,
-            "cachedInput": 0.05
+            "input": 0.44999999999999996,
+            "output": 2.5,
+            "cachedInput": 0.045
           },
           "capabilities": {
             "input_modalities": [
@@ -12353,5 +12353,5 @@
       }
     }
   },
-  "lastUpdated": "2026-02-03T00:19:59.264Z"
+  "lastUpdated": "2026-02-04T00:16:17.991Z"
 }
