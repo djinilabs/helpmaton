@@ -297,9 +297,6 @@ importers:
       '@architect/architect':
         specifier: ^12.0.0
         version: 12.0.0(encoding@0.1.13)
-      '@architect/plugin-typescript':
-        specifier: ^2.1.0
-        version: 2.1.0
       '@types/aws-lambda':
         specifier: ^8.10.147
         version: 8.10.160
@@ -318,6 +315,9 @@ importers:
       '@vitest/ui':
         specifier: ^4.0.9
         version: 4.0.18(vitest@4.0.18)
+      esbuild:
+        specifier: ^0.27.2
+        version: 0.27.2
       swagger-jsdoc:
         specifier: ^6.2.8
         version: 6.2.8(openapi-types@12.1.3)
@@ -634,10 +634,6 @@ packages:
   '@architect/parser@8.0.1':
     resolution: {integrity: sha512-uXm4XCnMF7qeIjur69qIUiz4dq40t89M4umJW5hLZ9eEDQ2rtN/+A+kbWmbw+RV3mo2RTp4EeAb+lRnU0basew==}
     engines: {node: '>=20'}
-
-  '@architect/plugin-typescript@2.1.0':
-    resolution: {integrity: sha512-ezJdTYTqCye4yBoUnRVIY2LeeCyzwUpP4PiJ5mANwFzzddBIF73kWm3FMGI2a81jop9N11lKwBRSEgnks4Dxqw==}
-    engines: {node: '>=14'}
 
   '@architect/sandbox@9.0.0':
     resolution: {integrity: sha512-Lk5SVNJNlbIfUHD04aPtobVyQimbCRHCi+ILIH2Zqmutr4uDbsROkjHeKNDesRnep+CzHUe9YagNzHVAtAVklg==}
@@ -8291,12 +8287,6 @@ snapshots:
       '@architect/utils': 6.0.3
 
   '@architect/parser@8.0.1': {}
-
-  '@architect/plugin-typescript@2.1.0':
-    dependencies:
-      '@types/aws-lambda': 8.10.160
-      esbuild: 0.27.2
-      source-map-support: 0.5.21
 
   '@architect/sandbox@9.0.0(patch_hash=1226dfbd45bad482250582dc4bd351f2abc9d1c5aebcea7f04cf6e48ce92f065)(encoding@0.1.13)':
     dependencies:

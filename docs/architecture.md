@@ -508,7 +508,7 @@ Return response to client
 
 Helpmaton uses several Architect plugins:
 
-1. **architect/plugin-typescript**: TypeScript compilation
+1. **plugin-typescript**: TypeScript compilation (local plugin in `apps/backend/src/plugins/plugin-typescript`, ejected from @architect/plugin-typescript)
 2. **s3**: S3 bucket creation
 3. **http-to-rest**: Transforms HTTP API v2 to REST API
 4. **api-throttling**: Subscription-based rate limiting

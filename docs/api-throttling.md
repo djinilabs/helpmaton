@@ -236,7 +236,7 @@ The `api-throttling` plugin must come **after** `http-to-rest`:
 
 ```arc
 @plugins
-architect/plugin-typescript
+plugin-typescript
 s3
 http-to-rest
 api-throttling  # Must come after http-to-rest
