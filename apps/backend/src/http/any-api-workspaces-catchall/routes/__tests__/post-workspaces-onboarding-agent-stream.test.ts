@@ -15,6 +15,7 @@ vi.mock("../../../utils/onboardingAgentLlm", () => ({
   runOnboardingAgentLlm: mockRunOnboardingAgentLlm,
 }));
 
+import { onboardingAgentStreamRequestSchema } from "../../../utils/onboardingAgentSchemas";
 import { registerPostWorkspacesOnboardingAgentStream } from "../post-workspaces-onboarding-agent-stream";
 
 import { createTestAppWithHandlerCapture } from "./route-test-helpers";
@@ -258,6 +259,17 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
     expect(mockRunOnboardingAgentLlm).not.toHaveBeenCalled();
   });
 
+  it("rejects onboardingContext with unknown keys (strict schema)", () => {
+    const result = onboardingAgentStreamRequestSchema.safeParse({
+      onboardingContext: {
+        step: "intent",
+        intent: {},
+        unknownField: "not allowed",
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("should call next with error when body has extra fields in onboardingContext (strict)", async () => {
     const req = createMockRequest({
       userRef: "users/user-123",
@@ -266,6 +278,31 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
           step: "intent",
           intent: {},
           unknownField: "not allowed",
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(mockRunOnboardingAgentLlm).not.toHaveBeenCalled();
+  });
+
+  it("should call next with error when step is refine but chatMessage is missing", async () => {
+    const minimalTemplate = {
+      id: "{workspaceId}",
+      name: "Support",
+      agents: [{ id: "{mainAgent}", name: "Agent", systemPrompt: "Help." }],
+    };
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      body: {
+        onboardingContext: {
+          step: "refine",
+          template: minimalTemplate,
+          // chatMessage missing
         },
       },
     });

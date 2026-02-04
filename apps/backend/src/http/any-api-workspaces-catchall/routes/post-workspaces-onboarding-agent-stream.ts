@@ -36,8 +36,11 @@ export const registerPostWorkspacesOnboardingAgentStream = (
           onboardingAgentStreamRequestSchema
         ) as OnboardingAgentStreamRequest;
 
-        const { step, intent, template, chatMessage } =
-          body.onboardingContext;
+        const ctx = body.onboardingContext;
+        const step = ctx.step;
+        const intent = ctx.step === "intent" ? ctx.intent : undefined;
+        const template = ctx.step === "refine" ? ctx.template : undefined;
+        const chatMessage = ctx.step === "refine" ? ctx.chatMessage : undefined;
 
         const output = await runOnboardingAgentLlm({
           step,

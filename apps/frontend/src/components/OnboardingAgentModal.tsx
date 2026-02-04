@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -49,6 +49,14 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
   const [refineInput, setRefineInput] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleClose = () => {
     setStep("intent");
@@ -79,6 +87,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
       const response = await postWorkspaceOnboardingAgent({
         onboardingContext: ctx,
       });
+      if (!mountedRef.current) return;
       const ev = response.finalEvent;
       if (ev.type === "onboarding_agent_result") {
         const payload = ev.payload as OnboardingAgentResultPayload;
@@ -95,10 +104,11 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
         setStep("validation_failed");
       }
     } catch (err) {
+      if (!mountedRef.current) return;
       setValidationError(err instanceof Error ? err.message : "Something went wrong");
       setStep("validation_failed");
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false);
     }
   };
 
@@ -109,6 +119,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
       freeText: freeText.trim() || undefined,
       ...intent,
     };
+    setIntent(intentPayload);
     await callOnboardingAgent({
       step: "intent",
       intent: intentPayload,
@@ -155,14 +166,14 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
     }
   };
 
-  const handleTryAgain = () => {
+  const handleTryAgain = async () => {
     setValidationError(null);
     if (template) {
       setStep("template");
-      callOnboardingAgent({ step: "refine", template, chatMessage: "Please fix the template." });
+      await callOnboardingAgent({ step: "refine", template, chatMessage: "Please fix the template." });
     } else {
       setStep("intent");
-      callOnboardingAgent({
+      await callOnboardingAgent({
         step: "intent",
         intent: { ...intent, goals: goals.length > 0 ? goals : undefined, freeText: freeText || undefined },
       });
