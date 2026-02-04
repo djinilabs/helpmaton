@@ -144,11 +144,13 @@ jobs:
             exit 0
           fi
 
+          # Node.js in Lambda reports stack frame paths as /var/task/... (no app:// scheme).
+          # url-prefix must match so Sentry can resolve frames to uploaded source maps.
           if [ -d "apps/backend/.arc" ]; then
             pnpm exec sentry-cli sourcemaps upload "apps/backend/.arc" \
               --release "${SENTRY_RELEASE}" \
               --dist "${SENTRY_DIST}" \
-              --url-prefix "app:///var/task" \
+              --url-prefix "/var/task" \
               --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/.arc" \
               --rewrite
           else
@@ -159,7 +161,7 @@ jobs:
             pnpm exec sentry-cli sourcemaps upload "apps/backend/dist" \
               --release "${SENTRY_RELEASE}" \
               --dist "${SENTRY_DIST}" \
-              --url-prefix "app:///var/task" \
+              --url-prefix "/var/task" \
               --strip-prefix "${GITHUB_WORKSPACE}/apps/backend/dist" \
               --rewrite
           else
