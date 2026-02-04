@@ -93,6 +93,24 @@ export const database = once(
       let lastError: Error | undefined;
       let attemptCount = 0;
 
+      /**
+       * Normalize caught value to an Error with a real message.
+       * AWS/aws-lite can throw plain objects; String(err) is "[object Object]" so retry detection would fail.
+       */
+      const normalizeError = (err: unknown): Error => {
+        if (err instanceof Error) return err;
+        const obj = err as Record<string, unknown>;
+        const message =
+          typeof obj?.message === "string"
+            ? obj.message
+            : typeof (obj?.Error as { Message?: string })?.Message === "string"
+              ? (obj.Error as { Message: string }).Message
+              : typeof obj?.code === "string"
+                ? `${obj.code}: ${String(obj?.message ?? "")}`.trim() || obj.code
+                : String(err);
+        return new Error(message);
+      };
+
       const isTransactionConflictError = (error: Error): boolean => {
         const name = error.name?.toLowerCase() || "";
         const message = error.message?.toLowerCase() || "";
@@ -106,8 +124,12 @@ export const database = once(
       };
 
       const isConditionalCheckError = (error: Error): boolean => {
+        const name = error.name?.toLowerCase() || "";
         const message = error.message?.toLowerCase() || "";
+        const code = String((error as { code?: string }).code ?? "").toLowerCase();
         return (
+          name === "transactioncanceledexception" ||
+          code === "transactioncanceledexception" ||
           message.includes("conditional request failed") ||
           message.includes("item was outdated") ||
           message.includes("conditionalcheckfailed") ||
@@ -320,7 +342,7 @@ export const database = once(
           // Success: return the records that were written
           return recordsToPut;
         } catch (err: unknown) {
-          lastError = err instanceof Error ? err : new Error(String(err));
+          lastError = normalizeError(err);
 
           // Check if it's a conditional check error (version conflict) or transaction conflict
           if (
