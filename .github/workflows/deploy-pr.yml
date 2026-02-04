@@ -195,7 +195,7 @@ jobs:
     if: |
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch'
-    runs-on: djinilabs-beefy
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
       pr_number: ${{ needs.build-docker-images.outputs.pr_number }}

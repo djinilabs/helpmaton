@@ -21,31 +21,45 @@ async function compileProject({ inventory }) {
   const { inv } = inventory;
   const { cwd } = inv._project;
 
+  const tsLambdas = Object.values(inv.lambdasBySrcDir).filter(
+    (l) => l.config.runtime === 'typescript',
+  );
+  const count = tsLambdas.length;
   const start = Date.now();
   const globalTsConfig = getTsConfig(cwd);
-  let ok = true;
-  console.log('Compiling TypeScript');
 
+  console.log(`[plugin-typescript] Compiling TypeScript (${count} handlers)...`);
+
+  let ok = true;
   async function go(lambda) {
     if (lambda.config.runtime !== 'typescript') return;
     try {
       await compileHandler({ inventory, lambda, globalTsConfig });
     } catch (err) {
       ok = false;
-      console.log('esbuild error:', err);
+      console.error(`[plugin-typescript] esbuild error for @${lambda.pragma} ${lambda.name}:`, err);
     }
   }
   const compiles = Object.values(inv.lambdasBySrcDir).map(go);
   await Promise.allSettled(compiles);
-  if (ok) console.log(`Compiled project in ${(Date.now() - start) / 1000}s`);
+
+  const elapsed = ((Date.now() - start) / 1000).toFixed(2);
+  if (ok) {
+    console.log(`[plugin-typescript] Compiled ${count} handlers in ${elapsed}s`);
+  } else {
+    console.error(`[plugin-typescript] Completed with errors in ${elapsed}s`);
+  }
 }
 
 async function compileHandler(params) {
   const { inventory, lambda, globalTsConfig } = params;
   const { deployStage: stage } = inventory.inv._arc;
   const { arc, cwd } = inventory.inv._project;
-  const { build, src, handlerFile } = lambda;
+  const { build, src, handlerFile, name, pragma } = lambda;
   const deployStage = stage || 'testing';
+
+  const handlerStart = Date.now();
+  console.log(`[plugin-typescript] Building @${pragma} ${name}...`);
 
   // Remove only this handler's output directory to avoid races when compiling in parallel
   const handlerOutDir = dirname(handlerFile);
@@ -53,7 +67,7 @@ async function compileHandler(params) {
 
   let configPath;
   const settings = {
-    sourcemaps: ['testing', 'staging'],
+    sourcemaps: [], // no sourcemaps for now
   };
   if (arc.typescript) {
     arc.typescript.forEach((s) => {
@@ -77,29 +91,14 @@ async function compileHandler(params) {
     options = { ...config, ...options };
   }
 
-  if (settings.sourcemaps.includes(deployStage)) {
-    options.sourcemap = 'external';
-    if (options.banner?.js) {
-      options.banner.js = options.banner.js + '\n' + sourceMapStatement;
-    } else {
-      options.banner = { js: sourceMapStatement };
-    }
-    if (deployStage !== 'testing') {
-      await esbuild({
-        entryPoints: [join(cwd, 'node_modules', 'source-map-support', 'register')],
-        bundle: true,
-        platform: 'node',
-        format: 'cjs',
-        outdir: join(build, 'node_modules', 'source-map-support'),
-      });
-    }
-  }
-
   const localConfig = getTsConfig(src);
   if (localConfig) options.tsconfig = localConfig;
   else if (globalTsConfig) options.tsconfig = globalTsConfig;
 
   await esbuild(options);
+
+  const handlerElapsed = ((Date.now() - handlerStart) / 1000).toFixed(2);
+  console.log(`[plugin-typescript] Built @${pragma} ${name} in ${handlerElapsed}s`);
 }
 
 module.exports = {

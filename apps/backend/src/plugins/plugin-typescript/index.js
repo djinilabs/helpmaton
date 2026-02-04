@@ -67,12 +67,12 @@ module.exports = {
       const { name, pragma } = lambda;
       const { cwd } = inventory.inv._project;
       const globalTsConfig = getTsConfig(cwd);
-      console.log(`Recompiling handler: @${pragma} ${name}`);
+      console.log(`[plugin-typescript] Recompiling @${pragma} ${name}...`);
       try {
         await compileHandler({ inventory, lambda, globalTsConfig });
-        console.log(`Compiled in ${(Date.now() - start) / 1000}s\n`);
+        console.log(`[plugin-typescript] Recompiled in ${((Date.now() - start) / 1000).toFixed(2)}s\n`);
       } catch (err) {
-        console.log('esbuild error:', err);
+        console.error('[plugin-typescript] esbuild error:', err);
       }
     },
   },
