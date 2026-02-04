@@ -196,7 +196,7 @@ export const ImproveAgentPromptDialog: FC<ImproveAgentPromptDialogProps> = ({
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-semibold text-neutral-900 dark:text-neutral-50">
-              Improve Agent Prompt
+              ✨ Improve Agent Prompt
             </h2>
             <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
               Step {step} of 3
@@ -398,7 +398,7 @@ export const ImproveAgentPromptDialog: FC<ImproveAgentPromptDialogProps> = ({
                 }
                 className="flex-1 rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {improvePrompt.isPending ? "Generating..." : "Generate Prompt"}
+                {improvePrompt.isPending ? "✨ Generating..." : "✨ Generate Prompt"}
               </button>
             </div>
           </div>

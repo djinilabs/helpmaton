@@ -97,6 +97,58 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
     });
   });
 
+  it("should accept and forward questions result with multiple: true and intent with array value", async () => {
+    const questionsResult = {
+      type: "questions" as const,
+      questions: [
+        {
+          id: "wantChannels",
+          label: "Where should this agent respond?",
+          kind: "choice" as const,
+          options: ["Discord", "Slack", "Email", "API/widget only"],
+          multiple: true,
+        },
+      ],
+    };
+    mockRunOnboardingAgentLlm.mockResolvedValue({
+      success: true,
+      assistantText: "Where should it respond?",
+      result: questionsResult,
+    });
+
+    const intentWithArray = {
+      goals: ["support"],
+      wantChannels: ["Discord", "Slack"],
+    };
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      body: {
+        onboardingContext: {
+          step: "intent" as const,
+          intent: intentWithArray,
+        },
+      },
+    });
+    const res = createMockResponse();
+
+    await callRouteHandler(req, res);
+
+    expect(mockRunOnboardingAgentLlm).toHaveBeenCalledWith({
+      step: "intent",
+      intent: intentWithArray,
+      template: undefined,
+      chatMessage: undefined,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      assistantText: "Where should it respond?",
+      finalEvent: {
+        type: "onboarding_agent_result",
+        payload: questionsResult,
+      },
+    });
+  });
+
   it("should return 200 with onboarding_agent_result (template) when LLM returns template", async () => {
     const minimalTemplate = {
       id: "{workspaceId}",

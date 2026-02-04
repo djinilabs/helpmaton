@@ -43,10 +43,11 @@ Ask 1–3 of these in a single "questions" response when appropriate; do not ove
 Respond with a single JSON object only. No markdown, no code fences, no explanation outside the JSON.
 
 For **questions**, use:
-{"type":"questions","questions":[{"id":"questionId","label":"Question text?","kind":"choice"|"text","options":["A","B"]}]}
+{"type":"questions","questions":[{"id":"questionId","label":"Question text?","kind":"choice"|"text","options":["A","B"],"multiple":true}]}
 - id: short snake_case id (e.g. businessType, tasksOrRoles)
 - kind: "choice" for multiple choice, "text" for free text
 - options: required when kind is "choice", omit for "text"
+- multiple: optional, for choice only. When true, the user may select several options; their answer will be an array of option strings. Use for questions like "Where should this agent respond?" (Discord, Slack, email, etc.). Omit or false for single choice.
 
 For **template**, use:
 {"type":"template","template":<WorkspaceExport>,"summary":"One or two sentences describing the workspace."}

@@ -384,7 +384,13 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
               }
               className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isPending ? "Saving..." : isEditing ? "Save changes" : "Create schedule"}
+              {isPending
+                ? isEditing
+                  ? "Saving..."
+                  : "✨ Saving..."
+                : isEditing
+                ? "Save changes"
+                : "✨ Create schedule"}
             </button>
             <button
               type="button"

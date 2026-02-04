@@ -562,7 +562,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                   disabled={isLoading || !refineInput.trim()}
                   className="rounded-xl bg-neutral-200 px-4 py-2 font-semibold text-neutral-800 hover:bg-neutral-300 disabled:opacity-50 dark:bg-neutral-700 dark:text-neutral-100 dark:hover:bg-neutral-600"
                 >
-                  Send
+                  ✨ Send
                 </button>
               </form>
               <button
@@ -571,7 +571,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                 disabled={importWorkspace.isPending}
                 className="w-full rounded-xl bg-gradient-primary px-6 py-3 font-bold text-white hover:opacity-95 disabled:opacity-50"
               >
-                {importWorkspace.isPending ? "Creating…" : "Create workspace"}
+                {importWorkspace.isPending ? "✨ Creating…" : "✨ Create workspace"}
               </button>
             </div>
           )}
@@ -654,7 +654,7 @@ const QuestionsStep: FC<{
   intent: OnboardingAgentContext["intent"];
   setIntent: (updater: (prev: OnboardingAgentContext["intent"]) => OnboardingAgentContext["intent"]) => void;
 }> = ({ questions, onSubmit, isLoading, intent, setIntent }) => {
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -663,10 +663,17 @@ const QuestionsStep: FC<{
       const val = answers[q.id];
       if (val === undefined) continue;
       const otherText = answers[`${q.id}_other`];
-      nextIntent[q.id] =
-        isOtherSpecifyOption(val) && otherText
-          ? `${val}: ${otherText}`
-          : val;
+      if (q.kind === "choice" && q.multiple) {
+        const arr = Array.isArray(val) ? val : [val];
+        nextIntent[q.id] = arr.map((x) =>
+          isOtherSpecifyOption(x) && otherText ? `${x}: ${otherText}` : x
+        );
+      } else {
+        nextIntent[q.id] =
+          isOtherSpecifyOption(val as string) && otherText
+            ? `${val}: ${otherText}`
+            : val;
+      }
     }
     setIntent(() => nextIntent);
     onSubmit(nextIntent);
@@ -674,7 +681,14 @@ const QuestionsStep: FC<{
 
   const hasIncompleteOther = questions.some((q) => {
     const val = answers[q.id];
-    return val !== undefined && isOtherSpecifyOption(val) && !answers[`${q.id}_other`]?.trim();
+    if (val === undefined) return false;
+    const rawOther = answers[`${q.id}_other`];
+    const otherText = typeof rawOther === "string" ? rawOther.trim() : "";
+    if (q.kind === "choice" && q.multiple) {
+      const arr = Array.isArray(val) ? val : [val];
+      return arr.some((opt) => isOtherSpecifyOption(opt)) && !otherText;
+    }
+    return isOtherSpecifyOption(val as string) && !otherText;
   });
 
   return (
@@ -687,46 +701,85 @@ const QuestionsStep: FC<{
           {q.kind === "choice" && q.options?.length ? (
             <>
               <div className="flex flex-wrap gap-2">
-                {q.options.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
-                    className={`rounded-xl border-2 px-4 py-2 text-sm font-semibold ${
-                      answers[q.id] === opt
-                        ? "border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                        : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
+                {q.options.map((opt) => {
+                  const isMulti = q.multiple;
+                  const selected = isMulti
+                    ? (Array.isArray(answers[q.id])
+                        ? (answers[q.id] as string[]).includes(opt)
+                        : answers[q.id] === opt)
+                    : answers[q.id] === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() =>
+                        setAnswers((a) => {
+                          if (isMulti) {
+                            const prev = a[q.id];
+                            const arr = Array.isArray(prev)
+                              ? prev
+                              : prev !== undefined
+                                ? [prev]
+                                : [];
+                            const next = arr.includes(opt)
+                              ? arr.filter((x) => x !== opt)
+                              : [...arr, opt];
+                            return { ...a, [q.id]: next };
+                          }
+                          return { ...a, [q.id]: opt };
+                        })
+                      }
+                      className={`rounded-xl border-2 px-4 py-2 text-sm font-semibold ${
+                        selected
+                          ? "border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                          : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
               </div>
-              {answers[q.id] !== undefined && isOtherSpecifyOption(answers[q.id]) && (
-                <div>
-                  <label
-                    htmlFor={`${q.id}-other`}
-                    className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400"
-                  >
-                    Please specify
-                  </label>
-                  <input
-                    id={`${q.id}-other`}
-                    type="text"
-                    value={answers[`${q.id}_other`] ?? ""}
-                    onChange={(e) =>
-                      setAnswers((a) => ({ ...a, [`${q.id}_other`]: e.target.value }))
+              {(() => {
+                const val = answers[q.id];
+                const showOther =
+                  val !== undefined &&
+                  (q.multiple
+                    ? Array.isArray(val) && val.some(isOtherSpecifyOption)
+                    : isOtherSpecifyOption(val as string));
+                return showOther ? (
+                  <div>
+                    <label
+                      htmlFor={`${q.id}-other`}
+                      className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400"
+                    >
+                      Please specify
+                    </label>
+                    <input
+                      id={`${q.id}-other`}
+                      type="text"
+                      value={
+                      typeof answers[`${q.id}_other`] === "string"
+                        ? answers[`${q.id}_other`]
+                        : ""
                     }
-                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
-                    placeholder="Your answer"
-                  />
-                </div>
-              )}
+                      onChange={(e) =>
+                        setAnswers((a) => ({
+                          ...a,
+                          [`${q.id}_other`]: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                      placeholder="Your answer"
+                    />
+                  </div>
+                ) : null;
+              })()}
             </>
           ) : (
             <input
               type="text"
-              value={answers[q.id] ?? ""}
+              value={(typeof answers[q.id] === "string" ? answers[q.id] : "") ?? ""}
               onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
               className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               placeholder="Your answer"

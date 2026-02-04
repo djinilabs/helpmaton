@@ -6712,7 +6712,7 @@ body {
                           }
                           className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Test
+                          ✨ Test
                         </button>
                         <button
                           onClick={() => setIsConfiguringStreamServer(true)}
@@ -6900,13 +6900,13 @@ body {
                     onClick={() => setShowSlackModal(true)}
                     className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
                   >
-                    Connect to Slack
+                    ✨ Connect to Slack
                   </button>
                   <button
                     onClick={() => setShowDiscordModal(true)}
                     className="rounded-xl bg-indigo-600 px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:bg-indigo-700"
                   >
-                    Connect to Discord
+                    ✨ Connect to Discord
                   </button>
                 </div>
               )}
@@ -7260,7 +7260,7 @@ const EvaluationsRefreshButton: FC<{
           onClick={onImprovePrompt}
           className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
         >
-          Improve Agent Prompt
+          ✨ Improve Agent Prompt
         </button>
       )}
       <button

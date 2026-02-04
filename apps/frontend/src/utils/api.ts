@@ -841,6 +841,7 @@ export interface OnboardingAgentQuestion {
   label: string;
   kind: "choice" | "text";
   options?: string[];
+  multiple?: boolean;
 }
 
 /** Onboarding-agent: result payload (questions or template + summary) */

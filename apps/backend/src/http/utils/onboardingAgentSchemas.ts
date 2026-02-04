@@ -45,6 +45,10 @@ const onboardingAgentQuestionChoiceSchema = z
     label: z.string().describe("Human-readable question text"),
     kind: z.literal("choice"),
     options: z.array(z.string()).min(1).describe("List of options to choose from"),
+    multiple: z
+      .boolean()
+      .optional()
+      .describe("Allow selecting multiple options; omit or false for single choice"),
   })
   .strict();
 
