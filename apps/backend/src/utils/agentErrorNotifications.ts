@@ -98,6 +98,23 @@ function shouldSendUserErrorEmail(
   return timeSinceLastEmail > ONE_HOUR_MS;
 }
 
+/**
+ * True if the error is a DynamoDB conditional check / transaction cancelled failure.
+ * Used to treat concurrent updates as "skip send" instead of failing the flow.
+ */
+function isConditionalCheckOrTransactionCancelledError(error: Error): boolean {
+  const name = error.name?.toLowerCase() || "";
+  const message = error.message?.toLowerCase() || "";
+  const code = String((error as { code?: string }).code ?? "").toLowerCase();
+  return (
+    name === "transactioncanceledexception" ||
+    code === "transactioncanceledexception" ||
+    message.includes("conditionalcheckfailed") ||
+    message.includes("conditional check failed") ||
+    message.includes("transaction cancelled")
+  );
+}
+
 async function reserveUserNotificationWindow(params: {
   db: Awaited<ReturnType<typeof database>>;
   userPk: string;
@@ -108,47 +125,59 @@ async function reserveUserNotificationWindow(params: {
   const now = new Date().toISOString();
   let skipReason: string | undefined;
 
-  const updated = await db.atomicUpdate(
-    new Map([
-      [
-        "user",
-        {
-          table: "next-auth",
-          pk: userPk,
-          sk: userSk,
-        },
-      ],
-    ]),
-    async (fetched) => {
-      const existing = fetched.get("user") as NextAuthUserRecord | undefined;
-      if (!existing) {
-        skipReason = "missing_record";
-        return [];
-      }
+  try {
+    const updated = await db.atomicUpdate(
+      new Map([
+        [
+          "user",
+          {
+            table: "next-auth",
+            pk: userPk,
+            sk: userSk,
+          },
+        ],
+      ]),
+      async (fetched) => {
+        const existing = fetched.get("user") as NextAuthUserRecord | undefined;
+        if (!existing) {
+          skipReason = "missing_record";
+          return [];
+        }
 
-      if (!shouldSendUserErrorEmail(existing, errorType)) {
-        skipReason = "rate_limited";
-        return [];
-      }
+        if (!shouldSendUserErrorEmail(existing, errorType)) {
+          skipReason = "rate_limited";
+          return [];
+        }
 
-      skipReason = undefined;
-      const updateFields =
-        errorType === "credit"
-          ? { lastCreditErrorEmailSentAt: now }
-          : { lastSpendingLimitErrorEmailSentAt: now };
-      const updatedRecord: TableRecord = {
-        ...(existing as TableRecord),
-        ...updateFields,
+        skipReason = undefined;
+        const updateFields =
+          errorType === "credit"
+            ? { lastCreditErrorEmailSentAt: now }
+            : { lastSpendingLimitErrorEmailSentAt: now };
+        const updatedRecord: TableRecord = {
+          ...(existing as TableRecord),
+          ...updateFields,
+        };
+        return [updatedRecord];
+      }
+    );
+
+    return {
+      updated: updated.length > 0,
+      timestamp: updated.length > 0 ? now : undefined,
+      skipReason,
+    };
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    if (isConditionalCheckOrTransactionCancelledError(error)) {
+      // Another process updated the user's rate-limit timestamp; skip sending (rate limit still enforced).
+      return {
+        updated: false,
+        skipReason: "concurrent_update",
       };
-      return [updatedRecord];
     }
-  );
-
-  return {
-    updated: updated.length > 0,
-    timestamp: updated.length > 0 ? now : undefined,
-    skipReason,
-  };
+    throw err;
+  }
 }
 
 async function sendCreditErrorEmail(params: {
@@ -408,7 +437,9 @@ export async function sendAgentErrorNotification(
         const logContext =
           reservation.skipReason === "missing_record"
             ? "User record not found for rate limiting"
-            : "Skipping email due to rate limiting";
+            : reservation.skipReason === "concurrent_update"
+              ? "Skipping email due to concurrent update (rate limit applied by another process)"
+              : "Skipping email due to rate limiting";
         console.log(`[agentErrorNotifications] ${logContext}:`, {
           workspaceId,
           userId: recipient.userId,

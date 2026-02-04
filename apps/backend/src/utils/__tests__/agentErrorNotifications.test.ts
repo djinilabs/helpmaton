@@ -278,4 +278,26 @@ describe("sendAgentErrorNotification", () => {
 
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
+
+  it("skips email and does not throw when atomicUpdate fails with ConditionalCheckFailed (concurrent update)", async () => {
+    const transactionError = new Error(
+      "@aws-lite/client: DynamoDB.TransactWriteItems: Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed]"
+    );
+    transactionError.name = "TransactionCanceledException";
+    mockDb.atomicUpdate.mockRejectedValue(transactionError);
+
+    const error = new InsufficientCreditsError(
+      workspaceId,
+      1000000,
+      500000,
+      "usd",
+      agentId
+    );
+
+    await expect(
+      sendAgentErrorNotification(workspaceId, "credit", error)
+    ).resolves.not.toThrow();
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
 });

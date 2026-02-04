@@ -4,6 +4,13 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  // Replace process.env.NODE_ENV so React (and other deps) work in the browser.
+  // Without this, the bundle would reference `process` and throw in the browser.
+  define: {
+    "process.env.NODE_ENV": JSON.stringify(
+      process.env.NODE_ENV ?? "production"
+    ),
+  },
   build: {
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
