@@ -204,7 +204,6 @@ export async function runOnboardingAgentLlm(
 
       const validated = parseAndValidateResponse(result.text);
       if (validated.ok) {
-        cleanupRequestTimeout(requestTimeout);
         return {
           success: true,
           assistantText: lastAssistantText,
@@ -216,7 +215,6 @@ export async function runOnboardingAgentLlm(
       attempts += 1;
     }
 
-    cleanupRequestTimeout(requestTimeout);
     return {
       success: false,
       assistantText: lastAssistantText,

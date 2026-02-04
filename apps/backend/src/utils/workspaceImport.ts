@@ -811,7 +811,9 @@ async function enhanceAgentPromptsAfterImport(
 ): Promise<void> {
   if (!validatedData.agents) return;
 
-  for (const agentData of validatedData.agents) {
+  // Only enhance the first agent to cap import latency and prompt-generation quota
+  const agentsToEnhance = validatedData.agents.slice(0, 1);
+  for (const agentData of agentsToEnhance) {
     const newAgentId = agentIdMap.get(agentData.id);
     if (!newAgentId) continue;
 

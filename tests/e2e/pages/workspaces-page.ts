@@ -64,15 +64,16 @@ export class WorkspacesPage extends BasePage {
    */
   async openCreateWorkspaceModal(): Promise<void> {
     await this.clickElement(this.createWorkspaceButton);
-    // Choice modal may appear first: "Create a workspace" with "Name and description only" and "Guided setup"
+    // Wait for form modal; if choice option appears first (with timeout), click it so form then shows
     const choiceOption = this.page.locator(
       'button:has-text("Name and description only")'
     );
-    const choiceVisible = await choiceOption.isVisible().catch(() => false);
-    if (choiceVisible) {
-      await this.clickElement(choiceOption);
-    }
-    await this.waitForElement(this.createWorkspaceModal);
+    const formVisible = this.waitForElement(this.createWorkspaceModal);
+    const withChoice = choiceOption
+      .waitFor({ state: "visible", timeout: 3000 })
+      .then(() => this.clickElement(choiceOption))
+      .then(() => formVisible);
+    await Promise.race([withChoice.catch(() => formVisible), formVisible]);
   }
 
   /**

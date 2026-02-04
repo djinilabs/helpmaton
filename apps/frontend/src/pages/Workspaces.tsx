@@ -1,12 +1,14 @@
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import { useState, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { LockSpinner } from "../components/LockSpinner";
+import { useDialogTracking } from "../contexts/DialogContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useWorkspaces } from "../hooks/useWorkspaces";
 import { trackEvent } from "../utils/tracking";
 // Lazy load modals - only load when opened
@@ -29,6 +31,7 @@ const OnboardingAgentModal = lazy(() =>
 const WorkspacesList: FC = () => {
   const { data: workspaces } = useWorkspaces();
   const navigate = useNavigate();
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   const [isCreateChoiceOpen, setIsCreateChoiceOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
@@ -36,6 +39,15 @@ const WorkspacesList: FC = () => {
   const [loadingWorkspaceId, setLoadingWorkspaceId] = useState<string | null>(
     null
   );
+
+  const closeCreateChoice = () => setIsCreateChoiceOpen(false);
+  useEscapeKey(isCreateChoiceOpen, closeCreateChoice);
+  useEffect(() => {
+    if (isCreateChoiceOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isCreateChoiceOpen, registerDialog, unregisterDialog]);
 
   const getPermissionLabel = (level: number | null): string => {
     if (level === 3) return "Owner";
