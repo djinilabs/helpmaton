@@ -18,13 +18,20 @@ const ImportWorkspaceModal = lazy(() =>
     default: module.ImportWorkspaceModal,
   }))
 );
+const OnboardingAgentModal = lazy(() =>
+  import("../components/OnboardingAgentModal").then((module) => ({
+    default: module.OnboardingAgentModal,
+  }))
+);
 import { useWorkspaces } from "../hooks/useWorkspaces";
 import { trackEvent } from "../utils/tracking";
 
 const WorkspacesList: FC = () => {
   const { data: workspaces } = useWorkspaces();
   const navigate = useNavigate();
+  const [isCreateChoiceOpen, setIsCreateChoiceOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [loadingWorkspaceId, setLoadingWorkspaceId] = useState<string | null>(
     null
@@ -71,7 +78,7 @@ const WorkspacesList: FC = () => {
                   Import a workspace
                 </button>
                 <button
-                  onClick={() => setIsCreateModalOpen(true)}
+                  onClick={() => setIsCreateChoiceOpen(true)}
                   className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
                 >
                   Create a workspace
@@ -109,12 +116,14 @@ const WorkspacesList: FC = () => {
                 A workspace is where you&apos;ll create agents, upload
                 documents, and manage spending.
               </p>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
-              >
-                Create your first workspace
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <button
+                  onClick={() => setIsCreateChoiceOpen(true)}
+                  className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                >
+                  Create a workspace
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -185,11 +194,71 @@ const WorkspacesList: FC = () => {
           </div>
         )}
 
+        {isCreateChoiceOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+              <h2 className="mb-2 text-xl font-bold text-neutral-900 dark:text-neutral-50">
+                Create a workspace
+              </h2>
+              <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-400">
+                Choose how you&apos;d like to create your workspace.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setIsCreateChoiceOpen(false);
+                    setIsOnboardingModalOpen(true);
+                  }}
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+                >
+                  <span className="block">Guided setup</span>
+                  <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
+                    Answer a few questions and get a suggested workspace with
+                    agents.
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsCreateChoiceOpen(false);
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
+                >
+                  <span className="block">Name and description only</span>
+                  <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
+                    Create an empty workspace and add agents yourself.
+                  </span>
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateChoiceOpen(false)}
+                className="mt-4 w-full rounded-xl border-2 border-neutral-300 bg-neutral-100 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {isCreateModalOpen && (
           <Suspense fallback={<LoadingScreen />}>
             <CreateWorkspaceModal
               isOpen={isCreateModalOpen}
               onClose={() => setIsCreateModalOpen(false)}
+            />
+          </Suspense>
+        )}
+
+        {isOnboardingModalOpen && (
+          <Suspense fallback={<LoadingScreen />}>
+            <OnboardingAgentModal
+              isOpen={isOnboardingModalOpen}
+              onClose={() => setIsOnboardingModalOpen(false)}
+              onSkipToSimpleCreate={() => {
+                setIsOnboardingModalOpen(false);
+                setIsCreateModalOpen(true);
+              }}
             />
           </Suspense>
         )}
