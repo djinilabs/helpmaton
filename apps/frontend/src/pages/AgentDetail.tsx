@@ -2,7 +2,6 @@ import {
   ChatBubbleLeftRightIcon,
   ChatBubbleLeftIcon,
   LightBulbIcon,
-  Cog6ToothIcon,
   UserGroupIcon,
   BoltIcon,
   MagnifyingGlassIcon,
@@ -3575,7 +3574,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           title={
             <>
               <BeakerIcon className="mr-2 inline-block size-5" />
-              Testing & Interactions
+              Test
             </>
           }
         >
@@ -3676,32 +3675,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               </div>
             </QueryPanel>
           </AgentAccordionSection>
-
-          {/* Schedules Section */}
-          <AgentAccordionSection
-            id="schedules"
-            title={
-              <>
-                <ClockIcon className="mr-2 inline-block size-5" />
-                SCHEDULES
-              </>
-            }
-            expandedSection={expandedSection}
-            onToggle={toggleSection}
-          >
-            <AgentScheduleList
-              workspaceId={workspaceId}
-              agentId={agentId}
-              canEdit={canEdit}
-            />
-          </AgentAccordionSection>
         </SectionGroup>
 
         <SectionGroup
           title={
             <>
               <LightBulbIcon className="mr-2 inline-block size-5" />
-              Knowledge and Memory
+              Memory
             </>
           }
         >
@@ -4331,400 +4311,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         <SectionGroup
           title={
             <>
-              <Cog6ToothIcon className="mr-2 inline-block size-5" />
-              Configuration
-            </>
-          }
-        >
-          {/* Delegation Section */}
-          {canEdit && (
-            <AgentAccordionSection
-              id="delegation"
-              title={
-                <>
-                  <UserGroupIcon className="mr-2 inline-block size-5" />
-                  DELEGATION
-                </>
-              }
-              expandedSection={expandedSection}
-              onToggle={toggleSection}
-            >
-                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
-                  Configure which other agents in this workspace this agent can
-                  delegate tasks to. When delegation is enabled, this agent will
-                  have access to the{" "}
-                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
-                    list_agents
-                  </code>{" "}
-                  and{" "}
-                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
-                    call_agent
-                  </code>{" "}
-                  tools.
-                </p>
-                {allAgents && allAgents.length > 1 ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      {allAgents
-                        .filter((a) => a.id !== agentId)
-                        .map((targetAgent) => (
-                          <label
-                            key={targetAgent.id}
-                            className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={delegatableAgentIds.includes(
-                                targetAgent.id
-                              )}
-                              onChange={() =>
-                                handleDelegationToggle(targetAgent.id)
-                              }
-                              className="mt-1 rounded border-2 border-neutral-300 dark:border-neutral-700"
-                            />
-                            <div className="flex-1">
-                              <div className="font-bold dark:text-neutral-50">
-                                {targetAgent.name}
-                              </div>
-                              <div className="mt-1 text-xs opacity-75 dark:text-neutral-300">
-                                {targetAgent.systemPrompt.length > 100
-                                  ? `${targetAgent.systemPrompt.substring(
-                                      0,
-                                      100
-                                    )}...`
-                                  : targetAgent.systemPrompt}
-                              </div>
-                            </div>
-                          </label>
-                        ))}
-                    </div>
-                    <button
-                      onClick={handleSaveDelegation}
-                      disabled={updateAgent.isPending}
-                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {updateAgent.isPending ? "Saving..." : "Save Delegation"}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    No other agents available in this workspace. Create another
-                    agent to enable delegation.
-                  </p>
-                )}
-            </AgentAccordionSection>
-          )}
-          {/* Advanced Section */}
-          {canEdit && (
-            <AgentAccordionSection
-              id="advanced"
-              title={
-                <>
-                  <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
-                  ADVANCED
-                </>
-              }
-              expandedSection={expandedSection}
-              onToggle={toggleSection}
-            >
-                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
-                  Configure advanced model generation parameters. These settings
-                  control how the AI model generates responses. Leave fields
-                  empty to use model defaults.
-                </p>
-                <div className="space-y-6">
-                  {/* Temperature */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-                      Temperature
-                    </label>
-                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
-                      Controls the randomness of responses. Lower values (0-0.5)
-                      produce more focused and deterministic outputs, while
-                      higher values (1.5-2) create more creative and varied
-                      responses. Default: model default (~1.0)
-                    </p>
-                    <Slider
-                      value={temperature}
-                      min={0}
-                      max={2}
-                      step={0.1}
-                      onChange={setTemperature}
-                      placeholder="Model default"
-                    />
-                  </div>
-
-                  {/* Top-p */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-                      Top-p / Nucleus Sampling
-                    </label>
-                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
-                      Controls diversity by considering tokens with cumulative
-                      probability up to this threshold. Lower values (0.1-0.5)
-                      produce more focused outputs, higher values (0.9-1.0)
-                      allow more diversity. Default: model default (~0.95)
-                    </p>
-                    <Slider
-                      value={topP}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={setTopP}
-                      placeholder="Model default"
-                    />
-                  </div>
-
-                  {/* Top-k */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-                      Top-k
-                    </label>
-                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
-                      Limits token selection to the top K most probable tokens
-                      at each step. Lower values (10-20) produce more focused
-                      outputs, higher values (50-100) allow more diversity.
-                      Default: model default
-                    </p>
-                    <Slider
-                      value={topK}
-                      min={1}
-                      max={100}
-                      step={1}
-                      onChange={setTopK}
-                      placeholder="Model default"
-                    />
-                  </div>
-
-                  {/* Max Output Tokens */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-                      Max Output Tokens
-                    </label>
-                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
-                      Maximum number of tokens the model can generate in a
-                      response. This limits the length of generated text. Higher
-                      values allow longer responses but may increase costs.
-                      Default: model default
-                    </p>
-                    <Slider
-                      value={maxOutputTokens}
-                      min={1}
-                      max={8192}
-                      step={1}
-                      onChange={setMaxOutputTokens}
-                      placeholder="Model default"
-                    />
-                  </div>
-
-                  {/* Stop Sequences */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-                      Stop Sequences
-                    </label>
-                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
-                      Text sequences that will stop generation when encountered.
-                      The model will stop immediately after generating any of
-                      these sequences. Enter multiple sequences separated by
-                      commas. Default: none
-                    </p>
-                    <input
-                      type="text"
-                      value={stopSequences}
-                      onChange={(e) => setStopSequences(e.target.value)}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                      placeholder="e.g., END, STOP, ###"
-                    />
-                  </div>
-
-                  {/* Max Tool Roundtrips */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-                      Max Tool Roundtrips
-                    </label>
-                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
-                      Maximum number of tool call iterations allowed before
-                      stopping. Each roundtrip allows the agent to call tools,
-                      receive results, and continue processing. Higher values
-                      allow more complex multi-step operations. Default: 5
-                    </p>
-                    <Slider
-                      value={maxToolRoundtrips}
-                      min={1}
-                      max={50}
-                      step={1}
-                      onChange={setMaxToolRoundtrips}
-                      placeholder="5"
-                    />
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      onClick={handleSaveAdvanced}
-                      disabled={updateAgent.isPending}
-                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {updateAgent.isPending
-                        ? "Saving..."
-                        : "Save Advanced Settings"}
-                    </button>
-                    <button
-                      onClick={handleResetAdvanced}
-                      disabled={updateAgent.isPending}
-                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
-                    >
-                      Reset to Defaults
-                    </button>
-                  </div>
-                </div>
-            </AgentAccordionSection>
-          )}
-        </SectionGroup>
-
-        <SectionGroup
-          title={
-            <>
               <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
-              Tools
+              Internal tools
             </>
           }
         >
-          {/* MCP Servers Section */}
-          {canEdit && (
-            <div id="agent-mcp-servers-section" className="scroll-mt-8">
-              <AgentAccordionSection
-                id="mcp-servers"
-                title={
-                  <>
-                    <BoltIcon className="mr-2 inline-block size-5" />
-                    CONNECTED TOOLS
-                  </>
-                }
-                expandedSection={expandedSection}
-                onToggle={toggleSection}
-              >
-                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
-                  Enable connected tools from your workspace to make them available
-                  as tools to this agent. When enabled, the agent will be able
-                  to call the connected tool methods.
-                </p>
-                {mcpServersData && mcpServersData.servers.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      {mcpServersData.servers.map((server) => {
-                        const serverTools = getMcpServerToolsForServer(
-                          server.id
-                        );
-                        const allToolNames = serverTools.map(
-                          (tool) => tool.name
-                        );
-                        const enabledToolNames =
-                          enabledMcpServerToolNames[server.id];
-                        const isServerEnabled = enabledMcpServerIds.includes(
-                          server.id
-                        );
-
-                        return (
-                          <div
-                            key={server.id}
-                            className="space-y-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
-                          >
-                            <label className="flex cursor-pointer items-start gap-2">
-                              <input
-                                type="checkbox"
-                                checked={isServerEnabled}
-                                onChange={() =>
-                                  handleMcpServerToggle(server.id)
-                                }
-                                className="mt-1 rounded border-2 border-neutral-300"
-                              />
-                              <div className="flex-1">
-                                <div className="font-bold">{server.name}</div>
-                                <div className="mt-1 font-mono text-xs opacity-75 dark:text-neutral-300">
-                                  {server.url}
-                                </div>
-                                <div className="mt-1 text-xs uppercase">
-                                  Auth: {server.authType}
-                                </div>
-                              </div>
-                            </label>
-                            {isServerEnabled && (
-                              <div className="space-y-2 border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
-                                <div className="text-xs font-semibold uppercase text-neutral-500 dark:text-neutral-400">
-                                  Tools
-                                </div>
-                                {isLoadingMcpServerTools ? (
-                                  <p className="text-xs opacity-70">
-                                    Loading tools...
-                                  </p>
-                                ) : serverTools.length === 0 ? (
-                                  <p className="text-xs opacity-70">
-                                    No tools available for this server.
-                                  </p>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {serverTools.map((tool) => {
-                                      const isToolEnabled = enabledToolNames
-                                        ? enabledToolNames.includes(tool.name)
-                                        : true;
-                                      return (
-                                        <label
-                                          key={tool.name}
-                                          className="flex cursor-pointer items-start gap-2"
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={isToolEnabled}
-                                            onChange={() =>
-                                              handleMcpServerToolToggle(
-                                                server.id,
-                                                tool.name,
-                                                allToolNames
-                                              )
-                                            }
-                                            className="mt-0.5 rounded border-2 border-neutral-300"
-                                          />
-                                          <div className="flex-1">
-                                            <div className="font-mono text-xs font-semibold">
-                                              {tool.name}
-                                            </div>
-                                            <div className="mt-0.5 text-xs opacity-70">
-                                              {tool.description}
-                                            </div>
-                                          </div>
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <button
-                      onClick={handleSaveMcpServers}
-                      disabled={updateAgent.isPending}
-                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {updateAgent.isPending
-                        ? "Saving..."
-                        : "Save Connected Tools"}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    No connected tools available in this workspace. Create
-                    connected tools in the workspace settings to enable them for
-                    agents.
-                  </p>
-                )}
-              </AgentAccordionSection>
-            </div>
-          )}
-
           {/* Email Tool Section */}
           {canEdit && (
             <AgentAccordionSection
@@ -5180,11 +4771,439 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         <SectionGroup
           title={
             <>
-              <ServerIcon className="mr-2 inline-block size-5" />
-              Servers
+              <BoltIcon className="mr-2 inline-block size-5" />
+              External tools
             </>
           }
         >
+          {/* MCP Servers Section */}
+          {canEdit && (
+            <div id="agent-mcp-servers-section" className="scroll-mt-8">
+              <AgentAccordionSection
+                id="mcp-servers"
+                title={
+                  <>
+                    <BoltIcon className="mr-2 inline-block size-5" />
+                    CONNECTED TOOLS
+                  </>
+                }
+                expandedSection={expandedSection}
+                onToggle={toggleSection}
+              >
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                  Enable connected tools from your workspace to make them available
+                  as tools to this agent. When enabled, the agent will be able
+                  to call the connected tool methods.
+                </p>
+                {mcpServersData && mcpServersData.servers.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {mcpServersData.servers.map((server) => {
+                        const serverTools = getMcpServerToolsForServer(
+                          server.id
+                        );
+                        const allToolNames = serverTools.map(
+                          (tool) => tool.name
+                        );
+                        const enabledToolNames =
+                          enabledMcpServerToolNames[server.id];
+                        const isServerEnabled = enabledMcpServerIds.includes(
+                          server.id
+                        );
+
+                        return (
+                          <div
+                            key={server.id}
+                            className="space-y-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
+                          >
+                            <label className="flex cursor-pointer items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isServerEnabled}
+                                onChange={() =>
+                                  handleMcpServerToggle(server.id)
+                                }
+                                className="mt-1 rounded border-2 border-neutral-300"
+                              />
+                              <div className="flex-1">
+                                <div className="font-bold">{server.name}</div>
+                                <div className="mt-1 font-mono text-xs opacity-75 dark:text-neutral-300">
+                                  {server.url}
+                                </div>
+                                <div className="mt-1 text-xs uppercase">
+                                  Auth: {server.authType}
+                                </div>
+                              </div>
+                            </label>
+                            {isServerEnabled && (
+                              <div className="space-y-2 border-t border-neutral-200 pt-3 text-xs dark:border-neutral-700">
+                                <div className="text-xs font-semibold uppercase text-neutral-500 dark:text-neutral-400">
+                                  Tools
+                                </div>
+                                {isLoadingMcpServerTools ? (
+                                  <p className="text-xs opacity-70">
+                                    Loading tools...
+                                  </p>
+                                ) : serverTools.length === 0 ? (
+                                  <p className="text-xs opacity-70">
+                                    No tools available for this server.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {serverTools.map((tool) => {
+                                      const isToolEnabled = enabledToolNames
+                                        ? enabledToolNames.includes(tool.name)
+                                        : true;
+                                      return (
+                                        <label
+                                          key={tool.name}
+                                          className="flex cursor-pointer items-start gap-2"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={isToolEnabled}
+                                            onChange={() =>
+                                              handleMcpServerToolToggle(
+                                                server.id,
+                                                tool.name,
+                                                allToolNames
+                                              )
+                                            }
+                                            className="mt-0.5 rounded border-2 border-neutral-300"
+                                          />
+                                          <div className="flex-1">
+                                            <div className="font-mono text-xs font-semibold">
+                                              {tool.name}
+                                            </div>
+                                            <div className="mt-0.5 text-xs opacity-70">
+                                              {tool.description}
+                                            </div>
+                                          </div>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={handleSaveMcpServers}
+                      disabled={updateAgent.isPending}
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {updateAgent.isPending
+                        ? "Saving..."
+                        : "Save Connected Tools"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    No connected tools available in this workspace. Create
+                    connected tools in the workspace settings to enable them for
+                    agents.
+                  </p>
+                )}
+              </AgentAccordionSection>
+            </div>
+          )}
+        </SectionGroup>
+
+        <SectionGroup
+          title={
+            <>
+              <UserGroupIcon className="mr-2 inline-block size-5" />
+              Collaborate
+            </>
+          }
+        >
+          {/* Delegation Section */}
+          {canEdit && (
+            <AgentAccordionSection
+              id="delegation"
+              title={
+                <>
+                  <UserGroupIcon className="mr-2 inline-block size-5" />
+                  DELEGATION
+                </>
+              }
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
+            >
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                  Configure which other agents in this workspace this agent can
+                  delegate tasks to. When delegation is enabled, this agent will
+                  have access to the{" "}
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                    list_agents
+                  </code>{" "}
+                  and{" "}
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                    call_agent
+                  </code>{" "}
+                  tools.
+                </p>
+                {allAgents && allAgents.length > 1 ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {allAgents
+                        .filter((a) => a.id !== agentId)
+                        .map((targetAgent) => (
+                          <label
+                            key={targetAgent.id}
+                            className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={delegatableAgentIds.includes(
+                                targetAgent.id
+                              )}
+                              onChange={() =>
+                                handleDelegationToggle(targetAgent.id)
+                              }
+                              className="mt-1 rounded border-2 border-neutral-300 dark:border-neutral-700"
+                            />
+                            <div className="flex-1">
+                              <div className="font-bold dark:text-neutral-50">
+                                {targetAgent.name}
+                              </div>
+                              <div className="mt-1 text-xs opacity-75 dark:text-neutral-300">
+                                {targetAgent.systemPrompt.length > 100
+                                  ? `${targetAgent.systemPrompt.substring(
+                                      0,
+                                      100
+                                    )}...`
+                                  : targetAgent.systemPrompt}
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                    </div>
+                    <button
+                      onClick={handleSaveDelegation}
+                      disabled={updateAgent.isPending}
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {updateAgent.isPending ? "Saving..." : "Save Delegation"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    No other agents available in this workspace. Create another
+                    agent to enable delegation.
+                  </p>
+                )}
+            </AgentAccordionSection>
+          )}
+        </SectionGroup>
+
+        <SectionGroup
+          title={
+            <>
+              <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
+              Advanced
+            </>
+          }
+        >
+          {/* Advanced Section */}
+          {canEdit && (
+            <AgentAccordionSection
+              id="advanced"
+              title={
+                <>
+                  <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
+                  ADVANCED
+                </>
+              }
+              expandedSection={expandedSection}
+              onToggle={toggleSection}
+            >
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                  Configure advanced model generation parameters. These settings
+                  control how the AI model generates responses. Leave fields
+                  empty to use model defaults.
+                </p>
+                <div className="space-y-6">
+                  {/* Temperature */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
+                      Temperature
+                    </label>
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
+                      Controls the randomness of responses. Lower values (0-0.5)
+                      produce more focused and deterministic outputs, while
+                      higher values (1.5-2) create more creative and varied
+                      responses. Default: model default (~1.0)
+                    </p>
+                    <Slider
+                      value={temperature}
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      onChange={setTemperature}
+                      placeholder="Model default"
+                    />
+                  </div>
+
+                  {/* Top-p */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
+                      Top-p / Nucleus Sampling
+                    </label>
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
+                      Controls diversity by considering tokens with cumulative
+                      probability up to this threshold. Lower values (0.1-0.5)
+                      produce more focused outputs, higher values (0.9-1.0)
+                      allow more diversity. Default: model default (~0.95)
+                    </p>
+                    <Slider
+                      value={topP}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={setTopP}
+                      placeholder="Model default"
+                    />
+                  </div>
+
+                  {/* Top-k */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
+                      Top-k
+                    </label>
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
+                      Limits token selection to the top K most probable tokens
+                      at each step. Lower values (10-20) produce more focused
+                      outputs, higher values (50-100) allow more diversity.
+                      Default: model default
+                    </p>
+                    <Slider
+                      value={topK}
+                      min={1}
+                      max={100}
+                      step={1}
+                      onChange={setTopK}
+                      placeholder="Model default"
+                    />
+                  </div>
+
+                  {/* Max Output Tokens */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
+                      Max Output Tokens
+                    </label>
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
+                      Maximum number of tokens the model can generate in a
+                      response. This limits the length of generated text. Higher
+                      values allow longer responses but may increase costs.
+                      Default: model default
+                    </p>
+                    <Slider
+                      value={maxOutputTokens}
+                      min={1}
+                      max={8192}
+                      step={1}
+                      onChange={setMaxOutputTokens}
+                      placeholder="Model default"
+                    />
+                  </div>
+
+                  {/* Stop Sequences */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
+                      Stop Sequences
+                    </label>
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
+                      Text sequences that will stop generation when encountered.
+                      The model will stop immediately after generating any of
+                      these sequences. Enter multiple sequences separated by
+                      commas. Default: none
+                    </p>
+                    <input
+                      type="text"
+                      value={stopSequences}
+                      onChange={(e) => setStopSequences(e.target.value)}
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                      placeholder="e.g., END, STOP, ###"
+                    />
+                  </div>
+
+                  {/* Max Tool Roundtrips */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
+                      Max Tool Roundtrips
+                    </label>
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
+                      Maximum number of tool call iterations allowed before
+                      stopping. Each roundtrip allows the agent to call tools,
+                      receive results, and continue processing. Higher values
+                      allow more complex multi-step operations. Default: 5
+                    </p>
+                    <Slider
+                      value={maxToolRoundtrips}
+                      min={1}
+                      max={50}
+                      step={1}
+                      onChange={setMaxToolRoundtrips}
+                      placeholder="5"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={handleSaveAdvanced}
+                      disabled={updateAgent.isPending}
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {updateAgent.isPending
+                        ? "Saving..."
+                        : "Save Advanced Settings"}
+                    </button>
+                    <button
+                      onClick={handleResetAdvanced}
+                      disabled={updateAgent.isPending}
+                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
+                    >
+                      Reset to Defaults
+                    </button>
+                  </div>
+                </div>
+            </AgentAccordionSection>
+          )}
+        </SectionGroup>
+
+
+        <SectionGroup
+          title={
+            <>
+              <ServerIcon className="mr-2 inline-block size-5" />
+              Interact
+            </>
+          }
+        >
+          {/* Schedules Section */}
+          <AgentAccordionSection
+            id="schedules"
+            title={
+              <>
+                <ClockIcon className="mr-2 inline-block size-5" />
+                SCHEDULES
+              </>
+            }
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
+          >
+            <AgentScheduleList
+              workspaceId={workspaceId}
+              agentId={agentId}
+              canEdit={canEdit}
+            />
+          </AgentAccordionSection>
+
           {/* Embeddable Widget Section */}
           {canEdit && (
             <AgentAccordionSection
@@ -6921,7 +6940,7 @@ body {
           title={
             <>
               <CurrencyDollarIcon className="mr-2 inline-block size-5" />
-              Billing & Usage
+              Control
             </>
           }
         >
@@ -6953,7 +6972,7 @@ body {
             title={
               <>
                 <ChartBarIcon className="mr-2 inline-block size-5" />
-                Assistant usage
+                ASSISTANT USAGE
               </>
             }
             expandedSection={expandedSection}
@@ -6968,7 +6987,7 @@ body {
             title={
               <>
                 <CurrencyDollarIcon className="mr-2 inline-block size-5" />
-                Payment history
+                PAYMENT HISTORY
               </>
             }
             expandedSection={expandedSection}
@@ -6984,6 +7003,14 @@ body {
           </AgentAccordionSection>
         </SectionGroup>
 
+        <SectionGroup
+          title={
+            <>
+              <ExclamationTriangleIcon className="mr-2 inline-block size-5" />
+              Danger zone
+            </>
+          }
+        >
         {canEdit && (
           <AgentAccordionSection
             id="danger"
@@ -7013,6 +7040,7 @@ body {
               </button>
           </AgentAccordionSection>
         )}
+        </SectionGroup>
 
         <AgentDetailModals
           workspaceId={workspaceId}

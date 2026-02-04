@@ -55,9 +55,10 @@ async function killProcessesOnPort(port: number): Promise<void> {
   try {
     const { execSync } = await import("child_process");
     // First check if there are any processes on the port
-    const pids = execSync(`lsof -ti:${port}`, { encoding: "utf-8" }).trim();
+    const pidsOutput = execSync(`lsof -ti:${port}`, { encoding: "utf-8" }).trim();
+    const pids = pidsOutput ? pidsOutput.split(/\s+/).join(" ") : "";
     if (pids) {
-      // Only kill if there are processes found
+      // Only kill if there are processes found (normalize newlines to spaces for kill)
       execSync(`kill -9 ${pids}`);
       console.log(`Killed processes on port ${port}`);
     } else {
