@@ -15,7 +15,7 @@ jobs:
     if: |
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch'
-    runs-on: beefy
+    runs-on: djinilabs-beefy
     timeout-minutes: 45
     outputs:
       pr_number: ${{ steps.pr-info.outputs.pr_number }}
