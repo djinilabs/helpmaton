@@ -38,7 +38,7 @@ describe("workspaceExportSchema", () => {
             name: "Test Agent",
             systemPrompt: "You are a helpful assistant",
             provider: "openrouter",
-            modelName: "gpt-4o",
+            modelName: "openai/gpt-4o",
           },
         ],
         outputChannels: [
@@ -165,7 +165,7 @@ describe("workspaceExportSchema", () => {
                 enabled: true,
                 samplingProbability: 100,
                 provider: "openrouter",
-                modelName: "gpt-4o",
+                modelName: "openai/gpt-4o",
                 evalPrompt: "Evaluate the conversation quality",
               },
             ],
@@ -281,7 +281,7 @@ describe("workspaceExportSchema", () => {
                 id: "judge-1",
                 name: "Judge",
                 provider: "openai", // Invalid, only "openrouter" allowed
-                modelName: "gpt-4",
+                modelName: "openai/gpt-4o",
                 evalPrompt: "Evaluate",
               },
             ],
@@ -291,6 +291,63 @@ describe("workspaceExportSchema", () => {
 
       const result = workspaceExportSchema.safeParse(invalid);
       expect(result.success).toBe(false);
+    });
+
+    it("should reject invalid agent modelName (not in OpenRouter pricing config)", () => {
+      const invalid = {
+        id: "workspace-123",
+        name: "Test Workspace",
+        currency: "usd",
+        agents: [
+          {
+            id: "agent-456",
+            name: "Agent",
+            systemPrompt: "Help",
+            provider: "openrouter",
+            modelName: "nonexistent-model-id",
+          },
+        ],
+      };
+
+      const result = workspaceExportSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some(
+          (i) => i.message === "modelName must be a valid OpenRouter model from the pricing config",
+        )).toBe(true);
+      }
+    });
+
+    it("should reject invalid eval judge modelName (not in OpenRouter pricing config)", () => {
+      const invalid = {
+        id: "workspace-123",
+        name: "Test Workspace",
+        currency: "usd",
+        agents: [
+          {
+            id: "agent-456",
+            name: "Agent",
+            systemPrompt: "Help",
+            evalJudges: [
+              {
+                id: "judge-1",
+                name: "Judge",
+                provider: "openrouter",
+                modelName: "fake-model",
+                evalPrompt: "Evaluate",
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = workspaceExportSchema.safeParse(invalid);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some(
+          (i) => i.message === "modelName must be a valid OpenRouter model from the pricing config",
+        )).toBe(true);
+      }
     });
 
     it("should reject invalid bot integration platform", () => {
@@ -350,7 +407,7 @@ describe("workspaceExportSchema", () => {
             stopSequences: ["STOP"],
             maxToolRoundtrips: 10,
             provider: "openrouter",
-            modelName: "gpt-4o",
+            modelName: "openai/gpt-4o",
             clientTools: [
               {
                 name: "getWeather",

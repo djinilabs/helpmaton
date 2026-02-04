@@ -239,7 +239,7 @@ describe("importWorkspace", () => {
           name: "Main Agent",
           systemPrompt: "You are helpful",
           provider: "openrouter",
-          modelName: "gpt-4o",
+          modelName: "openai/gpt-4o",
           keys: [
             {
               id: "{agentKey}",
@@ -255,7 +255,7 @@ describe("importWorkspace", () => {
               enabled: true,
               samplingProbability: 25,
               provider: "openrouter",
-              modelName: "gpt-4o",
+              modelName: "openai/gpt-4o",
               evalPrompt: "Evaluate the response",
             },
           ],

@@ -1,6 +1,14 @@
 import { unauthorized } from "@hapi/boom";
 import express from "express";
 
+import { getPlanLimits } from "../../../utils/subscriptionPlans";
+import {
+  getSubscriptionAgents,
+  getSubscriptionChannels,
+  getSubscriptionMcpServers,
+  getSubscriptionWorkspaces,
+  getUserSubscription,
+} from "../../../utils/subscriptionUtils";
 import { validateBody } from "../../utils/bodyValidation";
 import { runOnboardingAgentLlm } from "../../utils/onboardingAgentLlm";
 import {
@@ -18,9 +26,10 @@ const ONBOARDING_AGENT_VALIDATION_FAILED = "onboarding_agent_validation_failed";
  * runs the LLM with self-correction (up to 3 validation retries), and returns
  * assistantText + finalEvent (onboarding_agent_result or onboarding_agent_validation_failed).
  * Template output is always validated against workspaceExportSchema before being sent.
+ * Subscription limits are passed to the LLM so it respects plan limits.
  */
 export const registerPostWorkspacesOnboardingAgentStream = (
-  app: express.Application
+  app: express.Application,
 ): void => {
   app.post(
     "/api/workspaces/onboarding-agent/stream",
@@ -31,9 +40,38 @@ export const registerPostWorkspacesOnboardingAgentStream = (
           throw unauthorized();
         }
 
+        const userId = req.userRef.replace("users/", "");
+        const subscription = await getUserSubscription(userId);
+        const subscriptionId = subscription.pk.replace("subscriptions/", "");
+        const limits = getPlanLimits(subscription.plan);
+        const workspaces = await getSubscriptionWorkspaces(subscriptionId);
+        const agentCount = await getSubscriptionAgents(subscriptionId);
+        const channelCount = await getSubscriptionChannels(subscriptionId);
+        const mcpServerCount = await getSubscriptionMcpServers(subscriptionId);
+
+        const subscriptionContext = limits
+          ? {
+              plan: subscription.plan,
+              limits: {
+                maxWorkspaces: limits.maxWorkspaces,
+                maxAgents: limits.maxAgents,
+                maxChannels: limits.maxChannels,
+                maxMcpServers: limits.maxMcpServers,
+                maxEvalJudgesPerAgent: limits.maxEvalJudgesPerAgent,
+                maxAgentSchedulesPerAgent: limits.maxAgentSchedulesPerAgent,
+              },
+              usage: {
+                workspaces: workspaces.length,
+                agents: agentCount,
+                channels: channelCount,
+                mcpServers: mcpServerCount,
+              },
+            }
+          : undefined;
+
         const body = validateBody(
           req.body,
-          onboardingAgentStreamRequestSchema
+          onboardingAgentStreamRequestSchema,
         ) as OnboardingAgentStreamRequest;
 
         const ctx = body.onboardingContext;
@@ -47,6 +85,7 @@ export const registerPostWorkspacesOnboardingAgentStream = (
           intent,
           template,
           chatMessage,
+          subscriptionContext,
         });
 
         if (output.success) {
@@ -72,9 +111,9 @@ export const registerPostWorkspacesOnboardingAgentStream = (
         handleError(
           error,
           next,
-          "POST /api/workspaces/onboarding-agent/stream"
+          "POST /api/workspaces/onboarding-agent/stream",
         );
       }
-    }
+    },
   );
 };

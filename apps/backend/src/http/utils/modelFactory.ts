@@ -120,6 +120,41 @@ export function getDefaultModel(): string {
 }
 
 /**
+ * Get default model for the onboarding agent: OpenRouter provider, Google models only.
+ * Used to restrict onboarding to google/* models in the pricing config.
+ */
+export function getOnboardingAgentModel(): string {
+  const pricingConfig = loadPricingConfig();
+  const providerPricing = pricingConfig.providers.openrouter;
+
+  if (!providerPricing) {
+    throw new Error("No pricing found for provider: openrouter");
+  }
+
+  const googleModels = Object.keys(providerPricing.models)
+    .filter((name) => name.startsWith("google/"))
+    .sort();
+  if (googleModels.length === 0) {
+    throw new Error(
+      "No Google models found in pricing config for provider: openrouter"
+    );
+  }
+
+  const defaultPatterns = [
+    (p: string) => p === "google/gemini-2.5-flash",
+    (p: string) => p.includes("gemini-2.5"),
+    (p: string) => p.includes("gemini-2.0-flash"),
+  ];
+  for (const pattern of defaultPatterns) {
+    const match = googleModels.find(pattern);
+    if (match) {
+      return match;
+    }
+  }
+  return googleModels[0];
+}
+
+/**
  * Create a model instance for OpenRouter
  * @param modelName - The model name (optional, defaults to OpenRouter's default)
  * @param workspaceId - Workspace ID to check for workspace API key

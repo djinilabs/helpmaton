@@ -3,7 +3,7 @@ import type { ModelMessage } from "ai";
 
 import { parseJsonWithFallback } from "../../utils/jsonParsing";
 
-import { createModel, getDefaultModel } from "./modelFactory";
+import { createModel, getOnboardingAgentModel } from "./modelFactory";
 import {
   onboardingAgentResultSchema,
   type OnboardingAgentResult,
@@ -72,6 +72,42 @@ For **template**, use:
 - For refine: apply the user's requested changes to the template, keep refs consistent, return updated template and summary. If they ask to add or change integrations, limits, memory, knowledge, or eval judges, add those to the template.
 - Output only the JSON object.`;
 
+export type SubscriptionContextForOnboarding = {
+  plan: string;
+  limits: {
+    maxWorkspaces: number;
+    maxAgents: number;
+    maxChannels: number;
+    maxMcpServers: number;
+    maxEvalJudgesPerAgent: number;
+    maxAgentSchedulesPerAgent: number;
+  };
+  usage: {
+    workspaces: number;
+    agents: number;
+    channels: number;
+    mcpServers: number;
+  };
+};
+
+function buildSubscriptionLimitsSection(ctx: SubscriptionContextForOnboarding): string {
+  const { plan, limits, usage } = ctx;
+  const remainingWorkspaces = Math.max(0, limits.maxWorkspaces - usage.workspaces);
+  const remainingAgents = Math.max(0, limits.maxAgents - usage.agents);
+  const remainingChannels = Math.max(0, limits.maxChannels - usage.channels);
+  const remainingMcpServers = Math.max(0, limits.maxMcpServers - usage.mcpServers);
+  return `
+## Subscription limits (you must respect these)
+The user is on the **${plan}** plan. Current usage and limits:
+- Workspaces: ${usage.workspaces} / ${limits.maxWorkspaces} (can add ${remainingWorkspaces} more).
+- Agents (total across all workspaces): ${usage.agents} / ${limits.maxAgents} (can add ${remainingAgents} more).
+- Output channels: ${usage.channels} / ${limits.maxChannels} (can add ${remainingChannels} more).
+- MCP servers: ${usage.mcpServers} / ${limits.maxMcpServers} (can add ${remainingMcpServers} more).
+- Per agent: at most ${limits.maxEvalJudgesPerAgent} eval judge(s), at most ${limits.maxAgentSchedulesPerAgent} schedule(s).
+
+**Rules:** Never suggest a template that would exceed these limits. The template must contain at most ${remainingWorkspaces} workspace(s) (typically 1). The total number of agents in the template must not exceed ${remainingAgents}. Do not add more outputChannels than ${remainingChannels}, or more mcpServers than ${remainingMcpServers}. Each agent may have at most ${limits.maxEvalJudgesPerAgent} eval judge(s) and at most ${limits.maxAgentSchedulesPerAgent} schedule(s). If the user's goals would require more, propose the best fit within these limits and mention they can upgrade for more.`;
+}
+
 export type OnboardingAgentLlmInput = {
   step: "intent" | "refine";
   intent?: {
@@ -84,6 +120,7 @@ export type OnboardingAgentLlmInput = {
   };
   template?: unknown;
   chatMessage?: string;
+  subscriptionContext?: SubscriptionContextForOnboarding;
 };
 
 export type OnboardingAgentLlmSuccess = {
@@ -168,9 +205,15 @@ function parseAndValidateResponse(
 export async function runOnboardingAgentLlm(
   input: OnboardingAgentLlmInput
 ): Promise<OnboardingAgentLlmOutput> {
-  const modelName = getDefaultModel();
+  const modelName = getOnboardingAgentModel();
   const model = await createModel("openrouter", modelName, undefined);
   const requestTimeout = createRequestTimeout();
+
+  const systemPrompt =
+    input.subscriptionContext != null
+      ? ONBOARDING_AGENT_SYSTEM_PROMPT +
+        buildSubscriptionLimitsSection(input.subscriptionContext)
+      : ONBOARDING_AGENT_SYSTEM_PROMPT;
 
   const messages: ModelMessage[] = [
     { role: "user", content: buildUserMessage(input) },
@@ -195,7 +238,7 @@ export async function runOnboardingAgentLlm(
 
       const result = await generateText({
         model,
-        system: ONBOARDING_AGENT_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages,
         abortSignal: requestTimeout.signal,
       });

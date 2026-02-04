@@ -11,6 +11,27 @@ const { mockRunOnboardingAgentLlm } = vi.hoisted(() => ({
   mockRunOnboardingAgentLlm: vi.fn(),
 }));
 
+const mockGetUserSubscription = vi.hoisted(() => vi.fn());
+const mockGetPlanLimits = vi.hoisted(() => vi.fn());
+const mockGetSubscriptionWorkspaces = vi.hoisted(() => vi.fn());
+const mockGetSubscriptionAgents = vi.hoisted(() => vi.fn());
+const mockGetSubscriptionChannels = vi.hoisted(() => vi.fn());
+const mockGetSubscriptionMcpServers = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../../utils/subscriptionPlans", () => ({
+  getPlanLimits: (...args: unknown[]) => mockGetPlanLimits(...args),
+}));
+vi.mock("../../../../utils/subscriptionUtils", () => ({
+  getUserSubscription: (...args: unknown[]) => mockGetUserSubscription(...args),
+  getSubscriptionWorkspaces: (...args: unknown[]) =>
+    mockGetSubscriptionWorkspaces(...args),
+  getSubscriptionAgents: (...args: unknown[]) =>
+    mockGetSubscriptionAgents(...args),
+  getSubscriptionChannels: (...args: unknown[]) =>
+    mockGetSubscriptionChannels(...args),
+  getSubscriptionMcpServers: (...args: unknown[]) =>
+    mockGetSubscriptionMcpServers(...args),
+}));
 vi.mock("../../../utils/onboardingAgentLlm", () => ({
   runOnboardingAgentLlm: mockRunOnboardingAgentLlm,
 }));
@@ -32,15 +53,42 @@ function validBody(overrides?: Record<string, unknown>) {
   };
 }
 
+const defaultSubscriptionContext = {
+  plan: "free",
+  limits: {
+    maxWorkspaces: 1,
+    maxAgents: 1,
+    maxChannels: 2,
+    maxMcpServers: 2,
+    maxEvalJudgesPerAgent: 1,
+    maxAgentSchedulesPerAgent: 1,
+  },
+  usage: {
+    workspaces: 0,
+    agents: 0,
+    channels: 0,
+    mcpServers: 0,
+  },
+};
+
 describe("POST /api/workspaces/onboarding-agent/stream", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetUserSubscription.mockResolvedValue({
+      pk: "subscriptions/sub-1",
+      plan: "free",
+    });
+    mockGetPlanLimits.mockReturnValue(defaultSubscriptionContext.limits);
+    mockGetSubscriptionWorkspaces.mockResolvedValue([]);
+    mockGetSubscriptionAgents.mockResolvedValue(0);
+    mockGetSubscriptionChannels.mockResolvedValue(0);
+    mockGetSubscriptionMcpServers.mockResolvedValue(0);
   });
 
   async function callRouteHandler(
     req: Partial<express.Request>,
     res: Partial<express.Response> & { body?: unknown; statusCode?: number },
-    next?: express.NextFunction
+    next?: express.NextFunction,
   ) {
     const { app, postHandler } = createTestAppWithHandlerCapture();
     registerPostWorkspacesOnboardingAgentStream(app);
@@ -51,7 +99,7 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
     await handler(
       req as express.Request,
       res as express.Response,
-      next ?? (() => {})
+      next ?? (() => {}),
     );
   }
 
@@ -86,6 +134,7 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
       intent: { goal: "Customer support", freeText: "FAQ bot" },
       template: undefined,
       chatMessage: undefined,
+      subscriptionContext: defaultSubscriptionContext,
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -138,6 +187,7 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
       intent: intentWithArray,
       template: undefined,
       chatMessage: undefined,
+      subscriptionContext: defaultSubscriptionContext,
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -183,7 +233,8 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
           goals: ["support"],
           tasksOrRoles: ["customer support"],
         }),
-      })
+        subscriptionContext: defaultSubscriptionContext,
+      }),
     );
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -252,8 +303,7 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
       assistantText: "Invalid JSON output",
       finalEvent: {
         type: "onboarding_agent_validation_failed",
-        error:
-          "Template validation failed: agents[0].systemPrompt is required",
+        error: "Template validation failed: agents[0].systemPrompt is required",
       },
     });
     expect(next).not.toHaveBeenCalled();
@@ -311,6 +361,7 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
         ]),
       }),
       chatMessage: "Make the agent friendlier",
+      subscriptionContext: defaultSubscriptionContext,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -329,7 +380,7 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
     const error = next.mock.calls[0][0];
     expect(error).toBeInstanceOf(Error);
     expect(
-      (error as { output?: { statusCode: number } }).output?.statusCode
+      (error as { output?: { statusCode: number } }).output?.statusCode,
     ).toBe(401);
     expect(mockRunOnboardingAgentLlm).not.toHaveBeenCalled();
   });

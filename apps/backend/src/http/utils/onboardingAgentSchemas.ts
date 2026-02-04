@@ -7,7 +7,7 @@ const optionalStringArray = z
   .union([z.array(z.string()), z.string()])
   .optional()
   .transform((v) =>
-    v === undefined ? undefined : Array.isArray(v) ? v : v ? [v] : []
+    v === undefined ? undefined : Array.isArray(v) ? v : v ? [v] : [],
   );
 
 const onboardingContextIntentSchema = z
@@ -15,10 +15,18 @@ const onboardingContextIntentSchema = z
     step: z.literal("intent"),
     intent: z
       .object({
-        goal: z.string().optional().describe("Legacy single goal; prefer goals"),
-        goals: z.array(z.string()).optional().describe("Selected goal option values (multi-select)"),
+        goal: z
+          .string()
+          .optional()
+          .describe("Legacy single goal; prefer goals"),
+        goals: z
+          .array(z.string())
+          .optional()
+          .describe("Selected goal option values (multi-select)"),
         businessType: z.string().optional(),
-        tasksOrRoles: optionalStringArray.describe("Tasks or roles; accepts string (single) or array"),
+        tasksOrRoles: optionalStringArray.describe(
+          "Tasks or roles; accepts string (single) or array",
+        ),
         freeText: z.string().optional(),
       })
       .passthrough()
@@ -49,14 +57,21 @@ export const onboardingAgentStreamRequestSchema = z
 
 const onboardingAgentQuestionChoiceSchema = z
   .object({
-    id: z.string().describe("Unique id for the question (e.g. businessType, tasks)"),
+    id: z
+      .string()
+      .describe("Unique id for the question (e.g. businessType, tasks)"),
     label: z.string().describe("Human-readable question text"),
     kind: z.literal("choice"),
-    options: z.array(z.string()).min(1).describe("List of options to choose from"),
+    options: z
+      .array(z.string())
+      .min(1)
+      .describe("List of options to choose from"),
     multiple: z
       .boolean()
       .optional()
-      .describe("Allow selecting multiple options; omit or false for single choice"),
+      .describe(
+        "Allow selecting multiple options; omit or false for single choice",
+      ),
   })
   .strict();
 
@@ -95,7 +110,9 @@ export const onboardingAgentTemplateResponseSchema = z
   .object({
     type: z.literal("template"),
     template: workspaceExportSchema,
-    summary: z.string().describe("Short human-readable description of the workspace for the UI"),
+    summary: z
+      .string()
+      .describe("Short human-readable description of the workspace for the UI"),
   })
   .strict();
 
@@ -110,7 +127,13 @@ export const onboardingAgentResultSchema = z.discriminatedUnion("type", [
 export type OnboardingAgentStreamRequest = z.infer<
   typeof onboardingAgentStreamRequestSchema
 >;
-export type OnboardingAgentQuestion = z.infer<typeof onboardingAgentQuestionSchema>;
-export type OnboardingAgentQuestionsResponse = z.infer<typeof onboardingAgentQuestionsResponseSchema>;
-export type OnboardingAgentTemplateResponse = z.infer<typeof onboardingAgentTemplateResponseSchema>;
+export type OnboardingAgentQuestion = z.infer<
+  typeof onboardingAgentQuestionSchema
+>;
+export type OnboardingAgentQuestionsResponse = z.infer<
+  typeof onboardingAgentQuestionsResponseSchema
+>;
+export type OnboardingAgentTemplateResponse = z.infer<
+  typeof onboardingAgentTemplateResponseSchema
+>;
 export type OnboardingAgentResult = z.infer<typeof onboardingAgentResultSchema>;

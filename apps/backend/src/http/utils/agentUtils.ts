@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 
 import { queues } from "@architect/functions";
 import { resourceGone } from "@hapi/boom";
-import { tool } from "ai";
+import { jsonSchema, tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
@@ -24,6 +24,7 @@ import {
 } from "./call-agent-internal";
 import type { LlmObserver } from "./llmObserver";
 import type { Provider } from "./modelFactory";
+import { EMPTY_PARAMETERS_JSON_SCHEMA } from "./toolSchemas";
 
 export { MODEL_NAME };
 
@@ -540,12 +541,10 @@ export function createSendNotificationTool(
  * This tool is always available to all agents
  */
 export function createGetDatetimeTool() {
-  const getDatetimeParamsSchema = z.object({});
-
   return tool({
     description:
       "Get the current date and time. Returns both ISO 8601 format (UTC) and a human-readable format. Use this when you need to know the current date or time, or when working with time-sensitive information.",
-    parameters: getDatetimeParamsSchema,
+    inputSchema: jsonSchema(EMPTY_PARAMETERS_JSON_SCHEMA),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
@@ -1149,14 +1148,12 @@ export function createListAgentsTool(
   workspaceId: string,
   delegatableAgentIds: string[],
 ) {
-  const listAgentsParamsSchema = z.object({});
-
   const description =
     "List all agents in the workspace that this agent can delegate to. Returns the name and ID of each delegatable agent. IMPORTANT: You MUST call this tool FIRST before calling call_agent, as you need to know the exact agent IDs to delegate to. Do not attempt to call_agent without first listing the available agents.";
 
   return tool({
     description,
-    parameters: listAgentsParamsSchema,
+    inputSchema: jsonSchema(EMPTY_PARAMETERS_JSON_SCHEMA),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
 

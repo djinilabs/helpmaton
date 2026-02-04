@@ -5,11 +5,25 @@ import { Link } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { Logo } from "../components/Logo";
+import { useDialogTracking } from "../contexts/DialogContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useSubscription } from "../hooks/useSubscription";
 import { useUserUsage, useUserDailyUsage } from "../hooks/useUsage";
+import { useWorkspaces } from "../hooks/useWorkspaces";
 import { clearTokens, getUserHasPasskey } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import { trackEvent } from "../utils/tracking";
 // Lazy load components
+const CreateWorkspaceModal = lazy(() =>
+  import("../components/CreateWorkspaceModal").then((module) => ({
+    default: module.CreateWorkspaceModal,
+  }))
+);
+const OnboardingAgentModal = lazy(() =>
+  import("../components/OnboardingAgentModal").then((module) => ({
+    default: module.OnboardingAgentModal,
+  }))
+);
 const SubscriptionPanel = lazy(() =>
   import("../components/SubscriptionPanel").then((module) => ({
     default: module.SubscriptionPanel,
@@ -23,6 +37,25 @@ const UsageDashboard = lazy(() =>
 
 const Home: FC = () => {
   const { data: session } = useSession();
+  const { data: workspaces } = useWorkspaces();
+  const { data: subscription } = useSubscription();
+  const { registerDialog, unregisterDialog } = useDialogTracking();
+  const [isCreateChoiceOpen, setIsCreateChoiceOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
+  const hasWorkspaces = workspaces.length > 0;
+  const canCreateWorkspace =
+    subscription == null ||
+    subscription.usage.workspaces < subscription.limits.maxWorkspaces;
+
+  const closeCreateChoice = () => setIsCreateChoiceOpen(false);
+  useEscapeKey(isCreateChoiceOpen, closeCreateChoice);
+  useEffect(() => {
+    if (isCreateChoiceOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isCreateChoiceOpen, registerDialog, unregisterDialog]);
 
   useEffect(() => {
     trackEvent("home_page_viewed", {});
@@ -48,50 +81,189 @@ const Home: FC = () => {
               </div>
             </div>
             <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300">
-              Start here to organize your workspaces, set up agents, and see
-              usage at a glance.
+              {hasWorkspaces
+                ? "Start here to organize your workspaces, set up agents, and see usage at a glance."
+                : "Get started by creating your first workspace."}
             </p>
           </div>
         </div>
 
-        <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
-            <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-              Get started
-            </h2>
-            <p className="mb-8 text-base font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
-              A workspace is a place for one team or project. It keeps your
-              agents, documents, and spending in one spot.
-            </p>
-            <Link
-              to="/workspaces"
-              className="inline-flex transform items-center gap-3 rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
-            >
-              Go to Workspaces
-              <svg
-                className="size-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Link>
-          </div>
+        {hasWorkspaces ? (
+          <>
+            <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+                <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
+                  Get started
+                </h2>
+                <p className="mb-8 text-base font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
+                  A workspace is a place for one team or project. It keeps your
+                  agents, documents, and spending in one spot.
+                </p>
+                <Link
+                  to="/workspaces"
+                  className="inline-flex transform items-center gap-3 rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                >
+                  Go to Workspaces
+                  <svg
+                    className="size-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </Link>
+              </div>
 
-          <Suspense fallback={<LoadingScreen compact />}>
-            <SubscriptionPanel />
-          </Suspense>
-        </div>
+              <Suspense fallback={<LoadingScreen compact />}>
+                <SubscriptionPanel />
+              </Suspense>
+            </div>
+
+            <AddPasskeyPrompt />
+
+            <UserUsageSection />
+          </>
+        ) : (
+          <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-12 text-center shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-14">
+            <div className="mx-auto max-w-md">
+              <div className="bg-gradient-primary/15 mx-auto mb-8 flex size-20 items-center justify-center rounded-2xl">
+                <svg
+                  className="size-10 text-primary-600 dark:text-primary-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
+                </svg>
+              </div>
+              <p className="mb-4 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
+                No workspaces yet.
+              </p>
+              <p className="mb-6 text-lg font-medium text-neutral-700 dark:text-neutral-300">
+                Create your first workspace to get started.
+              </p>
+              <p className="mb-10 text-base text-neutral-600 dark:text-neutral-300">
+                A workspace is where you&apos;ll create agents, upload
+                documents, and manage spending.
+              </p>
+              {canCreateWorkspace ? (
+                <button
+                  type="button"
+                  onClick={() => setIsCreateChoiceOpen(true)}
+                  className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                >
+                  Create your first workspace
+                </button>
+              ) : (
+                <p className="mb-4 text-base font-medium text-neutral-600 dark:text-neutral-400">
+                  You&apos;ve reached your workspace limit (
+                  {subscription?.usage.workspaces ?? 0}/
+                  {subscription?.limits.maxWorkspaces ?? 1}). Upgrade your plan
+                  to create more.
+                </p>
+              )}
+              {!canCreateWorkspace && subscription && (
+                <Link
+                  to="/subscription"
+                  className="inline-flex transform items-center gap-2 rounded-xl border-2 border-primary-500 bg-primary-50 px-6 py-3 font-semibold text-primary-700 transition-all duration-200 hover:bg-primary-100 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                >
+                  View subscription
+                  <svg
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
 
         <AddPasskeyPrompt />
 
-        <UserUsageSection />
+        {isCreateChoiceOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+              <h2 className="mb-2 text-xl font-bold text-neutral-900 dark:text-neutral-50">
+                Create a workspace
+              </h2>
+              <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-400">
+                Choose how you&apos;d like to create your workspace.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setIsCreateChoiceOpen(false);
+                    setIsOnboardingModalOpen(true);
+                  }}
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+                >
+                  <span className="block">✨ Guided setup</span>
+                  <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
+                    Answer a few questions and get a suggested workspace with
+                    agents.
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsCreateChoiceOpen(false);
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
+                >
+                  <span className="block">Name and description only</span>
+                  <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
+                    Create an empty workspace and add agents yourself.
+                  </span>
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateChoiceOpen(false)}
+                className="mt-4 w-full rounded-xl border-2 border-neutral-300 bg-neutral-100 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <Suspense fallback={<LoadingScreen />}>
+          <CreateWorkspaceModal
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+          />
+        </Suspense>
+
+        <Suspense fallback={<LoadingScreen />}>
+          <OnboardingAgentModal
+            isOpen={isOnboardingModalOpen}
+            onClose={() => setIsOnboardingModalOpen(false)}
+            onSkipToSimpleCreate={() => {
+              setIsOnboardingModalOpen(false);
+              setIsCreateModalOpen(true);
+            }}
+          />
+        </Suspense>
 
         <div className="flex justify-end rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
           <button

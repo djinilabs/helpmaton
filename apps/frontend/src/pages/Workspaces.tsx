@@ -2,13 +2,14 @@ import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { useState, useEffect, Suspense, lazy } from "react";
 import type { FC } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { LockSpinner } from "../components/LockSpinner";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useSubscription } from "../hooks/useSubscription";
 import { useWorkspaces } from "../hooks/useWorkspaces";
 import { trackEvent } from "../utils/tracking";
 // Lazy load modals - only load when opened
@@ -30,9 +31,13 @@ const OnboardingAgentModal = lazy(() =>
 
 const WorkspacesList: FC = () => {
   const { data: workspaces } = useWorkspaces();
+  const { data: subscription } = useSubscription();
   const navigate = useNavigate();
   const { registerDialog, unregisterDialog } = useDialogTracking();
   const [isCreateChoiceOpen, setIsCreateChoiceOpen] = useState(false);
+  const canCreateWorkspace =
+    subscription == null ||
+    subscription.usage.workspaces < subscription.limits.maxWorkspaces;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -89,12 +94,21 @@ const WorkspacesList: FC = () => {
                   <ArrowUpTrayIcon className="size-5" />
                   Import a workspace
                 </button>
-                <button
-                  onClick={() => setIsCreateChoiceOpen(true)}
-                  className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
-                >
-                  Create a workspace
-                </button>
+                {canCreateWorkspace ? (
+                  <button
+                    onClick={() => setIsCreateChoiceOpen(true)}
+                    className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                  >
+                    Create a workspace
+                  </button>
+                ) : (
+                  <Link
+                    to="/subscription"
+                    className="inline-flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-primary-500 bg-primary-50 px-8 py-4 font-bold text-primary-700 transition-all duration-200 hover:bg-primary-100 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                  >
+                    Upgrade to create more workspaces
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -129,12 +143,27 @@ const WorkspacesList: FC = () => {
                 documents, and manage spending.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                <button
-                  onClick={() => setIsCreateChoiceOpen(true)}
-                  className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
-                >
-                  Create a workspace
-                </button>
+                {canCreateWorkspace ? (
+                  <button
+                    onClick={() => setIsCreateChoiceOpen(true)}
+                    className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                  >
+                    Create a workspace
+                  </button>
+                ) : (
+                  <>
+                    <p className="text-base font-medium text-neutral-600 dark:text-neutral-400">
+                      You&apos;ve reached your workspace limit. Upgrade your
+                      plan to create more.
+                    </p>
+                    <Link
+                      to="/subscription"
+                      className="inline-flex transform items-center gap-2 rounded-xl border-2 border-primary-500 bg-primary-50 px-6 py-3 font-semibold text-primary-700 transition-all duration-200 hover:bg-primary-100 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                    >
+                      View subscription
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
