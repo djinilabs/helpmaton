@@ -11,7 +11,8 @@ on:
         type: string
 
 jobs:
-  deploy:
+  build-docker-images:
+    name: Build Docker images
     if: |
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch'
@@ -19,7 +20,6 @@ jobs:
     timeout-minutes: 45
     outputs:
       pr_number: ${{ steps.pr-info.outputs.pr_number }}
-    # Security: Explicit permissions - only what's needed
     permissions:
       contents: read
       pull-requests: read
@@ -189,6 +189,68 @@ jobs:
         run: |
           bash scripts/build-and-push-lambda-images.sh
 
+  deploy:
+    name: Build and deploy
+    needs: build-docker-images
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: djinilabs-beefy
+    timeout-minutes: 45
+    outputs:
+      pr_number: ${{ needs.build-docker-images.outputs.pr_number }}
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+      id-token: write
+    concurrency:
+      group: deploy-pr-${{ github.event.pull_request.number || github.event.inputs.pr_number || 'unknown' }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set PR number from upstream
+        run: echo "PR_NUMBER=${{ needs.build-docker-images.outputs.pr_number }}" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - name: Enable pnpm corepack
+        run: corepack enable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Wait for Tests workflow to complete
         id: check-tests
         uses: actions/github-script@v8
@@ -256,7 +318,7 @@ jobs:
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          HELPMATON_CUSTOM_DOMAIN: ${{ format('{0}.helpmaton.com', steps.pr-info.outputs.pr_number) }}
+          HELPMATON_CUSTOM_DOMAIN: ${{ format('{0}.helpmaton.com', needs.build-docker-images.outputs.pr_number) }}
           AWS_PR_DEPLOY_CERTIFICATE_ARN: ${{ secrets.AWS_PR_DEPLOY_CERTIFICATE_ARN }}
           AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
@@ -270,6 +332,7 @@ jobs:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           GITHUB_SHA: ${{ github.sha }}
+          SENTRY_RELEASE: ${{ github.sha }}
           SENTRY_DIST: "backend"
           SENTRY_ENABLE_BACKEND_SOURCEMAPS: "false" # IMPORTANT! DISABLED BECAUSE CRASHES ESBUILD
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
@@ -314,7 +377,7 @@ jobs:
           E2E_OVERRIDE_MAX_USERS: "10"
           E2E_AUTH_GATE_BYPASS: "true"
         run: |
-          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
+          PR_NUMBER="${PR_NUMBER:-${{ needs.build-docker-images.outputs.pr_number }}}"
           echo "✅ Deploying PR"
 
           # Set URL environment variables using PR_NUMBER
@@ -453,7 +516,7 @@ jobs:
 
       - name: Trigger API Gateway deployment
         run: |
-          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
+          PR_NUMBER="${PR_NUMBER:-${{ needs.build-docker-images.outputs.pr_number }}}"
           echo "🚀 Triggering API Gateway deployment to make changes live..."
           bash scripts/deploy-api-gateway.sh "HelpmatonStagingPR${PR_NUMBER}"
 

@@ -2,6 +2,8 @@
 
 ## Current Status
 
+- **Deploy PR workflow split (2026-02-04)**: Split `.github/workflows/deploy-pr.yml` into two jobs: `build-docker-images` (checkout, PR info, AWS/pnpm/Node, install, build backend, Docker Buildx, build-and-push Lambda images) and `deploy` (needs build-docker-images; checkout, PR info, AWS/pnpm/Node, install, wait for Tests workflow, Deploy PR, trigger API Gateway). Downstream `staging-agent-tests` and `e2e-tests` unchanged (needs: deploy). Ran typecheck.
+
 - **Agent error email: treat ConditionalCheckFailed as skip (2026-02-04)**: After deploying retry/error-normalization fix, production still saw TransactionCanceledException (ConditionalCheckFailed) after multiple retries—concurrent updates to the same user's rate-limit timestamp. Fixed by treating conditional-check/transaction-cancelled errors in `reserveUserNotificationWindow` as non-fatal: catch after `atomicUpdate` throws, return `{ updated: false, skipReason: "concurrent_update" }` so we skip sending the email and do not fail the webhook. Caller logs "Skipping email due to concurrent update (rate limit applied by another process)". Added `isConditionalCheckOrTransactionCancelledError` helper and unit test. Ran typecheck and agentErrorNotifications tests.
 
 - **BYOK suggestion instructions (2026-02-04)**: Corrected onboarding suggestion LLM instructions in `apps/backend/src/http/utils/suggestions.ts`: rewrote the workspace "API keys" bullet to describe BYOK accurately (pay OpenRouter directly; same models with or without a key) and added an explicit rule that the LLM must never suggest that adding an OpenRouter API key gives access to more LLM models. Ran typecheck and eslint on the file.
