@@ -477,6 +477,15 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
   );
 };
 
+/** Option text that should show a "please specify" text box when selected */
+function isOtherSpecifyOption(opt: string): boolean {
+  const o = opt.toLowerCase().trim();
+  return (
+    o.includes("other") &&
+    (o.includes("specify") || o === "other" || o.includes("please specify"))
+  );
+}
+
 const QuestionsStep: FC<{
   questions: OnboardingAgentQuestion[];
   onSubmit: (nextIntent: OnboardingAgentContext["intent"]) => void;
@@ -488,35 +497,71 @@ const QuestionsStep: FC<{
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const nextIntent = { ...intent, ...answers } as OnboardingAgentContext["intent"];
+    const nextIntent: OnboardingAgentContext["intent"] = { ...(intent ?? {}) };
+    for (const q of questions) {
+      const val = answers[q.id];
+      if (val === undefined) continue;
+      const otherText = answers[`${q.id}_other`];
+      nextIntent[q.id] =
+        isOtherSpecifyOption(val) && otherText
+          ? `${val}: ${otherText}`
+          : val;
+    }
     setIntent(() => nextIntent);
     onSubmit(nextIntent);
   };
 
+  const hasIncompleteOther = questions.some((q) => {
+    const val = answers[q.id];
+    return val !== undefined && isOtherSpecifyOption(val) && !answers[`${q.id}_other`]?.trim();
+  });
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {questions.map((q) => (
-        <div key={q.id}>
+        <div key={q.id} className="space-y-2">
           <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
             {q.label}
           </label>
           {q.kind === "choice" && q.options?.length ? (
-            <div className="flex flex-wrap gap-2">
-              {q.options.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
-                  className={`rounded-xl border-2 px-4 py-2 text-sm font-semibold ${
-                    answers[q.id] === opt
-                      ? "border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                      : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="flex flex-wrap gap-2">
+                {q.options.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
+                    className={`rounded-xl border-2 px-4 py-2 text-sm font-semibold ${
+                      answers[q.id] === opt
+                        ? "border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                        : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+              {answers[q.id] !== undefined && isOtherSpecifyOption(answers[q.id]) && (
+                <div>
+                  <label
+                    htmlFor={`${q.id}-other`}
+                    className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400"
+                  >
+                    Please specify
+                  </label>
+                  <input
+                    id={`${q.id}-other`}
+                    type="text"
+                    value={answers[`${q.id}_other`] ?? ""}
+                    onChange={(e) =>
+                      setAnswers((a) => ({ ...a, [`${q.id}_other`]: e.target.value }))
+                    }
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                    placeholder="Your answer"
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <input
               type="text"
@@ -530,8 +575,8 @@ const QuestionsStep: FC<{
       ))}
       <button
         type="submit"
-        disabled={isLoading}
-        className="w-full rounded-xl bg-gradient-primary px-6 py-3 font-bold text-white disabled:opacity-50"
+        disabled={isLoading || hasIncompleteOther}
+        className="w-full rounded-xl bg-gradient-primary px-6 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isLoading ? "Thinking…" : "Continue"}
       </button>
