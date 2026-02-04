@@ -9,8 +9,6 @@ const { existsSync } = require('fs');
 const { rm } = require('fs/promises');
 const { build: esbuild } = require('esbuild');
 
-const sourceMapStatement = `require('source-map-support/register');\n//# sourceMappingURL=index.js.map`;
-
 function getTsConfig(dir) {
   const path = join(dir, 'tsconfig.json');
   if (existsSync(path)) return path;
@@ -53,10 +51,8 @@ async function compileProject({ inventory }) {
 
 async function compileHandler(params) {
   const { inventory, lambda, globalTsConfig } = params;
-  const { deployStage: stage } = inventory.inv._arc;
   const { arc, cwd } = inventory.inv._project;
-  const { build, src, handlerFile, name, pragma } = lambda;
-  const deployStage = stage || 'testing';
+  const { src, handlerFile, name, pragma } = lambda;
 
   const handlerStart = Date.now();
   console.log(`[plugin-typescript] Building @${pragma} ${name}...`);
