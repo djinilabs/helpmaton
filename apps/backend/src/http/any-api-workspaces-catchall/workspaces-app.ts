@@ -102,6 +102,7 @@ import { registerPostWorkspaceMembers } from "./routes/post-workspace-members";
 import { registerPostWorkspaceSpendingLimits } from "./routes/post-workspace-spending-limits";
 import { registerPostWorkspaceSuggestionsDismiss } from "./routes/post-workspace-suggestions-dismiss";
 import { registerPostWorkspaces } from "./routes/post-workspaces";
+import { registerPostWorkspacesOnboardingAgentStream } from "./routes/post-workspaces-onboarding-agent-stream";
 import { registerPutAgentEvalJudge } from "./routes/put-agent-eval-judge";
 import { registerPutAgentSchedule } from "./routes/put-agent-schedule";
 import { registerPutAgentSpendingLimits } from "./routes/put-agent-spending-limits";
@@ -162,6 +163,7 @@ export const createApp: () => express.Application = () => {
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);
   registerPostWorkspaceImport(app);
+  registerPostWorkspacesOnboardingAgentStream(app);
   registerGetWorkspaceSuggestions(app);
   registerGetWorkspaceById(app);
   registerGetWorkspaceExport(app);

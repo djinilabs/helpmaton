@@ -251,7 +251,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <h2 className="mb-8 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-          {isEditing ? "Edit Evaluation Judge" : "Create Evaluation Judge"}
+          {isEditing ? "Edit Evaluation Judge" : "✨ Create Evaluation Judge"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -403,10 +403,10 @@ You must respond with valid JSON only. Do not include markdown formatting like \
               {isPending
                 ? isEditing
                   ? "Updating..."
-                  : "Creating..."
+                  : "✨ Creating..."
                 : isEditing
                 ? "Update"
-                : "Create"}
+                : "✨ Create"}
             </button>
             <button
               type="button"

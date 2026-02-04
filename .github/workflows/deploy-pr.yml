@@ -195,7 +195,7 @@ jobs:
     if: |
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch'
-    runs-on: djinilabs-beefy
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
       pr_number: ${{ needs.build-docker-images.outputs.pr_number }}
@@ -313,6 +313,7 @@ jobs:
           SENTRY_ENVIRONMENT: "staging"
           VITE_SENTRY_ENVIRONMENT: "staging"
           NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
+          ESBUILD_MAX_THREADS: "1"
           AUTH_SECRET: ${{ secrets.STAGING_AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"

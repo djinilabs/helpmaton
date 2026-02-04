@@ -28,7 +28,7 @@ pro
   burstLimit 4000
 
 @plugins
-architect/plugin-typescript
+plugin-typescript
 s3
 http-to-rest
 api-throttling

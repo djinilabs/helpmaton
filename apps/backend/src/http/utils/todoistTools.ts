@@ -1,9 +1,10 @@
-import { tool } from "ai";
+import { jsonSchema, tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
 import * as todoistClient from "../../utils/todoist/client";
 
+import { EMPTY_PARAMETERS_JSON_SCHEMA } from "./toolSchemas";
 import { validateToolArgs } from "./toolValidation";
 
 async function getTodoistConfig(
@@ -194,7 +195,7 @@ export function createTodoistGetProjectsTool(
   return tool({
     description:
       "Lists all Todoist projects to find the correct project ID for task creation.",
-    parameters: schema,
+    inputSchema: jsonSchema(EMPTY_PARAMETERS_JSON_SCHEMA),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
      

@@ -759,6 +759,7 @@ export interface WorkspaceExport {
     enableMemorySearch?: boolean;
     enableSearchDocuments?: boolean;
     enableKnowledgeInjection?: boolean;
+    memoryExtractionEnabled?: boolean;
     knowledgeInjectionSnippetCount?: number;
     knowledgeInjectionMinSimilarity?: number;
     enableKnowledgeReranking?: boolean;
@@ -834,6 +835,66 @@ export interface WorkspaceExport {
   }>;
 }
 
+/** Onboarding-agent: question from the LLM */
+export interface OnboardingAgentQuestion {
+  id: string;
+  label: string;
+  kind: "choice" | "text";
+  options?: string[];
+  multiple?: boolean;
+}
+
+/** Onboarding-agent: result payload (questions or template + summary) */
+export type OnboardingAgentResultPayload =
+  | { type: "questions"; questions: OnboardingAgentQuestion[] }
+  | { type: "template"; template: WorkspaceExport; summary: string };
+
+/** Onboarding-agent: validation failed payload (after 3+ retries) */
+export interface OnboardingAgentValidationFailedPayload {
+  type: "onboarding_agent_validation_failed";
+  error: string;
+}
+
+/** Onboarding-agent: final event in stream response */
+export type OnboardingAgentFinalEvent =
+  | { type: "onboarding_agent_result"; payload: OnboardingAgentResultPayload }
+  | OnboardingAgentValidationFailedPayload;
+
+/** Onboarding-agent: request context */
+export interface OnboardingAgentContext {
+  step: "intent" | "refine";
+  intent?: {
+    goal?: string;
+    goals?: string[];
+    businessType?: string;
+    tasksOrRoles?: string[];
+    freeText?: string;
+    [key: string]: unknown;
+  };
+  template?: WorkspaceExport;
+  chatMessage?: string;
+}
+
+/** Onboarding-agent: stream response (JSON; no true SSE from workspaces Lambda) */
+export interface OnboardingAgentStreamResponse {
+  assistantText: string;
+  finalEvent: OnboardingAgentFinalEvent;
+}
+
+/**
+ * Call the onboarding-agent stream endpoint. Returns assistant text and the final event
+ * (onboarding_agent_result or onboarding_agent_validation_failed).
+ */
+export async function postWorkspaceOnboardingAgent(request: {
+  onboardingContext: OnboardingAgentContext;
+}): Promise<OnboardingAgentStreamResponse> {
+  const response = await apiFetch("/api/workspaces/onboarding-agent/stream", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+  return response.json();
+}
+
 /**
  * Export a workspace configuration as a downloadable JSON file
  */
@@ -867,14 +928,20 @@ export async function exportWorkspace(workspaceId: string): Promise<void> {
 }
 
 /**
- * Import a workspace from an exported configuration JSON
+ * Import a workspace from an exported configuration JSON.
+ * Optional creationNotes (e.g. onboarding summary) is stored on the workspace and never returned by the API.
  */
 export async function importWorkspace(
   exportData: WorkspaceExport,
+  creationNotes?: string,
 ): Promise<Workspace> {
+  const body =
+    creationNotes != null && creationNotes !== ""
+      ? { export: exportData, creationNotes }
+      : exportData;
   const response = await apiFetch("/api/workspaces/import", {
     method: "POST",
-    body: JSON.stringify(exportData),
+    body: JSON.stringify(body),
   });
   return response.json();
 }

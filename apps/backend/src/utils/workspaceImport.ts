@@ -2,12 +2,17 @@ import { randomUUID } from "crypto";
 
 import { badRequest } from "@hapi/boom";
 
+import { generatePromptForAgent } from "../http/utils/promptGeneration";
 import type { WorkspaceExport } from "../schemas/workspace-export";
 import { workspaceExportSchema } from "../schemas/workspace-export";
 import { database } from "../tables";
 import { ensureAuthorization } from "../tables/permissions";
 import { PERMISSION_LEVELS } from "../tables/schema";
 
+import {
+  checkPromptGenerationLimit,
+  incrementPromptGenerationBucketSafe,
+} from "./requestTracking";
 import { createStreamServerConfig } from "./streamServerUtils";
 import { getPlanLimits } from "./subscriptionPlans";
 import {
@@ -270,11 +275,12 @@ async function createWorkspaceAndOwner(
   ctx: ImportContext,
   validatedData: WorkspaceExport,
   workspaceId: string,
+  creationNotes?: string,
 ): Promise<void> {
   const workspacePk = `workspaces/${workspaceId}`;
   const workspaceSk = "workspace";
 
-  await ctx.db.workspace.create({
+  const createPayload = {
     pk: workspacePk,
     sk: workspaceSk,
     name: validatedData.name,
@@ -284,7 +290,11 @@ async function createWorkspaceAndOwner(
     currency: validatedData.currency ?? "usd",
     creditBalance: 0,
     spendingLimits: validatedData.spendingLimits,
-  });
+  };
+  if (creationNotes !== undefined && creationNotes !== "") {
+    (createPayload as Record<string, unknown>).creationNotes = creationNotes;
+  }
+  await ctx.db.workspace.create(createPayload);
 
   await ensureAuthorization(
     workspacePk,
@@ -726,6 +736,7 @@ async function createBotIntegrations(
 export async function importWorkspace(
   exportData: WorkspaceExport,
   userRef: string,
+  creationNotes?: string,
 ): Promise<string> {
   const { validatedData, context } = await prepareImportContext(
     exportData,
@@ -741,7 +752,12 @@ export async function importWorkspace(
   );
 
   const workspaceId = context.resolveId(validatedData.id);
-  await createWorkspaceAndOwner(context, validatedData, workspaceId);
+  await createWorkspaceAndOwner(
+    context,
+    validatedData,
+    workspaceId,
+    creationNotes,
+  );
 
   const channelIdMap = await createOutputChannels(
     context,
@@ -767,5 +783,73 @@ export async function importWorkspace(
 
   await createBotIntegrations(context, validatedData, workspaceId, agentIdMap);
 
+  if (
+    creationNotes?.trim() &&
+    validatedData.agents &&
+    validatedData.agents.length > 0
+  ) {
+    await enhanceAgentPromptsAfterImport(
+      context.db,
+      workspaceId,
+      validatedData,
+      agentIdMap,
+      creationNotes.trim(),
+      userRef,
+    );
+  }
+
   return workspaceId;
+}
+
+async function enhanceAgentPromptsAfterImport(
+  db: Awaited<ReturnType<typeof database>>,
+  workspaceId: string,
+  validatedData: WorkspaceExport,
+  agentIdMap: Map<string, string>,
+  goal: string,
+  userRef: string,
+): Promise<void> {
+  if (!validatedData.agents) return;
+
+  // Only enhance the first agent to cap import latency and prompt-generation quota
+  const agentsToEnhance = validatedData.agents.slice(0, 1);
+  for (const agentData of agentsToEnhance) {
+    const newAgentId = agentIdMap.get(agentData.id);
+    if (!newAgentId) continue;
+
+    try {
+      await checkPromptGenerationLimit(workspaceId);
+    } catch {
+      console.warn(
+        "[workspaceImport] Skipping prompt enhancement: prompt generation limit reached",
+        { workspaceId, agentId: newAgentId },
+      );
+      continue;
+    }
+
+    try {
+      const enhancedPrompt = await generatePromptForAgent({
+        db,
+        workspaceId,
+        agentId: newAgentId,
+        goal,
+        userRef,
+        referer: `${process.env.BASE_URL ?? "http://localhost:3000"}/api/workspaces/import`,
+      });
+
+      const agentPk = `agents/${workspaceId}/${newAgentId}`;
+      await db.agent.update({
+        pk: agentPk,
+        sk: "agent",
+        systemPrompt: enhancedPrompt,
+      });
+
+      await incrementPromptGenerationBucketSafe(workspaceId);
+    } catch (err) {
+      console.error(
+        "[workspaceImport] Failed to enhance agent prompt after import",
+        { workspaceId, agentId: newAgentId, error: err },
+      );
+    }
+  }
 }

@@ -133,12 +133,30 @@ export function useExportWorkspace(workspaceId: string) {
   });
 }
 
+export type ImportWorkspacePayload =
+  | WorkspaceExport
+  | { exportData: WorkspaceExport; creationNotes?: string };
+
 export function useImportWorkspace() {
   const queryClient = useQueryClient();
   const toast = useToast();
 
   return useMutation({
-    mutationFn: (exportData: WorkspaceExport) => importWorkspace(exportData),
+    mutationFn: (payload: ImportWorkspacePayload) => {
+      const exportData =
+        payload &&
+        typeof payload === "object" &&
+        "exportData" in payload
+          ? (payload as { exportData: WorkspaceExport }).exportData
+          : (payload as WorkspaceExport);
+      const creationNotes =
+        payload &&
+        typeof payload === "object" &&
+        "creationNotes" in payload
+          ? (payload as { creationNotes?: string }).creationNotes
+          : undefined;
+      return importWorkspace(exportData, creationNotes);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["workspaces"] });
       queryClient.setQueryData(["workspaces", data.id], data);

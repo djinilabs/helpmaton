@@ -49,7 +49,7 @@
 
 - **Monorepo**: Separate `apps/backend` and `apps/frontend`
 - **Backend Routes**: Organized in `apps/backend/src/http/`
-- **Plugins**: Custom Architect plugins in `apps/backend/src/plugins/`
+- **Plugins**: Custom Architect plugins in `apps/backend/src/plugins/`. TypeScript support is provided by the local **plugin-typescript** (ejected from @architect/plugin-typescript); it compiles TS to `dist/` via esbuild and is used by `arc deploy` and `arc sandbox`.
 - **Scheduled Tasks**: Lambda functions in `apps/backend/src/scheduled/`
 - **Utilities**: Shared utilities in `apps/backend/src/utils/`
 - **Tables**: Database abstraction in `apps/backend/src/tables/`

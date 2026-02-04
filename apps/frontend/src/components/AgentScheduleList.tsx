@@ -218,7 +218,7 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
             }}
             className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
           >
-            Add schedule
+            ✨ Add schedule
           </button>
         )}
       </div>

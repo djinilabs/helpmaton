@@ -156,7 +156,7 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
             onClick={() => setIsCreateModalOpen(true)}
             className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
           >
-            Create Judge
+            ✨ Create Judge
           </button>
         </div>
       )}

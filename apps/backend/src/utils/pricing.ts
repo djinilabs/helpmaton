@@ -77,6 +77,19 @@ export function loadPricingConfig(): PricingConfig {
 }
 
 /**
+ * Returns the list of valid OpenRouter model names from pricing config.
+ * Used to validate agent modelName and eval judge modelName in workspace export/import.
+ */
+export function getValidOpenRouterModelNames(): string[] {
+  const pricingConfig = loadPricingConfig();
+  const providerPricing = pricingConfig.providers.openrouter;
+  if (!providerPricing?.models) {
+    return [];
+  }
+  return Object.keys(providerPricing.models);
+}
+
+/**
  * Normalize model name to handle preview versions and variants
  * Maps preview/variant model names to their base model pricing
  */

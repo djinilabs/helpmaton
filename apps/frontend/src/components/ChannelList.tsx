@@ -60,7 +60,7 @@ const ChannelItem: FC<ChannelItemProps> = ({
             disabled={testChannel.isPending}
             className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
-            {testChannel.isPending ? "Testing..." : "Test"}
+            {testChannel.isPending ? "✨ Testing..." : "✨ Test"}
           </button>
           <button
             onClick={() => onEdit(channel.id)}

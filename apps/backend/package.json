@@ -58,8 +58,8 @@
   },
   "devDependencies": {
     "@architect/architect": "^12.0.0",
-    "@architect/plugin-typescript": "^2.1.0",
     "@types/aws-lambda": "^8.10.147",
+    "esbuild": "^0.27.2",
     "@types/lodash.omit": "^4.5.9",
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.0",

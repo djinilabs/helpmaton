@@ -462,7 +462,7 @@ queue agent-eval-queue lancedb llm-shared-http
 queue webhook-queue lancedb llm-shared-http
 
 @plugins
-architect/plugin-typescript
+plugin-typescript
 s3
 http-to-rest
 api-throttling

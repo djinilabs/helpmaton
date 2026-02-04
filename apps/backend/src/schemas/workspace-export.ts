@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { getValidOpenRouterModelNames } from "../utils/pricing";
+
 /**
  * Workspace Export/Import Schema
  *
@@ -109,6 +111,26 @@ const referenceString = z
   .string()
   .describe(
     'Reference to another entity. Can be an actual ID or a named reference like "{refName}" for templates.',
+  );
+
+const OPENROUTER_MODEL_ERROR =
+  "modelName must be a valid OpenRouter model from the pricing config";
+
+/** Optional model name validated against OpenRouter pricing config (for agent modelName, memoryExtractionModel). */
+const openRouterModelNameOptional = z
+  .string()
+  .optional()
+  .refine(
+    (v) => !v || getValidOpenRouterModelNames().includes(v),
+    { message: OPENROUTER_MODEL_ERROR },
+  );
+
+/** Required model name validated against OpenRouter pricing config (for eval judge modelName). */
+const openRouterModelNameRequired = z
+  .string()
+  .refine(
+    (v) => getValidOpenRouterModelNames().includes(v),
+    { message: OPENROUTER_MODEL_ERROR },
   );
 
 /**
@@ -252,11 +274,9 @@ const evalJudgeSchema = z
       .enum(["openrouter"])
       .default("openrouter")
       .describe("LLM provider for the judge (only 'openrouter' is supported)"),
-    modelName: z
-      .string()
-      .describe(
-        "Model name for the judge (e.g., 'gpt-4o', 'claude-3-5-sonnet')",
-      ),
+    modelName: openRouterModelNameRequired.describe(
+      "Model name for the judge (must be a valid OpenRouter model from pricing config)",
+    ),
     evalPrompt: z.string().describe("The evaluation prompt template"),
   })
   .describe("Evaluation judge configuration for an agent");
@@ -291,10 +311,9 @@ const agentSchema = z
       .boolean()
       .optional()
       .describe("Enable memory extraction for this agent (default: false)"),
-    memoryExtractionModel: z
-      .string()
-      .optional()
-      .describe("Model name to use for memory extraction"),
+    memoryExtractionModel: openRouterModelNameOptional.describe(
+      "Model name to use for memory extraction (must be a valid OpenRouter model)",
+    ),
     memoryExtractionPrompt: z
       .string()
       .optional()
@@ -458,12 +477,9 @@ const agentSchema = z
       .describe(
         "Provider name (only 'openrouter' supported, but legacy values accepted)",
       ),
-    modelName: z
-      .string()
-      .optional()
-      .describe(
-        "Model name (e.g., 'gemini-2.5-flash', 'gpt-4o', 'claude-3-5-sonnet')",
-      ),
+    modelName: openRouterModelNameOptional.describe(
+      "Model name (must be a valid OpenRouter model from pricing config)",
+    ),
     clientTools: z
       .array(clientToolSchema)
       .optional()

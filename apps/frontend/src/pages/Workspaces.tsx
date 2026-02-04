@@ -1,12 +1,17 @@
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import { useState, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import type { FC } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { LockSpinner } from "../components/LockSpinner";
+import { useDialogTracking } from "../contexts/DialogContext";
+import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useSubscription } from "../hooks/useSubscription";
+import { useWorkspaces } from "../hooks/useWorkspaces";
+import { trackEvent } from "../utils/tracking";
 // Lazy load modals - only load when opened
 const CreateWorkspaceModal = lazy(() =>
   import("../components/CreateWorkspaceModal").then((module) => ({
@@ -18,17 +23,36 @@ const ImportWorkspaceModal = lazy(() =>
     default: module.ImportWorkspaceModal,
   }))
 );
-import { useWorkspaces } from "../hooks/useWorkspaces";
-import { trackEvent } from "../utils/tracking";
+const OnboardingAgentModal = lazy(() =>
+  import("../components/OnboardingAgentModal").then((module) => ({
+    default: module.OnboardingAgentModal,
+  }))
+);
 
 const WorkspacesList: FC = () => {
   const { data: workspaces } = useWorkspaces();
+  const { data: subscription } = useSubscription();
   const navigate = useNavigate();
+  const { registerDialog, unregisterDialog } = useDialogTracking();
+  const [isCreateChoiceOpen, setIsCreateChoiceOpen] = useState(false);
+  const canCreateWorkspace =
+    subscription == null ||
+    subscription.usage.workspaces < subscription.limits.maxWorkspaces;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [loadingWorkspaceId, setLoadingWorkspaceId] = useState<string | null>(
     null
   );
+
+  const closeCreateChoice = () => setIsCreateChoiceOpen(false);
+  useEscapeKey(isCreateChoiceOpen, closeCreateChoice);
+  useEffect(() => {
+    if (isCreateChoiceOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isCreateChoiceOpen, registerDialog, unregisterDialog]);
 
   const getPermissionLabel = (level: number | null): string => {
     if (level === 3) return "Owner";
@@ -70,12 +94,21 @@ const WorkspacesList: FC = () => {
                   <ArrowUpTrayIcon className="size-5" />
                   Import a workspace
                 </button>
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
-                >
-                  Create a workspace
-                </button>
+                {canCreateWorkspace ? (
+                  <button
+                    onClick={() => setIsCreateChoiceOpen(true)}
+                    className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                  >
+                    Create a workspace
+                  </button>
+                ) : (
+                  <Link
+                    to="/subscription"
+                    className="inline-flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-primary-500 bg-primary-50 px-8 py-4 font-bold text-primary-700 transition-all duration-200 hover:bg-primary-100 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                  >
+                    Upgrade to create more workspaces
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -109,12 +142,29 @@ const WorkspacesList: FC = () => {
                 A workspace is where you&apos;ll create agents, upload
                 documents, and manage spending.
               </p>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
-              >
-                Create your first workspace
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                {canCreateWorkspace ? (
+                  <button
+                    onClick={() => setIsCreateChoiceOpen(true)}
+                    className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                  >
+                    Create a workspace
+                  </button>
+                ) : (
+                  <>
+                    <p className="text-base font-medium text-neutral-600 dark:text-neutral-400">
+                      You&apos;ve reached your workspace limit. Upgrade your
+                      plan to create more.
+                    </p>
+                    <Link
+                      to="/subscription"
+                      className="inline-flex transform items-center gap-2 rounded-xl border-2 border-primary-500 bg-primary-50 px-6 py-3 font-semibold text-primary-700 transition-all duration-200 hover:bg-primary-100 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                    >
+                      View subscription
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         ) : (
@@ -185,11 +235,71 @@ const WorkspacesList: FC = () => {
           </div>
         )}
 
+        {isCreateChoiceOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+              <h2 className="mb-2 text-xl font-bold text-neutral-900 dark:text-neutral-50">
+                Create a workspace
+              </h2>
+              <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-400">
+                Choose how you&apos;d like to create your workspace.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setIsCreateChoiceOpen(false);
+                    setIsOnboardingModalOpen(true);
+                  }}
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+                >
+                  <span className="block">✨ Guided setup</span>
+                  <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
+                    Answer a few questions and get a suggested workspace with
+                    agents.
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsCreateChoiceOpen(false);
+                    setIsCreateModalOpen(true);
+                  }}
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
+                >
+                  <span className="block">Name and description only</span>
+                  <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
+                    Create an empty workspace and add agents yourself.
+                  </span>
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateChoiceOpen(false)}
+                className="mt-4 w-full rounded-xl border-2 border-neutral-300 bg-neutral-100 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {isCreateModalOpen && (
           <Suspense fallback={<LoadingScreen />}>
             <CreateWorkspaceModal
               isOpen={isCreateModalOpen}
               onClose={() => setIsCreateModalOpen(false)}
+            />
+          </Suspense>
+        )}
+
+        {isOnboardingModalOpen && (
+          <Suspense fallback={<LoadingScreen />}>
+            <OnboardingAgentModal
+              isOpen={isOnboardingModalOpen}
+              onClose={() => setIsOnboardingModalOpen(false)}
+              onSkipToSimpleCreate={() => {
+                setIsOnboardingModalOpen(false);
+                setIsCreateModalOpen(true);
+              }}
             />
           </Suspense>
         )}

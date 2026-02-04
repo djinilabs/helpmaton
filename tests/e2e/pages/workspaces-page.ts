@@ -19,10 +19,10 @@ export class WorkspacesPage extends BasePage {
       .locator('button:has-text("Create a workspace")')
       .first();
 
-    // Modal locators
-    this.createWorkspaceModal = page.locator(
-      'div.fixed.inset-0:has(h2:text("Create a workspace"))'
-    );
+    // Modal locators: form modal is the one with name/description inputs (after choice step)
+    this.createWorkspaceModal = page
+      .locator("div.fixed.inset-0")
+      .filter({ has: page.locator("input#name") });
     this.workspaceNameInput = page.locator("input#name");
     this.workspaceDescriptionInput = page.locator("textarea#description");
     this.createButton = page.locator(
@@ -59,11 +59,21 @@ export class WorkspacesPage extends BasePage {
   }
 
   /**
-   * Open the create workspace modal
+   * Open the create workspace modal.
+   * If the choice modal appears (Guided setup / Name and description only), clicks "Name and description only" to open the form.
    */
   async openCreateWorkspaceModal(): Promise<void> {
     await this.clickElement(this.createWorkspaceButton);
-    await this.waitForElement(this.createWorkspaceModal);
+    // Wait for form modal; if choice option appears first (with timeout), click it so form then shows
+    const choiceOption = this.page.locator(
+      'button:has-text("Name and description only")'
+    );
+    const formVisible = this.waitForElement(this.createWorkspaceModal);
+    const withChoice = choiceOption
+      .waitFor({ state: "visible", timeout: 3000 })
+      .then(() => this.clickElement(choiceOption))
+      .then(() => formVisible);
+    await Promise.race([withChoice.catch(() => formVisible), formVisible]);
   }
 
   /**

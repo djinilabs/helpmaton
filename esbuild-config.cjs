@@ -142,9 +142,6 @@ if (enableSourceMaps) {
 }
 
 const config = {
-  loader: {
-    '.graphqls': 'text',
-  },
   sourcemap: enableSourceMaps,
   sourcesContent: enableSourceMaps,
   define: defineObject,

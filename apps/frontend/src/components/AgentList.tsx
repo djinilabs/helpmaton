@@ -29,7 +29,7 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
               onClick={() => setIsCreateModalOpen(true)}
               className="transform rounded-xl bg-gradient-primary px-6 py-3.5 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
             >
-              Create Agent
+              ✨ Create Agent
             </button>
           </div>
         )}
