@@ -1,7 +1,6 @@
 import { generateText } from "ai";
 import type { ModelMessage } from "ai";
 
-import { workspaceExportSchema } from "../../schemas/workspace-export";
 import { parseJsonWithFallback } from "../../utils/jsonParsing";
 
 import { createModel, getDefaultModel } from "./modelFactory";
@@ -147,18 +146,13 @@ function parseAndValidateResponse(
   }
 
   if (type === "template") {
-    const template = obj.template;
-    const templateResult = workspaceExportSchema.safeParse(template);
-    if (!templateResult.success) {
-      return {
-        ok: false,
-        error: `Template validation failed: ${templateResult.error.message}`,
-      };
+    const templateResult = onboardingAgentResultSchema.safeParse(parsed);
+    if (templateResult.success) {
+      return { ok: true, result: templateResult.data };
     }
-    const summary = typeof obj.summary === "string" ? obj.summary : "";
     return {
-      ok: true,
-      result: { type: "template", template: templateResult.data, summary },
+      ok: false,
+      error: `Template validation failed: ${templateResult.error.message}`,
     };
   }
 

@@ -27,8 +27,7 @@ export const registerPostWorkspacesOnboardingAgentStream = (
     requireAuth,
     async (req, res, next) => {
       try {
-        const currentUserRef = req.userRef;
-        if (!currentUserRef) {
+        if (!req.userRef) {
           throw unauthorized();
         }
 

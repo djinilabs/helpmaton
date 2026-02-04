@@ -4,7 +4,7 @@ import { workspaceExportSchema } from "../../schemas/workspace-export";
 
 /**
  * Request body for POST /api/workspaces/onboarding-agent/stream.
- * Frontend can send messages (useChat compatibility) and onboardingContext.
+ * Only onboardingContext is used; the route does not accept or use a messages array.
  */
 export const onboardingAgentStreamRequestSchema = z
   .object({
@@ -25,7 +25,6 @@ export const onboardingAgentStreamRequestSchema = z
         chatMessage: z.string().optional(),
       })
       .strict(),
-    messages: z.array(z.unknown()).optional(),
   })
   .strict();
 

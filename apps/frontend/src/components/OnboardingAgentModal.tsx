@@ -232,11 +232,20 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                     className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
                     placeholder="e.g. Automate my inbox"
                   />
+                  {goals.includes("other") && !freeText.trim() && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      Please describe your goal when selecting &quot;Other&quot;.
+                    </p>
+                  )}
                 </div>
               )}
               <button
                 type="submit"
-                disabled={isLoading || (goals.length === 0 && !freeText.trim())}
+                disabled={
+                  isLoading ||
+                  (goals.length === 0 && !freeText.trim()) ||
+                  (goals.includes("other") && !freeText.trim())
+                }
                 className="w-full rounded-xl bg-gradient-primary px-6 py-3 font-bold text-white transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? "Thinking…" : "Continue"}

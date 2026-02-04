@@ -886,7 +886,6 @@ export interface OnboardingAgentStreamResponse {
  */
 export async function postWorkspaceOnboardingAgent(request: {
   onboardingContext: OnboardingAgentContext;
-  messages?: unknown[];
 }): Promise<OnboardingAgentStreamResponse> {
   const response = await apiFetch("/api/workspaces/onboarding-agent/stream", {
     method: "POST",

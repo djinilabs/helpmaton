@@ -7,6 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { LockSpinner } from "../components/LockSpinner";
+import { useWorkspaces } from "../hooks/useWorkspaces";
+import { trackEvent } from "../utils/tracking";
 // Lazy load modals - only load when opened
 const CreateWorkspaceModal = lazy(() =>
   import("../components/CreateWorkspaceModal").then((module) => ({
@@ -23,8 +25,6 @@ const OnboardingAgentModal = lazy(() =>
     default: module.OnboardingAgentModal,
   }))
 );
-import { useWorkspaces } from "../hooks/useWorkspaces";
-import { trackEvent } from "../utils/tracking";
 
 const WorkspacesList: FC = () => {
   const { data: workspaces } = useWorkspaces();
