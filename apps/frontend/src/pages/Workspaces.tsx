@@ -211,7 +211,7 @@ const WorkspacesList: FC = () => {
                   }}
                   className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
                 >
-                  <span className="block">Guided setup</span>
+                  <span className="block">✨ Guided setup</span>
                   <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
                     Answer a few questions and get a suggested workspace with
                     agents.

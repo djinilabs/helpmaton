@@ -137,6 +137,39 @@ describe("importWorkspace", () => {
         creditBalance: 0,
       })
     );
+    expect(mockDb.workspace.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        creationNotes: expect.anything(),
+      })
+    );
+  });
+
+  it("should store creationNotes on workspace when provided", async () => {
+    const exportData: WorkspaceExport = {
+      id: "{workspaceId}",
+      name: "Imported Workspace",
+      currency: "usd",
+    };
+    const creationNotes = "Goals: Customer support\nSummary: FAQ bot workspace";
+
+    mockDb.workspace.create.mockResolvedValue({
+      pk: "workspaces/new-workspace-id",
+      sk: "workspace",
+      name: "Imported Workspace",
+      currency: "usd",
+      creditBalance: 0,
+      version: 1,
+      createdAt: "2024-01-01T00:00:00Z",
+    });
+
+    await importWorkspace(exportData, userRef, creationNotes);
+
+    expect(mockDb.workspace.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Imported Workspace",
+        creationNotes,
+      })
+    );
   });
 
   it("should import workspace with output channels", async () => {

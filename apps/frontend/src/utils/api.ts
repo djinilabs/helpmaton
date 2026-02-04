@@ -927,14 +927,20 @@ export async function exportWorkspace(workspaceId: string): Promise<void> {
 }
 
 /**
- * Import a workspace from an exported configuration JSON
+ * Import a workspace from an exported configuration JSON.
+ * Optional creationNotes (e.g. onboarding summary) is stored on the workspace and never returned by the API.
  */
 export async function importWorkspace(
   exportData: WorkspaceExport,
+  creationNotes?: string,
 ): Promise<Workspace> {
+  const body =
+    creationNotes != null && creationNotes !== ""
+      ? { export: exportData, creationNotes }
+      : exportData;
   const response = await apiFetch("/api/workspaces/import", {
     method: "POST",
-    body: JSON.stringify(exportData),
+    body: JSON.stringify(body),
   });
   return response.json();
 }

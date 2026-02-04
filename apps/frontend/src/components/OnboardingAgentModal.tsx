@@ -1,3 +1,4 @@
+import confetti from "canvas-confetti";
 import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
@@ -22,13 +23,93 @@ const GOAL_OPTIONS = [
   { value: "other", label: "Other" },
 ] as const;
 
+function buildCreationNotes(
+  goals: string[],
+  intent: OnboardingAgentContext["intent"],
+  summary: string,
+): string {
+  const lines: string[] = [];
+  if (goals.length > 0) {
+    const labels = goals.map(
+      (g) => GOAL_OPTIONS.find((o) => o.value === g)?.label ?? g
+    );
+    lines.push(`Goals: ${labels.join("; ")}`);
+  }
+  const intentObj = intent ?? {};
+  const freeText = "freeText" in intentObj ? intentObj.freeText : undefined;
+  if (typeof freeText === "string" && freeText.trim())
+    lines.push(`Free text: ${freeText.trim()}`);
+  const skipKeys = new Set(["goals", "freeText", "goal"]);
+  const answers = Object.entries(intentObj).filter(
+    ([k, v]) =>
+      !skipKeys.has(k) &&
+      v !== undefined &&
+      v !== "" &&
+      (Array.isArray(v) ? v.length > 0 : true)
+  );
+  if (answers.length > 0) {
+    lines.push(
+      `Answers: ${answers
+        .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(", ") : String(v)}`)
+        .join(", ")}`
+    );
+  }
+  if (summary.trim()) lines.push(`Summary: ${summary.trim()}`);
+  return lines.join("\n");
+}
+
+function getRecommendations(
+  goals: string[],
+  template: WorkspaceExport | null
+): string[] {
+  const recs: string[] = [];
+  recs.push("Open your agent to test a conversation or refine the system prompt.");
+  if (goals.includes("personal")) {
+    recs.push("Try the Test Agent on the agent page for a quick conversation.");
+  }
+  if (goals.includes("business")) {
+    recs.push("Review spending limits in Workspace settings if you need to adjust caps.");
+  }
+  if (goals.includes("support")) {
+    recs.push("Test your channels — send a message to see your agent respond.");
+  }
+  if (goals.includes("team")) {
+    recs.push("Invite team members from Workspace settings so others can use the agents.");
+  }
+  if (template?.agents?.some((a) => (a.keys?.length ?? 0) > 0)) {
+    recs.push("Your webhook URL is ready — open an agent and go to Keys to copy it.");
+  }
+  if (
+    (template?.outputChannels?.length ?? 0) > 0 ||
+    (template?.botIntegrations?.length ?? 0) > 0
+  ) {
+    recs.push("Channels are connected — try sending a message to test the integration.");
+  }
+  if (
+    (template?.spendingLimits?.length ?? 0) > 0 ||
+    template?.agents?.some((a) => (a.spendingLimits?.length ?? 0) > 0)
+  ) {
+    recs.push("Spending limits are set; you can adjust them in Workspace or agent settings.");
+  }
+  if ((template?.mcpServers?.length ?? 0) > 0) {
+    recs.push("Connect your MCP servers in Integrations and enable them on the agent.");
+  }
+  if (template?.agents?.some((a) => a.enableSearchDocuments)) {
+    recs.push("Upload documents in the agent's Documents section to enable search.");
+  }
+  if (template?.agents?.some((a) => a.memoryExtractionEnabled)) {
+    recs.push("Memory extraction is on — long conversations will be summarized into memory.");
+  }
+  return recs.slice(0, 6);
+}
+
 interface OnboardingAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSkipToSimpleCreate: () => void;
 }
 
-type Step = "intent" | "questions" | "template" | "validation_failed";
+type Step = "intent" | "questions" | "template" | "validation_failed" | "created";
 
 export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
   isOpen,
@@ -49,6 +130,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
   const [refineInput, setRefineInput] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [createdWorkspace, setCreatedWorkspace] = useState<{ id: string; name: string } | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -68,6 +150,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
     setSummary("");
     setRefineInput("");
     setValidationError(null);
+    setCreatedWorkspace(null);
     onClose();
   };
 
@@ -79,6 +162,36 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
       return () => unregisterDialog();
     }
   }, [isOpen, registerDialog, unregisterDialog]);
+
+  useEffect(() => {
+    if (step !== "created") return;
+    let cancelled = false;
+    const duration = 2_000;
+    const end = Date.now() + duration;
+    const frame = (): void => {
+      if (cancelled || Date.now() >= end) return;
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ["#6366f1", "#8b5cf6", "#a855f7", "#c084fc"],
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ["#6366f1", "#8b5cf6", "#a855f7", "#c084fc"],
+      });
+      requestAnimationFrame(frame);
+    };
+    const t = setTimeout(frame, 100);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [step]);
 
   const callOnboardingAgent = async (ctx: OnboardingAgentContext) => {
     setIsLoading(true);
@@ -157,12 +270,23 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
   const handleCreateWorkspace = async () => {
     if (!template) return;
     try {
-      const workspace = await importWorkspace.mutateAsync(template);
+      const creationNotes = buildCreationNotes(goals, intent, summary);
+      const workspace = await importWorkspace.mutateAsync({
+        exportData: template,
+        creationNotes,
+      });
       trackEvent("workspace_created", { workspace_id: workspace.id });
-      handleClose();
-      navigate(`/workspaces/${workspace.id}`);
+      setCreatedWorkspace({ id: workspace.id, name: workspace.name });
+      setStep("created");
     } catch {
       // Toast from hook
+    }
+  };
+
+  const handleGoToWorkspace = () => {
+    if (createdWorkspace) {
+      handleClose();
+      navigate(`/workspaces/${createdWorkspace.id}`);
     }
   };
 
@@ -182,30 +306,36 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isCreatedStep = step === "created";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <div className="flex items-center justify-between border-b border-neutral-200 p-6 dark:border-neutral-700">
           <h2 className="text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
-            Guided workspace setup
+            {isCreatedStep ? "Workspace created!" : "Guided workspace setup"}
           </h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
-          >
-            Cancel
-          </button>
+          {!isCreatedStep && (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <button
-            type="button"
-            onClick={onSkipToSimpleCreate}
-            className="mb-4 text-sm font-medium text-primary-600 underline hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-          >
-            Create workspace without guided setup
-          </button>
+          {!isCreatedStep && (
+            <button
+              type="button"
+              onClick={onSkipToSimpleCreate}
+              className="mb-4 text-sm font-medium text-primary-600 underline hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            >
+              Create workspace without guided setup
+            </button>
+          )}
 
           {step === "intent" && (
             <form onSubmit={handleSubmitIntent} className="space-y-5">
@@ -469,6 +599,37 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                   Create without guided setup
                 </button>
               </div>
+            </div>
+          )}
+
+          {step === "created" && createdWorkspace && (
+            <div className="space-y-6">
+              <div className="rounded-xl border-2 border-primary-200 bg-primary-50 p-5 dark:border-primary-800 dark:bg-primary-900/20">
+                <p className="text-lg font-bold text-primary-900 dark:text-primary-100">
+                  Congratulations! Your workspace &quot;{createdWorkspace.name}&quot; has been created.
+                </p>
+                <p className="mt-2 text-sm text-primary-800 dark:text-primary-200">
+                  Here are some next steps based on your setup:
+                </p>
+              </div>
+              <ul className="space-y-2">
+                {getRecommendations(goals, template).map((rec, i) => (
+                  <li
+                    key={i}
+                    className="flex gap-2 text-sm text-neutral-700 dark:text-neutral-300"
+                  >
+                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary-500 dark:bg-primary-400" />
+                    <span>{rec}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={handleGoToWorkspace}
+                className="w-full rounded-xl bg-gradient-primary px-6 py-3 font-bold text-white hover:opacity-95"
+              >
+                Go to workspace
+              </button>
             </div>
           )}
         </div>
