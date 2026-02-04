@@ -149,6 +149,45 @@ describe("POST /api/workspaces/onboarding-agent/stream", () => {
     });
   });
 
+  it("should accept intent.tasksOrRoles as string and normalize to array", async () => {
+    mockRunOnboardingAgentLlm.mockResolvedValue({
+      success: true,
+      assistantText: "OK",
+      result: {
+        type: "template" as const,
+        template: {
+          id: "{workspaceId}",
+          name: "Test",
+          agents: [{ id: "{mainAgent}", name: "Agent", systemPrompt: "Help." }],
+        },
+        summary: "Test workspace.",
+      },
+    });
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      body: {
+        onboardingContext: {
+          step: "intent" as const,
+          intent: { goals: ["support"], tasksOrRoles: "customer support" },
+        },
+      },
+    });
+    const res = createMockResponse();
+
+    await callRouteHandler(req, res);
+
+    expect(mockRunOnboardingAgentLlm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        step: "intent",
+        intent: expect.objectContaining({
+          goals: ["support"],
+          tasksOrRoles: ["customer support"],
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("should return 200 with onboarding_agent_result (template) when LLM returns template", async () => {
     const minimalTemplate = {
       id: "{workspaceId}",

@@ -2,6 +2,14 @@ import { z } from "zod";
 
 import { workspaceExportSchema } from "../../schemas/workspace-export";
 
+/** Coerces string or string[] to string[] so single-choice answers (string) validate like multi-select (array). */
+const optionalStringArray = z
+  .union([z.array(z.string()), z.string()])
+  .optional()
+  .transform((v) =>
+    v === undefined ? undefined : Array.isArray(v) ? v : v ? [v] : []
+  );
+
 const onboardingContextIntentSchema = z
   .object({
     step: z.literal("intent"),
@@ -10,7 +18,7 @@ const onboardingContextIntentSchema = z
         goal: z.string().optional().describe("Legacy single goal; prefer goals"),
         goals: z.array(z.string()).optional().describe("Selected goal option values (multi-select)"),
         businessType: z.string().optional(),
-        tasksOrRoles: z.array(z.string()).optional(),
+        tasksOrRoles: optionalStringArray.describe("Tasks or roles; accepts string (single) or array"),
         freeText: z.string().optional(),
       })
       .passthrough()
