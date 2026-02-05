@@ -48,7 +48,10 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
 
   const buildTestUrl = (rawUrl: string) => {
     const normalized = rawUrl.replace(/\/+$/, "");
-    const baseUrl = normalized.replace(/\/api\/(streams|workspaces)\/.*$/, "");
+    const match = normalized.match(
+      /^(https?:\/\/[^/]+)(\/api\/(streams|workspaces)\/.*)$/
+    );
+    const baseUrl = match ? match[1] : normalized;
     return `${baseUrl}/api/streams/${workspaceId}/${agentId}/${streamPathSuffix}`;
   };
 
@@ -57,7 +60,7 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
     ? buildTestUrl(testAgentUrlData.url)
     : undefined;
   const fallbackPath = `/api/streams/${workspaceId}/${agentId}/${streamPathSuffix}`;
-  const apiUrl = functionUrl ?? (typeof window !== "undefined" ? `${window.location.origin}${fallbackPath}` : undefined);
+  const apiUrl = functionUrl ?? fallbackPath;
 
   // Show loading while fetching the Function URL
   if (isLoading) {

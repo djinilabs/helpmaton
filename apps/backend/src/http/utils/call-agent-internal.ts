@@ -19,7 +19,6 @@ import type { UIMessage } from "../../utils/messageTypes";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
 
-
 import { MODEL_NAME } from "./agent-constants";
 import { getWorkspaceApiKey } from "./agent-keys";
 import { buildGenerateTextOptions, createAgentModel } from "./agent-model";
@@ -101,7 +100,6 @@ const buildDelegationTools = async (params: {
     createCheckDelegationStatusTool,
   } = await import("./agentUtils");
 
-   
   const tools: ToolSet = {} as ToolSet;
 
   tools.get_datetime = createGetDatetimeTool();
@@ -129,7 +127,11 @@ const buildDelegationTools = async (params: {
 
   if (targetAgent.searchWebProvider === "tavily") {
     const { createTavilySearchTool } = await import("./tavilyTools");
-    tools.search_web = createTavilySearchTool(workspaceId, context, targetAgentId);
+    tools.search_web = createTavilySearchTool(
+      workspaceId,
+      context,
+      targetAgentId,
+    );
   } else if (targetAgent.searchWebProvider === "jina") {
     const { createJinaSearchTool } = await import("./tavilyTools");
     tools.search_web = createJinaSearchTool(workspaceId, targetAgentId);
@@ -137,7 +139,11 @@ const buildDelegationTools = async (params: {
 
   if (targetAgent.fetchWebProvider === "tavily") {
     const { createTavilyFetchTool } = await import("./tavilyTools");
-    tools.fetch_url = createTavilyFetchTool(workspaceId, context, targetAgentId);
+    tools.fetch_url = createTavilyFetchTool(
+      workspaceId,
+      context,
+      targetAgentId,
+    );
   } else if (targetAgent.fetchWebProvider === "jina") {
     const { createJinaFetchTool } = await import("./tavilyTools");
     tools.fetch_url = createJinaFetchTool(workspaceId, targetAgentId);
@@ -148,7 +154,7 @@ const buildDelegationTools = async (params: {
         workspaceId,
         context,
         targetAgentId,
-        targetAgentConversationId
+        targetAgentConversationId,
       );
     } else {
       console.warn(
@@ -156,7 +162,7 @@ const buildDelegationTools = async (params: {
         {
           workspaceId,
           targetAgentId,
-        }
+        },
       );
     }
   }
@@ -169,7 +175,7 @@ const buildDelegationTools = async (params: {
   if (targetAgent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(
       workspaceId,
-      targetAgent.notificationChannelId
+      targetAgent.notificationChannelId,
     );
   }
 
@@ -178,7 +184,7 @@ const buildDelegationTools = async (params: {
     const emailConnectionPk = `email-connections/${workspaceId}`;
     const emailConnection = await db["email-connection"].get(
       emailConnectionPk,
-      "connection"
+      "connection",
     );
     if (emailConnection) {
       tools.send_email = createSendEmailTool(workspaceId);
@@ -193,7 +199,7 @@ const buildDelegationTools = async (params: {
     const mcpTools = await createMcpServerTools(
       workspaceId,
       targetAgent.enabledMcpServerIds,
-      targetAgent.enabledMcpServerToolNames ?? undefined
+      targetAgent.enabledMcpServerToolNames ?? undefined,
     );
     Object.assign(tools, mcpTools);
   }
@@ -205,7 +211,7 @@ const buildDelegationTools = async (params: {
   ) {
     const { createClientTools } = await import("./agentSetup");
     const clientTools = createClientTools(
-      targetAgent.clientTools as Parameters<typeof createClientTools>[0]
+      targetAgent.clientTools as Parameters<typeof createClientTools>[0],
     );
     Object.assign(tools, clientTools);
   }
@@ -217,7 +223,7 @@ const buildDelegationTools = async (params: {
   ) {
     tools.list_agents = createListAgentsTool(
       workspaceId,
-      targetAgent.delegatableAgentIds
+      targetAgent.delegatableAgentIds,
     );
     tools.call_agent = createCallAgentTool(
       workspaceId,
@@ -227,7 +233,7 @@ const buildDelegationTools = async (params: {
       maxDepth,
       context,
       conversationId,
-      conversationOwnerAgentId
+      conversationOwnerAgentId,
     );
     tools.call_agent_async = createCallAgentAsyncTool(
       workspaceId,
@@ -236,9 +242,10 @@ const buildDelegationTools = async (params: {
       callDepth + 1,
       maxDepth,
       context,
-      conversationId
+      conversationId,
     );
-    tools.check_delegation_status = createCheckDelegationStatusTool(workspaceId);
+    tools.check_delegation_status =
+      createCheckDelegationStatusTool(workspaceId);
   }
 
   return tools;
@@ -255,16 +262,15 @@ const fetchExistingConversationMessages = async (params: {
   const db = await database();
   try {
     const conversationPk = `conversations/${workspaceId}/${targetAgentId}/${conversationId}`;
-    const existingConversation = await db["agent-conversations"].get(
-      conversationPk
-    );
+    const existingConversation =
+      await db["agent-conversations"].get(conversationPk);
     if (existingConversation && existingConversation.messages) {
       return existingConversation.messages as UIMessage[];
     }
   } catch (error) {
     console.log(
       "[callAgentInternal] Could not fetch existing conversation messages:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     Sentry.captureException(ensureError(error), {
       tags: {
@@ -328,7 +334,7 @@ type GenerateTextResult = Awaited<ReturnType<typeof generateText>>;
 type TokenUsage = ReturnType<typeof extractTokenUsage>;
 
 const buildToolDefinitionsForReservation = (
-  wrappedTools: DelegationTools | undefined
+  wrappedTools: DelegationTools | undefined,
 ):
   | Array<{ name: string; description: string; parameters: unknown }>
   | undefined => {
@@ -416,27 +422,24 @@ const adjustReservationAfterSuccess = async (params: {
           false,
           openrouterGenerationId,
           openrouterGenerationIds,
-          targetAgentId
+          targetAgentId,
         );
       } else {
         console.warn(
-          "[callAgentInternal] Context not available, skipping credit adjustment"
+          "[callAgentInternal] Context not available, skipping credit adjustment",
         );
       }
       console.log(
-        "[Agent Delegation] Credit reservation adjusted successfully"
+        "[Agent Delegation] Credit reservation adjusted successfully",
       );
     } catch (error) {
-      console.error(
-        "[callAgentInternal] Error adjusting credit reservation:",
-        {
-          error: error instanceof Error ? error.message : String(error),
-          workspaceId,
-          targetAgentId,
-          reservationId,
-          tokenUsage,
-        }
-      );
+      console.error("[callAgentInternal] Error adjusting credit reservation:", {
+        error: error instanceof Error ? error.message : String(error),
+        workspaceId,
+        targetAgentId,
+        reservationId,
+        tokenUsage,
+      });
       Sentry.captureException(ensureError(error), {
         tags: {
           context: "credit-management",
@@ -462,7 +465,7 @@ const adjustReservationAfterSuccess = async (params: {
         workspaceId,
         targetAgentId,
         reservationId,
-      }
+      },
     );
     try {
       const reservationPk = `credit-reservations/${reservationId}`;
@@ -470,7 +473,7 @@ const adjustReservationAfterSuccess = async (params: {
     } catch (deleteError) {
       console.warn(
         "[callAgentInternal] Error deleting reservation:",
-        deleteError
+        deleteError,
       );
       Sentry.captureException(ensureError(deleteError), {
         tags: {
@@ -517,7 +520,7 @@ const logTargetAgentConversation = async (params: {
 
   try {
     const observerTiming = getGenerationTimingFromObserver(
-      llmObserver.getEvents()
+      llmObserver.getEvents(),
     );
     const generationTimeMs =
       observerTiming.generationStartedAt && observerTiming.generationEndedAt
@@ -549,7 +552,7 @@ const logTargetAgentConversation = async (params: {
       undefined,
       undefined,
       "test",
-      context
+      context,
     );
 
     console.log("[Agent Delegation] Created conversation for target agent:", {
@@ -581,12 +584,12 @@ const logTargetAgentConversation = async (params: {
         errorName,
         workspaceId,
         targetAgentId,
-      }
+      },
     );
 
     if (conversationError instanceof Error) {
       const wrappedError = new Error(
-        `Failed to create conversation for target agent: ${errorMessage}`
+        `Failed to create conversation for target agent: ${errorMessage}`,
       );
       wrappedError.name = errorName;
       wrappedError.cause = conversationError;
@@ -594,7 +597,7 @@ const logTargetAgentConversation = async (params: {
     }
 
     throw new Error(
-      `Failed to create conversation for target agent: ${errorMessage}`
+      `Failed to create conversation for target agent: ${errorMessage}`,
     );
   }
 };
@@ -635,7 +638,7 @@ const handleReservationAfterError = async (params: {
           targetAgentId,
           reservationId,
           error: error instanceof Error ? error.message : String(error),
-        }
+        },
       );
       if (context) {
         await refundReservation(db, reservationId, context, {
@@ -647,7 +650,7 @@ const handleReservationAfterError = async (params: {
         });
       } else {
         console.warn(
-          "[callAgentInternal] Context not available, skipping refund transaction"
+          "[callAgentInternal] Context not available, skipping refund transaction",
         );
       }
     } catch (refundError) {
@@ -670,7 +673,12 @@ const handleReservationAfterError = async (params: {
 
   let errorTokenUsage: TokenUsage | undefined;
   try {
-    if (error && typeof error === "object" && "result" in error && error.result) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "result" in error &&
+      error.result
+    ) {
       errorTokenUsage = extractTokenUsage(error.result);
     }
   } catch {
@@ -696,17 +704,17 @@ const handleReservationAfterError = async (params: {
           false,
           undefined,
           undefined,
-          targetAgentId
+          targetAgentId,
         );
       } else {
         console.warn(
-          "[callAgentInternal] Context not available, skipping credit adjustment"
+          "[callAgentInternal] Context not available, skipping credit adjustment",
         );
       }
     } catch (adjustError) {
       console.error(
         "[callAgentInternal] Error adjusting reservation after error:",
-        adjustError
+        adjustError,
       );
       Sentry.captureException(ensureError(adjustError), {
         tags: {
@@ -727,7 +735,7 @@ const handleReservationAfterError = async (params: {
         workspaceId,
         targetAgentId,
         reservationId,
-      }
+      },
     );
     try {
       const reservationPk = `credit-reservations/${reservationId}`;
@@ -735,7 +743,7 @@ const handleReservationAfterError = async (params: {
     } catch (deleteError) {
       console.warn(
         "[callAgentInternal] Error deleting reservation:",
-        deleteError
+        deleteError,
       );
       Sentry.captureException(ensureError(deleteError), {
         tags: {
@@ -794,7 +802,7 @@ const logDelegationErrorConversation = async (params: {
       usesByok,
       errorInfo,
       undefined,
-      "test"
+      "test",
     );
   } catch (logError) {
     console.error("[callAgentInternal] Failed to log error conversation:", {
@@ -814,6 +822,8 @@ const logDelegationErrorConversation = async (params: {
 
 export type CallAgentInternalOptions = {
   configurationMode?: boolean;
+  /** When set in configuration mode, meta-agent create_my_schedule/create_my_eval_judge enforce subscription limits. */
+  userId?: string;
 };
 
 export async function callAgentInternal(
@@ -827,7 +837,7 @@ export async function callAgentInternal(
   conversationId?: string,
   conversationOwnerAgentId?: string,
   abortSignal?: AbortSignal,
-  options?: CallAgentInternalOptions
+  options?: CallAgentInternalOptions,
 ): Promise<{
   response: string;
   targetAgentConversationId: string;
@@ -865,18 +875,20 @@ export async function callAgentInternal(
 
   const extractedTargetAgentId = targetAgent.pk.replace(
     `agents/${workspaceId}/`,
-    ""
+    "",
   );
 
   const agentProvider: Provider = "openrouter";
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, agentProvider);
   const usesByok = workspaceApiKey !== null;
   const modelName =
-    typeof targetAgent.modelName === "string" ? targetAgent.modelName : undefined;
+    typeof targetAgent.modelName === "string"
+      ? targetAgent.modelName
+      : undefined;
   const resolvedModelName = modelName || getDefaultModel();
   const modelCapabilities = resolveModelCapabilities(
     agentProvider,
-    resolvedModelName
+    resolvedModelName,
   );
 
   const agentConfig = {
@@ -897,7 +909,7 @@ export async function callAgentInternal(
     undefined,
     agentProvider,
     agentConfig,
-    llmObserver
+    llmObserver,
   );
 
   const shouldBuildTools = supportsToolCalling(modelCapabilities);
@@ -910,7 +922,7 @@ export async function callAgentInternal(
       workspaceId,
       targetAgentId,
       targetAgent as Parameters<typeof setupAgentConfigTools>[2],
-      { llmObserver }
+      { llmObserver, userId: options?.userId },
     );
     tools = configSetup.tools as ToolSet;
     effectiveSystemPrompt = configSetup.systemPrompt;
@@ -938,7 +950,7 @@ export async function callAgentInternal(
     : undefined;
   const effectiveTools = resolveToolsForCapabilities(
     wrappedTools,
-    modelCapabilities
+    modelCapabilities,
   );
 
   const modelMessages: ModelMessage[] = [
@@ -948,6 +960,7 @@ export async function callAgentInternal(
     },
   ];
 
+  // In configuration mode, skip conversation history and knowledge injection so the meta-agent only has the current request.
   const existingConversationMessages = configurationMode
     ? []
     : await fetchExistingConversationMessages({
@@ -964,9 +977,8 @@ export async function callAgentInternal(
   if (configurationMode) {
     modelMessagesWithKnowledge = modelMessages;
   } else {
-    const { injectKnowledgeIntoMessages } = await import(
-      "../../utils/knowledgeInjection"
-    );
+    const { injectKnowledgeIntoMessages } =
+      await import("../../utils/knowledgeInjection");
     const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
       workspaceId,
       targetAgent,
@@ -976,7 +988,7 @@ export async function callAgentInternal(
       targetAgentId,
       conversationId,
       usesByok,
-      existingConversationMessages
+      existingConversationMessages,
     );
     modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
     knowledgeInjectionMessage =
@@ -997,7 +1009,7 @@ export async function callAgentInternal(
       rerankingRequestMessage: rerankingRequestMessage ?? undefined,
       rerankingResultMessage: rerankingResultMessage ?? undefined,
       knowledgeInjectionMessage: knowledgeInjectionMessage ?? undefined,
-    })
+    }),
   );
 
   let reservationId: string | undefined;
@@ -1018,7 +1030,7 @@ export async function callAgentInternal(
       modelMessagesWithKnowledge,
       effectiveSystemPrompt,
       toolDefinitions,
-      usesByok
+      usesByok,
     );
 
     if (reservation) {
@@ -1033,7 +1045,7 @@ export async function callAgentInternal(
 
     const generateOptions = filterGenerateTextOptionsForCapabilities(
       buildGenerateTextOptions(targetAgent),
-      modelCapabilities
+      modelCapabilities,
     );
     console.log("[Agent Delegation] Executing generateText with parameters:", {
       workspaceId,
@@ -1116,7 +1128,7 @@ export async function callAgentInternal(
       result,
       undefined,
       resolvedModelName || MODEL_NAME,
-      "test"
+      "test",
     );
     tokenUsage = extractionResult.tokenUsage;
     const openrouterGenerationId = extractionResult.openrouterGenerationId;
@@ -1177,7 +1189,7 @@ export async function callAgentInternal(
 
     console.error(
       `[callAgentInternal] Error calling agent ${targetAgentId}:`,
-      error
+      error,
     );
     if (isCreditUserError(error)) {
       console.info(
@@ -1189,7 +1201,7 @@ export async function callAgentInternal(
             error instanceof Error
               ? { name: error.name, message: error.message }
               : String(error),
-        }
+        },
       );
     } else {
       Sentry.captureException(ensureError(error), {

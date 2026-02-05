@@ -505,6 +505,34 @@ export async function checkAgentScheduleLimit(
 }
 
 /**
+ * Ensures workspace has a subscription and that creating one more schedule for the agent is within plan limits.
+ * Call before creating an agent schedule (routes and meta-agent tools).
+ * @throws badRequest if subscription is missing or schedule limit would be exceeded
+ */
+export async function ensureAgentScheduleCreationAllowed(
+  workspaceId: string,
+  userId: string,
+  agentId: string
+): Promise<void> {
+  const subscriptionId = await ensureWorkspaceSubscription(workspaceId, userId);
+  await checkAgentScheduleLimit(subscriptionId, workspaceId, agentId);
+}
+
+/**
+ * Ensures workspace has a subscription and that creating one more eval judge for the agent is within plan limits.
+ * Call before creating an agent eval judge (routes and meta-agent tools).
+ * @throws badRequest if subscription is missing or eval judge limit would be exceeded
+ */
+export async function ensureAgentEvalJudgeCreationAllowed(
+  workspaceId: string,
+  userId: string,
+  agentId: string
+): Promise<void> {
+  const subscriptionId = await ensureWorkspaceSubscription(workspaceId, userId);
+  await checkAgentEvalJudgeLimit(subscriptionId, workspaceId, agentId);
+}
+
+/**
  * Check if a user is a manager of a subscription
  * @param userId - User ID
  * @param subscriptionId - Subscription ID (without "subscriptions/" prefix)

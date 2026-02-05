@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { WORKSPACE_AGENT_ID } from "../streamEndpointDetection";
-import {
-  extractStreamPathParameters,
-} from "../streamPathExtraction";
+import { extractStreamPathParameters } from "../streamPathExtraction";
 
 import { createAPIGatewayEventV2 } from "./test-helpers";
 
@@ -162,4 +160,3 @@ describe("streamPathExtraction", () => {
     });
   });
 });
-

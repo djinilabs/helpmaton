@@ -1,7 +1,4 @@
-import type {
-  APIGatewayProxyEvent,
-  APIGatewayProxyEventV2,
-} from "aws-lambda";
+import type { APIGatewayProxyEvent, APIGatewayProxyEventV2 } from "aws-lambda";
 
 import {
   transformLambdaUrlToHttpV2Event,
@@ -26,9 +23,7 @@ export function detectEndpointType(path: string): EndpointType {
     return "config-test";
   }
   // Pattern: /api/streams/{workspaceId}/workspace/test or /api/streams/{workspaceId}/_workspace/test
-  if (
-    path.match(/^\/api\/streams\/[^/]+\/(?:workspace|_workspace)\/test$/)
-  ) {
+  if (path.match(/^\/api\/streams\/[^/]+\/(?:workspace|_workspace)\/test$/)) {
     return "test"; // workspace agent uses test auth
   }
   // Pattern: /api/streams/{workspaceId}/{agentId}/test
@@ -43,13 +38,13 @@ export function detectEndpointType(path: string): EndpointType {
  * Extracts the path from an event (handles multiple event types)
  */
 export function extractPathFromEvent(
-  event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent
+  event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
 ): string {
   // Transform REST API v1 events to v2 format if needed
   if ("httpMethod" in event && event.httpMethod !== undefined) {
     // API Gateway REST API v1 event - transform it to v2 format
     const httpV2Event = transformRestToHttpV2Event(
-      event as APIGatewayProxyEvent
+      event as APIGatewayProxyEvent,
     );
     return httpV2Event.rawPath || httpV2Event.requestContext.http.path || "";
   }
@@ -62,7 +57,7 @@ export function extractPathFromEvent(
     (event as { requestContext?: { http?: unknown } }).requestContext?.http
   ) {
     const httpV2Event = transformLambdaUrlToHttpV2Event(
-      event as LambdaUrlEvent
+      event as LambdaUrlEvent,
     );
     return httpV2Event.rawPath || "";
   }
@@ -76,4 +71,3 @@ export function extractPathFromEvent(
   const eventAny = event as { requestContext?: { http?: { path?: string } } };
   return eventAny.requestContext?.http?.path || "";
 }
-

@@ -11,11 +11,20 @@ import { z } from "zod";
 
 import { database } from "../../tables";
 import {
-  DUE_PARTITION,
-  DISABLED_PARTITION,
+  buildEvalJudgeRecordForCreate,
+  buildEvalJudgeUpdatePayload,
+  type ExistingEvalJudgeForUpdate,
+} from "../../utils/agentEvalJudge";
+import {
   buildAgentSchedulePk,
+  buildScheduleRecordForCreate,
+  buildScheduleUpdatePayload,
+  type ExistingScheduleForUpdate,
 } from "../../utils/agentSchedule";
-import { getNextRunAtEpochSeconds } from "../../utils/cron";
+import {
+  ensureAgentEvalJudgeCreationAllowed,
+  ensureAgentScheduleCreationAllowed,
+} from "../../utils/subscriptionUtils";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import { createGetDatetimeTool } from "./agentUtils";
@@ -58,9 +67,19 @@ export type AgentRecordForConfig = {
 
 const META_AGENT_SYSTEM_PROMPT_PREFIX = `You are the configuration assistant for this agent. The user can ask you questions about this agent's settings and request changes. Use the provided tools to read and update this agent's configuration. Do not make up data—use get_my_config to see current values before updating.`;
 
-export function getMetaAgentSystemPrompt(agentName: string): string {
-  return `${META_AGENT_SYSTEM_PROMPT_PREFIX}\n\nThis agent is named "${agentName}".`;
+/** Sanitize agent name for use in system prompt to avoid breaking quote structure or injecting newlines. */
+function sanitizeAgentNameForPrompt(agentName: string): string {
+  const noQuotes = agentName.replace(/"/g, '\\"');
+  return noQuotes.replace(/[\r\n]+/g, " ").trim();
 }
+
+export function getMetaAgentSystemPrompt(agentName: string): string {
+  const safeName = sanitizeAgentNameForPrompt(agentName);
+  return `${META_AGENT_SYSTEM_PROMPT_PREFIX}\n\nThis agent is named "${safeName}".`;
+}
+
+/** Options passed into createAgentConfigTools (e.g. userId for subscription limit checks). */
+type CreateAgentConfigToolsOptions = { userId?: string };
 
 /**
  * Creates the meta-agent tool set (get_my_config, update_my_config, get_datetime, etc.)
@@ -68,9 +87,11 @@ export function getMetaAgentSystemPrompt(agentName: string): string {
 function createAgentConfigTools(
   workspaceId: string,
   agentId: string,
-  agent: AgentRecordForConfig
+  agent: AgentRecordForConfig,
+  options?: CreateAgentConfigToolsOptions
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool types
 ): Record<string, any> {
+  const userId = options?.userId;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool types
   const tools: Record<string, any> = {};
 
@@ -111,7 +132,7 @@ function createAgentConfigTools(
     .object({
       name: z.string().min(1).optional(),
       systemPrompt: z.string().min(1).optional(),
-      modelName: z.string().optional(),
+      modelName: z.string().nullable().optional(),
       temperature: z.number().min(0).max(2).nullable().optional(),
       topP: z.number().min(0).max(1).nullable().optional(),
       enableSearchDocuments: z.boolean().optional(),
@@ -140,12 +161,18 @@ function createAgentConfigTools(
           : existing.temperature;
       const topP =
         parsed.topP !== undefined ? parsed.topP : existing.topP;
+      const modelNameValue =
+        parsed.modelName === undefined
+          ? existing.modelName
+          : parsed.modelName === null
+            ? undefined
+            : parsed.modelName;
       const updatePayload = {
         pk,
         sk: "agent" as const,
         name: parsed.name ?? existing.name,
         systemPrompt: parsed.systemPrompt ?? existing.systemPrompt,
-        modelName: parsed.modelName !== undefined ? parsed.modelName : existing.modelName,
+        modelName: modelNameValue,
         temperature: temperature ?? undefined,
         topP: topP ?? undefined,
         enableSearchDocuments: parsed.enableSearchDocuments ?? existing.enableSearchDocuments,
@@ -206,35 +233,45 @@ function createAgentConfigTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const parsed = createAgentScheduleSchema.parse(args);
+      if (userId) {
+        try {
+          await ensureAgentScheduleCreationAllowed(
+            workspaceId,
+            userId,
+            agentId
+          );
+        } catch (err) {
+          const message =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message: unknown }).message)
+              : "Subscription or schedule limit check failed.";
+          return JSON.stringify({ error: message });
+        }
+      }
       const db = await database();
       const scheduleId = randomUUID();
-      const schedulePk = buildAgentSchedulePk(workspaceId, agentId, scheduleId);
-      const enabled = parsed.enabled ?? true;
-      const now = new Date();
-      const nextRunAt = getNextRunAtEpochSeconds(parsed.cronExpression, now);
-      const scheduleRecord = {
-        pk: schedulePk,
-        sk: "schedule",
+      const scheduleRecord = buildScheduleRecordForCreate(
         workspaceId,
         agentId,
         scheduleId,
-        name: parsed.name,
-        cronExpression: parsed.cronExpression,
-        prompt: parsed.prompt,
-        enabled,
-        duePartition: enabled ? DUE_PARTITION : DISABLED_PARTITION,
-        nextRunAt,
-      };
+        {
+          name: parsed.name,
+          cronExpression: parsed.cronExpression,
+          prompt: parsed.prompt,
+          enabled: parsed.enabled,
+        }
+      );
       await db["agent-schedule"].create(
         scheduleRecord as Parameters<typeof db["agent-schedule"]["create"]>[0]
       );
+      const enabled = parsed.enabled ?? true;
       return JSON.stringify({
         id: scheduleId,
         name: parsed.name,
         cronExpression: parsed.cronExpression,
         prompt: parsed.prompt,
         enabled,
-        nextRunAt,
+        nextRunAt: (scheduleRecord as { nextRunAt: number }).nextRunAt,
         message: "Schedule created.",
       });
     },
@@ -273,32 +310,10 @@ function createAgentConfigTools(
         body.cronExpression = parsed.cronExpression;
       if (parsed.enabled !== undefined) body.enabled = parsed.enabled;
       const updatePayload = updateAgentScheduleSchema.parse(body);
-      const updateData: Record<string, unknown> = {
-        ...schedule,
-        updatedAt: new Date().toISOString(),
-      };
-      if (updatePayload.name !== undefined) updateData.name = updatePayload.name;
-      if (updatePayload.prompt !== undefined)
-        updateData.prompt = updatePayload.prompt;
-      if (updatePayload.cronExpression !== undefined) {
-        updateData.cronExpression = updatePayload.cronExpression;
-        updateData.nextRunAt = getNextRunAtEpochSeconds(
-          updatePayload.cronExpression,
-          new Date()
-        );
-      }
-      if (updatePayload.enabled !== undefined) {
-        updateData.enabled = updatePayload.enabled;
-        updateData.duePartition = updatePayload.enabled
-          ? DUE_PARTITION
-          : DISABLED_PARTITION;
-        if (updatePayload.enabled && !schedule.enabled) {
-          updateData.nextRunAt = getNextRunAtEpochSeconds(
-            (updateData.cronExpression as string) ?? schedule.cronExpression,
-            new Date()
-          );
-        }
-      }
+      const updateData = buildScheduleUpdatePayload(
+        schedule as ExistingScheduleForUpdate,
+        updatePayload
+      );
       const scheduleTable = db["agent-schedule"];
       await scheduleTable.update(
         updateData as Parameters<typeof scheduleTable.update>[0]
@@ -386,25 +401,36 @@ function createAgentConfigTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const parsed = createEvalJudgeSchema.parse(args);
+      if (userId) {
+        try {
+          await ensureAgentEvalJudgeCreationAllowed(
+            workspaceId,
+            userId,
+            agentId
+          );
+        } catch (err) {
+          const message =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message: unknown }).message)
+              : "Subscription or eval judge limit check failed.";
+          return JSON.stringify({ error: message });
+        }
+      }
       const db = await database();
       const judgeId = randomUUID();
-      const judgePk = `agent-eval-judges/${workspaceId}/${agentId}/${judgeId}`;
-      const now = new Date().toISOString();
-      const judgeRecord = {
-        pk: judgePk,
-        sk: "judge",
+      const judgeRecord = buildEvalJudgeRecordForCreate(
         workspaceId,
         agentId,
         judgeId,
-        name: parsed.name,
-        enabled: parsed.enabled ?? true,
-        samplingProbability: parsed.samplingProbability ?? 100,
-        provider: (parsed.provider ?? "openrouter") as "openrouter",
-        modelName: parsed.modelName,
-        evalPrompt: parsed.evalPrompt,
-        version: 1,
-        createdAt: now,
-      };
+        {
+          name: parsed.name,
+          enabled: parsed.enabled,
+          samplingProbability: parsed.samplingProbability,
+          provider: parsed.provider,
+          modelName: parsed.modelName,
+          evalPrompt: parsed.evalPrompt,
+        }
+      );
       await (db as unknown as Record<string, { create: (r: unknown) => Promise<unknown> }>)[
         "agent-eval-judge"
       ].create(judgeRecord);
@@ -442,7 +468,6 @@ function createAgentConfigTools(
       if (!judge) {
         return JSON.stringify({ error: "Eval judge not found" });
       }
-      const j = judge as Record<string, unknown>;
       const updatePayload = updateEvalJudgeSchema.parse({
         name: parsed.name,
         enabled: parsed.enabled,
@@ -451,20 +476,13 @@ function createAgentConfigTools(
         modelName: parsed.modelName,
         evalPrompt: parsed.evalPrompt,
       });
-      if (updatePayload.name !== undefined) j.name = updatePayload.name;
-      if (updatePayload.enabled !== undefined) j.enabled = updatePayload.enabled;
-      if (updatePayload.samplingProbability !== undefined)
-        j.samplingProbability = updatePayload.samplingProbability;
-      if (updatePayload.provider !== undefined)
-        j.provider = updatePayload.provider;
-      if (updatePayload.modelName !== undefined)
-        j.modelName = updatePayload.modelName;
-      if (updatePayload.evalPrompt !== undefined)
-        j.evalPrompt = updatePayload.evalPrompt;
-      j.updatedAt = new Date().toISOString();
+      const updateData = buildEvalJudgeUpdatePayload(
+        judge as ExistingEvalJudgeForUpdate,
+        updatePayload
+      );
       await (db as unknown as Record<string, { update: (r: unknown) => Promise<unknown> }>)[
         "agent-eval-judge"
-      ].update(j);
+      ].update(updateData);
       return "Eval judge updated successfully.";
     },
   });
@@ -589,6 +607,8 @@ function createAgentConfigTools(
 export type SetupAgentConfigToolsOptions = {
   llmObserver?: LlmObserver;
   context?: AugmentedContext;
+  /** When set, create_my_schedule and create_my_eval_judge enforce subscription limits. */
+  userId?: string;
 };
 
 export type SetupAgentConfigToolsResult = {
@@ -606,7 +626,7 @@ export function setupAgentConfigTools(
   agent: AgentRecordForConfig,
   options?: SetupAgentConfigToolsOptions
 ): SetupAgentConfigToolsResult {
-  const rawTools = createAgentConfigTools(workspaceId, agentId, agent);
+  const rawTools = createAgentConfigTools(workspaceId, agentId, agent, options);
   const tools = wrapToolsWithObserver(rawTools, options?.llmObserver);
   const systemPrompt = getMetaAgentSystemPrompt(agent.name);
   return { tools, systemPrompt };

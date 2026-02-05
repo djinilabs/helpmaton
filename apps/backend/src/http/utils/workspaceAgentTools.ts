@@ -47,7 +47,11 @@ import { userRef } from "./session";
 import { WORKSPACE_AGENT_ID } from "./streamEndpointDetection";
 
 
-/** Minimal agent-like descriptor for stream context (no DB record) */
+/**
+ * Minimal agent-like descriptor for stream context (no DB record).
+ * pk/sk intentionally use workspace keys (workspaces/{id}, "workspace") so the
+ * virtual agent is identified with the workspace, not an agent row.
+ */
 export type WorkspaceAgentDescriptor = {
   pk: string;
   sk?: string;
@@ -732,6 +736,7 @@ function createWorkspaceAgentTools(
     },
   });
 
+  const RESERVED_AGENT_IDS = ["_workspace", "workspace"] as const;
   const createAgentToolSchema = z
     .object({
       name: z.string().min(1),
@@ -799,15 +804,21 @@ function createWorkspaceAgentTools(
   });
 
   const deleteAgentSchema = z
-    .object({ agentId: z.string().min(1) })
+    .object({
+      agentId: z.string().min(1),
+      confirm: z.literal(true).describe("Set to true to confirm deletion"),
+    })
     .strict();
   tools.delete_agent = tool({
     description:
-      "Delete an agent from the workspace. Confirm with the user before deleting.",
+      "Delete an agent from the workspace. Requires confirm: true. Confirm with the user in conversation before calling.",
     parameters: deleteAgentSchema,
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const { agentId } = deleteAgentSchema.parse(args);
+      if (RESERVED_AGENT_IDS.includes(agentId as (typeof RESERVED_AGENT_IDS)[number])) {
+        return JSON.stringify({ error: "Cannot delete the workspace agent." });
+      }
       await requireWorkspaceWrite(workspaceId, userId);
       const db = await database();
       const agentPk = `agents/${workspaceId}/${agentId}`;
@@ -974,7 +985,18 @@ function createWorkspaceAgentTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const { agentId, message } = configureAgentSchema.parse(args);
+      if (RESERVED_AGENT_IDS.includes(agentId as (typeof RESERVED_AGENT_IDS)[number])) {
+        return JSON.stringify({
+          error: "Cannot configure the workspace agent; use a specific agent ID from list_agents.",
+        });
+      }
       await requireWorkspaceWrite(workspaceId, userId);
+      const db = await database();
+      const agentPk = `agents/${workspaceId}/${agentId}`;
+      const agent = await db.agent.get(agentPk, "agent");
+      if (!agent) {
+        return JSON.stringify({ error: "Agent not found" });
+      }
       const { callAgentInternal } = await import("./call-agent-internal");
       const result = await callAgentInternal(
         workspaceId,
@@ -987,7 +1009,7 @@ function createWorkspaceAgentTools(
         undefined,
         WORKSPACE_AGENT_ID,
         undefined,
-        { configurationMode: true }
+        { configurationMode: true, userId }
       );
       return result.response;
     },

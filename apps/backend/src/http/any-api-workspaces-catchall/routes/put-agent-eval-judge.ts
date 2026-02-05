@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { buildEvalJudgeUpdatePayload } from "../../../utils/agentEvalJudge";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateEvalJudgeSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
@@ -107,24 +108,17 @@ export const registerPutAgentEvalJudge = (app: express.Application) => {
           throw badRequest("Eval judge does not belong to this agent");
         }
 
-        const updateData: Partial<typeof judge> = {
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (name !== undefined) updateData.name = name;
-        if (enabled !== undefined) updateData.enabled = enabled;
-        if (samplingProbability !== undefined) {
-          updateData.samplingProbability = samplingProbability;
-        }
-        if (provider !== undefined) updateData.provider = provider;
-        if (modelName !== undefined) updateData.modelName = modelName;
-        if (evalPrompt !== undefined) updateData.evalPrompt = evalPrompt;
+        const updateData = buildEvalJudgeUpdatePayload(judge, {
+          name,
+          enabled,
+          samplingProbability,
+          provider,
+          modelName,
+          evalPrompt,
+        });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (db as any)["agent-eval-judge"].update({
-          ...judge,
-          ...updateData,
-        });
+        await (db as any)["agent-eval-judge"].update(updateData);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updatedJudge = await (db as any)["agent-eval-judge"].get(judgePk, "judge");

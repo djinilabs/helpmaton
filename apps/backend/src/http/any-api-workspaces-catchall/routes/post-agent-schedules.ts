@@ -5,15 +5,9 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { buildScheduleRecordForCreate } from "../../../utils/agentSchedule";
 import {
-  DUE_PARTITION,
-  DISABLED_PARTITION,
-  buildAgentSchedulePk,
-} from "../../../utils/agentSchedule";
-import { getNextRunAtEpochSeconds } from "../../../utils/cron";
-import {
-  checkAgentScheduleLimit,
-  ensureWorkspaceSubscription,
+  ensureAgentScheduleCreationAllowed,
 } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { requireAgentInWorkspace } from "../../utils/agentScheduleAccess";
@@ -106,39 +100,21 @@ export const registerPostAgentSchedules = (app: express.Application) => {
         await requireAgentInWorkspace(db, workspaceId, agentId);
 
         const userId = currentUserRef.replace("users/", "");
-        const subscriptionId = await ensureWorkspaceSubscription(
-          workspaceId,
-          userId
-        );
-        await checkAgentScheduleLimit(subscriptionId, workspaceId, agentId);
+        await ensureAgentScheduleCreationAllowed(workspaceId, userId, agentId);
 
         const scheduleId = randomUUID();
-        const schedulePk = buildAgentSchedulePk(
-          workspaceId,
-          agentId,
-          scheduleId
-        );
-        const scheduleSk = "schedule";
-        const now = new Date();
-        const nextRunAt = getNextRunAtEpochSeconds(cronExpression, now);
-
-        const scheduleRecord = {
-          pk: schedulePk,
-          sk: scheduleSk,
+        const scheduleRecord = buildScheduleRecordForCreate(
           workspaceId,
           agentId,
           scheduleId,
-          name,
-          cronExpression,
-          prompt,
-          enabled,
-          duePartition: enabled ? DUE_PARTITION : DISABLED_PARTITION,
-          nextRunAt,
-          version: 1,
-          createdAt: now.toISOString(),
-        };
+          { name, cronExpression, prompt, enabled }
+        );
 
-        await db["agent-schedule"].create(scheduleRecord);
+        await db["agent-schedule"].create(
+          scheduleRecord as Parameters<
+            (typeof db)["agent-schedule"]["create"]
+          >[0]
+        );
 
         trackBusinessEvent(
           "agent_schedule",
@@ -152,15 +128,19 @@ export const registerPostAgentSchedules = (app: express.Application) => {
           req
         );
 
+        const created = scheduleRecord as {
+          nextRunAt: number;
+          createdAt: string;
+        };
         res.status(201).json({
           id: scheduleId,
           name,
           cronExpression,
           prompt,
           enabled,
-          nextRunAt,
+          nextRunAt: created.nextRunAt,
           lastRunAt: null,
-          createdAt: scheduleRecord.createdAt,
+          createdAt: created.createdAt,
         });
       } catch (error) {
         handleError(error, next);

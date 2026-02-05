@@ -806,7 +806,7 @@ export async function buildStreamRequestContext(
       workspaceId,
       agentId,
       loadedAgent as Parameters<typeof setupAgentConfigTools>[2],
-      { llmObserver }
+      { llmObserver, userId: authResult.userId }
     );
     const modelName =
       typeof loadedAgent.modelName === "string"
