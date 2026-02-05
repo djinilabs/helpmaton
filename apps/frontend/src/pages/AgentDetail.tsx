@@ -3628,6 +3628,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               agent={{ name: "Configure with AI" }}
               streamPathSuffix="config/test"
               isEmbedded
+              headerMessage={
+                <>
+                  Improve or change this agent by describing what you want in
+                  natural language—for example, update the prompt, add or remove
+                  tools, change settings, or test how the agent responds. The
+                  assistant can apply changes for you.
+                </>
+              }
             />
           </AgentAccordionSection>
 

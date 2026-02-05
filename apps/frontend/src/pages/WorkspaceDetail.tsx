@@ -634,6 +634,15 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                   agentId="_workspace"
                   agent={{ name: "Workspace assistant" }}
                   isEmbedded
+                  headerMessage={
+                    <>
+                      Improve or change this workspace by describing what you
+                      want in natural language—for example, add or configure
+                      agents, manage documents, set up channels, or change
+                      workspace settings. The assistant can apply changes for
+                      you.
+                    </>
+                  }
                 />
               </Suspense>
             </LazyAccordionContent>
