@@ -3,6 +3,11 @@ import type { ModelMessage } from "ai";
 
 import { parseJsonWithFallback } from "../../utils/jsonParsing";
 
+import {
+  HELPMATON_BYOK_RULE,
+  HELPMATON_PRODUCT_DESCRIPTION,
+  HELPMATON_SUBSCRIPTION_TIERS,
+} from "./metaAgentProductContext";
 import { createModel, getOnboardingAgentModel } from "./modelFactory";
 import {
   onboardingAgentResultSchema,
@@ -13,13 +18,12 @@ import {
   cleanupRequestTimeout,
 } from "./requestTimeout";
 
-
 const MAX_SELF_CORRECTION_ATTEMPTS = 3;
 
 const ONBOARDING_AGENT_SYSTEM_PROMPT = `You are an onboarding assistant for Helpmaton, a workspace-based AI agent management platform.
 
 ## Product
-Helpmaton lets users create workspaces, add AI agents with custom prompts and models, manage documents and knowledge bases, and deploy agents via webhooks and APIs. Workspaces have credits, spending limits, team members, and integrations (MCP servers, Discord, Slack, email).
+${HELPMATON_PRODUCT_DESCRIPTION} ${HELPMATON_SUBSCRIPTION_TIERS}
 
 ## Your task
 You will receive either:
@@ -34,7 +38,7 @@ After you understand the user's main goals and before or when you output a templ
 - **Memory extraction**: For agents in long conversations or support, ask (e.g. "Should this agent remember facts from conversations over time?"). Use id wantMemoryExtraction. Set memoryExtractionEnabled: true on the agent when yes.
 - **Knowledge / documents**: When the goal involves documents or a knowledge base, ask (e.g. "Will you upload documents for this agent to search?"). Use id wantKnowledgeSearch. Set enableSearchDocuments and/or enableKnowledgeInjection when yes.
 - **Eval judges**: For quality-sensitive or production agents, ask (e.g. "Do you want automatic quality checks on this agent's replies?"). Use id wantEvalJudges. Add evalJudges to the agent when yes.
-- **Web search**: When the goal might need live information, ask (e.g. "Should this agent be able to search the web?"). Use id wantWebSearch. Set enableTavilySearch or fetchWebProvider when yes.
+- **Web search**: When the goal might need live information, ask (e.g. "Should this agent be able to search the web?"). Use id wantWebSearch. For templates use: searchWebProvider ("tavily" or "jina") for web search; fetchWebProvider ("tavily", "jina", or "scrape") for fetch/read-web-page; enableExaSearch (boolean) for Exa.ai search. Set the ones the user wants.
 - **MCP servers**: When they mention external tools (Notion, calendar, CRM, etc.), ask if they want to connect MCP servers and add mcpServers to the template when yes.
 
 Ask 1–3 of these in a single "questions" response when appropriate; do not overwhelm. If the user has already given enough detail in a refine step, apply their choices to the template without repeating questions. Include sensible defaults in the template when the use case strongly suggests an option (e.g. memory extraction for a support agent) even if you did not ask.
@@ -59,7 +63,7 @@ For **template**, use:
 - name: string
 - description: optional string
 - spendingLimits: optional array of { timeFrame: "daily"|"weekly"|"monthly", amount: number }. amount is in nano-dollars (1 USD = 1e9). E.g. $100/week → amount: 100000000000; $5/day → amount: 5000000000.
-- agents: array of { id (ref), name, systemPrompt; optional: modelName, provider, enableSearchDocuments, enableMemorySearch, enableKnowledgeInjection, memoryExtractionEnabled, spendingLimits, keys: [{ id (ref), type: "webhook"|"widget", provider: "google", name?: string }], evalJudges: [{ id (ref), name, modelName, evalPrompt }], ... }. When the user will use webhooks or API, include keys with at least one entry per agent (e.g. { id: "{mainAgent}Key", type: "webhook", provider: "google" }) so the webhook URL exists after import.
+- agents: array of { id (ref), name, systemPrompt; optional: modelName, provider, enableSearchDocuments, enableMemorySearch, enableKnowledgeInjection, memoryExtractionEnabled, spendingLimits, keys: [{ id (ref), type: "webhook"|"widget", provider: "google", name?: string }], evalJudges: [{ id (ref), name, modelName, evalPrompt }], searchWebProvider ("tavily"|"jina"), fetchWebProvider ("tavily"|"jina"|"scrape"), enableExaSearch, ... }. When the user will use webhooks or API, include keys with at least one entry per agent (e.g. { id: "{mainAgent}Key", type: "webhook", provider: "google" }) so the webhook URL exists after import.
 - outputChannels: optional array of { id (ref), channelId, type ("discord"|"slack"|"email"), name, config: {} }
 - emailConnections: optional array of { id (ref), type ("gmail"|"outlook"|"smtp"), name, config: {} }
 - mcpServers: optional array of { id (ref), name, authType, url?, ... }
@@ -70,6 +74,7 @@ For **template**, use:
 - If the user's intent is vague, ask 1–3 focused questions (including secondary-setup questions when appropriate).
 - When you have enough to propose a workspace, output type "template". Include in the template any secondary options the user agreed to (from your questions or from refine messages), and sensible defaults when the use case strongly suggests them (e.g. memory extraction for support, spending limits for business). When the user says they will use webhooks or API to call the agent, add keys: [{ id: "{agentRef}Key", type: "webhook", provider: "google" }] to each such agent so the initial webhook key is created.
 - For refine: apply the user's requested changes to the template, keep refs consistent, return updated template and summary. If they ask to add or change integrations, limits, memory, knowledge, or eval judges, add those to the template.
+- ${HELPMATON_BYOK_RULE}
 - Output only the JSON object.`;
 
 export type SubscriptionContextForOnboarding = {
@@ -106,6 +111,16 @@ The user is on the **${plan}** plan. Current usage and limits:
 - Per agent: at most ${limits.maxEvalJudgesPerAgent} eval judge(s), at most ${limits.maxAgentSchedulesPerAgent} schedule(s).
 
 **Rules:** Never suggest a template that would exceed these limits. The template must contain at most ${remainingWorkspaces} workspace(s) (typically 1). The total number of agents in the template must not exceed ${remainingAgents}. Do not add more outputChannels than ${remainingChannels}, or more mcpServers than ${remainingMcpServers}. Each agent may have at most ${limits.maxEvalJudgesPerAgent} eval judge(s) and at most ${limits.maxAgentSchedulesPerAgent} schedule(s). If the user's goals would require more, propose the best fit within these limits and mention they can upgrade for more.`;
+}
+
+/** Returns the system prompt used by the onboarding agent (for tests). */
+export function getOnboardingAgentSystemPrompt(options: {
+  subscriptionContext?: SubscriptionContextForOnboarding | null;
+}): string {
+  return options.subscriptionContext != null
+    ? ONBOARDING_AGENT_SYSTEM_PROMPT +
+        buildSubscriptionLimitsSection(options.subscriptionContext)
+    : ONBOARDING_AGENT_SYSTEM_PROMPT;
 }
 
 export type OnboardingAgentLlmInput = {
@@ -209,11 +224,9 @@ export async function runOnboardingAgentLlm(
   const model = await createModel("openrouter", modelName, undefined);
   const requestTimeout = createRequestTimeout();
 
-  const systemPrompt =
-    input.subscriptionContext != null
-      ? ONBOARDING_AGENT_SYSTEM_PROMPT +
-        buildSubscriptionLimitsSection(input.subscriptionContext)
-      : ONBOARDING_AGENT_SYSTEM_PROMPT;
+  const systemPrompt = getOnboardingAgentSystemPrompt({
+    subscriptionContext: input.subscriptionContext ?? undefined,
+  });
 
   const messages: ModelMessage[] = [
     { role: "user", content: buildUserMessage(input) },

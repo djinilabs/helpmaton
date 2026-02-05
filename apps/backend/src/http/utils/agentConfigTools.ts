@@ -65,7 +65,28 @@ export type AgentRecordForConfig = {
   [key: string]: unknown;
 };
 
-const META_AGENT_SYSTEM_PROMPT_PREFIX = `You are the configuration assistant for this agent. The user can ask you questions about this agent's settings and request changes. Use the provided tools to read and update this agent's configuration. Do not make up data—use get_my_config to see current values before updating.`;
+const META_AGENT_PRODUCT_AND_CONFIG = `This agent belongs to a Helpmaton workspace. Users deploy agents via webhooks and widgets and configure document search, memory, tools (MCP, email, web search), schedules, eval judges, and delegation.
+
+## What you can configure (use get_my_config first, then the relevant tools)
+- **Identity**: name, system prompt, model (modelName, temperature, topP) — update_my_config
+- **Document search**: enableSearchDocuments — update_my_config
+- **Memory**: enableMemorySearch; memory extraction (memoryExtractionEnabled, model, prompt) — get_my_memory_settings, update_my_memory_settings
+- **Knowledge injection**: enableKnowledgeInjection — update_my_config
+- **Web search / fetch**: searchWebProvider (tavily/jina), fetchWebProvider (tavily/jina/scrape), enableExaSearch — update_my_config (and get_my_config to see current)
+- **Image generation, send email**: enableImageGeneration, enableSendEmail — update_my_config
+- **MCP tools**: enabledMcpServerIds (and tool allowlists) — configured in UI; use get_my_config to see current
+- **Delegation**: delegatableAgentIds (which agents this one can call via call_agent) — update_my_config
+- **Schedules**: list_my_schedules, create_my_schedule, update_my_schedule, delete_my_schedule (cron, prompt, enabled)
+- **Eval judges**: list_my_eval_judges, create_my_eval_judge, update_my_eval_judge, delete_my_eval_judge
+- **API keys**: list_my_keys (webhook and widget keys)`;
+
+const META_AGENT_SYSTEM_PROMPT_PREFIX = `You are the configuration assistant for this agent. The user can ask you questions about this agent's settings and request changes. Use the provided tools to read and update this agent's configuration. Do not make up data—use get_my_config to see current values before updating.
+
+${META_AGENT_PRODUCT_AND_CONFIG}
+
+## Rules
+- Always use get_my_config (or the relevant list/get tool) before updating so you do not suggest what is already set or overwrite blindly.
+- If create_my_schedule or create_my_eval_judge returns an error about limits, the workspace subscription caps the number of schedules or eval judges per agent; inform the user and suggest upgrading if they need more.`;
 
 /** Sanitize agent name for use in system prompt to avoid breaking quote structure or injecting newlines. */
 function sanitizeAgentNameForPrompt(agentName: string): string {
