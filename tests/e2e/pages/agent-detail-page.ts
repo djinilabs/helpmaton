@@ -63,13 +63,18 @@ export class AgentDetailPage extends BasePage {
   }
 
   /**
-   * Expand an accordion section
-   * Scoped to main content so we don't click the left nav by mistake.
+   * Expand an accordion section.
+   * When sectionId is provided, finds the button by aria-controls so we never click the left nav
+   * (nav has same labels but different buttons without aria-expanded).
    */
-  async expandAccordion(sectionTitle: string): Promise<void> {
-    const accordion = this.mainContent
-      .locator(`button:has-text("${sectionTitle}")`)
-      .first();
+  async expandAccordion(sectionTitle: string, sectionId?: string): Promise<void> {
+    const accordion = sectionId
+      ? this.page.locator(
+          `[aria-controls="accordion-content-${sectionId}"]`
+        )
+      : this.mainContent
+          .locator(`button:has-text("${sectionTitle}")`)
+          .first();
 
     // Check if already expanded by checking aria-expanded attribute
     const isExpanded =
@@ -77,7 +82,7 @@ export class AgentDetailPage extends BasePage {
 
     if (!isExpanded) {
       await this.clickElement(accordion);
-      // Wait for the accordion we clicked (in main content) to be expanded
+      // Wait for the accordion we clicked to be expanded
       await expect(accordion).toHaveAttribute("aria-expanded", "true", {
         timeout: 5000,
       });
@@ -96,7 +101,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Test Agent section
    */
   async expandTestSection(): Promise<void> {
-    await this.expandAccordion("TEST AGENT");
+    await this.expandAccordion("TEST AGENT", "test");
   }
 
   /**
@@ -190,7 +195,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Conversations section
    */
   async expandConversationsSection(): Promise<void> {
-    await this.expandAccordion("RECENT CONVERSATIONS");
+    await this.expandAccordion("RECENT CONVERSATIONS", "conversations");
   }
 
   /**
@@ -273,7 +278,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Memory section
    */
   async expandMemorySection(): Promise<void> {
-    await this.expandAccordion("MEMORY RECORDS");
+    await this.expandAccordion("MEMORY RECORDS", "memory");
   }
 
   /**
@@ -364,7 +369,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Usage section
    */
   async expandUsageSection(): Promise<void> {
-    await this.expandAccordion("ASSISTANT USAGE");
+    await this.expandAccordion("ASSISTANT USAGE", "usage");
   }
 
   /**
@@ -435,7 +440,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Stream Server section
    */
   async expandStreamServerSection(): Promise<void> {
-    await this.expandAccordion("STREAM SERVER");
+    await this.expandAccordion("STREAM SERVER", "stream-server");
   }
 
   /**
