@@ -335,7 +335,7 @@ importers:
         version: 2.2.0(react@19.2.4)
       '@scalar/api-reference-react':
         specifier: ^0.8.9
-        version: 0.8.45(axios@1.13.2)(react@19.2.4)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
+        version: 0.8.46(axios@1.13.2)(react@19.2.4)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
       '@sentry/react':
         specifier: ^10.0.0
         version: 10.38.0(react@19.2.4)
@@ -2512,8 +2512,8 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
-  '@scalar/agent-chat@0.4.7':
-    resolution: {integrity: sha512-tXUm3Gt7WV4/tWHnCDYVErAio0xanfJa0tcpdiAEJ8QCI4N9xMHz+MZNND3SHJt3orYsdKbDyONKkA/D6GJM7g==}
+  '@scalar/agent-chat@0.4.8':
+    resolution: {integrity: sha512-cDOmLDZiF7Sa9qIKxzVo5KAv/3swvIHTVwUX4HMAnZ4DNWbkDGcK9kjGMYTguTFSIPfk4HX/CeYEyKImk97+eA==}
     engines: {node: '>=20'}
 
   '@scalar/analytics-client@1.0.1':
@@ -2524,14 +2524,14 @@ packages:
     resolution: {integrity: sha512-U1Y/g1dQrcKgTKR/jjcfvWosagCbXTn+PX6tD+XQjsrubsoPyX4JwgdD0dRikdjrMi8SBRM3Yhpr4tiEIrH4vw==}
     engines: {node: '>=20'}
 
-  '@scalar/api-reference-react@0.8.45':
-    resolution: {integrity: sha512-pt5kcIb5d74MR9vCNHxnNH/rDqJ7rroRjL7j01zhAa/RDO9FUC6RFxd3s9R4ZKrL8awg3yFqWusKugD81mZUvw==}
+  '@scalar/api-reference-react@0.8.46':
+    resolution: {integrity: sha512-S9MNG1/8nbzjAGHZYrOPk8H4B+e40kV1C0T8Goi3v2ic5YpkJMxkuSeHw6Me5XSYoZJgLSsjQwavLVn9LMQ7Vg==}
     engines: {node: '>=20'}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
-  '@scalar/api-reference@1.44.8':
-    resolution: {integrity: sha512-G96FLlZVtE884ZrZQIeA34YZl2pmdUMg97IvBo0NaFho2mbbfUVhvf53I/cmY8UCz6l9qYMWERZCd+ZQgDcdXA==}
+  '@scalar/api-reference@1.44.9':
+    resolution: {integrity: sha512-ogWA2U1HgDn5Suhfy43qwHxcGHP7kx9CN1XRbnK8CnkrCDTUsRUeVgJX3pZedRIa+XR6D12jc00dmwxrm4nA1w==}
     engines: {node: '>=20'}
 
   '@scalar/code-highlight@0.2.2':
@@ -10893,7 +10893,7 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@scalar/agent-chat@0.4.7(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
+  '@scalar/agent-chat@0.4.8(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
     dependencies:
       '@ai-sdk/vue': 3.0.33(vue@3.5.27(typescript@5.9.3))(zod@4.3.6)
       '@scalar/api-client': 2.23.0(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
@@ -10988,9 +10988,9 @@ snapshots:
       - typescript
       - universal-cookie
 
-  '@scalar/api-reference-react@0.8.45(axios@1.13.2)(react@19.2.4)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
+  '@scalar/api-reference-react@0.8.46(axios@1.13.2)(react@19.2.4)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
     dependencies:
-      '@scalar/api-reference': 1.44.8(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
+      '@scalar/api-reference': 1.44.9(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
       '@scalar/types': 0.6.1
       react: 19.2.4
     transitivePeerDependencies:
@@ -11009,10 +11009,10 @@ snapshots:
       - typescript
       - universal-cookie
 
-  '@scalar/api-reference@1.44.8(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
+  '@scalar/api-reference@1.44.9(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
     dependencies:
       '@headlessui/vue': 1.7.23(vue@3.5.27(typescript@5.9.3))
-      '@scalar/agent-chat': 0.4.7(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
+      '@scalar/agent-chat': 0.4.8(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
       '@scalar/api-client': 2.23.0(axios@1.13.2)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
       '@scalar/code-highlight': 0.2.2
       '@scalar/components': 0.17.2(typescript@5.9.3)
