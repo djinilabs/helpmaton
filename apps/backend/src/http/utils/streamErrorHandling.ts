@@ -18,6 +18,7 @@ import {
   logErrorDetails,
   handleCreditErrors,
 } from "./generationErrorHandling";
+import { isMetaAgentStream } from "./streamEndpointDetection";
 import type { StreamRequestContext } from "./streamRequestContext";
 import {
   writeChunkToStream,
@@ -130,6 +131,8 @@ export async function persistConversationError(
   error: unknown,
 ): Promise<void> {
   if (!context) return;
+  // Meta-agent conversations are not recorded
+  if (isMetaAgentStream(context.endpointType, context.agentId)) return;
 
   try {
     const errorInfo = buildConversationErrorInfo(error, {
@@ -142,6 +145,9 @@ export async function persistConversationError(
     });
 
     const lambdaContext = getContextFromRequestId(context.awsRequestId);
+    // Map endpointType to schema conversationType (config-test is a UI flow like test)
+    const conversationType: "test" | "stream" =
+      context.endpointType === "config-test" ? "test" : context.endpointType;
     await updateConversation(
       context.db,
       context.workspaceId,
@@ -152,7 +158,7 @@ export async function persistConversationError(
       context.usesByok,
       errorInfo,
       context.awsRequestId,
-      context.endpointType as "test" | "stream",
+      conversationType,
       lambdaContext,
     );
   } catch (logError) {

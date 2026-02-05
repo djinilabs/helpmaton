@@ -14,6 +14,23 @@ export type EndpointType = "test" | "config-test" | "stream";
 /** Reserved agentId for the virtual workspace agent */
 export const WORKSPACE_AGENT_ID = "_workspace";
 
+/** Agent IDs that identify the workspace (meta) agent */
+const META_AGENT_IDS = [WORKSPACE_AGENT_ID, "workspace"] as const;
+
+/**
+ * True when this stream is a meta-agent conversation (config-test or workspace agent).
+ * Meta-agent conversations are not recorded in agent-conversations.
+ */
+export function isMetaAgentStream(
+  endpointType: EndpointType,
+  agentId: string,
+): boolean {
+  return (
+    endpointType === "config-test" ||
+    META_AGENT_IDS.includes(agentId as (typeof META_AGENT_IDS)[number])
+  );
+}
+
 /**
  * Detects endpoint type based on path pattern
  */

@@ -17,6 +17,7 @@ import {
 import { trackSuccessfulRequest } from "./generationRequestTracking";
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
 import { buildConversationMessagesFromObserver } from "./llmObserver";
+import { isMetaAgentStream } from "./streamEndpointDetection";
 import type { StreamRequestContext } from "./streamRequestContext";
 
 
@@ -95,6 +96,11 @@ export async function logConversation(
   generationTimeMs?: number
 ): Promise<void> {
   try {
+    // Meta-agent conversations are not recorded
+    if (isMetaAgentStream(context.endpointType, context.agentId)) {
+      return;
+    }
+
     // Extract tokenUsage from streamResult if not provided
     // This ensures we always have tokenUsage when the LLM call succeeded,
     // even if no response text was generated (input tokens were still consumed)
@@ -238,6 +244,9 @@ export async function logConversation(
     }
 
     const lambdaContext = getContextFromRequestId(context.awsRequestId);
+    // Map endpointType to schema conversationType (config-test is a UI flow like test)
+    const conversationType: "test" | "stream" =
+      context.endpointType === "config-test" ? "test" : context.endpointType;
     await updateConversation(
       context.db,
       context.workspaceId,
@@ -248,7 +257,7 @@ export async function logConversation(
       context.usesByok,
       undefined,
       context.awsRequestId,
-      context.endpointType as "test" | "stream",
+      conversationType,
       lambdaContext
     ).catch((error) => {
       console.error("[Stream Handler] Error logging conversation:", {
