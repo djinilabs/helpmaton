@@ -151,12 +151,23 @@ pnpm tsx scripts/run-staging-agent-tests.ts --pr 186
 
 ### Credits and Pricing
 
-- `add-credits.ts` - Add credits to user accounts
+- `add-credits.ts` - Add credits to a workspace in the current environment (local or default DB)
+- `add-credits-pr.ts` - Credit a workspace in a PR deployment’s DynamoDB by a given USD amount (requires AWS credentials and a deployed PR stack)
 - `update-pricing.mjs` - Update pricing calculations
 - `migrate-to-usd.ts` - Migrate credit system to USD
 - `migrate-transaction-fields.ts` - Migrate legacy transaction fields to nano-dollars
 
 **Usage**
+```bash
+# Add credits in current environment
+pnpm add-credits <workspace-id> <amount>
+
+# Credit a workspace on a PR deployment (stack HelpmatonStagingPR<pr-number>)
+pnpm add-credits-pr <pr-number> <workspace-id> <amount-usd> [--region eu-west-2] [--yes]
+# Example:
+pnpm add-credits-pr 186 70a9418f-7343-481b-b632-aa672c0532b9 25 --yes
+```
+
 ```bash
 pnpm tsx scripts/migrate-transaction-fields.ts --stack HelpmatonProduction
 ```
