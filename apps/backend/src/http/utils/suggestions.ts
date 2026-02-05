@@ -11,6 +11,8 @@ import { createRequestTimeout, cleanupRequestTimeout } from "./requestTimeout";
 
 const MAX_SUGGESTIONS = 3;
 const MAX_PROMPT_CHARS = 600;
+/** Max characters of agent system prompt to send to the suggestions LLM for context. */
+const MAX_AGENT_SYSTEM_PROMPT_CHARS = 2000;
 
 /** Action types that map to UI sections; frontend uses these to show "Go to X" links. */
 export const SUGGESTION_ACTION_TYPES = [
@@ -85,6 +87,8 @@ type AgentSuggestionContext = {
   };
   agent: {
     name: string;
+    /** Full system prompt (truncated) so the LLM can tailor suggestions to the agent's role. */
+    systemPrompt?: string;
     modelName?: string | null;
     provider?: string | null;
     systemPromptPreview?: string;
@@ -138,6 +142,11 @@ You will receive a subject: either "workspace" or "agent". Your suggestions must
 - **Document search**: In the agent's **Document search** section, enable search over workspace documents so the agent can cite documents when answering. Suggest only when document search is not yet enabled.
 - **Knowledge injection**: In the agent's **Knowledge injection** section, enable combining memory and documents for richer context. Suggest only when knowledge injection is not yet enabled.
 - **Delegation**: In the agent's **Delegation** section, configure which other agents this agent can call (call_agent tool). Suggest only when no delegatable agents are configured.
+
+## Context and personalization
+Use the Configuration JSON to tailor suggestions:
+- **When subject is workspace**: Use the workspace **name** and **description** (if present) to make suggestions specific to that workspace (e.g. refer to the workspace by name when it helps).
+- **When subject is agent**: Use the **agent name**, the agent's **system prompt** (and systemPromptPreview), and the **workspace name and description** so suggestions fit the agent's role and the workspace context.
 
 ## What to suggest
 - Suggest the next step that adds the most value given the current configuration (e.g. no agents → create first agent; agent has no memory → enable memory).
@@ -421,8 +430,13 @@ export const buildAgentSuggestionContext = (params: {
     delegatableAgentIds?: string[];
   };
 }): AgentSuggestionContext => {
-  const preview = truncateText(
-    params.agent.systemPrompt.replace(/\s+/g, " ").trim(),
+  const normalizedPrompt = params.agent.systemPrompt.replace(/\s+/g, " ").trim();
+  const systemPrompt = truncateText(
+    normalizedPrompt,
+    MAX_AGENT_SYSTEM_PROMPT_CHARS,
+  );
+  const systemPromptPreview = truncateText(
+    normalizedPrompt,
     MAX_PROMPT_CHARS,
   );
   return {
@@ -432,9 +446,10 @@ export const buildAgentSuggestionContext = (params: {
     },
     agent: {
       name: params.agent.name,
+      systemPrompt: systemPrompt || undefined,
       modelName: params.agent.modelName ?? null,
       provider: params.agent.provider ?? null,
-      systemPromptPreview: preview,
+      systemPromptPreview,
       enableMemorySearch: params.agent.enableMemorySearch ?? false,
       enableSearchDocuments: params.agent.enableSearchDocuments ?? false,
       enableKnowledgeInjection: params.agent.enableKnowledgeInjection ?? false,
