@@ -6,6 +6,12 @@ import {
   aomToXml,
   escapeXml,
 } from "../index";
+import {
+  getRefererForUrl,
+  isBlockPageContent,
+  isStrictDomain,
+  normalizeUrlForStrictDomain,
+} from "../scrapeHelpers";
 // These are re-exported from index.ts for backward compatibility
 // They are actually implemented in:
 // - parseProxyUrl, getRandomProxyUrl: apps/backend/src/utils/proxyUtils.ts
@@ -162,6 +168,85 @@ describe("POST /api/scrape", () => {
         resourceType
       );
       expect(shouldBlock).toBe(false);
+    });
+  });
+
+  describe("Strict domain and block-page helpers", () => {
+    it("isStrictDomain returns true for www.reddit.com and old.reddit.com", () => {
+      expect(isStrictDomain("https://www.reddit.com/r/test")).toBe(true);
+      expect(isStrictDomain("https://old.reddit.com/r/test")).toBe(true);
+    });
+
+    it("isStrictDomain returns false for other hosts", () => {
+      expect(isStrictDomain("https://example.com")).toBe(false);
+      expect(isStrictDomain("https://reddit.com")).toBe(false);
+    });
+
+    it("isStrictDomain returns false for invalid URL", () => {
+      expect(isStrictDomain("not-a-url")).toBe(false);
+    });
+
+    it("normalizeUrlForStrictDomain rewrites www.reddit.com to old.reddit.com", () => {
+      expect(
+        normalizeUrlForStrictDomain(
+          "https://www.reddit.com/r/buildinpublic/comments/1qw9b2l/"
+        )
+      ).toBe(
+        "https://old.reddit.com/r/buildinpublic/comments/1qw9b2l/"
+      );
+    });
+
+    it("normalizeUrlForStrictDomain leaves other URLs unchanged", () => {
+      const url = "https://example.com/page";
+      expect(normalizeUrlForStrictDomain(url)).toBe(url);
+      expect(normalizeUrlForStrictDomain("https://old.reddit.com/r/x")).toBe(
+        "https://old.reddit.com/r/x"
+      );
+    });
+
+    it("getRefererForUrl returns base URL for Reddit hosts", () => {
+      expect(getRefererForUrl("https://www.reddit.com/r/test")).toBe(
+        "https://www.reddit.com/"
+      );
+      expect(getRefererForUrl("https://old.reddit.com/r/test")).toBe(
+        "https://old.reddit.com/"
+      );
+    });
+
+    it("getRefererForUrl returns undefined for other hosts", () => {
+      expect(getRefererForUrl("https://example.com")).toBeUndefined();
+    });
+
+    it("getRefererForUrl returns undefined for invalid URL", () => {
+      expect(getRefererForUrl("not-a-url")).toBeUndefined();
+    });
+
+    it("isBlockPageContent returns true for strong phrase alone", () => {
+      expect(
+        isBlockPageContent(
+          'value="You\'ve been blocked by network security. If you think'
+        )
+      ).toBe(true);
+      expect(
+        isBlockPageContent('name="file a ticket below and we\'ll look"')
+      ).toBe(true);
+    });
+
+    it("isBlockPageContent returns true when two or more block phrases present", () => {
+      expect(
+        isBlockPageContent("checking your browser. Access denied.")
+      ).toBe(true);
+    });
+
+    it("isBlockPageContent returns false for single weak phrase (avoid false positive)", () => {
+      expect(isBlockPageContent("Access denied")).toBe(false);
+      expect(isBlockPageContent("just a moment")).toBe(false);
+    });
+
+    it("isBlockPageContent returns false for normal content", () => {
+      expect(
+        isBlockPageContent("<document name=\"Real article title\"/>")
+      ).toBe(false);
     });
   });
 

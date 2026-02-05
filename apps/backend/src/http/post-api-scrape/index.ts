@@ -22,7 +22,11 @@ import {
 } from "../../utils/creditManagement";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
-import { getRandomProxyUrl, parseProxyUrl } from "../../utils/proxyUtils";
+import {
+  getRandomProxyUrl,
+  getRandomProxyUrlExcluding,
+  parseProxyUrl,
+} from "../../utils/proxyUtils";
 import { launchBrowser } from "../../utils/puppeteerBrowser";
 // delay is still imported for small safety ticks, but used sparingly
 import { delay } from "../../utils/puppeteerContentLoading";
@@ -34,6 +38,13 @@ import { validateBody } from "../utils/bodyValidation";
 import { expressErrorHandler } from "../utils/errorHandler";
 import { extractWorkspaceContextFromToken } from "../utils/jwtUtils";
 import { scrapeRequestSchema } from "../utils/schemas/requestSchemas";
+
+import {
+  getRefererForUrl,
+  isBlockPageContent,
+  isStrictDomain,
+  normalizeUrlForStrictDomain,
+} from "./scrapeHelpers";
 
 initSentry();
 
@@ -130,6 +141,8 @@ export function createApp(): express.Application {
       // Validate request body
       const body = validateBody(req.body, scrapeRequestSchema);
       const { url } = body;
+      const normalizedUrl = normalizeUrlForStrictDomain(url);
+      const strictDomain = isStrictDomain(normalizedUrl);
 
       // --- 2. Credit Reservation ---
       const scrapeCostNanoUsd = 5_000_000;
@@ -149,112 +162,145 @@ export function createApp(): express.Application {
 
       console.log(`[scrape] Credits reserved. Proxy selection...`);
 
-      // --- 3. Browser Launch ---
-      const proxyUrl = getRandomProxyUrl();
-      const { server, username, password } = parseProxyUrl(proxyUrl);
+      let firstAttemptProxyUrl: string | undefined;
 
-      // Note: Ensure your launchBrowser utilizes process.env.PUPPETEER_EXECUTABLE_PATH
-      browser = await launchBrowser(server);
-      const page = await browser.newPage();
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        console.log(`[scrape] Attempt ${attempt}/2`);
 
-      // Viewport setup (Lambda vs Local)
-      if (!process.env.LAMBDA_TASK_ROOT) {
+        if (attempt === 2) {
+          console.log(
+            "[scrape] Retrying with different proxy after block detected."
+          );
+        }
+
+        // --- 3. Browser Launch ---
+        const proxyUrl =
+          attempt === 1
+            ? getRandomProxyUrl()
+            : getRandomProxyUrlExcluding(firstAttemptProxyUrl);
+        if (attempt === 1) {
+          firstAttemptProxyUrl = proxyUrl;
+        }
+        const { server, username, password } = parseProxyUrl(proxyUrl);
+
+        browser = await launchBrowser(server);
+        const page = await browser.newPage();
+
+        // Stable desktop viewport in all environments (reduces fingerprinting)
         await page.setViewport({ width: 1920, height: 1080 });
-      }
 
-      if (username && password) {
-        await page.authenticate({ username, password });
-      }
+        // Realistic headers to reduce WAF/bot detection
+        const referer = getRefererForUrl(normalizedUrl);
+        await page.setExtraHTTPHeaders({
+          "Accept-Language": "en-US,en;q=0.9",
+          ...(referer ? { Referer: referer } : {}),
+        });
 
-      await setupResourceBlocking(page);
+        if (username && password) {
+          await page.authenticate({ username, password });
+        }
 
-      // --- 4. Optimized Navigation & Waiting ---
+        // Skip resource blocking for strict domains so page loads like a real browser
+        if (!strictDomain) {
+          await setupResourceBlocking(page);
+        }
 
-      console.log(`[scrape] Navigating to ${url}...`);
+        // --- 4. Optimized Navigation & Waiting ---
+        if (strictDomain) {
+          await delay(1000 + Math.random() * 1000);
+        }
 
-      // A. Fast Navigation: Don't wait for network idle here, it's too slow for Reddit
-      await page.goto(url, {
-        waitUntil: "domcontentloaded",
-        timeout: 30000,
-      });
+        console.log(`[scrape] Navigating to ${normalizedUrl}...`);
 
-      // B. Smart Wait: Detect Reddit Hydration
-      console.log("[scrape] Waiting for Reddit hydration...");
-      try {
-        // Step 1: Wait for structural indicators (React/Lit components)
-        await page.waitForSelector(
-          'shreddit-post, shreddit-comment, [data-testid="post-container"], .Post',
-          { timeout: 15000 },
+        await page.goto(normalizedUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+
+        // Reddit-specific wait: only for Reddit URLs to avoid 15s timeout on other sites
+        if (strictDomain) {
+          console.log("[scrape] Waiting for Reddit hydration...");
+          try {
+            await page.waitForSelector(
+              'shreddit-post, shreddit-comment, [data-testid="post-container"], .Post',
+              { timeout: 15000 },
+            );
+            await waitForRedditHydration(page);
+          } catch (error) {
+            console.warn(
+              "[scrape] Hydration wait timed out or structure differ, proceeding with fallback.",
+              error,
+            );
+          }
+        }
+
+        // --- 5. Smart Scrolling ---
+        console.log("[scrape] Triggering lazy content load...");
+
+        const prevHeight = await page.evaluate(() => document.body.scrollHeight);
+        await page.evaluate(() =>
+          window.scrollTo(0, document.body.scrollHeight)
         );
 
-        // Step 2: Wait for text length to stabilize
-        await waitForRedditHydration(page);
-      } catch (error) {
-        console.warn(
-          "[scrape] Hydration wait timed out or structure differ, proceeding with fallback.",
-          error,
+        try {
+          await page.waitForFunction(
+            (h) => document.body.scrollHeight > h,
+            { timeout: 3000, polling: 500 },
+            prevHeight,
+          );
+        } catch (error) {
+          console.warn(
+            "[scrape] Height didn't change, page might be fully loaded already.",
+            error,
+          );
+        }
+
+        await delay(1000);
+        await page.evaluate(() => window.scrollTo(0, 0));
+
+        // --- 6. Captcha Handling ---
+        const potentialCaptcha = await page.$(
+          'iframe[src*="captcha"], #captcha, [data-testid="captcha"]',
         );
+        if (potentialCaptcha) {
+          console.log(
+            "[scrape] Potential captcha detected, initiating solver...",
+          );
+          await waitForCaptchaElements(page);
+          await solveCaptchas(page);
+        }
+
+        // --- 7. Extraction & block-page detection ---
+        const aomXml = await extractAOM(page);
+
+        if (isBlockPageContent(aomXml)) {
+          await browser.close();
+          browser = null;
+          if (attempt === 2) {
+            const err = new Error(
+              "Content could not be loaded: the server returned a block or security page. Try another URL or provider."
+            );
+            throw err;
+          }
+          continue;
+        }
+
+        console.log("[scrape] Success.");
+
+        trackBusinessEvent(
+          "scrape",
+          "executed",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+          },
+          undefined,
+        );
+
+        res.setHeader("Content-Type", "application/xml");
+        res.status(200).send(aomXml);
+        return;
       }
-
-      // --- 5. Smart Scrolling ---
-      // Instead of a 5s loop, trigger lazy load and wait for network reaction
-      console.log("[scrape] Triggering lazy content load...");
-
-      const prevHeight = await page.evaluate(() => document.body.scrollHeight);
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-
-      // Wait briefly for new content (height change) OR network idle
-      try {
-        await page.waitForFunction(
-          (h) => document.body.scrollHeight > h,
-          { timeout: 3000, polling: 500 },
-          prevHeight,
-        );
-      } catch (error) {
-        // If height didn't change, page might be fully loaded already
-        console.warn(
-          "[scrape] Height didn't change, page might be fully loaded already.",
-          error,
-        );
-      }
-
-      // Small safety tick for final rendering
-      await delay(1000);
-
-      // Scroll back up for clean screenshot/parsing
-      await page.evaluate(() => window.scrollTo(0, 0));
-
-      // --- 6. Captcha Handling ---
-      // Check for captcha frames quickly
-      const potentialCaptcha = await page.$(
-        'iframe[src*="captcha"], #captcha, [data-testid="captcha"]',
-      );
-      if (potentialCaptcha) {
-        console.log(
-          "[scrape] Potential captcha detected, initiating solver...",
-        );
-        await waitForCaptchaElements(page);
-        await solveCaptchas(page);
-      }
-
-      // --- 7. Extraction ---
-      const aomXml = await extractAOM(page);
-
-      console.log("[scrape] Success.");
-
-      // Track scrape execution
-      trackBusinessEvent(
-        "scrape",
-        "executed",
-        {
-          workspace_id: workspaceId,
-          agent_id: agentId,
-        },
-        undefined, // Scrape uses token auth, no user request context
-      );
-
-      res.setHeader("Content-Type", "application/xml");
-      res.status(200).send(aomXml);
     } catch (err) {
       // --- Error Handling ---
       if (err instanceof InsufficientCreditsError) {

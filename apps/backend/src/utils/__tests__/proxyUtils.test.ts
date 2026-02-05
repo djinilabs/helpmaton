@@ -1,7 +1,11 @@
 import { badRequest, internal } from "@hapi/boom";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { parseProxyUrl, getRandomProxyUrl } from "../proxyUtils";
+import {
+  getRandomProxyUrl,
+  getRandomProxyUrlExcluding,
+  parseProxyUrl,
+} from "../proxyUtils";
 
 describe("proxyUtils", () => {
   const originalEnv = process.env;
@@ -107,6 +111,39 @@ describe("proxyUtils", () => {
       ]);
       expect(() => getRandomProxyUrl()).toThrow(
         internal("All items in DECODO_PROXY_URLS must be strings")
+      );
+    });
+  });
+
+  describe("getRandomProxyUrlExcluding", () => {
+    const url1 = "http://user1:pass1@gate.decodo.com:10001";
+    const url2 = "http://user2:pass2@gate.decodo.com:10002";
+
+    it("should return a different URL when excluding one of two", () => {
+      for (let i = 0; i < 20; i++) {
+        const result = getRandomProxyUrlExcluding(url1);
+        expect(result).toBe(url2);
+      }
+      for (let i = 0; i < 20; i++) {
+        const result = getRandomProxyUrlExcluding(url2);
+        expect(result).toBe(url1);
+      }
+    });
+
+    it("should behave like getRandomProxyUrl when excludeUrl is undefined", () => {
+      const result = getRandomProxyUrlExcluding();
+      expect(result).toMatch(/^http:\/\/.*@gate\.decodo\.com:\d+$/);
+    });
+
+    it("should return only proxy when list has one element (nothing to exclude to)", () => {
+      process.env.DECODO_PROXY_URLS = JSON.stringify([url1]);
+      expect(getRandomProxyUrlExcluding(url1)).toBe(url1);
+    });
+
+    it("should throw when DECODO_PROXY_URLS is not set", () => {
+      delete process.env.DECODO_PROXY_URLS;
+      expect(() => getRandomProxyUrlExcluding()).toThrow(
+        internal("DECODO_PROXY_URLS environment variable is not set")
       );
     });
   });

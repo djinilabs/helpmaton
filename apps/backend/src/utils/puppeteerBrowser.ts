@@ -49,19 +49,12 @@ export async function launchBrowser(proxyServer: string): Promise<Browser> {
       chromiumModule.setGraphicsMode = false;
 
       // Use @sparticuz/chromium's recommended configuration
-      // Add proxy and site isolation args to chromium's default args
+      // Add proxy and stealth args to match local and reduce automation detection
       const chromiumArgs = [
         ...chromiumModule.args,
         `--proxy-server=${proxyServer}`,
-        // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
-        // "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
-        // "--flag-switches-begin",
-        // "--disable-site-isolation-trials",
-        // "--flag-switches-end",
-        // "--disable-gpu",
-        // "--disable-dev-shm-usage",
-        // "--disable-accelerated-2d-canvas",
-        // "--no-first-run",
+        // Stealth: hide automation flag (align with local dev)
+        "--disable-blink-features=AutomationControlled",
       ];
 
       console.log("[puppeteer-browser] Chromium args:", chromiumArgs);
