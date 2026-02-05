@@ -17,11 +17,12 @@ export class AgentDetailPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    // Main content area: the div that contains both the agent heading and accordions
-    // (avoids left nav). Accordion content uses id="accordion-content-{sectionId}".
+    // Main content area: the mx-auto div that contains the agent heading and accordions
+    // (excludes the left nav, which is a sibling). Scoping to div.mx-auto avoids matching
+    // the nav's "Test agent" / section labels when locating buttons like "Test".
     this.mainContent = page
       .locator("main")
-      .locator("div")
+      .locator("div.mx-auto")
       .filter({ has: page.locator("h1.text-4xl") })
       .filter({ has: page.locator('[id="accordion-content-test"]') })
       .first();
