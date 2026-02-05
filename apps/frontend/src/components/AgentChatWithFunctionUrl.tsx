@@ -1,4 +1,4 @@
-import { useEffect, type FC } from "react";
+import { useEffect, type FC, type ReactNode } from "react";
 
 import { useTestAgentUrl } from "../hooks/useTestAgentUrl";
 import { useToast } from "../hooks/useToast";
@@ -9,8 +9,14 @@ import { LoadingScreen } from "./LoadingScreen";
 interface AgentChatWithFunctionUrlProps {
   workspaceId: string;
   agentId: string;
+  /** When provided (e.g. for workspace agent or config agent), skips fetching agent from API */
+  agent?: { name?: string; avatar?: string };
   onClear?: () => void;
   isEmbedded?: boolean;
+  /** Optional stream path suffix (default "test"). Use "config/test" for meta-agent config chat. */
+  streamPathSuffix?: string;
+  /** Optional context-specific header for the chat (e.g. improve/change agent or workspace). */
+  headerMessage?: ReactNode;
 }
 
 /**
@@ -21,8 +27,11 @@ interface AgentChatWithFunctionUrlProps {
 export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
   workspaceId,
   agentId,
+  agent,
   onClear,
   isEmbedded = false,
+  streamPathSuffix = "test",
+  headerMessage,
 }) => {
   const toast = useToast();
   const { data: testAgentUrlData, isLoading, error } = useTestAgentUrl();
@@ -42,28 +51,35 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
 
   const buildTestUrl = (rawUrl: string) => {
     const normalized = rawUrl.replace(/\/+$/, "");
-    const baseUrl = normalized.replace(/\/api\/(streams|workspaces)\/.*$/, "");
-    return `${baseUrl}/api/streams/${workspaceId}/${agentId}/test`;
+    const match = normalized.match(
+      /^(https?:\/\/[^/]+)\/api\/(streams|workspaces)\/.*$/
+    );
+    const baseUrl = match ? match[1] : normalized;
+    return `${baseUrl}/api/streams/${workspaceId}/${agentId}/${streamPathSuffix}`;
   };
 
-  // Construct the full Function URL if available
+  // Construct the full Function URL if available; fallback to same-origin path so config/test works when Function URL is missing
   const functionUrl = testAgentUrlData?.url
     ? buildTestUrl(testAgentUrlData.url)
     : undefined;
+  const fallbackPath = `/api/streams/${workspaceId}/${agentId}/${streamPathSuffix}`;
+  const apiUrl = functionUrl ?? fallbackPath;
 
   // Show loading while fetching the Function URL
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  // Render AgentChat with the Function URL if available, otherwise it will use API Gateway
+  // Render AgentChat with the Function URL if available, otherwise use API Gateway path (same origin)
   return (
     <AgentChat
       workspaceId={workspaceId}
       agentId={agentId}
-      api={functionUrl}
+      agent={agent}
+      api={apiUrl}
       onClear={onClear}
       isEmbedded={isEmbedded}
+      headerMessage={headerMessage}
     />
   );
 };

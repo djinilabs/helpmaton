@@ -4,6 +4,7 @@ import {
   LightBulbIcon,
   UserGroupIcon,
   BoltIcon,
+  Cog6ToothIcon,
   MagnifyingGlassIcon,
   DocumentMagnifyingGlassIcon,
   EnvelopeIcon,
@@ -3598,6 +3599,44 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               agentId={agentId}
               onClear={() => setChatClearKey((prev) => prev + 1)}
               isEmbedded
+              headerMessage={
+                <>
+                  Improve or change this agent by describing what you want in
+                  natural language—for example, update the prompt, add or remove
+                  tools, change settings, or test how the agent responds. The
+                  assistant can apply changes for you.
+                </>
+              }
+            />
+          </AgentAccordionSection>
+
+          {/* Configure with AI (meta-agent) */}
+          <AgentAccordionSection
+            id="config-chat"
+            title={
+              <>
+                <Cog6ToothIcon className="mr-2 inline-block size-5" />
+                CONFIGURE WITH AI
+              </>
+            }
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
+            contentClassName="p-0 lg:p-0"
+          >
+            <AgentChatWithFunctionUrl
+              workspaceId={workspaceId}
+              agentId={agentId}
+              agent={{ name: "Configure with AI" }}
+              streamPathSuffix="config/test"
+              isEmbedded
+              headerMessage={
+                <>
+                  Improve or change this agent by describing what you want in
+                  natural language—for example, update the prompt, add or remove
+                  tools, change settings, or test how the agent responds. The
+                  assistant can apply changes for you.
+                </>
+              }
             />
           </AgentAccordionSection>
 

@@ -6,8 +6,10 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
-  checkAgentEvalJudgeLimit,
-  ensureWorkspaceSubscription,
+  buildEvalJudgeRecordForCreate,
+} from "../../../utils/agentEvalJudge";
+import {
+  ensureAgentEvalJudgeCreationAllowed,
 } from "../../../utils/subscriptionUtils";
 import { validateBody } from "../../utils/bodyValidation";
 import { createEvalJudgeSchema } from "../../utils/schemas/workspaceSchemas";
@@ -91,7 +93,6 @@ export const registerPostAgentEvalJudges = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, createEvalJudgeSchema);
-        // Schema already provides defaults for enabled and provider
         const {
           name,
           enabled,
@@ -124,46 +125,40 @@ export const registerPostAgentEvalJudges = (app: express.Application) => {
         }
 
         const userId = currentUserRef.replace("users/", "");
-        const subscriptionId = await ensureWorkspaceSubscription(
+        await ensureAgentEvalJudgeCreationAllowed(
           workspaceId,
-          userId
+          userId,
+          agentId
         );
-        await checkAgentEvalJudgeLimit(subscriptionId, workspaceId, agentId);
 
         const judgeId = randomUUID();
-        const judgePk = `agent-eval-judges/${workspaceId}/${agentId}/${judgeId}`;
-        const judgeSk = "judge";
-
-        const now = new Date().toISOString();
-
-        const judgeRecord = {
-          pk: judgePk,
-          sk: judgeSk,
+        const judgeRecord = buildEvalJudgeRecordForCreate(
           workspaceId,
           agentId,
           judgeId,
-          name,
-          enabled,
-          samplingProbability,
-          provider,
-          modelName,
-          evalPrompt,
-          version: 1,
-          createdAt: now,
-        };
+          {
+            name,
+            enabled,
+            samplingProbability,
+            provider,
+            modelName,
+            evalPrompt,
+          }
+        );
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (db as any)["agent-eval-judge"].create(judgeRecord);
 
+        const created = judgeRecord as { createdAt: string };
         res.status(201).json({
           id: judgeId,
           name,
-          enabled,
-          samplingProbability,
-          provider,
+          enabled: enabled ?? true,
+          samplingProbability: samplingProbability ?? 100,
+          provider: provider ?? "openrouter",
           modelName,
           evalPrompt,
-          createdAt: now,
+          createdAt: created.createdAt,
         });
       } catch (error) {
         handleError(error, next);

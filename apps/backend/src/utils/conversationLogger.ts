@@ -1103,6 +1103,9 @@ async function upsertConversationWithRetry(
 /**
  * Track a delegation call in conversation metadata
  */
+/** Agent IDs for the workspace (meta) agent; conversations for these are not recorded */
+const WORKSPACE_META_AGENT_IDS = ["_workspace", "workspace"] as const;
+
 export async function trackDelegation(
   db: DatabaseSchema,
   workspaceId: string,
@@ -1117,6 +1120,15 @@ export async function trackDelegation(
   },
 ): Promise<void> {
   try {
+    // Do not create or update conversation records for workspace meta-agent
+    if (
+      WORKSPACE_META_AGENT_IDS.includes(
+        agentId as (typeof WORKSPACE_META_AGENT_IDS)[number],
+      )
+    ) {
+      return;
+    }
+
     const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
     // Check if conversation exists first

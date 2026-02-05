@@ -18,9 +18,9 @@ export async function authenticateStreamRequest(
   event: LambdaUrlEvent | APIGatewayProxyEventV2,
   workspaceId: string,
   agentId: string,
-  secret?: string
+  secret?: string,
 ): Promise<{ authenticated: boolean; userId?: string }> {
-  if (endpointType === "test") {
+  if (endpointType === "test" || endpointType === "config-test") {
     // Extract and verify JWT token
     const authHeader =
       event.headers["authorization"] || event.headers["Authorization"];
@@ -53,4 +53,3 @@ export async function authenticateStreamRequest(
     return { authenticated: true };
   }
 }
-

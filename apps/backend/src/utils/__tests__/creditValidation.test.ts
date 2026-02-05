@@ -174,6 +174,29 @@ describe("creditValidation", () => {
       expect(mockReserveCredits).not.toHaveBeenCalled();
     });
 
+    it("should not load agent from DB when agentId is virtual workspace agent (_workspace)", async () => {
+      const result = await validateCreditsAndLimitsAndReserve(
+        mockDb,
+        "test-workspace",
+        "_workspace",
+        "google",
+        "gemini-2.5-flash",
+        messages,
+        "System prompt",
+        [],
+        false
+      );
+
+      expect(result).not.toBeNull();
+      expect(result?.reservationId).toBe("test-reservation");
+      expect(mockCheckSpendingLimits).toHaveBeenCalledWith(
+        mockDb,
+        mockWorkspace,
+        undefined,
+        expect.any(Number)
+      );
+    });
+
     it("should throw InsufficientCreditsError when credits are insufficient", async () => {
       mockReserveCredits.mockRejectedValue(
         new InsufficientCreditsError("test-workspace", 150.0, 100.0, "usd")

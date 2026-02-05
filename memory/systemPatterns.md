@@ -117,7 +117,8 @@
 4. **Workspace Isolation**: Multi-tenant architecture with workspace-based access
 5. **Credit System**: Token-based usage tracking with reservations
 6. **Streaming Support**: Lambda URLs for long-running agent conversations
-7. **Container Images**: Custom Lambda container images for specific routes (e.g., LanceDB)
+7. **Workspace agent and meta-agent**: Virtual workspace agent (no DB record) at `agentId === "_workspace"`; stream path `/api/streams/{workspaceId}/_workspace/test`. Meta-agent reuses an existing agent in “configuration mode” via path `/api/streams/{workspaceId}/{agentId}/config/test` or when the workspace agent calls `configure_agent(agentId, message)` with `configurationMode: true`. Workspace agent tools in `workspaceAgentTools.ts`; meta-agent (config-only) tools in `agentConfigTools.ts`. Frontend: WorkspaceDetail “Workspace assistant” chat; AgentDetail “Configure with AI” chat.
+8. **Container Images**: Custom Lambda container images for specific routes (e.g., LanceDB)
    - Multi-stage builds to minimize image size (builder stage for dependencies, runtime stage for final image)
    - Build tools removed from final image
    - Package manager caches cleaned after installation

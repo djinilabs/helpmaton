@@ -28,6 +28,24 @@ describe("streamEndpointDetection", () => {
       ).toBe("stream");
     });
 
+    it("should detect 'config-test' endpoint for meta-agent", () => {
+      expect(
+        detectEndpointType("/api/streams/workspace123/agent456/config/test")
+      ).toBe("config-test");
+    });
+
+    it("should detect 'test' endpoint for workspace agent (_workspace)", () => {
+      expect(
+        detectEndpointType("/api/streams/workspace123/_workspace/test")
+      ).toBe("test");
+    });
+
+    it("should detect 'test' endpoint for workspace agent (workspace)", () => {
+      expect(
+        detectEndpointType("/api/streams/workspace123/workspace/test")
+      ).toBe("test");
+    });
+
     it("should default to 'stream' for unknown patterns", () => {
       expect(detectEndpointType("/api/streams/unknown")).toBe("stream");
     });
