@@ -796,6 +796,11 @@ export async function buildStreamRequestContext(
     tools = workspaceSetup.tools;
     usesByok = workspaceSetup.usesByok;
   } else if (endpointType === "config-test") {
+    if (agentId === WORKSPACE_AGENT_ID || agentId === "workspace") {
+      throw badRequest(
+        "Cannot use config-test for the workspace agent; use the workspace agent chat or a specific agent ID."
+      );
+    }
     const { agent: loadedAgent } = await validateWorkspaceAndAgent(
       workspaceId,
       agentId

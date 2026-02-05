@@ -49,7 +49,7 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
   const buildTestUrl = (rawUrl: string) => {
     const normalized = rawUrl.replace(/\/+$/, "");
     const match = normalized.match(
-      /^(https?:\/\/[^/]+)(\/api\/(streams|workspaces)\/.*)$/
+      /^(https?:\/\/[^/]+)\/api\/(streams|workspaces)\/.*$/
     );
     const baseUrl = match ? match[1] : normalized;
     return `${baseUrl}/api/streams/${workspaceId}/${agentId}/${streamPathSuffix}`;
