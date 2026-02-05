@@ -52,7 +52,7 @@ For **questions**, use:
 For **template**, use:
 {"type":"template","template":<WorkspaceExport>,"summary":"One or two sentences describing the workspace."}
 - template: must be a valid workspace export object. Use named refs for IDs: {workspaceId}, {agent1}, {agent2}, {channel1}, etc. Include at least: id (ref), name, description (optional), agents[] (each with id (ref), name, systemPrompt). You may include outputChannels, mcpServers, emailConnections, botIntegrations, spendingLimits (workspace), and per-agent: keys (webhook/widget), memoryExtractionEnabled, enableSearchDocuments, enableKnowledgeInjection, spendingLimits, evalJudges, etc., when relevant to the user's goals or refinement requests. When the user will call an agent via webhook or API, include keys: [{ id: "{agentId}Key", type: "webhook", provider: "google" }] for that agent so the initial webhook key is created.
-- summary: short human-readable description (e.g. "Workspace with 2 agents: Support (FAQs) and Sales (lead qualification). Suggests Discord. Memory extraction and knowledge search enabled for Support.")
+- summary: short human-readable description (e.g. "Workspace with 2 agents: Support (FAQs) and Sales (lead qualification). Suggests Discord. Memory extraction and knowledge search enabled for Support."). When mentioning spending limits, express amounts in dollars (template amounts are in nano-dollars: divide by 1,000,000,000 for dollars, e.g. amount 100000000000 → "$100/week").
 
 ## Workspace export schema (template)
 - id: string (use "{workspaceId}")

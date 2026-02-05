@@ -13,6 +13,7 @@ import {
   type OnboardingAgentResultPayload,
   type WorkspaceExport,
 } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 import { trackEvent } from "../utils/tracking";
 
 const GOAL_OPTIONS = [
@@ -430,7 +431,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                       {template.spendingLimits!
                         .map(
                           (l) =>
-                            `${l.timeFrame} $${l.amount}`
+                            `${l.timeFrame} ${formatCurrency(l.amount, "usd")}`
                         )
                         .join(", ")}
                     </p>
