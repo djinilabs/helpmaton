@@ -69,13 +69,17 @@ export const registerGetWorkspaceInvites = (app: express.Application) => {
       const limit = parseLimitParam(req.query.limit);
       const cursor = req.query.cursor as string | undefined;
 
+      const now = new Date();
       const query: Parameters<
         (typeof db)["workspace-invite"]["queryPaginated"]
       >[0] = {
         IndexName: "byWorkspaceId",
         KeyConditionExpression: "workspaceId = :workspaceId",
+        FilterExpression:
+          "attribute_not_exists(acceptedAt) AND expiresAt > :now",
         ExpressionAttributeValues: {
           ":workspaceId": workspaceId,
+          ":now": now.toISOString(),
         },
       };
 
@@ -84,10 +88,7 @@ export const registerGetWorkspaceInvites = (app: express.Application) => {
         cursor: cursor ?? null,
       });
 
-      const now = new Date();
       const pendingInvites = result.items
-        .filter((inv) => !inv.acceptedAt)
-        .filter((inv) => new Date(inv.expiresAt) > now)
         .map((inv) => {
           const inviteId = inv.pk.replace(
             `workspace-invites/${workspaceId}/`,

@@ -28,6 +28,7 @@ import {
 import {
   useQueryErrorResetBoundary,
   useQuery,
+  useInfiniteQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -720,14 +721,38 @@ function useAgentDetailState({
     }
   }, [agentId, expandedSection]);
 
-  // Fetch integrations for this agent
-  const { data: allIntegrationsResponse } = useQuery({
-    queryKey: ["integrations", workspaceId],
-    queryFn: () => listIntegrations(workspaceId),
+  // Fetch all integrations for this workspace (paginated) to filter by agent
+  const {
+    data: integrationsData,
+    fetchNextPage: fetchNextIntegrationsPage,
+    hasNextPage: hasNextIntegrationsPage,
+    isFetchingNextPage: isFetchingNextIntegrations,
+  } = useInfiniteQuery({
+    queryKey: ["integrations", workspaceId, "infinite"],
+    queryFn: async ({ pageParam }) =>
+      listIntegrations(workspaceId, 50, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!workspaceId,
   });
 
-  const allIntegrations = allIntegrationsResponse?.integrations ?? [];
+  // Load all pages so we have the full list to filter by agentId
+  useEffect(() => {
+    if (
+      hasNextIntegrationsPage &&
+      !isFetchingNextIntegrations &&
+      fetchNextIntegrationsPage
+    ) {
+      fetchNextIntegrationsPage();
+    }
+  }, [
+    hasNextIntegrationsPage,
+    isFetchingNextIntegrations,
+    fetchNextIntegrationsPage,
+  ]);
+
+  const allIntegrations =
+    integrationsData?.pages.flatMap((p) => p.integrations) ?? [];
 
   // Filter integrations for this agent
   const agentIntegrations =

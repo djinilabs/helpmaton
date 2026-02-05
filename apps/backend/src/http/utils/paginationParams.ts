@@ -4,6 +4,7 @@
  *
  * - Invalid or non-numeric values (e.g. "abc") fall back to default (avoids NaN being passed to DynamoDB).
  * - Values below 1 are clamped to 1; values above max are clamped to max.
+ * - Decimal strings (e.g. "123.456") are truncated to integer via parseInt (123).
  */
 export function parseLimitParam(
   value: unknown,

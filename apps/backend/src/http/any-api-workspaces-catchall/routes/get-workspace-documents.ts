@@ -95,6 +95,9 @@ export const registerGetWorkspaceDocuments = (app: express.Application) => {
         cursor: cursor ?? null,
       });
 
+      // Filter by folder if specified. Note: filtering happens after pagination,
+      // so when folder is used the page may contain fewer than `limit` items
+      // and nextCursor still advances; clients should handle variable page sizes.
       let filteredDocuments = result.items;
       if (folderPath !== undefined) {
         const normalizedPath = normalizeFolderPath(folderPath || "");
