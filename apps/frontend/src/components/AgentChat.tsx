@@ -35,6 +35,8 @@ interface AgentChatProps {
   isWidget?: boolean; // If true, hide test message and use widget-appropriate styling
   enableFileUpload?: boolean; // If false, hide upload button and file input
   isEmbedded?: boolean; // If true, render without the outer frame
+  /** Optional context-specific header (e.g. for meta-agent / configure-with-AI). When set, replaces the default "Test your agent" copy. */
+  headerMessage?: React.ReactNode;
 }
 
 /**
@@ -64,6 +66,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   isWidget = false,
   enableFileUpload = true,
   isEmbedded = false,
+  headerMessage,
 }) => {
   // Use agent prop if provided, otherwise fetch from API
   // When agentProp is provided (e.g., in widget context), skip the query to avoid auth errors
@@ -639,9 +642,21 @@ export const AgentChat: FC<AgentChatProps> = ({
         >
           <div className="flex items-center justify-between gap-4">
             <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
-              Test your agent by having a conversation. This chat interface lets
-              you interact with the agent in real-time to verify its behavior
-              and responses before deploying it.
+              {headerMessage ??
+                (agentId === "_workspace" || agentId === "workspace" ? (
+                  <>
+                    Improve or change this workspace by describing what you want
+                    in natural language—for example, add or configure agents,
+                    manage documents, set up channels, or change workspace
+                    settings. The assistant can apply changes for you.
+                  </>
+                ) : (
+                  <>
+                    Test your agent by having a conversation. This chat
+                    interface lets you interact with the agent in real-time to
+                    verify its behavior and responses before deploying it.
+                  </>
+                ))}
             </p>
             {messages.length > 0 && (
               <button

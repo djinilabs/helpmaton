@@ -1,4 +1,4 @@
-import { useEffect, type FC } from "react";
+import { useEffect, type FC, type ReactNode } from "react";
 
 import { useTestAgentUrl } from "../hooks/useTestAgentUrl";
 import { useToast } from "../hooks/useToast";
@@ -15,6 +15,8 @@ interface AgentChatWithFunctionUrlProps {
   isEmbedded?: boolean;
   /** Optional stream path suffix (default "test"). Use "config/test" for meta-agent config chat. */
   streamPathSuffix?: string;
+  /** Optional context-specific header for the chat (e.g. improve/change agent or workspace). */
+  headerMessage?: ReactNode;
 }
 
 /**
@@ -29,6 +31,7 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
   onClear,
   isEmbedded = false,
   streamPathSuffix = "test",
+  headerMessage,
 }) => {
   const toast = useToast();
   const { data: testAgentUrlData, isLoading, error } = useTestAgentUrl();
@@ -76,6 +79,7 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
       api={apiUrl}
       onClear={onClear}
       isEmbedded={isEmbedded}
+      headerMessage={headerMessage}
     />
   );
 };

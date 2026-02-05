@@ -3598,6 +3598,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               agentId={agentId}
               onClear={() => setChatClearKey((prev) => prev + 1)}
               isEmbedded
+              headerMessage={
+                <>
+                  Improve or change this agent by describing what you want in
+                  natural language—for example, update the prompt, add or remove
+                  tools, change settings, or test how the agent responds. The
+                  assistant can apply changes for you.
+                </>
+              }
             />
           </AgentAccordionSection>
 
