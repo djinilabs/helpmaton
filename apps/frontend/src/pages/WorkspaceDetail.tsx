@@ -17,11 +17,15 @@ import {
   ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import { useState, Suspense, lazy, useEffect, useRef } from "react";
+import { useState, Suspense, lazy, useEffect, useRef, useMemo } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 
 import { AccordionSection } from "../components/AccordionSection";
+import {
+  DetailPageNav,
+  type DetailPageNavGroup,
+} from "../components/DetailPageNav";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LazyAccordionContent } from "../components/LazyAccordionContent";
 import { LoadingScreen } from "../components/LoadingScreen";
@@ -112,6 +116,7 @@ const AgentChatWithFunctionUrl = lazy(() =>
   }))
 );
 import { useAccordion } from "../hooks/useAccordion";
+import { useLocalPreference } from "../hooks/useLocalPreference";
 import { useSubscription } from "../hooks/useSubscription";
 import { useTrialStatus } from "../hooks/useTrialCredits";
 import { useWorkspaceUsage, useWorkspaceDailyUsage } from "../hooks/useUsage";
@@ -332,6 +337,10 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   const [currentFolder, setCurrentFolder] = useState<string>("");
   const [isTrialCreditModalOpen, setIsTrialCreditModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useLocalPreference(
+    "workspace-detail-nav-collapsed",
+    false
+  );
 
   const { expandedSection, toggleSection } = useAccordion("workspace-detail");
   const { data: trialStatus } = useTrialStatus(id!);
@@ -346,6 +355,63 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
     workspace.permissionLevel >= PERMISSION_LEVELS.WRITE;
   const canDelete = workspace.permissionLevel === PERMISSION_LEVELS.OWNER;
   const isFreePlan = subscription?.plan === "free";
+
+  const navGroups = useMemo((): DetailPageNavGroup[] => {
+    const groups: DetailPageNavGroup[] = [
+      {
+        title: "Assistant",
+        icon: <ChatBubbleLeftRightIcon className="size-5" />,
+        children: [{ id: "workspace-assistant", label: "Chat with workspace assistant" }],
+      },
+      {
+        title: "Workspace items",
+        icon: <ArchiveBoxIcon className="size-5" />,
+        children: [
+          { id: "agents", label: "Agents" },
+          { id: "documents", label: "Documents" },
+        ],
+      },
+      {
+        title: "Messages & channels",
+        icon: <ChatBubbleLeftRightIcon className="size-5" />,
+        children: [
+          { id: "channels", label: "Message channels" },
+          { id: "email-connection", label: "Email connection" },
+        ],
+      },
+      {
+        title: "Settings",
+        icon: <Cog6ToothIcon className="size-5" />,
+        children: [
+          ...(canEdit
+            ? [
+                { id: "mcp-servers", label: "Connected tools" },
+                { id: "api-key", label: "Bring your AI Provider Key" },
+              ]
+            : []),
+        ],
+      },
+      {
+        title: "Spending & usage",
+        icon: <CurrencyDollarIcon className="size-5" />,
+        children: [
+          { id: "credits", label: "Credit balance" },
+          ...(canEdit ? [{ id: "spending-limits", label: "Spending limits" }] : []),
+          { id: "usage", label: "Usage over time" },
+          { id: "transactions", label: "Payment history" },
+        ],
+      },
+      {
+        title: "Team & safety",
+        icon: <UsersIcon className="size-5" />,
+        children: [
+          { id: "team", label: "Team members" },
+          ...(canDelete ? [{ id: "danger", label: "Delete workspace" }] : []),
+        ],
+      },
+    ];
+    return groups.filter((g) => g.children.length > 0);
+  }, [canEdit, canDelete]);
 
   const handleEdit = () => {
     setName(workspace.name);
@@ -394,8 +460,22 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+      <DetailPageNav
+        groups={navGroups}
+        expandedSection={expandedSection}
+        onToggleSection={toggleSection}
+        collapsed={navCollapsed}
+        onToggleCollapse={() => setNavCollapsed((c) => !c)}
+        ariaLabel="Workspace sections"
+        headerTitle="Sections"
+      />
+      <div
+        className={`transition-[padding] duration-200 ${
+          navCollapsed ? "lg:pl-[4rem]" : "lg:pl-[16rem]"
+        }`}
+      >
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
           <div className="absolute right-0 top-0 size-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
             <div className="mb-6 flex items-center justify-between">
@@ -1030,6 +1110,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             </button>
           </AccordionSection>
         )}
+        </div>
       </div>
 
       {/* Modals - only load when opened */}

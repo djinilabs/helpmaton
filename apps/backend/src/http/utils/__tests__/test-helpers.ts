@@ -11,7 +11,7 @@ import { vi } from "vitest";
  * Helper to create a minimal valid identity object for REST API events
  */
 function createIdentity(
-  overrides?: Partial<APIGatewayProxyEvent["requestContext"]["identity"]>
+  overrides?: Partial<APIGatewayProxyEvent["requestContext"]["identity"]>,
 ) {
   return {
     accessKey: null,
@@ -37,7 +37,7 @@ function createIdentity(
  * Creates a mock APIGatewayProxyEventV2 (HTTP API v2 format)
  */
 export function createAPIGatewayEventV2(
-  overrides?: Partial<APIGatewayProxyEventV2>
+  overrides?: Partial<APIGatewayProxyEventV2>,
 ): APIGatewayProxyEventV2 {
   return {
     version: "2.0",
@@ -73,7 +73,7 @@ export function createAPIGatewayEventV2(
  * Creates a mock APIGatewayProxyEvent (REST API format)
  */
 export function createAPIGatewayEvent(
-  overrides?: Partial<APIGatewayProxyEvent>
+  overrides?: Partial<APIGatewayProxyEvent>,
 ): APIGatewayProxyEvent {
   return {
     resource: "/test",
@@ -142,7 +142,7 @@ export function createMockCallback(): Callback {
  * Creates a mock Express Request object
  */
 export function createMockRequest(
-  overrides?: Partial<Request>
+  overrides?: Partial<Request>,
 ): Partial<Request> {
   return {
     method: "GET",
@@ -183,7 +183,7 @@ export function createMockResponse(): Partial<Response> {
     setHeader: vi.fn(function (
       this: typeof response,
       name: string,
-      value: string
+      value: string,
     ) {
       this.headers[name] = value;
       return this;

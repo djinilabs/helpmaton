@@ -47,12 +47,12 @@ import { useParams, useNavigate } from "react-router-dom";
 
 
 import { AccordionSection } from "../components/AccordionSection";
-import {
-  AgentDetailNav,
-  type AgentDetailNavGroup,
-} from "../components/AgentDetailNav";
 import { AgentSuggestions } from "../components/AgentSuggestions";
 import { ClientToolEditor } from "../components/ClientToolEditor";
+import {
+  DetailPageNav,
+  type DetailPageNavGroup,
+} from "../components/DetailPageNav";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LazyAccordionContent } from "../components/LazyAccordionContent";
 import { LoadingScreen } from "../components/LoadingScreen";
@@ -3238,10 +3238,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     handleResetAdvanced,
   } = useAgentDetailState(props);
 
-  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useLocalPreference(
+    "agent-detail-nav-collapsed",
+    false
+  );
 
-  const navGroups = useMemo((): AgentDetailNavGroup[] => {
-    const groups: AgentDetailNavGroup[] = [
+  const navGroups = useMemo((): DetailPageNavGroup[] => {
+    const groups: DetailPageNavGroup[] = [
       {
         title: "Test",
         icon: <BeakerIcon className="size-5" />,
@@ -3338,12 +3341,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
 
   return (
     <div className="min-h-screen bg-white p-8 dark:bg-neutral-950">
-      <AgentDetailNav
+      <DetailPageNav
         groups={navGroups}
         expandedSection={expandedSection}
         onToggleSection={toggleSection}
         collapsed={navCollapsed}
         onToggleCollapse={() => setNavCollapsed((c) => !c)}
+        ariaLabel="Agent sections"
+        headerTitle="Sections"
       />
       <div
         className={`transition-[padding] duration-200 ${
