@@ -1,6 +1,10 @@
-import { InformationCircleIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  InformationCircleIcon,
+} from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { FC } from "react";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -12,6 +16,24 @@ import {
   type ModelPricing,
 } from "../utils/api";
 import { getCapabilityLabels } from "../utils/modelConfig";
+
+type SortColumn =
+  | "model"
+  | "input"
+  | "output"
+  | "cachedInput"
+  | "request"
+  | "capabilities";
+
+const PRICE_SORT_AFTER = Number.MAX_VALUE;
+
+function getPriceSortValue(
+  pricing: ModelPricing,
+  field: "input" | "output" | "cachedInput" | "request"
+): number {
+  const value = pricing.tiers?.[0]?.[field] ?? pricing[field];
+  return value !== undefined && value !== null ? value : PRICE_SORT_AFTER;
+}
 
 interface ModelPricesDialogProps {
   isOpen: boolean;
@@ -60,6 +82,8 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
   capabilityFilter,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("model");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const { data: modelsData } = useQuery({
     queryKey: ["availableModels"],
@@ -96,7 +120,7 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
       );
     }
 
-    return models.sort(([a], [b]) => a.localeCompare(b));
+    return [...models].sort(([a], [b]) => a.localeCompare(b));
   }, [pricingData, modelsData, capabilityFilter]);
 
   const filteredModels = useMemo(() => {
@@ -109,6 +133,60 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
       modelName.toLowerCase().includes(query)
     );
   }, [capabilityScopedModels, searchQuery]);
+
+  const sortedModels = useMemo(() => {
+    const list = [...filteredModels];
+    const mult = sortDirection === "asc" ? 1 : -1;
+
+    list.sort(([nameA, pricingA], [nameB, pricingB]) => {
+      let cmp: number;
+
+      switch (sortColumn) {
+        case "model":
+          cmp = nameA.localeCompare(nameB);
+          break;
+        case "input":
+          cmp = getPriceSortValue(pricingA, "input") - getPriceSortValue(pricingB, "input");
+          break;
+        case "output":
+          cmp = getPriceSortValue(pricingA, "output") - getPriceSortValue(pricingB, "output");
+          break;
+        case "cachedInput":
+          cmp =
+            getPriceSortValue(pricingA, "cachedInput") -
+            getPriceSortValue(pricingB, "cachedInput");
+          break;
+        case "request":
+          cmp = getPriceSortValue(pricingA, "request") - getPriceSortValue(pricingB, "request");
+          break;
+        case "capabilities": {
+          const labelsA =
+            getCapabilityLabels(modelsData?.openrouter?.capabilities?.[nameA]).join(", ") || "N/A";
+          const labelsB =
+            getCapabilityLabels(modelsData?.openrouter?.capabilities?.[nameB]).join(", ") || "N/A";
+          cmp = labelsA.localeCompare(labelsB);
+          break;
+        }
+        default:
+          cmp = 0;
+      }
+
+      // Tie-breaker: same value → sort by model name for stable, deterministic order
+      if (cmp !== 0) return mult * cmp;
+      return nameA.localeCompare(nameB);
+    });
+
+    return list;
+  }, [filteredModels, sortColumn, sortDirection, modelsData]);
+
+  const handleSort = useCallback((column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  }, [sortColumn]);
 
   if (!isOpen) return null;
 
@@ -169,28 +247,51 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b-2 border-neutral-300 dark:border-neutral-700">
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                      Model
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                      Input (per 1M tokens)
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                      Output (per 1M tokens)
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                      Cached Input (per 1M tokens)
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                      Request (per request)
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                      Capabilities
-                    </th>
+                    {(
+                      [
+                        ["model", "Model"],
+                        ["input", "Input (per 1M tokens)"],
+                        ["output", "Output (per 1M tokens)"],
+                        ["cachedInput", "Cached Input (per 1M tokens)"],
+                        ["request", "Request (per request)"],
+                        ["capabilities", "Capabilities"],
+                      ] as const
+                    ).map(([id, label]) => (
+                      <th
+                        key={id}
+                        role="button"
+                        tabIndex={0}
+                        aria-sort={
+                          sortColumn === id
+                            ? sortDirection === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : undefined
+                        }
+                        onClick={() => handleSort(id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleSort(id);
+                          }
+                        }}
+                        className="cursor-pointer select-none px-4 py-3 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {label}
+                          {sortColumn === id &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUpIcon className="size-4" aria-hidden />
+                          ) : (
+                            <ChevronDownIcon className="size-4" aria-hidden />
+                          ))}
+                        </span>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredModels.length === 0 ? (
+                  {sortedModels.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -200,7 +301,7 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    filteredModels.map(([modelName, pricing]) => {
+                    sortedModels.map(([modelName, pricing]) => {
                       const capabilityLabels = getCapabilityLabels(
                         modelsData?.openrouter?.capabilities?.[modelName]
                       );
