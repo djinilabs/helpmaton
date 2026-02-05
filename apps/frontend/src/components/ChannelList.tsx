@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo, useRef } from "react";
 import type { FC } from "react";
 
 import {
-  useChannels,
+  useChannelsInfinite,
   useDeleteChannel,
   useTestChannel,
 } from "../hooks/useChannels";
@@ -10,6 +10,8 @@ import type { Channel } from "../utils/api";
 import { trackEvent } from "../utils/tracking";
 
 import { ChannelModal } from "./ChannelModal";
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualList } from "./VirtualList";
 
 interface ChannelListProps {
   workspaceId: string;
@@ -100,7 +102,20 @@ const ChannelItem: FC<ChannelItemProps> = ({
 };
 
 export const ChannelList: FC<ChannelListProps> = ({ workspaceId, canEdit }) => {
-  const { data: channels } = useChannels(workspaceId);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useChannelsInfinite(workspaceId, 50);
+
+  const channels = useMemo(
+    () => data?.pages.flatMap((p) => p.channels) ?? [],
+    [data],
+  );
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<string | null>(null);
 
@@ -139,23 +154,39 @@ export const ChannelList: FC<ChannelListProps> = ({ workspaceId, canEdit }) => {
           agents can use them to send notifications and updates.
         </p>
 
-        {channels.length === 0 ? (
+        {!isLoading && channels.length === 0 ? (
           <p className="text-lg text-neutral-600 dark:text-neutral-300">
             No channels yet. Create a channel to enable notifications for your
             agents.
           </p>
         ) : (
-          <div className="space-y-3">
-            {channels.map((channel) => (
-              <ChannelItem
-                key={channel.id}
-                channel={channel}
-                workspaceId={workspaceId}
-                canEdit={canEdit}
-                onEdit={handleEdit}
-              />
-            ))}
-          </div>
+          <ScrollContainer ref={scrollRef} className="mb-4">
+            <VirtualList<Channel>
+              scrollRef={scrollRef}
+              items={channels}
+              estimateSize={() => 100}
+              getItemKey={(_, c) => c.id}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+              empty={
+                <p className="py-4 text-lg text-neutral-600 dark:text-neutral-300">
+                  No channels yet. Create a channel to enable notifications for
+                  your agents.
+                </p>
+              }
+              renderRow={(channel) => (
+                <div className="mb-3">
+                  <ChannelItem
+                    channel={channel}
+                    workspaceId={workspaceId}
+                    canEdit={canEdit}
+                    onEdit={handleEdit}
+                  />
+                </div>
+              )}
+            />
+          </ScrollContainer>
         )}
       </div>
 

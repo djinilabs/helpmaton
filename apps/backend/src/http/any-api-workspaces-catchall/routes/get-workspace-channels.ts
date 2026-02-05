@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -71,16 +72,24 @@ export const registerGetWorkspaceChannels = (app: express.Application) => {
         }
         const workspaceId = req.params.workspaceId;
 
-        // Query all channels for this workspace
-        const result = await db["output_channel"].query({
+        const limit = parseLimitParam(req.query.limit);
+        const cursor = req.query.cursor as string | undefined;
+
+        const query: Parameters<
+          (typeof db)["output_channel"]["queryPaginated"]
+        >[0] = {
           IndexName: "byWorkspaceId",
           KeyConditionExpression: "workspaceId = :workspaceId",
           ExpressionAttributeValues: {
             ":workspaceId": workspaceId,
           },
+        };
+
+        const result = await db["output_channel"].queryPaginated(query, {
+          limit,
+          cursor: cursor ?? null,
         });
 
-        // Return channels without sensitive config data
         const channels = result.items.map((channel) => ({
           id: channel.channelId,
           name: channel.name,
@@ -89,7 +98,10 @@ export const registerGetWorkspaceChannels = (app: express.Application) => {
           updatedAt: channel.updatedAt,
         }));
 
-        res.json({ channels });
+        res.json({
+          channels,
+          nextCursor: result.nextCursor ?? undefined,
+        });
       } catch (error) {
         handleError(error, next, "GET /api/workspaces/:workspaceId/channels");
       }

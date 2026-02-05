@@ -1,8 +1,9 @@
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useRef, useState, lazy, Suspense, useEffect } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
+import { ScrollContainer } from "../components/ScrollContainer";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useToast } from "../hooks/useToast";
 import {
@@ -21,6 +22,7 @@ const SubscriptionPanel = lazy(() =>
 
 const UserSettings: FC = () => {
   const toast = useToast();
+  const apiKeysScrollRef = useRef<HTMLDivElement>(null);
   const { data: apiKeys } = useUserApiKeys();
   const createApiKeyMutation = useCreateUserApiKey();
   const deleteApiKeyMutation = useDeleteUserApiKey();
@@ -193,45 +195,51 @@ const UserSettings: FC = () => {
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {apiKeys.map((key) => (
-                <div
-                  key={key.id}
-                  className="rounded-xl border border-neutral-200 p-6 transition-colors hover:border-neutral-300"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="mb-2 flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-neutral-900">
-                          {key.name || "Unnamed key"}
-                        </h3>
-                        <span className="rounded bg-neutral-100 px-2 py-1 font-mono text-xs text-neutral-600">
-                          {key.maskedKey}
-                        </span>
+            <ScrollContainer
+              ref={apiKeysScrollRef}
+              className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+              maxHeight="min(50vh, 400px)"
+            >
+              <div className="space-y-4 p-1">
+                {apiKeys.map((key) => (
+                  <div
+                    key={key.id}
+                    className="rounded-xl border border-neutral-200 p-6 transition-colors hover:border-neutral-300"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="mb-2 flex items-center gap-3">
+                          <h3 className="text-lg font-semibold text-neutral-900">
+                            {key.name || "Unnamed key"}
+                          </h3>
+                          <span className="rounded bg-neutral-100 px-2 py-1 font-mono text-xs text-neutral-600">
+                            {key.maskedKey}
+                          </span>
+                        </div>
+                        <div className="space-y-1 text-sm text-neutral-600">
+                          <p>Created: {formatDate(key.createdAt)}</p>
+                          {key.lastUsedAt && (
+                            <p>Last used: {formatDate(key.lastUsedAt)}</p>
+                          )}
+                          {!key.lastUsedAt && (
+                            <p className="italic text-neutral-400">Never used</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="space-y-1 text-sm text-neutral-600">
-                        <p>Created: {formatDate(key.createdAt)}</p>
-                        {key.lastUsedAt && (
-                          <p>Last used: {formatDate(key.lastUsedAt)}</p>
-                        )}
-                        {!key.lastUsedAt && (
-                          <p className="italic text-neutral-400">Never used</p>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => handleDeleteKey(key.id)}
+                        disabled={deleteApiKeyMutation.isPending}
+                        className="rounded-xl px-4 py-2 font-medium text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deleteApiKeyMutation.isPending
+                          ? "Deleting..."
+                          : "Delete key"}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeleteKey(key.id)}
-                      disabled={deleteApiKeyMutation.isPending}
-                      className="rounded-xl px-4 py-2 font-medium text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deleteApiKeyMutation.isPending
-                        ? "Deleting..."
-                        : "Delete key"}
-                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </ScrollContainer>
           )}
         </div>
       </div>

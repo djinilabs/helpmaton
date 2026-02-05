@@ -24,7 +24,39 @@ import { useToast } from "./useToast";
 export function useEvalJudges(workspaceId: string, agentId: string) {
   return useQuery({
     queryKey: ["workspaces", workspaceId, "agents", agentId, "eval-judges"],
-    queryFn: () => listEvalJudges(workspaceId, agentId),
+    queryFn: async () => {
+      const result = await listEvalJudges(workspaceId, agentId, 100);
+      return result.judges;
+    },
+    enabled: !!workspaceId && !!agentId,
+  });
+}
+
+export function useEvalJudgesInfinite(
+  workspaceId: string,
+  agentId: string,
+  pageSize = 50
+) {
+  return useInfiniteQuery({
+    queryKey: [
+      "workspaces",
+      workspaceId,
+      "agents",
+      agentId,
+      "eval-judges",
+      "infinite",
+    ],
+    queryFn: async ({ pageParam }) => {
+      const result = await listEvalJudges(
+        workspaceId,
+        agentId,
+        pageSize,
+        pageParam
+      );
+      return result;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!workspaceId && !!agentId,
   });
 }

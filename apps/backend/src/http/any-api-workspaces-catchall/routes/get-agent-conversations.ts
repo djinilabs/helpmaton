@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -110,9 +111,7 @@ export const registerGetAgentConversations = (app: express.Application) => {
       }
 
       // Parse pagination parameters
-      const limit = req.query.limit
-        ? Math.min(Math.max(parseInt(req.query.limit as string, 10), 1), 100)
-        : 50; // Default 50, max 100
+      const limit = parseLimitParam(req.query.limit);
       const cursor = req.query.cursor as string | undefined;
 
       // Query conversations by agentId using the byAgentIdAndLastMessageAt GSI with pagination

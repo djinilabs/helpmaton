@@ -1,5 +1,5 @@
 import { ClockIcon } from "@heroicons/react/24/outline";
-import { useEffect, useMemo, type FC } from "react";
+import { useEffect, useMemo, useRef, type FC } from "react";
 
 import { useAgentConversations } from "../hooks/useAgentConversations";
 import type { Conversation } from "../utils/api";
@@ -9,6 +9,9 @@ import {
 } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { trackEvent } from "../utils/tracking";
+
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualList } from "./VirtualList";
 
 interface ConversationListProps {
   workspaceId: string;
@@ -21,6 +24,7 @@ export const ConversationList: FC<ConversationListProps> = ({
   agentId,
   onConversationClick,
 }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const {
     data,
     fetchNextPage,
@@ -143,7 +147,7 @@ export const ConversationList: FC<ConversationListProps> = ({
         </div>
       </div>
 
-      {conversations.length === 0 ? (
+      {conversations.length === 0 && !isLoading ? (
         <>
           <div className="mb-4 flex items-center justify-end">
             <button
@@ -167,153 +171,153 @@ export const ConversationList: FC<ConversationListProps> = ({
               {isRefetching ? "Refreshing..." : "Refresh"}
             </button>
           </div>
-          <div className="mb-4 space-y-2">
-            {conversations.map((conversation) => (
-              <div
-                key={conversation.id}
-                onClick={() => {
-                  trackEvent("agent_conversation_viewed", {
-                    workspace_id: workspaceId,
-                    agent_id: agentId,
-                    conversation_id: conversation.id,
-                    conversation_type: conversation.conversationType,
-                  });
-                  onConversationClick(conversation.id);
-                }}
-                className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
-              >
-                {/* Header Row - Type, Message Count, Error Badge, and Cost */}
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getConversationTypeColor(
-                        conversation.conversationType
-                      )}`}
-                    >
-                      {conversation.conversationType.toUpperCase()}
-                    </span>
-                    <span className="text-xs text-neutral-600 dark:text-neutral-400">
-                      {conversation.messageCount} message
-                      {conversation.messageCount !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="flex items-center gap-2">
-                      {conversation.hasError && (
-                        <div className="inline-flex items-center gap-1 rounded-lg border border-error-200 bg-error-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
-                          Error
-                        </div>
-                      )}
-                      {conversation.costUsd !== undefined && (
+          <ScrollContainer ref={scrollRef} className="mb-4">
+            <VirtualList<Conversation>
+              scrollRef={scrollRef}
+              items={conversations}
+              estimateSize={() => 140}
+              getItemKey={(_index, c) => c.id}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+              empty={
+                <p className="py-4 text-sm text-neutral-600 dark:text-neutral-300">
+                  No conversations yet.
+                </p>
+              }
+              renderRow={(conversation) => (
+                <div className="mb-2">
+                  <div
+                    onClick={() => {
+                      trackEvent("agent_conversation_viewed", {
+                        workspace_id: workspaceId,
+                        agent_id: agentId,
+                        conversation_id: conversation.id,
+                        conversation_type: conversation.conversationType,
+                      });
+                      onConversationClick(conversation.id);
+                    }}
+                    className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <span
-                          className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
-                            conversation.costUsd
+                          className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getConversationTypeColor(
+                            conversation.conversationType
                           )}`}
                         >
-                          {formatCurrency(conversation.costUsd, "usd", 10)}
+                          {conversation.conversationType.toUpperCase()}
                         </span>
-                      )}
-                    </div>
-                    {conversation.rerankingCostUsd !== undefined && (
-                      <span
-                        className={`rounded-lg border px-2 py-0.5 text-[10px] font-medium ${getCostColor(
-                          conversation.rerankingCostUsd
-                        )}`}
-                        title="Reranking cost"
-                      >
-                        Rerank: {formatCurrency(conversation.rerankingCostUsd, "usd", 10)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Second Row - Timestamps, Generation Time, and Token Usage */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4 text-xs text-neutral-600 dark:text-neutral-400">
-                    <div className="flex items-center gap-1">
-                      <ClockIcon className="size-3" />
-                      <span>{formatDate(conversation.startedAt)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <ClockIcon className="size-3" />
-                      <span>{formatDate(conversation.lastMessageAt)}</span>
-                    </div>
-                    {conversation.totalGenerationTimeMs !== undefined && (
-                      <div className="flex items-center gap-1">
-                        <ClockIcon className="size-3" />
-                        <span className="font-medium">
-                          {formatGenerationTime(conversation.totalGenerationTimeMs)}
+                        <span className="text-xs text-neutral-600 dark:text-neutral-400">
+                          {conversation.messageCount} message
+                          {conversation.messageCount !== 1 ? "s" : ""}
                         </span>
                       </div>
-                    )}
-                  </div>
-                  {conversation.tokenUsage && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                          conversation.tokenUsage.promptTokens
-                        )}`}
-                      >
-                        P: {conversation.tokenUsage.promptTokens.toLocaleString()}
-                      </span>
-                      <span
-                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                          conversation.tokenUsage.completionTokens
-                        )}`}
-                      >
-                        C:{" "}
-                        {conversation.tokenUsage.completionTokens.toLocaleString()}
-                      </span>
-                      {"reasoningTokens" in conversation.tokenUsage &&
-                        typeof conversation.tokenUsage.reasoningTokens ===
-                          "number" &&
-                        conversation.tokenUsage.reasoningTokens > 0 && (
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-2">
+                          {conversation.hasError && (
+                            <div className="inline-flex items-center gap-1 rounded-lg border border-error-200 bg-error-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
+                              Error
+                            </div>
+                          )}
+                          {conversation.costUsd !== undefined && (
+                            <span
+                              className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                                conversation.costUsd
+                              )}`}
+                            >
+                              {formatCurrency(conversation.costUsd, "usd", 10)}
+                            </span>
+                          )}
+                        </div>
+                        {conversation.rerankingCostUsd !== undefined && (
                           <span
-                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                              conversation.tokenUsage.reasoningTokens
+                            className={`rounded-lg border px-2 py-0.5 text-[10px] font-medium ${getCostColor(
+                              conversation.rerankingCostUsd
                             )}`}
+                            title="Reranking cost"
                           >
-                            R:{" "}
-                            {conversation.tokenUsage.reasoningTokens.toLocaleString()}
+                            Rerank: {formatCurrency(conversation.rerankingCostUsd, "usd", 10)}
                           </span>
                         )}
-                      {"cachedPromptTokens" in conversation.tokenUsage &&
-                        typeof conversation.tokenUsage.cachedPromptTokens ===
-                          "number" &&
-                        conversation.tokenUsage.cachedPromptTokens > 0 && (
-                          <span
-                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                              conversation.tokenUsage.cachedPromptTokens
-                            )}`}
-                          >
-                            Cache:{" "}
-                            {conversation.tokenUsage.cachedPromptTokens.toLocaleString()}
-                          </span>
-                        )}
-                      <span
-                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                          conversation.tokenUsage.totalTokens
-                        )}`}
-                      >
-                        Total:{" "}
-                        {conversation.tokenUsage.totalTokens.toLocaleString()}
-                      </span>
+                      </div>
                     </div>
-                  )}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-4 text-xs text-neutral-600 dark:text-neutral-400">
+                        <div className="flex items-center gap-1">
+                          <ClockIcon className="size-3" />
+                          <span>{formatDate(conversation.startedAt)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <ClockIcon className="size-3" />
+                          <span>{formatDate(conversation.lastMessageAt)}</span>
+                        </div>
+                        {conversation.totalGenerationTimeMs !== undefined && (
+                          <div className="flex items-center gap-1">
+                            <ClockIcon className="size-3" />
+                            <span className="font-medium">
+                              {formatGenerationTime(conversation.totalGenerationTimeMs)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {conversation.tokenUsage && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                              conversation.tokenUsage.promptTokens
+                            )}`}
+                          >
+                            P: {conversation.tokenUsage.promptTokens.toLocaleString()}
+                          </span>
+                          <span
+                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                              conversation.tokenUsage.completionTokens
+                            )}`}
+                          >
+                            C:{" "}
+                            {conversation.tokenUsage.completionTokens.toLocaleString()}
+                          </span>
+                          {"reasoningTokens" in conversation.tokenUsage &&
+                            typeof conversation.tokenUsage.reasoningTokens === "number" &&
+                            conversation.tokenUsage.reasoningTokens > 0 && (
+                              <span
+                                className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                  conversation.tokenUsage.reasoningTokens
+                                )}`}
+                              >
+                                R:{" "}
+                                {conversation.tokenUsage.reasoningTokens.toLocaleString()}
+                              </span>
+                            )}
+                          {"cachedPromptTokens" in conversation.tokenUsage &&
+                            typeof conversation.tokenUsage.cachedPromptTokens === "number" &&
+                            conversation.tokenUsage.cachedPromptTokens > 0 && (
+                              <span
+                                className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                  conversation.tokenUsage.cachedPromptTokens
+                                )}`}
+                              >
+                                Cache:{" "}
+                                {conversation.tokenUsage.cachedPromptTokens.toLocaleString()}
+                              </span>
+                            )}
+                          <span
+                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                              conversation.tokenUsage.totalTokens
+                            )}`}
+                          >
+                            Total:{" "}
+                            {conversation.tokenUsage.totalTokens.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {hasNextPage && (
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
-            >
-              {isFetchingNextPage ? "Loading..." : "Load More"}
-            </button>
-          )}
+              )}
+            />
+          </ScrollContainer>
         </>
       )}
     </>

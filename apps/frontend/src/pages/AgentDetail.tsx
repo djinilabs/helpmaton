@@ -29,6 +29,7 @@ import {
 import {
   useQueryErrorResetBoundary,
   useQuery,
+  useInfiniteQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -52,6 +53,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LazyAccordionContent } from "../components/LazyAccordionContent";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { QueryPanel } from "../components/QueryPanel";
+import { ScrollContainer } from "../components/ScrollContainer";
 import { SectionGroup } from "../components/SectionGroup";
 import { Slider } from "../components/Slider";
 // Lazy load accordion components
@@ -554,6 +556,8 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
   workspaceId,
   agentId,
 }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   if (keys.length === 0) {
     return (
       <p className="text-sm opacity-75">
@@ -563,7 +567,12 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
   }
 
   return (
-    <div className="space-y-2">
+    <ScrollContainer
+      ref={scrollRef}
+      className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+      maxHeight="min(40vh, 280px)"
+    >
+      <div className="space-y-2 p-1">
       {keys.map((keyData) => {
         const WidgetKeyItem: FC = () => {
           const deleteKey = useDeleteAgentKey(
@@ -607,7 +616,8 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
         };
         return <WidgetKeyItem key={keyData.id} />;
       })}
-    </div>
+      </div>
+    </ScrollContainer>
   );
 };
 
@@ -691,6 +701,7 @@ function useAgentDetailState({
     currentCommandName?: string;
   } | null>(null);
   const systemPromptRef = useRef<HTMLDivElement>(null);
+  const agentIntegrationsScrollRef = useRef<HTMLDivElement>(null);
 
   const { expandedSection, toggleSection } = useAccordion(
     `agent-detail-${agentId}`
@@ -711,16 +722,42 @@ function useAgentDetailState({
     }
   }, [agentId, expandedSection]);
 
-  // Fetch integrations for this agent
-  const { data: allIntegrations } = useQuery({
-    queryKey: ["integrations", workspaceId],
-    queryFn: () => listIntegrations(workspaceId),
+  // Fetch all integrations for this workspace (paginated) to filter by agent
+  const {
+    data: integrationsData,
+    fetchNextPage: fetchNextIntegrationsPage,
+    hasNextPage: hasNextIntegrationsPage,
+    isFetchingNextPage: isFetchingNextIntegrations,
+  } = useInfiniteQuery({
+    queryKey: ["integrations", workspaceId, "infinite"],
+    queryFn: async ({ pageParam }) =>
+      listIntegrations(workspaceId, 50, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!workspaceId,
   });
 
+  // Load all pages so we have the full list to filter by agentId
+  useEffect(() => {
+    if (
+      hasNextIntegrationsPage &&
+      !isFetchingNextIntegrations &&
+      fetchNextIntegrationsPage
+    ) {
+      fetchNextIntegrationsPage();
+    }
+  }, [
+    hasNextIntegrationsPage,
+    isFetchingNextIntegrations,
+    fetchNextIntegrationsPage,
+  ]);
+
+  const allIntegrations =
+    integrationsData?.pages.flatMap((p) => p.integrations) ?? [];
+
   // Filter integrations for this agent
   const agentIntegrations =
-    allIntegrations?.filter((integration) => integration.agentId === agentId) ||
+    allIntegrations.filter((integration) => integration.agentId === agentId) ||
     [];
 
   // Mutations for integrations
@@ -2111,6 +2148,7 @@ function useAgentDetailState({
     commandDialogState,
     setCommandDialogState,
     systemPromptRef,
+    agentIntegrationsScrollRef,
     expandedSection,
     toggleSection,
     chatClearKey,
@@ -3066,6 +3104,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     commandDialogState,
     setCommandDialogState,
     systemPromptRef,
+    agentIntegrationsScrollRef,
     expandedSection,
     toggleSection,
     chatClearKey,
@@ -6957,21 +6996,27 @@ body {
                   started.
                 </p>
               ) : (
-                <div className="space-y-4">
-                  {agentIntegrations.map((integration) => (
-                    <Suspense
-                      key={integration.id}
-                      fallback={<LoadingScreen compact />}
-                    >
-                      <IntegrationCard
-                        integration={integration}
-                        onDelete={handleDeleteIntegration}
-                        onUpdate={handleUpdateIntegration}
-                        onInstallCommand={handleInstallCommand}
-                      />
-                    </Suspense>
-                  ))}
-                </div>
+                <ScrollContainer
+                  ref={agentIntegrationsScrollRef}
+                  className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+                  maxHeight="min(50vh, 400px)"
+                >
+                  <div className="space-y-4 p-1">
+                    {agentIntegrations.map((integration) => (
+                      <Suspense
+                        key={integration.id}
+                        fallback={<LoadingScreen compact />}
+                      >
+                        <IntegrationCard
+                          integration={integration}
+                          onDelete={handleDeleteIntegration}
+                          onUpdate={handleUpdateIntegration}
+                          onInstallCommand={handleInstallCommand}
+                        />
+                      </Suspense>
+                    ))}
+                  </div>
+                </ScrollContainer>
               )}
           </AgentAccordionSection>
         </SectionGroup>

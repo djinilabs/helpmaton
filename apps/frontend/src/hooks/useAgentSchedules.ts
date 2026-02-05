@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
 
 import {
   listAgentSchedules,
@@ -15,7 +20,39 @@ import { useToast } from "./useToast";
 export function useAgentSchedules(workspaceId: string, agentId: string) {
   return useQuery({
     queryKey: ["workspaces", workspaceId, "agents", agentId, "schedules"],
-    queryFn: () => listAgentSchedules(workspaceId, agentId),
+    queryFn: async () => {
+      const result = await listAgentSchedules(workspaceId, agentId, 100);
+      return result.schedules;
+    },
+    enabled: !!workspaceId && !!agentId,
+  });
+}
+
+export function useAgentSchedulesInfinite(
+  workspaceId: string,
+  agentId: string,
+  pageSize = 50
+) {
+  return useInfiniteQuery({
+    queryKey: [
+      "workspaces",
+      workspaceId,
+      "agents",
+      agentId,
+      "schedules",
+      "infinite",
+    ],
+    queryFn: async ({ pageParam }) => {
+      const result = await listAgentSchedules(
+        workspaceId,
+        agentId,
+        pageSize,
+        pageParam
+      );
+      return result;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!workspaceId && !!agentId,
   });
 }

@@ -27,7 +27,7 @@ vi.mock("@architect/functions", () => ({
 }));
 
 type MockResponseWithBody = Partial<express.Response> & {
-  body: unknown[];
+  body: { integrations: unknown[]; nextCursor?: string };
   statusCode: number;
 };
 
@@ -78,13 +78,12 @@ describe("GET /api/workspaces/:workspaceId/integrations", () => {
     ];
 
     mockDb["bot-integration"] = {
-      get: vi.fn(),
-      put: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      query: vi.fn().mockResolvedValue({ items: mockIntegrations }),
-    };
+      ...mockDb["bot-integration"],
+      queryPaginated: vi.fn().mockResolvedValue({
+        items: mockIntegrations,
+        nextCursor: null,
+      }),
+    } as (typeof mockDb)["bot-integration"];
     mockDatabase.mockResolvedValue(mockDb);
 
     const req = createMockRequest({
@@ -96,16 +95,17 @@ describe("GET /api/workspaces/:workspaceId/integrations", () => {
 
     expect(res.statusCode).toBe(200);
     const body = res.body;
-    expect(Array.isArray(body)).toBe(true);
-    expect(body.length).toBe(2);
-    expect(body[0]).toMatchObject({
+    expect(body).toHaveProperty("integrations");
+    expect(Array.isArray(body.integrations)).toBe(true);
+    expect(body.integrations).toHaveLength(2);
+    expect(body.integrations[0]).toMatchObject({
       id: "integration-1",
       platform: "slack",
       name: "Slack Bot",
       agentId: "agent-456",
       status: "active",
     });
-    expect(body[1]).toMatchObject({
+    expect(body.integrations[1]).toMatchObject({
       id: "integration-2",
       platform: "discord",
       name: "Discord Bot",
@@ -117,13 +117,12 @@ describe("GET /api/workspaces/:workspaceId/integrations", () => {
   it("should return empty array when no integrations exist", async () => {
     const mockDb = createMockDatabase();
     mockDb["bot-integration"] = {
-      get: vi.fn(),
-      put: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      query: vi.fn().mockResolvedValue({ items: [] }),
-    };
+      ...mockDb["bot-integration"],
+      queryPaginated: vi.fn().mockResolvedValue({
+        items: [],
+        nextCursor: null,
+      }),
+    } as (typeof mockDb)["bot-integration"];
     mockDatabase.mockResolvedValue(mockDb);
 
     const req = createMockRequest({
@@ -134,7 +133,8 @@ describe("GET /api/workspaces/:workspaceId/integrations", () => {
     await callRouteHandler(req, res);
 
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toHaveProperty("integrations");
+    expect(res.body.integrations).toEqual([]);
   });
 });
 

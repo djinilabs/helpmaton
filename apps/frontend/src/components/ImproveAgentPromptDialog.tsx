@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import type { FC } from "react";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -14,6 +14,8 @@ import {
 } from "../utils/modelConfig";
 
 import { LoadingScreen } from "./LoadingScreen";
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualList } from "./VirtualList";
 
 const DEFAULT_USER_PROMPT = `Update the system prompt based on the selected evaluation results.
 
@@ -50,6 +52,7 @@ export const ImproveAgentPromptDialog: FC<ImproveAgentPromptDialogProps> = ({
   const [userPrompt, setUserPrompt] = useState(DEFAULT_USER_PROMPT);
   const [modelName, setModelName] = useState<string>("");
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { registerDialog, unregisterDialog } = useDialogTracking();
 
   const improvePrompt = useImproveAgentPrompt(workspaceId, agentId);
@@ -242,61 +245,64 @@ export const ImproveAgentPromptDialog: FC<ImproveAgentPromptDialogProps> = ({
             )}
 
             {!isLoadingEvals && !evalsError && sortedResults.length > 0 && (
-              <div className="space-y-2">
-                {sortedResults.map((result) => {
-                  const key = buildEvalKey(result);
-                  const isSelected = selectedEvalKeys.has(key);
-                  return (
-                    <label
-                      key={key}
-                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleEvaluation(result)}
-                        className="mt-1 rounded border-2 border-neutral-300"
-                      />
-                      <div className="flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                          <span>{result.judgeName}</span>
-                          <span className="text-xs font-normal text-neutral-500">
-                            {formatDate(result.evaluatedAt)}
-                          </span>
-                          {result.criticalFailureDetected && (
-                            <span className="rounded-full border border-red-200 bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
-                              Critical failure
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-neutral-600 dark:text-neutral-300">
-                          {result.summary || "No summary available"}
-                        </p>
-                        <div className="flex flex-wrap gap-2 text-xs text-neutral-600 dark:text-neutral-300">
-                          <span>Goal: {result.scoreGoalCompletion ?? "N/A"}</span>
-                          <span>
-                            Tool: {result.scoreToolEfficiency ?? "N/A"}
-                          </span>
-                          <span>
-                            Faithfulness: {result.scoreFaithfulness ?? "N/A"}
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-
-            {hasNextPage && (
-              <button
-                type="button"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              <ScrollContainer
+                ref={scrollRef}
+                maxHeight="min(70vh, 400px)"
+                className="mb-4"
               >
-                {isFetchingNextPage ? "Loading..." : "Load more"}
-              </button>
+                <VirtualList<EvalResult>
+                  scrollRef={scrollRef}
+                  items={sortedResults}
+                  estimateSize={() => 100}
+                  getItemKey={(_, r) => buildEvalKey(r)}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  fetchNextPage={fetchNextPage}
+                  renderRow={(result) => {
+                    const key = buildEvalKey(result);
+                    const isSelected = selectedEvalKeys.has(key);
+                    return (
+                      <div className="mb-2">
+                        <label
+                          className="flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleEvaluation(result)}
+                            className="mt-1 rounded border-2 border-neutral-300"
+                          />
+                          <div className="flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                              <span>{result.judgeName}</span>
+                              <span className="text-xs font-normal text-neutral-500">
+                                {formatDate(result.evaluatedAt)}
+                              </span>
+                              {result.criticalFailureDetected && (
+                                <span className="rounded-full border border-red-200 bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                                  Critical failure
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-neutral-600 dark:text-neutral-300">
+                              {result.summary || "No summary available"}
+                            </p>
+                            <div className="flex flex-wrap gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+                              <span>Goal: {result.scoreGoalCompletion ?? "N/A"}</span>
+                              <span>
+                                Tool: {result.scoreToolEfficiency ?? "N/A"}
+                              </span>
+                              <span>
+                                Faithfulness: {result.scoreFaithfulness ?? "N/A"}
+                              </span>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    );
+                  }}
+                />
+              </ScrollContainer>
             )}
 
             <div className="flex gap-3">

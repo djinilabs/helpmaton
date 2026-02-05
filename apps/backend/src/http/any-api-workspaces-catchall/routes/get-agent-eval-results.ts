@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -122,9 +123,7 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
         const judgeId = req.query.judgeId as string | undefined;
 
         // Parse pagination parameters
-        const limit = req.query.limit
-          ? Math.min(Math.max(parseInt(req.query.limit as string, 10), 1), 100)
-          : 50; // Default 50, max 100
+        const limit = parseLimitParam(req.query.limit);
         const cursor = req.query.cursor as string | undefined;
 
         // Verify agent exists and belongs to workspace

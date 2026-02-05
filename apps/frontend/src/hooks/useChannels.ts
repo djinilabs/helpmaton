@@ -1,4 +1,9 @@
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
 
 import {
   listChannels,
@@ -17,9 +22,21 @@ export function useChannels(workspaceId: string) {
   return useSuspenseQuery({
     queryKey: ["workspaces", workspaceId, "channels"],
     queryFn: async () => {
-      const result = await listChannels(workspaceId);
+      const result = await listChannels(workspaceId, 100);
       return result.channels;
     },
+  });
+}
+
+export function useChannelsInfinite(workspaceId: string, pageSize = 50) {
+  return useInfiniteQuery({
+    queryKey: ["workspaces", workspaceId, "channels", "infinite"],
+    queryFn: async ({ pageParam }) => {
+      const result = await listChannels(workspaceId, pageSize, pageParam);
+      return result;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 }
 

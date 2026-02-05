@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { PlanComparison } from "../components/PlanComparison";
+import { ScrollContainer } from "../components/ScrollContainer";
 import {
   useSubscription,
   useUserByEmail,
@@ -26,6 +27,7 @@ const SubscriptionManagement: FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const managersScrollRef = useRef<HTMLDivElement>(null);
   const { data: subscription, isLoading, error, refetch } = useSubscription();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -658,50 +660,56 @@ const SubscriptionManagement: FC = () => {
               No billing managers yet.
             </p>
           ) : (
-            <div className="space-y-4">
-              {subscription.managers.map((manager) => {
-                const canRemoveManager =
-                  manager.userId !== currentUserId &&
-                  subscription.managers.length > 1;
-                return (
-                  <div
-                    key={manager.userId}
-                    className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-4 transition-colors duration-200 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
-                  >
-                    <div>
-                      <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-                        {manager.email || "Unknown email"}
+            <ScrollContainer
+              ref={managersScrollRef}
+              className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+              maxHeight="min(40vh, 320px)"
+            >
+              <div className="space-y-4 p-1">
+                {subscription.managers.map((manager) => {
+                  const canRemoveManager =
+                    manager.userId !== currentUserId &&
+                    subscription.managers.length > 1;
+                  return (
+                    <div
+                      key={manager.userId}
+                      className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-4 transition-colors duration-200 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                    >
+                      <div>
+                        <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                          {manager.email || "Unknown email"}
+                        </div>
+                        <div className="font-mono text-sm text-neutral-600 dark:text-neutral-300">
+                          {manager.userId}
+                        </div>
                       </div>
-                      <div className="font-mono text-sm text-neutral-600 dark:text-neutral-300">
-                        {manager.userId}
-                      </div>
-                    </div>
-                    {canRemoveManager && (
-                      <button
-                        onClick={() => handleRemoveManager(manager.userId)}
-                        className="rounded-xl border border-error-200 px-4 py-2 font-semibold text-error-600 transition-all duration-200 hover:bg-error-50 dark:border-error-800 dark:text-error-400 dark:hover:bg-error-900"
-                        disabled={removeManagerMutation.isPending}
-                      >
-                        {removeManagerMutation.isPending
-                          ? "Removing..."
-                          : "Remove access"}
-                      </button>
-                    )}
-                    {manager.userId === currentUserId && (
-                      <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-                        You
-                      </span>
-                    )}
-                    {manager.userId !== currentUserId &&
-                      subscription.managers.length === 1 && (
-                        <span className="text-sm font-medium text-neutral-500 dark:text-neutral-500">
-                          You need at least one billing manager
+                      {canRemoveManager && (
+                        <button
+                          onClick={() => handleRemoveManager(manager.userId)}
+                          className="rounded-xl border border-error-200 px-4 py-2 font-semibold text-error-600 transition-all duration-200 hover:bg-error-50 dark:border-error-800 dark:text-error-400 dark:hover:bg-error-900"
+                          disabled={removeManagerMutation.isPending}
+                        >
+                          {removeManagerMutation.isPending
+                            ? "Removing..."
+                            : "Remove access"}
+                        </button>
+                      )}
+                      {manager.userId === currentUserId && (
+                        <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+                          You
                         </span>
                       )}
-                  </div>
-                );
-              })}
-            </div>
+                      {manager.userId !== currentUserId &&
+                        subscription.managers.length === 1 && (
+                          <span className="text-sm font-medium text-neutral-500 dark:text-neutral-500">
+                            You need at least one billing manager
+                          </span>
+                        )}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollContainer>
           )}
         </div>
 

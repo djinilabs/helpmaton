@@ -1015,10 +1015,23 @@ export async function getTrialStatus(
   return response.json();
 }
 
+export interface ListAgentsResponse {
+  agents: Agent[];
+  nextCursor?: string;
+}
+
 export async function listAgents(
   workspaceId: string,
-): Promise<{ agents: Agent[] }> {
-  const response = await apiFetch(`/api/workspaces/${workspaceId}/agents`);
+  limit?: number,
+  cursor?: string,
+): Promise<ListAgentsResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents${q ? `?${q}` : ""}`,
+  );
   return response.json();
 }
 
@@ -1344,17 +1357,26 @@ export async function getAgentConversation(
   return response.json();
 }
 
+export interface ListDocumentsResponse {
+  documents: Document[];
+  nextCursor?: string;
+}
+
 export async function listDocuments(
   workspaceId: string,
   folderPath?: string,
-): Promise<{ documents: Document[] }> {
-  const url =
-    folderPath !== undefined
-      ? `/api/workspaces/${workspaceId}/documents?folder=${encodeURIComponent(
-          folderPath,
-        )}`
-      : `/api/workspaces/${workspaceId}/documents`;
-  const response = await apiFetch(url);
+  limit?: number,
+  cursor?: string,
+): Promise<ListDocumentsResponse> {
+  const params = new URLSearchParams();
+  if (folderPath !== undefined)
+    params.append("folder", folderPath);
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/documents${q ? `?${q}` : ""}`,
+  );
   return response.json();
 }
 
@@ -1483,10 +1505,23 @@ export async function searchDocuments(
   return response.json();
 }
 
+export interface ListChannelsResponse {
+  channels: Channel[];
+  nextCursor?: string;
+}
+
 export async function listChannels(
   workspaceId: string,
-): Promise<{ channels: Channel[] }> {
-  const response = await apiFetch(`/api/workspaces/${workspaceId}/channels`);
+  limit?: number,
+  cursor?: string,
+): Promise<ListChannelsResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/channels${q ? `?${q}` : ""}`,
+  );
   return response.json();
 }
 
@@ -1730,10 +1765,23 @@ export interface UpdateMcpServerInput {
   };
 }
 
+export interface ListMcpServersResponse {
+  servers: McpServer[];
+  nextCursor?: string;
+}
+
 export async function listMcpServers(
   workspaceId: string,
-): Promise<{ servers: McpServer[] }> {
-  const response = await apiFetch(`/api/workspaces/${workspaceId}/mcp-servers`);
+  limit?: number,
+  cursor?: string,
+): Promise<ListMcpServersResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/mcp-servers${q ? `?${q}` : ""}`,
+  );
   return response.json();
 }
 
@@ -2510,10 +2558,23 @@ export async function purchaseCredits(
 }
 
 // Workspace member management
+export interface GetWorkspaceMembersResponse {
+  members: Member[];
+  nextCursor?: string;
+}
+
 export async function getWorkspaceMembers(
   workspaceId: string,
-): Promise<{ members: Member[] }> {
-  const response = await apiFetch(`/api/workspaces/${workspaceId}/members`);
+  limit?: number,
+  cursor?: string,
+): Promise<GetWorkspaceMembersResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/members${q ? `?${q}` : ""}`,
+  );
   return response.json();
 }
 
@@ -2570,10 +2631,23 @@ export async function acceptWorkspaceInvite(
   return response.json();
 }
 
+export interface GetWorkspaceInvitesResponse {
+  invites: WorkspaceInviteListItem[];
+  nextCursor?: string;
+}
+
 export async function getWorkspaceInvites(
   workspaceId: string,
-): Promise<{ invites: WorkspaceInviteListItem[] }> {
-  const response = await apiFetch(`/api/workspaces/${workspaceId}/invites`);
+  limit?: number,
+  cursor?: string,
+): Promise<GetWorkspaceInvitesResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/invites${q ? `?${q}` : ""}`,
+  );
   return response.json();
 }
 
@@ -2764,11 +2838,22 @@ export interface SlackManifestResponse {
   instructions: string[];
 }
 
+export interface ListIntegrationsResponse {
+  integrations: BotIntegration[];
+  nextCursor?: string;
+}
+
 export async function listIntegrations(
   workspaceId: string,
-): Promise<BotIntegration[]> {
+  limit?: number,
+  cursor?: string,
+): Promise<ListIntegrationsResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/integrations`,
+    `/api/workspaces/${workspaceId}/integrations${q ? `?${q}` : ""}`,
   );
   return response.json();
 }
@@ -3004,12 +3089,23 @@ export interface GetAgentEvalResultsParams {
   cursor?: string;
 }
 
+export interface ListEvalJudgesResponse {
+  judges: EvalJudge[];
+  nextCursor?: string;
+}
+
 export async function listEvalJudges(
   workspaceId: string,
   agentId: string,
-): Promise<EvalJudge[]> {
+  limit?: number,
+  cursor?: string,
+): Promise<ListEvalJudgesResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges`,
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges${q ? `?${q}` : ""}`,
   );
   return response.json();
 }
@@ -3069,12 +3165,23 @@ export async function deleteEvalJudge(
   );
 }
 
+export interface ListAgentSchedulesResponse {
+  schedules: AgentSchedule[];
+  nextCursor?: string;
+}
+
 export async function listAgentSchedules(
   workspaceId: string,
   agentId: string,
-): Promise<AgentSchedule[]> {
+  limit?: number,
+  cursor?: string,
+): Promise<ListAgentSchedulesResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const q = params.toString();
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules`,
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules${q ? `?${q}` : ""}`,
   );
   return response.json();
 }

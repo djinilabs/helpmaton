@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
 
 import {
   listMcpServers,
@@ -16,6 +21,18 @@ export function useMcpServers(workspaceId: string) {
   return useQuery({
     queryKey: ["workspaces", workspaceId, "mcp-servers"],
     queryFn: () => listMcpServers(workspaceId),
+  });
+}
+
+export function useMcpServersInfinite(workspaceId: string, pageSize = 50) {
+  return useInfiniteQuery({
+    queryKey: ["workspaces", workspaceId, "mcp-servers", "infinite"],
+    queryFn: async ({ pageParam }) => {
+      const result = await listMcpServers(workspaceId, pageSize, pageParam);
+      return result;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 }
 

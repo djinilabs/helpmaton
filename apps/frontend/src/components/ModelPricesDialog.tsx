@@ -4,7 +4,7 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import type { FC } from "react";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -16,6 +16,9 @@ import {
   type ModelPricing,
 } from "../utils/api";
 import { getCapabilityLabels } from "../utils/modelConfig";
+
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualTable } from "./VirtualTable";
 
 type SortColumn =
   | "model"
@@ -76,11 +79,14 @@ const formatTieredPrice = (pricing: ModelPricing): string => {
   return "N/A";
 };
 
+type ModelRow = { modelName: string; pricing: ModelPricing };
+
 export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
   isOpen,
   onClose,
   capabilityFilter,
 }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortColumn, setSortColumn] = useState<SortColumn>("model");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -243,120 +249,206 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
               {capabilityFilter && ` filtered by ${capabilityFilter}`}
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-neutral-300 dark:border-neutral-700">
-                    {(
-                      [
-                        ["model", "Model"],
-                        ["input", "Input (per 1M tokens)"],
-                        ["output", "Output (per 1M tokens)"],
-                        ["cachedInput", "Cached Input (per 1M tokens)"],
-                        ["request", "Request (per request)"],
-                        ["capabilities", "Capabilities"],
-                      ] as const
-                    ).map(([id, label]) => (
-                      <th
-                        key={id}
-                        role="button"
-                        tabIndex={0}
-                        aria-sort={
-                          sortColumn === id
-                            ? sortDirection === "asc"
-                              ? "ascending"
-                              : "descending"
-                            : undefined
-                        }
-                        onClick={() => handleSort(id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            handleSort(id);
-                          }
-                        }}
-                        className="cursor-pointer select-none px-4 py-3 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            <ScrollContainer
+              ref={scrollRef}
+              className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-700"
+              maxHeight="min(60vh, 480px)"
+            >
+              <VirtualTable<ModelRow>
+                scrollRef={scrollRef}
+                rows={sortedModels.map(([modelName, pricing]) => ({
+                  modelName,
+                  pricing,
+                }))}
+                rowHeight={52}
+                getItemKey={(_, row) => row.modelName}
+                columns={[
+                  {
+                    key: "model",
+                    header: (
+                      <button
+                        type="button"
+                        onClick={() => handleSort("model")}
+                        className="inline-flex w-full items-center gap-1 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
                       >
-                        <span className="inline-flex items-center gap-1">
-                          {label}
-                          {sortColumn === id &&
+                        Model
+                        {sortColumn === "model" &&
                           (sortDirection === "asc" ? (
                             <ChevronUpIcon className="size-4" aria-hidden />
                           ) : (
                             <ChevronDownIcon className="size-4" aria-hidden />
                           ))}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedModels.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300"
+                      </button>
+                    ),
+                    render: (row) => (
+                      <code className="break-words rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                        {row.modelName}
+                      </code>
+                    ),
+                    width: "minmax(160px, 2fr)",
+                  },
+                  {
+                    key: "input",
+                    header: (
+                      <button
+                        type="button"
+                        onClick={() => handleSort("input")}
+                        className="inline-flex w-full items-center gap-1 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
                       >
-                        No models found
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedModels.map(([modelName, pricing]) => {
-                      const capabilityLabels = getCapabilityLabels(
-                        modelsData?.openrouter?.capabilities?.[modelName]
-                      );
-                      const hasTiers = pricing.tiers && pricing.tiers.length > 0;
-                      const inputPrice = hasTiers
-                        ? formatTieredPrice(pricing)
-                        : formatPrice(pricing.input);
-                      const outputPrice = hasTiers
-                        ? formatTieredPrice(pricing)
-                        : formatPrice(pricing.output);
-                      const cachedInputPrice = hasTiers
-                        ? formatTieredPrice(pricing)
-                        : formatPrice(pricing.cachedInput);
-                      // Request price is per-request (not per token), so handle it separately
-                      // For tiered pricing, check if first tier has request price
-                      const requestPrice = hasTiers
-                        ? pricing.tiers?.[0]?.request !== undefined
-                          ? formatPrice(pricing.tiers[0].request)
-                          : "N/A"
-                        : formatPrice(pricing.request);
-
+                        Input (per 1M tokens)
+                        {sortColumn === "input" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUpIcon className="size-4" aria-hidden />
+                          ) : (
+                            <ChevronDownIcon className="size-4" aria-hidden />
+                          ))}
+                      </button>
+                    ),
+                    render: (row) => {
+                      const hasTiers =
+                        row.pricing.tiers && row.pricing.tiers.length > 0;
                       return (
-                        <tr
-                          key={modelName}
-                          className="border-b border-neutral-200 dark:border-neutral-700"
-                        >
-                          <td className="px-4 py-3">
-                            <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
-                              {modelName}
-                            </code>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
-                            {inputPrice}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
-                            {outputPrice}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
-                            {cachedInputPrice}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300">
-                            {requestPrice}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300">
-                            {capabilityLabels.length > 0
-                              ? capabilityLabels.join(", ")
-                              : "N/A"}
-                          </td>
-                        </tr>
+                        <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                          {hasTiers
+                            ? formatTieredPrice(row.pricing)
+                            : formatPrice(row.pricing.input)}
+                        </span>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    },
+                    width: "minmax(100px, 1fr)",
+                  },
+                  {
+                    key: "output",
+                    header: (
+                      <button
+                        type="button"
+                        onClick={() => handleSort("output")}
+                        className="inline-flex w-full items-center gap-1 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        Output (per 1M tokens)
+                        {sortColumn === "output" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUpIcon className="size-4" aria-hidden />
+                          ) : (
+                            <ChevronDownIcon className="size-4" aria-hidden />
+                          ))}
+                      </button>
+                    ),
+                    render: (row) => {
+                      const hasTiers =
+                        row.pricing.tiers && row.pricing.tiers.length > 0;
+                      return (
+                        <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                          {hasTiers
+                            ? formatTieredPrice(row.pricing)
+                            : formatPrice(row.pricing.output)}
+                        </span>
+                      );
+                    },
+                    width: "minmax(100px, 1fr)",
+                  },
+                  {
+                    key: "cachedInput",
+                    header: (
+                      <button
+                        type="button"
+                        onClick={() => handleSort("cachedInput")}
+                        className="inline-flex w-full items-center gap-1 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        Cached Input (per 1M tokens)
+                        {sortColumn === "cachedInput" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUpIcon className="size-4" aria-hidden />
+                          ) : (
+                            <ChevronDownIcon className="size-4" aria-hidden />
+                          ))}
+                      </button>
+                    ),
+                    render: (row) => {
+                      const hasTiers =
+                        row.pricing.tiers && row.pricing.tiers.length > 0;
+                      return (
+                        <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                          {hasTiers
+                            ? formatTieredPrice(row.pricing)
+                            : formatPrice(row.pricing.cachedInput)}
+                        </span>
+                      );
+                    },
+                    width: "minmax(100px, 1fr)",
+                  },
+                  {
+                    key: "request",
+                    header: (
+                      <button
+                        type="button"
+                        onClick={() => handleSort("request")}
+                        className="inline-flex w-full items-center gap-1 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        Request (per request)
+                        {sortColumn === "request" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUpIcon className="size-4" aria-hidden />
+                          ) : (
+                            <ChevronDownIcon className="size-4" aria-hidden />
+                          ))}
+                      </button>
+                    ),
+                    render: (row) => {
+                      const hasTiers =
+                        row.pricing.tiers && row.pricing.tiers.length > 0;
+                      const requestPrice = hasTiers
+                        ? row.pricing.tiers?.[0]?.request !== undefined
+                          ? formatPrice(row.pricing.tiers[0].request)
+                          : "N/A"
+                        : formatPrice(row.pricing.request);
+                      return (
+                        <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                          {requestPrice}
+                        </span>
+                      );
+                    },
+                    width: "minmax(90px, 1fr)",
+                  },
+                  {
+                    key: "capabilities",
+                    header: (
+                      <button
+                        type="button"
+                        onClick={() => handleSort("capabilities")}
+                        className="inline-flex w-full items-center gap-1 text-left text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      >
+                        Capabilities
+                        {sortColumn === "capabilities" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUpIcon className="size-4" aria-hidden />
+                          ) : (
+                            <ChevronDownIcon className="size-4" aria-hidden />
+                          ))}
+                      </button>
+                    ),
+                    render: (row) => {
+                      const capabilityLabels = getCapabilityLabels(
+                        modelsData?.openrouter?.capabilities?.[row.modelName]
+                      );
+                      return (
+                        <span className="text-xs text-neutral-700 dark:text-neutral-300">
+                          {capabilityLabels.length > 0
+                            ? capabilityLabels.join(", ")
+                            : "N/A"}
+                        </span>
+                      );
+                    },
+                    width: "minmax(140px, 2fr)",
+                  },
+                ]}
+                empty={
+                  <div className="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300">
+                    No models found
+                  </div>
+                }
+              />
+            </ScrollContainer>
 
             <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950">
               <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-800 dark:text-blue-200">

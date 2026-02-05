@@ -1,11 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, type FC } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState, useEffect, type FC } from "react";
 
 import { useToast } from "../hooks/useToast";
 import {
-  getWorkspaceMembers,
+  useWorkspaceMembersInfinite,
+  useWorkspaceInvitesInfinite,
+} from "../hooks/useWorkspaceMembers";
+import {
   removeWorkspaceMember,
-  getWorkspaceInvites,
   cancelWorkspaceInvite,
   type Member,
   type WorkspaceInviteListItem,
@@ -13,6 +15,8 @@ import {
 import { trackEvent } from "../utils/tracking";
 
 import { LoadingScreen } from "./LoadingScreen";
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualList } from "./VirtualList";
 
 interface TeamMembersProps {
   workspaceId: string;
@@ -46,16 +50,19 @@ export const TeamMembers: FC<TeamMembersProps> = ({
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  const membersScrollRef = useRef<HTMLDivElement>(null);
+  const invitesScrollRef = useRef<HTMLDivElement>(null);
+
   const {
-    data,
-    isLoading,
-    error,
+    data: membersData,
+    isLoading: membersLoading,
+    error: membersError,
     refetch: refetchMembers,
     isRefetching: isRefetchingMembers,
-  } = useQuery({
-    queryKey: ["workspace-members", workspaceId],
-    queryFn: () => getWorkspaceMembers(workspaceId),
-  });
+    hasNextPage: hasNextMembersPage,
+    isFetchingNextPage: isFetchingNextMembers,
+    fetchNextPage: fetchNextMembersPage,
+  } = useWorkspaceMembersInfinite(workspaceId, 50);
 
   const {
     data: invitesData,
@@ -63,11 +70,10 @@ export const TeamMembers: FC<TeamMembersProps> = ({
     error: invitesError,
     refetch: refetchInvites,
     isRefetching: isRefetchingInvites,
-  } = useQuery({
-    queryKey: ["workspace-invites", workspaceId],
-    queryFn: () => getWorkspaceInvites(workspaceId),
-    enabled: canManage, // Only fetch invites if user can manage
-  });
+    hasNextPage: hasNextInvitesPage,
+    isFetchingNextPage: isFetchingNextInvites,
+    fetchNextPage: fetchNextInvitesPage,
+  } = useWorkspaceInvitesInfinite(workspaceId, { enabled: canManage, pageSize: 50 });
 
   const removeMember = useMutation({
     mutationFn: (userId: string) => removeWorkspaceMember(workspaceId, userId),
@@ -127,15 +133,15 @@ export const TeamMembers: FC<TeamMembersProps> = ({
 
   const isRefreshing = isRefetchingMembers || isRefetchingInvites;
 
-  if (isLoading || (canManage && invitesLoading)) {
+  if (membersLoading || (canManage && invitesLoading)) {
     return <LoadingScreen compact message="Loading..." />;
   }
 
-  if (error) {
+  if (membersError) {
     return (
       <div className="text-error-600">
         Failed to load members:{" "}
-        {error instanceof Error ? error.message : "Unknown error"}
+        {membersError instanceof Error ? membersError.message : "Unknown error"}
       </div>
     );
   }
@@ -149,8 +155,10 @@ export const TeamMembers: FC<TeamMembersProps> = ({
     );
   }
 
-  const members = data?.members || [];
-  const invites = invitesData?.invites || [];
+  const members: Member[] =
+    membersData?.pages.flatMap((p) => p.members) ?? [];
+  const invites: WorkspaceInviteListItem[] =
+    invitesData?.pages.flatMap((p) => p.invites) ?? [];
 
   return (
     <div className="space-y-6">
@@ -166,66 +174,81 @@ export const TeamMembers: FC<TeamMembersProps> = ({
       </div>
 
       {/* Pending Invitations */}
-      {canManage && invites.length > 0 && (
+      {canManage && (
         <div>
           <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
             Pending Invitations
           </h3>
-          <div className="space-y-3">
-            {invites.map((invite: WorkspaceInviteListItem) => {
-              const expiresAt = new Date(invite.expiresAt);
-              const isExpiringSoon =
-                expiresAt.getTime() - now < 24 * 60 * 60 * 1000; // Less than 24 hours
+          <ScrollContainer
+            ref={invitesScrollRef}
+            className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+            maxHeight="min(40vh, 400px)"
+          >
+            <VirtualList<WorkspaceInviteListItem>
+              scrollRef={invitesScrollRef}
+              items={invites}
+              estimateSize={() => 88}
+              getItemKey={(_i, invite) => invite.inviteId}
+              renderRow={(invite) => {
+                const expiresAt = new Date(invite.expiresAt);
+                const isExpiringSoon =
+                  expiresAt.getTime() - now < 24 * 60 * 60 * 1000;
 
-              return (
-                <div
-                  key={invite.inviteId}
-                  className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <div className="font-semibold text-neutral-900 dark:text-neutral-50">
-                        {invite.email}
+                return (
+                  <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 p-4 last:border-b-0 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <div className="font-semibold text-neutral-900 dark:text-neutral-50">
+                          {invite.email}
+                        </div>
+                        <div className="mt-1 text-sm text-neutral-500 dark:text-neutral-300">
+                          Invited{" "}
+                          {new Date(invite.createdAt).toLocaleDateString()}
+                          {" • "}
+                          Expires {expiresAt.toLocaleDateString()}
+                          {isExpiringSoon && (
+                            <span className="ml-2 inline-block rounded-lg border border-error-200 bg-error-100 px-2 py-0.5 text-xs font-semibold text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
+                              Expiring Soon
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-1 text-sm text-neutral-500 dark:text-neutral-300">
-                        Invited{" "}
-                        {new Date(invite.createdAt).toLocaleDateString()}
-                        {" • "}
-                        Expires {expiresAt.toLocaleDateString()}
-                        {isExpiringSoon && (
-                          <span className="ml-2 inline-block rounded-lg border border-error-200 bg-error-100 px-2 py-0.5 text-xs font-semibold text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
-                            Expiring Soon
-                          </span>
-                        )}
-                      </div>
+                      <span
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${getPermissionColor(
+                          invite.permissionLevel
+                        )}`}
+                      >
+                        {getPermissionLabel(invite.permissionLevel)}
+                      </span>
                     </div>
-                    <span
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${getPermissionColor(
-                        invite.permissionLevel
-                      )}`}
+                    <button
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Are you sure you want to cancel the invitation to ${invite.email}?`
+                          )
+                        ) {
+                          cancelInvite.mutate(invite.inviteId);
+                        }
+                      }}
+                      disabled={cancelInvite.isPending}
+                      className="rounded-lg px-4 py-2 text-sm font-semibold text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-error-400 dark:hover:bg-error-900"
                     >
-                      {getPermissionLabel(invite.permissionLevel)}
-                    </span>
+                      {cancelInvite.isPending ? "Cancelling..." : "Cancel"}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      if (
-                        confirm(
-                          `Are you sure you want to cancel the invitation to ${invite.email}?`
-                        )
-                      ) {
-                        cancelInvite.mutate(invite.inviteId);
-                      }
-                    }}
-                    disabled={cancelInvite.isPending}
-                    className="rounded-lg px-4 py-2 text-sm font-semibold text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-error-400 dark:hover:bg-error-900"
-                  >
-                    {cancelInvite.isPending ? "Cancelling..." : "Cancel"}
-                  </button>
+                );
+              }}
+              hasNextPage={hasNextInvitesPage ?? false}
+              isFetchingNextPage={isFetchingNextInvites}
+              fetchNextPage={fetchNextInvitesPage}
+              empty={
+                <div className="p-4 text-neutral-600 dark:text-neutral-300">
+                  No pending invitations.
                 </div>
-              );
-            })}
-          </div>
+              }
+            />
+          </ScrollContainer>
         </div>
       )}
 
@@ -234,17 +257,18 @@ export const TeamMembers: FC<TeamMembersProps> = ({
         <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           Team Members
         </h3>
-        {members.length === 0 ? (
-          <div className="text-neutral-600 dark:text-neutral-300">
-            No members found in this workspace.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {members.map((member: Member) => (
-              <div
-                key={member.userId}
-                className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
-              >
+        <ScrollContainer
+          ref={membersScrollRef}
+          className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+          maxHeight="min(50vh, 500px)"
+        >
+          <VirtualList<Member>
+            scrollRef={membersScrollRef}
+            items={members}
+            estimateSize={() => 88}
+            getItemKey={(_i, member) => member.userId}
+            renderRow={(member) => (
+              <div className="flex items-center justify-between border-b border-neutral-200 bg-white p-4 last:border-b-0 dark:border-neutral-700 dark:bg-neutral-900">
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <div className="font-semibold text-neutral-900 dark:text-neutral-50">
@@ -282,9 +306,17 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                   </button>
                 )}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+            hasNextPage={hasNextMembersPage ?? false}
+            isFetchingNextPage={isFetchingNextMembers}
+            fetchNextPage={fetchNextMembersPage}
+            empty={
+              <div className="p-4 text-neutral-600 dark:text-neutral-300">
+                No members found in this workspace.
+              </div>
+            }
+          />
+        </ScrollContainer>
       </div>
     </div>
   );

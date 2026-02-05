@@ -3,6 +3,7 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  useInfiniteQuery,
 } from "@tanstack/react-query";
 
 import {
@@ -30,9 +31,21 @@ export function useAgents(workspaceId: string) {
   return useSuspenseQuery({
     queryKey: ["workspaces", workspaceId, "agents"],
     queryFn: async () => {
-      const result = await listAgents(workspaceId);
+      const result = await listAgents(workspaceId, 100);
       return result.agents;
     },
+  });
+}
+
+export function useAgentsInfinite(workspaceId: string, pageSize = 50) {
+  return useInfiniteQuery({
+    queryKey: ["workspaces", workspaceId, "agents", "infinite"],
+    queryFn: async ({ pageParam }) => {
+      const result = await listAgents(workspaceId, pageSize, pageParam);
+      return result;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 }
 

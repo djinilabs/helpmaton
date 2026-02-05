@@ -2,10 +2,16 @@ import { useState, useEffect, useRef, type FC } from "react";
 
 import { useAgentMemory } from "../hooks/useAgentMemory";
 import { useToast } from "../hooks/useToast";
-import { getAgentMemoryRecord, type TemporalGrain } from "../utils/api";
+import {
+  getAgentMemoryRecord,
+  type AgentMemoryResult,
+  type TemporalGrain,
+} from "../utils/api";
 import { trackEvent } from "../utils/tracking";
 
+import { ScrollContainer } from "./ScrollContainer";
 import { Slider } from "./Slider";
+import { VirtualList } from "./VirtualList";
 
 interface AgentMemoryRecordsProps {
   workspaceId: string;
@@ -17,6 +23,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
   agentId,
 }) => {
   const toast = useToast();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const previewLength = 120;
   const [grain, setGrain] = useState<TemporalGrain>("working");
   const [queryText, setQueryText] = useState("");
@@ -287,19 +294,20 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             </h3>
           </div>
 
-          {data.records.length === 0 ? (
-            <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-900">
-              <p className="text-sm text-neutral-600 dark:text-neutral-300">
-                No memory records found for the selected filters.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {data.records.map((record, index) => (
-                <div
-                  key={record.id ?? `${record.timestamp}-${index}`}
-                  className="rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
-                >
+          <ScrollContainer
+            ref={scrollRef}
+            className="rounded-xl border-2 border-neutral-300 dark:border-neutral-700"
+            maxHeight="min(60vh, 500px)"
+          >
+            <VirtualList<AgentMemoryResult>
+              scrollRef={scrollRef}
+              items={data.records}
+              estimateSize={() => 160}
+              getItemKey={(index, record) =>
+                record.id ?? `${record.timestamp}-${index}`
+              }
+              renderRow={(record) => (
+                <div className="rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500">
                   <div className="mb-2 flex items-start justify-between">
                     <div className="flex-1">
                       <div className="mb-2 flex items-center gap-2">
@@ -380,9 +388,16 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              )}
+              empty={
+                <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-900">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-300">
+                    No memory records found for the selected filters.
+                  </p>
+                </div>
+              }
+            />
+          </ScrollContainer>
         </>
       )}
     </div>
