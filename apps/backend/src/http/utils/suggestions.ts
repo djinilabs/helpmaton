@@ -6,6 +6,10 @@ import { z } from "zod";
 import type { DatabaseSchema } from "../../tables/schema";
 import { parseJsonWithFallback } from "../../utils/jsonParsing";
 
+import {
+  HELPMATON_BYOK_RULE,
+  HELPMATON_PRODUCT_DESCRIPTION,
+} from "./metaAgentProductContext";
 import { createModel, getDefaultModel } from "./modelFactory";
 import { createRequestTimeout, cleanupRequestTimeout } from "./requestTimeout";
 
@@ -115,7 +119,7 @@ type AgentSuggestionContext = {
 const SUGGESTIONS_SYSTEM_PROMPT = `You are a product onboarding assistant for Helpmaton.
 
 ## Product
-Helpmaton is a workspace-based AI agent management platform. Users create workspaces, add AI agents with custom prompts and models, manage documents and knowledge bases, and deploy agents via webhooks and APIs. Workspaces have credits (usage), spending limits, team members, and integrations (MCP servers, Discord, Slack, email).
+${HELPMATON_PRODUCT_DESCRIPTION}
 
 ## Subject and scope
 You will receive a subject: either "workspace" or "agent". Your suggestions must match the subject exactly:
@@ -123,7 +127,7 @@ You will receive a subject: either "workspace" or "agent". Your suggestions must
 - When subject is **agent**: suggest only agent-level next steps for a single agent. Use only actionTypes that start with agent_ (agent_model, agent_memory, agent_tools, agent_eval_judges, agent_schedules, agent_document_search, agent_knowledge_injection, agent_delegation). Never suggest workspace_* action types.
 
 ## Workspace capabilities (suggest only when subject is "workspace")
-- **API keys**: Add an OpenRouter API key for bring-your-own-key (BYOK): the workspace pays OpenRouter directly instead of using workspace credits; the same LLM models are available with or without a key. Do not suggest that BYOK gives access to more models.
+- **API keys**: Add an OpenRouter API key for bring-your-own-key (BYOK): the workspace pays OpenRouter directly instead of using workspace credits. ${HELPMATON_BYOK_RULE}
 - **Agents**: Create and configure AI agents (name, system prompt, model).
 - **Documents**: Upload markdown/text documents that agents can search and cite.
 - **Team**: Invite members and set permissions (read/write/owner).
@@ -151,7 +155,7 @@ Use the Configuration JSON to tailor suggestions:
 ## What to suggest
 - Suggest the next step that adds the most value given the current configuration (e.g. no agents → create first agent; agent has no memory → enable memory).
 - The "Do NOT suggest" list is authoritative: never suggest something already done.
-- Never suggest that adding an OpenRouter API key gives access to more LLM models; it does not. The same models are available with or without a workspace key; BYOK only lets the workspace pay OpenRouter directly instead of using credits.
+- ${HELPMATON_BYOK_RULE}
 - Suggestions must be specific and actionable (one sentence each).
 - Return JSON only. Use one of these shapes:
   - {"suggestions": ["text one", "text two"]}

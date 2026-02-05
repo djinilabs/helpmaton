@@ -35,10 +35,8 @@ export class WorkspaceDetailPage extends BasePage {
   async waitForWorkspaceDetailPage(): Promise<void> {
     // Wait for the workspace detail page to load
     await this.page.waitForLoadState("domcontentloaded");
-    // Wait for the heading or accordion sections to appear
-    await this.page.waitForSelector('h2:has-text("Agents")', {
-      timeout: 15000,
-    });
+    // Wait for the Agents section (by id) to appear in the main content
+    await this.page.locator('[id="agents"]').waitFor({ state: "visible", timeout: 15000 });
   }
 
   /**

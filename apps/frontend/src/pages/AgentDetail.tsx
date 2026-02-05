@@ -4,7 +4,6 @@ import {
   LightBulbIcon,
   UserGroupIcon,
   BoltIcon,
-  Cog6ToothIcon,
   MagnifyingGlassIcon,
   DocumentMagnifyingGlassIcon,
   EnvelopeIcon,
@@ -25,6 +24,7 @@ import {
   ChevronRightIcon,
   PhotoIcon,
   ShareIcon,
+  Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -49,6 +49,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AccordionSection } from "../components/AccordionSection";
 import { AgentSuggestions } from "../components/AgentSuggestions";
 import { ClientToolEditor } from "../components/ClientToolEditor";
+import {
+  DetailPageNav,
+  type DetailPageNavGroup,
+} from "../components/DetailPageNav";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LazyAccordionContent } from "../components/LazyAccordionContent";
 import { LoadingScreen } from "../components/LoadingScreen";
@@ -3234,9 +3238,124 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     handleResetAdvanced,
   } = useAgentDetailState(props);
 
+  const [navCollapsed, setNavCollapsed] = useLocalPreference(
+    "agent-detail-nav-collapsed",
+    false
+  );
+
+  const navGroups = useMemo((): DetailPageNavGroup[] => {
+    const groups: DetailPageNavGroup[] = [
+      {
+        title: "Test",
+        icon: <BeakerIcon className="size-5" />,
+        children: [
+          { id: "test", label: "Test agent" },
+          { id: "conversations", label: "Recent conversations" },
+          { id: "evaluations", label: "Evaluations" },
+        ],
+      },
+      {
+        title: "Memory",
+        icon: <LightBulbIcon className="size-5" />,
+        children: [
+          { id: "memory", label: "Memory records" },
+          { id: "knowledge-graph", label: "Knowledge graph" },
+          ...(memoryExtractionEnabled
+            ? [
+                { id: "memory-extraction", label: "Memory extraction" },
+                { id: "summarization-prompts", label: "Summarization prompts" },
+                { id: "memory-search", label: "Memory search tool" },
+                { id: "inject-knowledge", label: "Inject knowledge" },
+              ]
+            : []),
+          ...(enableSearchDocuments
+            ? [{ id: "document-search", label: "Document search tool" }]
+            : []),
+        ],
+      },
+      {
+        title: "Internal tools",
+        icon: <WrenchScrewdriverIcon className="size-5" />,
+        children: canEdit
+          ? [
+              { id: "email-tool", label: "Email tool" },
+              { id: "tavily-search", label: "Web search tool" },
+              { id: "tavily-fetch", label: "Web fetch tool" },
+              { id: "exa-search", label: "Advanced search tool" },
+              { id: "image-generation", label: "Image generation" },
+              { id: "client-tools", label: "Client-side tools" },
+            ]
+          : [],
+      },
+      {
+        title: "External tools",
+        icon: <BoltIcon className="size-5" />,
+        children: canEdit ? [{ id: "mcp-servers", label: "Connected tools" }] : [],
+      },
+      {
+        title: "Collaborate",
+        icon: <UserGroupIcon className="size-5" />,
+        children: canEdit
+          ? [{ id: "delegation", label: "Delegation" }]
+          : [],
+      },
+      {
+        title: "Advanced",
+        icon: <Cog6ToothIcon className="size-5" />,
+        children: canEdit ? [{ id: "advanced", label: "Advanced" }] : [],
+      },
+      {
+        title: "Interact",
+        icon: <ServerIcon className="size-5" />,
+        children: [
+          { id: "schedules", label: "Schedules" },
+          { id: "embeddable-widget", label: "Embeddable widget" },
+          { id: "stream-server", label: "Stream server" },
+          { id: "keys", label: "Webhooks" },
+          { id: "bot-integrations", label: "Bot integrations" },
+        ],
+      },
+      {
+        title: "Control",
+        icon: <CurrencyDollarIcon className="size-5" />,
+        children: [
+          ...(canEdit
+            ? [{ id: "spending-limits", label: "Spending limits" }]
+            : []),
+          { id: "usage", label: "Assistant usage" },
+          { id: "transactions", label: "Payment history" },
+        ],
+      },
+      {
+        title: "Danger zone",
+        icon: <ExclamationTriangleIcon className="size-5" />,
+        children: canEdit ? [{ id: "danger", label: "Danger zone" }] : [],
+      },
+    ];
+    return groups.filter((g) => g.children.length > 0);
+  }, [
+    canEdit,
+    memoryExtractionEnabled,
+    enableSearchDocuments,
+  ]);
+
   return (
     <div className="min-h-screen bg-white p-8 dark:bg-neutral-950">
-      <div className="mx-auto w-full max-w-6xl">
+      <DetailPageNav
+        groups={navGroups}
+        expandedSection={expandedSection}
+        onToggleSection={toggleSection}
+        collapsed={navCollapsed}
+        onToggleCollapse={() => setNavCollapsed((c) => !c)}
+        ariaLabel="Agent sections"
+        headerTitle="Sections"
+      />
+      <div
+        className={`transition-[padding] duration-200 ${
+          navCollapsed ? "lg:pl-[4rem]" : "lg:pl-[16rem]"
+        }`}
+      >
+        <div className="mx-auto w-full max-w-6xl">
         <AgentOverviewCard
           agent={agent}
           canEdit={canEdit}
@@ -7169,6 +7288,7 @@ body {
         {/*
         Modals - only load when opened
         */}
+        </div>
       </div>
     </div>
   );

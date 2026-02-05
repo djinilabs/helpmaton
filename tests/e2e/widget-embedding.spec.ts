@@ -46,7 +46,7 @@ testWithUserManagement.describe("Widget Embedding", () => {
       await agentDetailPage.waitForPageLoad();
 
       // Find and expand the "EMBEDDABLE WIDGET" section using the accordion ID
-      await agentDetailPage.expandAccordion("EMBEDDABLE WIDGET");
+      await agentDetailPage.expandAccordion("EMBEDDABLE WIDGET", "embeddable-widget");
 
       // Enable widget
       const enableToggle = page
@@ -148,7 +148,7 @@ testWithUserManagement.describe("Widget Embedding", () => {
       }
 
       // Enable widget and generate key
-      await agentDetailPage.expandAccordion("EMBEDDABLE WIDGET");
+      await agentDetailPage.expandAccordion("EMBEDDABLE WIDGET", "embeddable-widget");
 
       const enableToggle = page
         .locator('input[type="checkbox"]')

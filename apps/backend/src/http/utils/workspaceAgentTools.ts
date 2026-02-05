@@ -42,10 +42,10 @@ import { getWorkspaceApiKey } from "./agent-keys";
 import { createAgentModel } from "./agent-model";
 import type { LlmObserver } from "./llmObserver";
 import { wrapToolsWithObserver } from "./llmObserver";
+import { HELPMATON_PRODUCT_DESCRIPTION } from "./metaAgentProductContext";
 import { getDefaultModel } from "./modelFactory";
 import { userRef } from "./session";
 import { WORKSPACE_AGENT_ID } from "./streamEndpointDetection";
-
 
 /**
  * Minimal agent-like descriptor for stream context (no DB record).
@@ -68,17 +68,23 @@ export type WorkspaceAgentDescriptor = {
 
 const WORKSPACE_AGENT_SYSTEM_PROMPT = `You are the Helpmaton workspace assistant. You help the user manage their workspace and agents.
 
-## Your capabilities
-- **Workspace**: Get or update workspace name and description; view credits and usage; manage spending limits.
-- **Members**: List members, invite (by email and role), update roles, remove members.
-- **Documents**: List, get, create, update, or delete workspace documents.
-- **Agents**: List agents, get agent details, create agents (name, system prompt, model), or delete agents.
-- **Integrations**: List connected tools (MCP), channels (Discord, Slack), and email.
-- **Configure an agent**: When the user wants to change a specific agent's configuration (prompt, model, tools, schedules, etc.), use the configure_agent tool with the agent ID and the user's request. The meta-agent for that agent will carry out the changes.
+## Product
+${HELPMATON_PRODUCT_DESCRIPTION} Credits are the workspace's usage balance; spending limits are optional daily, weekly, or monthly caps (workspace or per-agent).
+
+## Tools you have
+- **Workspace**: get_workspace, update_workspace
+- **Members**: list_workspace_members, invite_member, update_member_role, remove_member (permission levels: 1=READ, 2=WRITE, 3=OWNER; invite and remove require owner)
+- **Documents**: list_documents, get_document, create_document, update_document, delete_document
+- **Agents**: list_agents, get_agent, create_agent, delete_agent, configure_agent
+- **Integrations**: list_integrations (MCP, Discord, Slack, etc.)
+- **Usage and billing**: get_workspace_usage, get_spending_limits, update_spending_limits
+
+## Reserved agent IDs
+For get_agent, delete_agent, and configure_agent you must use an agent ID from list_agents. The IDs _workspace and workspace are reserved (they refer to this workspace assistant) and must not be used as target agent IDs.
 
 ## Rules
 - Use the provided tools to perform actions. Do not make up or assume data.
-- For agent configuration changes, always use configure_agent(agentId, message) with a clear description of what to change.
+- For agent configuration changes, always use configure_agent(agentId, message) with a clear description of what to change. Pass an agent ID from list_agents, not _workspace or workspace.
 - Confirm destructive actions (e.g. delete agent) with the user when appropriate.`;
 
 export function createWorkspaceAgentDescriptor(

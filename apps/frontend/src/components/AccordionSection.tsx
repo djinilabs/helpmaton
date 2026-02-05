@@ -192,7 +192,10 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   }, [isExpanded, scrollHeaderIntoView]);
 
   return (
-    <div className="mb-4 w-full rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+    <div
+      id={id}
+      className="mb-4 w-full scroll-mt-[7.5rem] rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900"
+    >
       <button
         ref={headerRef}
         onClick={onToggle}
