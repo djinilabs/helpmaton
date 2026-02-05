@@ -10,14 +10,27 @@ import {
 } from "../../utils/httpEventAdapter";
 
 /**
- * Endpoint type: test (JWT auth) or stream (secret auth)
+ * Endpoint type: test (JWT auth), config-test (meta-agent, JWT auth), or stream (secret auth)
  */
-export type EndpointType = "test" | "stream";
+export type EndpointType = "test" | "config-test" | "stream";
+
+/** Reserved agentId for the virtual workspace agent */
+export const WORKSPACE_AGENT_ID = "_workspace";
 
 /**
  * Detects endpoint type based on path pattern
  */
 export function detectEndpointType(path: string): EndpointType {
+  // Pattern: /api/streams/{workspaceId}/{agentId}/config/test (meta-agent direct chat)
+  if (path.match(/^\/api\/streams\/[^/]+\/[^/]+\/config\/test$/)) {
+    return "config-test";
+  }
+  // Pattern: /api/streams/{workspaceId}/workspace/test or /api/streams/{workspaceId}/_workspace/test
+  if (
+    path.match(/^\/api\/streams\/[^/]+\/(?:workspace|_workspace)\/test$/)
+  ) {
+    return "test"; // workspace agent uses test auth
+  }
   // Pattern: /api/streams/{workspaceId}/{agentId}/test
   if (path.match(/^\/api\/streams\/[^/]+\/[^/]+\/test$/)) {
     return "test";

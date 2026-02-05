@@ -730,6 +730,7 @@ export async function callAgentInternal(
   conversationId?: string,
   conversationOwnerAgentId?: string, // Agent ID that owns the conversation (for delegation tracking)
   abortSignal?: AbortSignal,
+  options?: import("./call-agent-internal").CallAgentInternalOptions
 ): Promise<{
   response: string;
   targetAgentConversationId: string;
@@ -746,6 +747,7 @@ export async function callAgentInternal(
     conversationId,
     conversationOwnerAgentId,
     abortSignal,
+    options,
   );
 }
 

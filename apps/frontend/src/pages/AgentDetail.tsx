@@ -4,6 +4,7 @@ import {
   LightBulbIcon,
   UserGroupIcon,
   BoltIcon,
+  Cog6ToothIcon,
   MagnifyingGlassIcon,
   DocumentMagnifyingGlassIcon,
   EnvelopeIcon,
@@ -3596,6 +3597,28 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               workspaceId={workspaceId}
               agentId={agentId}
               onClear={() => setChatClearKey((prev) => prev + 1)}
+              isEmbedded
+            />
+          </AgentAccordionSection>
+
+          {/* Configure with AI (meta-agent) */}
+          <AgentAccordionSection
+            id="config-chat"
+            title={
+              <>
+                <Cog6ToothIcon className="mr-2 inline-block size-5" />
+                CONFIGURE WITH AI
+              </>
+            }
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
+            contentClassName="p-0 lg:p-0"
+          >
+            <AgentChatWithFunctionUrl
+              workspaceId={workspaceId}
+              agentId={agentId}
+              agent={{ name: "Configure with AI" }}
+              streamPathSuffix="config/test"
               isEmbedded
             />
           </AgentAccordionSection>

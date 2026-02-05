@@ -106,6 +106,11 @@ const InviteMember = lazy(() =>
     default: module.InviteMember,
   }))
 );
+const AgentChatWithFunctionUrl = lazy(() =>
+  import("../components/AgentChatWithFunctionUrl").then((module) => ({
+    default: module.AgentChatWithFunctionUrl,
+  }))
+);
 import { useAccordion } from "../hooks/useAccordion";
 import { useSubscription } from "../hooks/useSubscription";
 import { useTrialStatus } from "../hooks/useTrialCredits";
@@ -602,6 +607,38 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             onUpgradeClick={() => setIsUpgradeModalOpen(true)}
           />
         )}
+
+        <SectionGroup
+          title={
+            <>
+              <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
+              Workspace assistant
+            </>
+          }
+        >
+          <AccordionSection
+            id="workspace-assistant"
+            title={
+              <>
+                <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
+                Chat with workspace assistant
+              </>
+            }
+            isExpanded={expandedSection === "workspace-assistant"}
+            onToggle={() => toggleSection("workspace-assistant")}
+          >
+            <LazyAccordionContent isExpanded={expandedSection === "workspace-assistant"}>
+              <Suspense fallback={<LoadingScreen compact message="Loading chat..." />}>
+                <AgentChatWithFunctionUrl
+                  workspaceId={id!}
+                  agentId="_workspace"
+                  agent={{ name: "Workspace assistant" }}
+                  isEmbedded
+                />
+              </Suspense>
+            </LazyAccordionContent>
+          </AccordionSection>
+        </SectionGroup>
 
         <SectionGroup
           title={

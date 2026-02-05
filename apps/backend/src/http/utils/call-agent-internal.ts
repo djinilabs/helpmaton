@@ -812,6 +812,10 @@ const logDelegationErrorConversation = async (params: {
   }
 };
 
+export type CallAgentInternalOptions = {
+  configurationMode?: boolean;
+};
+
 export async function callAgentInternal(
   workspaceId: string,
   targetAgentId: string,
@@ -822,12 +826,14 @@ export async function callAgentInternal(
   timeoutMs: number = DELEGATION_TIMEOUT_MS,
   conversationId?: string,
   conversationOwnerAgentId?: string,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  options?: CallAgentInternalOptions
 ): Promise<{
   response: string;
   targetAgentConversationId: string;
   shouldTrackRequest: boolean;
 }> {
+  const configurationMode = options?.configurationMode === true;
   if (callDepth >= maxDepth) {
     return {
       response: `Error: Maximum delegation depth (${maxDepth}) reached. Cannot delegate further.`,
@@ -895,21 +901,37 @@ export async function callAgentInternal(
   );
 
   const shouldBuildTools = supportsToolCalling(modelCapabilities);
-  const tools = shouldBuildTools
-    ? await buildDelegationTools({
-        workspaceId,
-        targetAgentId,
-        extractedTargetAgentId,
-        targetAgentConversationId,
-        targetAgent,
-        message,
-        context,
-        conversationId,
-        conversationOwnerAgentId,
-        callDepth,
-        maxDepth,
-      })
-    : undefined;
+  let tools: ToolSet | undefined;
+  let effectiveSystemPrompt: string;
+
+  if (configurationMode) {
+    const { setupAgentConfigTools } = await import("./agentConfigTools");
+    const configSetup = setupAgentConfigTools(
+      workspaceId,
+      targetAgentId,
+      targetAgent as Parameters<typeof setupAgentConfigTools>[2],
+      { llmObserver }
+    );
+    tools = configSetup.tools as ToolSet;
+    effectiveSystemPrompt = configSetup.systemPrompt;
+  } else {
+    tools = shouldBuildTools
+      ? await buildDelegationTools({
+          workspaceId,
+          targetAgentId,
+          extractedTargetAgentId,
+          targetAgentConversationId,
+          targetAgent,
+          message,
+          context,
+          conversationId,
+          conversationOwnerAgentId,
+          callDepth,
+          maxDepth,
+        })
+      : undefined;
+    effectiveSystemPrompt = targetAgent.systemPrompt;
+  }
 
   const wrappedTools = tools
     ? wrapToolsWithObserver(tools, llmObserver)
@@ -926,33 +948,44 @@ export async function callAgentInternal(
     },
   ];
 
-  const existingConversationMessages = await fetchExistingConversationMessages({
-    workspaceId,
-    targetAgentId,
-    conversationId,
-  });
+  const existingConversationMessages = configurationMode
+    ? []
+    : await fetchExistingConversationMessages({
+        workspaceId,
+        targetAgentId,
+        conversationId,
+      });
 
-  const { injectKnowledgeIntoMessages } = await import(
-    "../../utils/knowledgeInjection"
-  );
-  const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
-    workspaceId,
-    targetAgent,
-    modelMessages,
-    db,
-    context,
-    targetAgentId,
-    conversationId,
-    usesByok,
-    existingConversationMessages
-  );
+  let modelMessagesWithKnowledge: ModelMessage[];
+  let knowledgeInjectionMessage: UIMessage | undefined;
+  let rerankingRequestMessage: UIMessage | undefined;
+  let rerankingResultMessage: UIMessage | undefined;
 
-  const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
-  const knowledgeInjectionMessage =
-    knowledgeInjectionResult.knowledgeInjectionMessage;
-  const rerankingRequestMessage =
-    knowledgeInjectionResult.rerankingRequestMessage;
-  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
+  if (configurationMode) {
+    modelMessagesWithKnowledge = modelMessages;
+  } else {
+    const { injectKnowledgeIntoMessages } = await import(
+      "../../utils/knowledgeInjection"
+    );
+    const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
+      workspaceId,
+      targetAgent,
+      modelMessages,
+      db,
+      context,
+      targetAgentId,
+      conversationId,
+      usesByok,
+      existingConversationMessages
+    );
+    modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
+    knowledgeInjectionMessage =
+      knowledgeInjectionResult.knowledgeInjectionMessage ?? undefined;
+    rerankingRequestMessage =
+      knowledgeInjectionResult.rerankingRequestMessage ?? undefined;
+    rerankingResultMessage =
+      knowledgeInjectionResult.rerankingResultMessage ?? undefined;
+  }
 
   const inputUserMessage: UIMessage = {
     role: "user",
@@ -983,7 +1016,7 @@ export async function callAgentInternal(
       agentProvider,
       resolvedModelName || MODEL_NAME,
       modelMessagesWithKnowledge,
-      targetAgent.systemPrompt,
+      effectiveSystemPrompt,
       toolDefinitions,
       usesByok
     );
@@ -1006,7 +1039,7 @@ export async function callAgentInternal(
       workspaceId,
       targetAgentId,
       model: resolvedModelName || MODEL_NAME,
-      systemPromptLength: targetAgent.systemPrompt.length,
+      systemPromptLength: effectiveSystemPrompt.length,
       messagesCount: modelMessagesWithKnowledge.length,
       toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
       hasAbortSignal: Boolean(abortSignal || timeoutMs > 0),
@@ -1035,7 +1068,7 @@ export async function callAgentInternal(
     try {
       result = await executeGenerateTextWithTimeout({
         model: model as unknown as Parameters<typeof generateText>[0]["model"],
-        system: targetAgent.systemPrompt,
+        system: effectiveSystemPrompt,
         messages: modelMessagesWithKnowledge,
         tools: effectiveTools,
         generateOptions,

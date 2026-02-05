@@ -20,7 +20,7 @@ export async function authenticateStreamRequest(
   agentId: string,
   secret?: string
 ): Promise<{ authenticated: boolean; userId?: string }> {
-  if (endpointType === "test") {
+  if (endpointType === "test" || endpointType === "config-test") {
     // Extract and verify JWT token
     const authHeader =
       event.headers["authorization"] || event.headers["Authorization"];

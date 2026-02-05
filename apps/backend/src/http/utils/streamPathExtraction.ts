@@ -5,7 +5,11 @@ import {
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
 
-import { detectEndpointType, type EndpointType } from "./streamEndpointDetection";
+import {
+  detectEndpointType,
+  type EndpointType,
+  WORKSPACE_AGENT_ID,
+} from "./streamEndpointDetection";
 
 /**
  * Path parameters extracted from the request
@@ -54,14 +58,32 @@ export function extractStreamPathParameters(
   let secret: string | undefined;
 
   // Extract based on endpoint type
-  if (endpointType === "test") {
-    // Pattern: /api/streams/{workspaceId}/{agentId}/test
-    const streamTestMatch = normalizedPath.match(
-      /^\/api\/streams\/([^/]+)\/([^/]+)\/test$/
+  if (endpointType === "config-test") {
+    // Pattern: /api/streams/{workspaceId}/{agentId}/config/test
+    const configTestMatch = normalizedPath.match(
+      /^\/api\/streams\/([^/]+)\/([^/]+)\/config\/test$/
     );
-    if (streamTestMatch) {
-      workspaceId = streamTestMatch[1];
-      agentId = streamTestMatch[2];
+    if (configTestMatch) {
+      workspaceId = configTestMatch[1];
+      agentId = configTestMatch[2];
+    }
+  } else if (endpointType === "test") {
+    // Pattern: /api/streams/{workspaceId}/workspace/test or /_workspace/test → agentId = _workspace
+    const workspaceAgentMatch = normalizedPath.match(
+      /^\/api\/streams\/([^/]+)\/(?:workspace|_workspace)\/test$/
+    );
+    if (workspaceAgentMatch) {
+      workspaceId = workspaceAgentMatch[1];
+      agentId = WORKSPACE_AGENT_ID;
+    } else {
+      // Pattern: /api/streams/{workspaceId}/{agentId}/test
+      const streamTestMatch = normalizedPath.match(
+        /^\/api\/streams\/([^/]+)\/([^/]+)\/test$/
+      );
+      if (streamTestMatch) {
+        workspaceId = streamTestMatch[1];
+        agentId = streamTestMatch[2];
+      }
     }
   } else {
     // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}

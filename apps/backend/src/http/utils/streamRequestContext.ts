@@ -15,13 +15,19 @@ import type { UIMessage } from "../../utils/messageTypes";
 import { getAllowedOrigins } from "../../utils/streamServerUtils";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 
-import { MODEL_NAME } from "./agentUtils";
+import { getWorkspaceApiKey } from "./agent-keys";
+import { createAgentModel } from "./agent-model";
+import { setupAgentConfigTools } from "./agentConfigTools";
+import { MODEL_NAME , validateWorkspaceAndAgent } from "./agentUtils";
 import { validateAndReserveCredits } from "./generationCreditManagement";
 import { validateSubscriptionAndLimits } from "./generationRequestTracking";
 import { createLlmObserver, type LlmObserver } from "./llmObserver";
+import { getDefaultModel } from "./modelFactory";
 import { streamRequestSchema } from "./schemas/requestSchemas";
 import type { EndpointType } from "./streamEndpointDetection";
+import { WORKSPACE_AGENT_ID } from "./streamEndpointDetection";
 import type { PathParameters } from "./streamPathExtraction";
+import { setupWorkspaceAgentAndTools } from "./workspaceAgentTools";
 
 /**
  * Request context for processing the stream
@@ -767,17 +773,85 @@ export async function buildStreamRequestContext(
   const { awsRequestId, lambdaContext } = requireLambdaContext(event);
 
   // Setup agent context
-  // Always use "https://app.helpmaton.com" as the Referer header for LLM provider calls
   const modelReferer = "https://app.helpmaton.com";
   const llmObserver = createLlmObserver();
-  const { agent, model, tools, usesByok } = await setupAgentContext(
-    workspaceId,
-    agentId,
-    modelReferer,
-    lambdaContext,
-    conversationId,
-    llmObserver
-  );
+
+  let agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
+  let model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
+  let tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"];
+  let usesByok: boolean;
+
+  if (agentId === WORKSPACE_AGENT_ID) {
+    const workspaceSetup = await setupWorkspaceAgentAndTools(workspaceId, {
+      modelReferer,
+      userId: authResult.userId,
+      context: lambdaContext,
+      conversationId,
+      llmObserver,
+    });
+    agent = workspaceSetup.agent as Awaited<
+      ReturnType<typeof setupAgentAndTools>
+    >["agent"];
+    model = workspaceSetup.model;
+    tools = workspaceSetup.tools;
+    usesByok = workspaceSetup.usesByok;
+  } else if (endpointType === "config-test") {
+    const { agent: loadedAgent } = await validateWorkspaceAndAgent(
+      workspaceId,
+      agentId
+    );
+    const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
+    usesByok = workspaceApiKey !== null;
+    const configSetup = setupAgentConfigTools(
+      workspaceId,
+      agentId,
+      loadedAgent as Parameters<typeof setupAgentConfigTools>[2],
+      { llmObserver }
+    );
+    const modelName =
+      typeof loadedAgent.modelName === "string"
+        ? loadedAgent.modelName
+        : undefined;
+    const resolvedModelName = modelName || getDefaultModel();
+    model = await createAgentModel(
+      modelReferer,
+      workspaceApiKey ?? undefined,
+      resolvedModelName,
+      workspaceId,
+      agentId,
+      usesByok,
+      authResult.userId,
+      "openrouter",
+      {
+        temperature: loadedAgent.temperature,
+        topP: loadedAgent.topP,
+        topK: loadedAgent.topK,
+        maxOutputTokens: loadedAgent.maxOutputTokens,
+        stopSequences: loadedAgent.stopSequences,
+      },
+      llmObserver
+    );
+    tools = configSetup.tools;
+    agent = {
+      ...loadedAgent,
+      systemPrompt: configSetup.systemPrompt,
+      enableKnowledgeInjection: false,
+      enableKnowledgeReranking: false,
+    } as Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
+  } else {
+    const normalSetup = await setupAgentContext(
+      workspaceId,
+      agentId,
+      modelReferer,
+      lambdaContext,
+      conversationId,
+      llmObserver
+    );
+    agent = normalSetup.agent;
+    model = normalSetup.model;
+    tools = normalSetup.tools;
+    usesByok = normalSetup.usesByok;
+  }
 
   // Extract and convert request body
   const bodyText = extractRequestBody(event);

@@ -13,6 +13,7 @@ import { isAuthenticationError } from "../../utils/handlingErrors";
  */
 export type GenerationEndpoint =
   | "test"
+  | "config-test"
   | "stream"
   | "webhook"
   | "bridge"
