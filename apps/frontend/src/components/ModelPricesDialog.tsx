@@ -281,11 +281,11 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
                       </button>
                     ),
                     render: (row) => (
-                      <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                      <code className="break-words rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                         {row.modelName}
                       </code>
                     ),
-                    width: "minmax(120px, 1fr)",
+                    width: "minmax(160px, 2fr)",
                   },
                   {
                     key: "input",

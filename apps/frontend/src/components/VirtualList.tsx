@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, type FC, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type FC, type ReactNode } from "react";
 
 const SCROLL_LOAD_THRESHOLD = 5;
 
@@ -37,6 +37,11 @@ export function VirtualList<T>({
   fetchNextPage,
   empty,
 }: VirtualListProps<T>): ReturnType<FC> {
+  const [scrollReady, setScrollReady] = useState(false);
+  useLayoutEffect(() => {
+    if (scrollRef.current && !scrollReady) setScrollReady(true);
+  });
+
   const count = items.length;
   const estimate = rowHeight != null ? () => rowHeight : (estimateSize ?? (() => 120));
   const virtualizer = useVirtualizer({
@@ -64,6 +69,18 @@ export function VirtualList<T>({
   }
 
   const totalSize = virtualizer.getTotalSize();
+  const virtualItemsLength = virtualItems.length;
+
+  // Before scroll element is measured, virtualizer can return 0 items; show all items so list isn't empty and scroll works
+  if (count > 0 && virtualItemsLength === 0) {
+    return (
+      <div style={{ width: "100%" }}>
+        {items.map((item, i) => (
+          <div key={getItemKey?.(i, item) ?? i}>{renderRow(item, i)}</div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -112,3 +129,4 @@ export function VirtualList<T>({
     </div>
   );
 }
+

@@ -17,6 +17,7 @@ export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
     ref: Ref<HTMLDivElement>
   ) {
     const style: React.CSSProperties = {
+      minHeight: 200,
       maxHeight: typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight,
       overflow: "auto",
     };

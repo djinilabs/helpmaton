@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, type FC, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type FC, type ReactNode } from "react";
 
 const SCROLL_LOAD_THRESHOLD = 5;
 
@@ -37,6 +37,11 @@ export function VirtualTable<T>({
   fetchNextPage,
   empty,
 }: VirtualTableProps<T>): ReturnType<FC> {
+  const [scrollReady, setScrollReady] = useState(false);
+  useLayoutEffect(() => {
+    if (scrollRef.current && !scrollReady) setScrollReady(true);
+  });
+
   const count = rows.length;
   const estimate = rowHeight != null ? () => rowHeight : (estimateSize ?? (() => 52));
   const virtualizer = useVirtualizer({
@@ -67,12 +72,60 @@ export function VirtualTable<T>({
     .map((c) => c.width ?? "1fr")
     .join(" ");
 
+  const headerRowStyle = {
+    gridTemplateColumns,
+    position: "sticky" as const,
+    top: 0,
+    zIndex: 10,
+  };
+
+  // Before scroll element is measured, virtualizer can return 0 items; show all rows so table isn't empty and scroll works
+  if (count > 0 && virtualItems.length === 0) {
+    return (
+      <div className="w-full" role="table" aria-rowcount={count}>
+        <div
+          className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+          style={headerRowStyle}
+          role="row"
+        >
+          {columns.map((col) => (
+            <div
+              key={col.key}
+              className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-neutral-50"
+              role="columnheader"
+            >
+              {col.header}
+            </div>
+          ))}
+        </div>
+        {rows.map((item, i) => (
+          <div
+            key={getItemKey?.(i, item) ?? i}
+            className="grid border-b border-neutral-200 dark:border-neutral-700"
+            style={{ gridTemplateColumns }}
+            role="row"
+          >
+            {columns.map((col) => (
+              <div
+                key={col.key}
+                className="flex items-center px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300"
+                role="gridcell"
+              >
+                {col.render(item, i)}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full" role="table" aria-rowcount={count}>
-      {/* Sticky header */}
+      {/* Sticky header: stays fixed at top of scroll container */}
       <div
-        className="sticky top-0 z-10 grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
-        style={{ gridTemplateColumns }}
+        className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+        style={headerRowStyle}
         role="row"
       >
         {columns.map((col) => (
