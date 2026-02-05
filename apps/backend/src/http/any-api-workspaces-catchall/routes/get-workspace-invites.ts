@@ -1,7 +1,8 @@
 import express from "express";
 
+import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
-import { getWorkspaceInvites } from "../../../utils/workspaceInvites";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -63,11 +64,28 @@ export const registerGetWorkspaceInvites = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.OWNER),
     asyncHandler(async (req, res) => {
       const { workspaceId } = req.params;
-      const invites = await getWorkspaceInvites(workspaceId);
+      const db = await database();
 
-      // Filter to only pending invites (not accepted and not expired)
+      const limit = parseLimitParam(req.query.limit);
+      const cursor = req.query.cursor as string | undefined;
+
+      const query: Parameters<
+        (typeof db)["workspace-invite"]["queryPaginated"]
+      >[0] = {
+        IndexName: "byWorkspaceId",
+        KeyConditionExpression: "workspaceId = :workspaceId",
+        ExpressionAttributeValues: {
+          ":workspaceId": workspaceId,
+        },
+      };
+
+      const result = await db["workspace-invite"].queryPaginated(query, {
+        limit,
+        cursor: cursor ?? null,
+      });
+
       const now = new Date();
-      const pendingInvites = invites
+      const pendingInvites = result.items
         .filter((inv) => !inv.acceptedAt)
         .filter((inv) => new Date(inv.expiresAt) > now)
         .map((inv) => {
@@ -84,7 +102,10 @@ export const registerGetWorkspaceInvites = (app: express.Application) => {
           };
         });
 
-      res.json({ invites: pendingInvites });
+      res.json({
+        invites: pendingInvites,
+        nextCursor: result.nextCursor ?? undefined,
+      });
     })
   );
 };

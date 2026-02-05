@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -10,7 +11,7 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  * /api/workspaces/{workspaceId}/agents:
  *   get:
  *     summary: List workspace agents
- *     description: Returns all agents in a workspace
+ *     description: Returns paginated list of agents in a workspace
  *     tags:
  *       - Agents
  *     security:
@@ -22,13 +23,34 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *         description: Workspace ID
  *         schema:
  *           type: string
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of agents to return (1-100, default 50)
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 50
+ *       - name: cursor
+ *         in: query
+ *         description: Pagination cursor from previous response
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: List of agents
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/AgentsResponse'
+ *               type: object
+ *               properties:
+ *                 agents:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Agent'
+ *                 nextCursor:
+ *                   type: string
+ *                   nullable: true
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -52,16 +74,23 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
         }
         const workspaceId = req.params.workspaceId;
 
-        // Query all agents for this workspace using GSI
-        const agents = await db.agent.query({
+        const limit = parseLimitParam(req.query.limit);
+        const cursor = req.query.cursor as string | undefined;
+
+        const query: Parameters<typeof db.agent.queryPaginated>[0] = {
           IndexName: "byWorkspaceId",
           KeyConditionExpression: "workspaceId = :workspaceId",
           ExpressionAttributeValues: {
             ":workspaceId": workspaceId,
           },
+        };
+
+        const result = await db.agent.queryPaginated(query, {
+          limit,
+          cursor: cursor ?? null,
         });
 
-        const agentsList = agents.items.map((agent) => ({
+        const agentsList = result.items.map((agent) => ({
           id: agent.pk.replace(`agents/${workspaceId}/`, ""),
           name: agent.name,
           systemPrompt: agent.systemPrompt,
@@ -85,7 +114,10 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
           updatedAt: agent.updatedAt,
         }));
 
-        res.json({ agents: agentsList });
+        res.json({
+          agents: agentsList,
+          nextCursor: result.nextCursor ?? undefined,
+        });
       } catch (error) {
         handleError(error, next, "GET /api/workspaces/:workspaceId/agents");
       }

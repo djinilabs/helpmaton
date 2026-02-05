@@ -66,7 +66,7 @@ interface DefaultErrorFallbackProps {
   resetError: () => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+ 
 const DefaultErrorFallback: React.FC<DefaultErrorFallbackProps> = ({
   error,
   resetError,

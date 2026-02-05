@@ -3,6 +3,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -26,12 +27,22 @@ export const registerGetWorkspaceIntegrations = (app: express.Application) => {
         const workspaceId = req.params.workspaceId;
         const db = await database();
 
-        const result = await db["bot-integration"].query({
+        const limit = parseLimitParam(req.query.limit);
+        const cursor = req.query.cursor as string | undefined;
+
+        const query: Parameters<
+          (typeof db)["bot-integration"]["queryPaginated"]
+        >[0] = {
           IndexName: "byWorkspaceId",
           KeyConditionExpression: "workspaceId = :workspaceId",
           ExpressionAttributeValues: {
             ":workspaceId": workspaceId,
           },
+        };
+
+        const result = await db["bot-integration"].queryPaginated(query, {
+          limit,
+          cursor: cursor ?? null,
         });
 
         const integrations = result.items.map((integration) => {
@@ -55,7 +66,6 @@ export const registerGetWorkspaceIntegrations = (app: express.Application) => {
           };
         });
 
-        // Track integrations list view
         trackBusinessEvent(
           "integrations",
           "listed",
@@ -66,7 +76,10 @@ export const registerGetWorkspaceIntegrations = (app: express.Application) => {
           req
         );
 
-        res.json(integrations);
+        res.json({
+          integrations,
+          nextCursor: result.nextCursor ?? undefined,
+        });
       } catch (error) {
         handleError(error, next, "GET /api/workspaces/:workspaceId/integrations");
       }

@@ -3,6 +3,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { normalizeFolderPath } from "../../../utils/s3";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -76,22 +77,28 @@ export const registerGetWorkspaceDocuments = (app: express.Application) => {
       const db = await database();
       const workspaceId = req.params.workspaceId;
       const folderPath = req.query.folder as string | undefined;
+      const limit = parseLimitParam(req.query.limit);
+      const cursor = req.query.cursor as string | undefined;
 
-      // Query all documents for this workspace using GSI
-      const documents = await db["workspace-document"].query({
+      const query: Parameters<
+        (typeof db)["workspace-document"]["queryPaginated"]
+      >[0] = {
         IndexName: "byWorkspaceId",
         KeyConditionExpression: "workspaceId = :workspaceId",
         ExpressionAttributeValues: {
           ":workspaceId": workspaceId,
         },
+      };
+
+      const result = await db["workspace-document"].queryPaginated(query, {
+        limit,
+        cursor: cursor ?? null,
       });
 
-      let filteredDocuments = documents.items;
-
-      // Filter by folder if specified
+      let filteredDocuments = result.items;
       if (folderPath !== undefined) {
         const normalizedPath = normalizeFolderPath(folderPath || "");
-        filteredDocuments = documents.items.filter(
+        filteredDocuments = result.items.filter(
           (doc) => doc.folderPath === normalizedPath
         );
       }
@@ -107,7 +114,10 @@ export const registerGetWorkspaceDocuments = (app: express.Application) => {
         updatedAt: doc.updatedAt,
       }));
 
-      res.json({ documents: documentsList });
+      res.json({
+        documents: documentsList,
+        nextCursor: result.nextCursor ?? undefined,
+      });
     })
   );
 };

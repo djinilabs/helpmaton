@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { requireAgentInWorkspace } from "../../utils/agentScheduleAccess";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -58,40 +59,41 @@ export const registerGetAgentSchedules = (app: express.Application) => {
 
         await requireAgentInWorkspace(db, workspaceId, agentId);
 
-        const schedules: Array<{
-          id: string;
-          name: string;
-          cronExpression: string;
-          prompt: string;
-          enabled: boolean;
-          nextRunAt: number;
-          lastRunAt?: string | null;
-          createdAt: string;
-          updatedAt?: string;
-        }> = [];
+        const limit = parseLimitParam(req.query.limit);
+        const cursor = req.query.cursor as string | undefined;
 
-        for await (const schedule of db["agent-schedule"].queryAsync({
+        const query: Parameters<
+          (typeof db)["agent-schedule"]["queryPaginated"]
+        >[0] = {
           IndexName: "byAgentId",
           KeyConditionExpression: "agentId = :agentId",
           ExpressionAttributeValues: {
             ":agentId": agentId,
           },
           ScanIndexForward: false,
-        })) {
-          schedules.push({
-            id: schedule.scheduleId,
-            name: schedule.name,
-            cronExpression: schedule.cronExpression,
-            prompt: schedule.prompt,
-            enabled: schedule.enabled,
-            nextRunAt: schedule.nextRunAt,
-            lastRunAt: schedule.lastRunAt ?? null,
-            createdAt: schedule.createdAt,
-            updatedAt: schedule.updatedAt,
-          });
-        }
+        };
 
-        res.json(schedules);
+        const result = await db["agent-schedule"].queryPaginated(query, {
+          limit,
+          cursor: cursor ?? null,
+        });
+
+        const schedules = result.items.map((schedule) => ({
+          id: schedule.scheduleId,
+          name: schedule.name,
+          cronExpression: schedule.cronExpression,
+          prompt: schedule.prompt,
+          enabled: schedule.enabled,
+          nextRunAt: schedule.nextRunAt,
+          lastRunAt: schedule.lastRunAt ?? null,
+          createdAt: schedule.createdAt,
+          updatedAt: schedule.updatedAt,
+        }));
+
+        res.json({
+          schedules,
+          nextCursor: result.nextCursor ?? undefined,
+        });
       } catch (error) {
         handleError(error, next);
       }

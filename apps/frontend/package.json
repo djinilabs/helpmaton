@@ -17,6 +17,7 @@
     "@sentry/react": "^10.0.0",
     "@simplewebauthn/browser": "^13.2.0",
     "@tanstack/react-query": "^5.90.9",
+    "@tanstack/react-virtual": "^3.13.18",
     "ai": "^6.0.0",
     "canvas-confetti": "^1.9.4",
     "next-auth": "5.0.0-beta.30",
