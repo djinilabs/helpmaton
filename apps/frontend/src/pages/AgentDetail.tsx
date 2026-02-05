@@ -24,6 +24,7 @@ import {
   ChevronRightIcon,
   PhotoIcon,
   ShareIcon,
+  Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -3221,12 +3222,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
             ? [
                 { id: "memory-extraction", label: "Memory extraction" },
                 { id: "summarization-prompts", label: "Summarization prompts" },
-                { id: "memory-search", label: "Memory search" },
+                { id: "memory-search", label: "Memory search tool" },
                 { id: "inject-knowledge", label: "Inject knowledge" },
               ]
             : []),
           ...(enableSearchDocuments
-            ? [{ id: "document-search", label: "Document search" }]
+            ? [{ id: "document-search", label: "Document search tool" }]
             : []),
         ],
       },
@@ -3236,11 +3237,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         children: canEdit
           ? [
               { id: "email-tool", label: "Email tool" },
-              { id: "tavily-search", label: "Tavily search" },
-              { id: "tavily-fetch", label: "Tavily fetch" },
-              { id: "exa-search", label: "Exa search" },
+              { id: "tavily-search", label: "Web search tool" },
+              { id: "tavily-fetch", label: "Web fetch tool" },
+              { id: "exa-search", label: "Advanced search tool" },
               { id: "image-generation", label: "Image generation" },
-              { id: "client-tools", label: "Client tools" },
+              { id: "client-tools", label: "Client-side tools" },
             ]
           : [],
       },
@@ -3258,7 +3259,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
       },
       {
         title: "Advanced",
-        icon: <WrenchScrewdriverIcon className="size-5" />,
+        icon: <Cog6ToothIcon className="size-5" />,
         children: canEdit ? [{ id: "advanced", label: "Advanced" }] : [],
       },
       {
@@ -3268,7 +3269,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           { id: "schedules", label: "Schedules" },
           { id: "embeddable-widget", label: "Embeddable widget" },
           { id: "stream-server", label: "Stream server" },
-          { id: "keys", label: "API keys" },
+          { id: "keys", label: "Webhooks" },
           { id: "bot-integrations", label: "Bot integrations" },
         ],
       },
@@ -3306,10 +3307,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         onToggleCollapse={() => setNavCollapsed((c) => !c)}
       />
       <div
-        className={`mx-auto max-w-4xl transition-[padding] duration-200 ${
+        className={`transition-[padding] duration-200 ${
           navCollapsed ? "lg:pl-[4rem]" : "lg:pl-[16rem]"
         }`}
       >
+        <div className="mx-auto max-w-4xl">
         <AgentOverviewCard
           agent={agent}
           canEdit={canEdit}
@@ -7197,6 +7199,7 @@ body {
         {/*
         Modals - only load when opened
         */}
+        </div>
       </div>
     </div>
   );

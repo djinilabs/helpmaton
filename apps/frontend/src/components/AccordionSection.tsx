@@ -194,7 +194,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   return (
     <div
       id={id}
-      className="mb-4 scroll-mt-20 rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900"
+      className="mb-4 scroll-mt-[7.5rem] rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900"
     >
       <button
         ref={headerRef}

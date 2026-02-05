@@ -2,6 +2,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
+import { useEffect, useState } from "react";
 import type { FC, ReactNode } from "react";
 
 export interface AgentDetailNavItem {
@@ -23,9 +24,19 @@ export interface AgentDetailNavProps {
   onToggleCollapse: () => void;
 }
 
-const NAV_TOP_OFFSET = "7.5rem";
 const NAV_WIDTH_EXPANDED = "16rem";
 const NAV_WIDTH_COLLAPSED = "4rem";
+/** Fallback top (px) when the sticky breadcrumb nav isn't found (e.g. SSR). */
+const FALLBACK_TOP_PX = 56;
+/** Delay before scrolling so the accordion expand animation can start (AccordionSection uses 300ms transition). */
+const SCROLL_AFTER_EXPAND_MS = 150;
+
+function getTopBelowBreadcrumb(): number {
+  if (typeof document === "undefined") return FALLBACK_TOP_PX;
+  const breadcrumb = document.querySelector("nav.sticky") as HTMLElement | null;
+  if (!breadcrumb) return FALLBACK_TOP_PX;
+  return breadcrumb.getBoundingClientRect().bottom;
+}
 
 export const AgentDetailNav: FC<AgentDetailNavProps> = ({
   groups,
@@ -34,6 +45,23 @@ export const AgentDetailNav: FC<AgentDetailNavProps> = ({
   collapsed,
   onToggleCollapse,
 }) => {
+  const [topPx, setTopPx] = useState(FALLBACK_TOP_PX);
+
+  useEffect(() => {
+    const updateTop = () => setTopPx(getTopBelowBreadcrumb());
+    updateTop();
+    window.addEventListener("scroll", updateTop, { passive: true });
+    window.addEventListener("resize", updateTop);
+    const observer = new ResizeObserver(updateTop);
+    const breadcrumb = document.querySelector("nav.sticky");
+    if (breadcrumb) observer.observe(breadcrumb);
+    return () => {
+      window.removeEventListener("scroll", updateTop);
+      window.removeEventListener("resize", updateTop);
+      observer.disconnect();
+    };
+  }, []);
+
   const scrollToSection = (sectionId: string) => {
     if (expandedSection !== sectionId) {
       onToggleSection(sectionId);
@@ -51,7 +79,7 @@ export const AgentDetailNav: FC<AgentDetailNavProps> = ({
           'button[aria-expanded][aria-controls]'
         );
         header?.focus({ preventScroll: true });
-      }, 150);
+      }, SCROLL_AFTER_EXPAND_MS);
     });
   };
 
@@ -60,7 +88,7 @@ export const AgentDetailNav: FC<AgentDetailNavProps> = ({
       aria-label="Agent sections"
       className="fixed left-0 z-30 hidden flex-col border-r border-neutral-200 bg-white transition-[width] duration-200 dark:border-neutral-700 dark:bg-neutral-900 lg:flex"
       style={{
-        top: NAV_TOP_OFFSET,
+        top: `${topPx}px`,
         bottom: 0,
         width: collapsed ? NAV_WIDTH_COLLAPSED : NAV_WIDTH_EXPANDED,
       }}
