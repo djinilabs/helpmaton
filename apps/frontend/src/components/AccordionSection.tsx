@@ -228,8 +228,10 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       >
         <div
           ref={innerContentRef}
-          className={`border-t border-neutral-200 p-6 dark:border-neutral-700 lg:p-8 ${
-            contentClassName ?? ""
+          className={`border-t border-neutral-200 dark:border-neutral-700 ${
+            contentClassName !== undefined && contentClassName !== ""
+              ? contentClassName
+              : "p-6 lg:p-8"
           }`}
         >
           <LazyAccordionContent isExpanded={isExpanded}>

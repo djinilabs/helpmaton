@@ -633,8 +633,10 @@ export const AgentChat: FC<AgentChatProps> = ({
     >
       {!isWidget && (
         <div
-          className={`border-b-2 border-neutral-300 p-5 dark:border-neutral-700${
-            isEmbedded ? " bg-transparent" : " rounded-t-2xl bg-neutral-100 dark:bg-neutral-800"
+          className={`border-b-2 border-neutral-300 dark:border-neutral-700${
+            isEmbedded
+              ? " bg-transparent p-3"
+              : " rounded-t-2xl bg-neutral-100 p-5 dark:bg-neutral-800"
           }`}
         >
           <div className="flex items-center justify-between gap-4">
@@ -679,10 +681,12 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto bg-white p-4 dark:bg-neutral-900"
+        className={`flex-1 overflow-y-auto bg-white dark:bg-neutral-900 ${isEmbedded ? "p-2" : "p-4"}`}
       >
         {(error || apiError) && (
-          <div className="mb-4 rounded-xl border-2 border-error-300 bg-error-100 p-5 dark:border-error-800 dark:bg-error-900">
+          <div
+            className={`mb-4 rounded-xl border-2 border-error-300 bg-error-100 dark:border-error-800 dark:bg-error-900 ${isEmbedded ? "p-3" : "p-5"}`}
+          >
             <div className="text-base font-bold text-error-900 dark:text-error-50">
               Error
             </div>
@@ -765,7 +769,9 @@ export const AgentChat: FC<AgentChatProps> = ({
 
       {/* Pending Files Preview */}
       {enableFileUpload && pendingFiles.length > 0 && (
-        <div className="border-t-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+        <div
+          className={`border-t-2 border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 ${isEmbedded ? "p-2" : "p-3"}`}
+        >
           <div className="flex flex-wrap gap-2">
             {pendingFiles.map((fileData, index) => (
               <div
@@ -840,7 +846,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Input Form */}
       <form
         onSubmit={handleSubmit}
-        className="flex gap-4 rounded-b-2xl border-t-2 border-neutral-300 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900"
+        className={`flex gap-4 border-t-2 border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900 ${isEmbedded ? "p-2 sm:p-3" : "rounded-b-2xl p-5"}`}
       >
         {enableFileUpload && (
           <>

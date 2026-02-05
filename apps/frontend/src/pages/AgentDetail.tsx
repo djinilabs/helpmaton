@@ -3571,6 +3571,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         */}
 
         <SectionGroup
+          compact
           title={
             <>
               <BeakerIcon className="mr-2 inline-block size-5" />
