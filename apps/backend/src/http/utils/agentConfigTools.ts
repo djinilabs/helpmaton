@@ -37,6 +37,7 @@ import {
   updateEvalJudgeSchema,
 } from "./schemas/workspaceSchemas";
 
+
 /** Agent record shape needed for config tools */
 export type AgentRecordForConfig = {
   pk: string;
@@ -232,21 +233,20 @@ function createAgentConfigTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const parsed = createAgentScheduleSchema.parse(args);
-      if (!userId) {
-        throw new Error("Authentication required");
-      }
-      try {
-        await ensureAgentScheduleCreationAllowed(
-          workspaceId,
-          userId,
-          agentId
-        );
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message: unknown }).message)
-            : "Subscription or schedule limit check failed.";
-        return JSON.stringify({ error: message });
+      if (userId) {
+        try {
+          await ensureAgentScheduleCreationAllowed(
+            workspaceId,
+            userId,
+            agentId
+          );
+        } catch (err) {
+          const message =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message: unknown }).message)
+              : "Subscription or schedule limit check failed.";
+          return JSON.stringify({ error: message });
+        }
       }
       const db = await database();
       const scheduleId = randomUUID();
@@ -401,21 +401,20 @@ function createAgentConfigTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const parsed = createEvalJudgeSchema.parse(args);
-      if (!userId) {
-        throw new Error("Authentication required");
-      }
-      try {
-        await ensureAgentEvalJudgeCreationAllowed(
-          workspaceId,
-          userId,
-          agentId
-        );
-      } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? String((err as { message: unknown }).message)
-            : "Subscription or eval judge limit check failed.";
-        return JSON.stringify({ error: message });
+      if (userId) {
+        try {
+          await ensureAgentEvalJudgeCreationAllowed(
+            workspaceId,
+            userId,
+            agentId
+          );
+        } catch (err) {
+          const message =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message: unknown }).message)
+              : "Subscription or eval judge limit check failed.";
+          return JSON.stringify({ error: message });
+        }
       }
       const db = await database();
       const judgeId = randomUUID();

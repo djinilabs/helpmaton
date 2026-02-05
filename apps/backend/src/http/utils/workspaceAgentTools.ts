@@ -31,8 +31,7 @@ import {
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
-  getUserEmailById,
-} from "../../utils/subscriptionUtils";
+ getUserEmailById } from "../../utils/subscriptionUtils";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 import {
   createWorkspaceInvite,
@@ -176,6 +175,8 @@ async function requireWorkspaceOwner(
 /**
  * Creates the workspace agent tool set (get_workspace, list_agents, configure_agent, etc.)
  */
+const RESERVED_AGENT_IDS = ["_workspace", "workspace"] as const;
+
 function createWorkspaceAgentTools(
   workspaceId: string,
   userId: string | undefined
@@ -701,7 +702,8 @@ function createWorkspaceAgentTools(
         .parse(args);
       if (RESERVED_AGENT_IDS.includes(agentId as (typeof RESERVED_AGENT_IDS)[number])) {
         return JSON.stringify({
-          error: "The workspace agent is virtual and has no detailed record; use list_agents for workspace agents.",
+          error:
+            "The workspace agent is a virtual agent; use list_agents to get specific agent IDs.",
         });
       }
       await requireWorkspaceRead(workspaceId, userId);
@@ -742,7 +744,6 @@ function createWorkspaceAgentTools(
     },
   });
 
-  const RESERVED_AGENT_IDS = ["_workspace", "workspace"] as const;
   const createAgentToolSchema = z
     .object({
       name: z.string().min(1),

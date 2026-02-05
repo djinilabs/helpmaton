@@ -40,10 +40,7 @@ const suggestionEntrySchema = z.union([
 
 const suggestionsResponseSchema = z
   .object({
-    suggestions: z
-      .array(suggestionEntrySchema)
-      .min(1)
-      .max(MAX_SUGGESTIONS),
+    suggestions: z.array(suggestionEntrySchema).min(1).max(MAX_SUGGESTIONS),
   })
   .strict();
 
@@ -166,7 +163,9 @@ function buildProhibitionRules(
   context: WorkspaceSuggestionContext | AgentSuggestionContext,
   subject: "workspace" | "agent",
 ): string {
-  const lines: string[] = ["Do NOT suggest any of the following (they are already set or not applicable):"];
+  const lines: string[] = [
+    "Do NOT suggest any of the following (they are already set or not applicable):",
+  ];
   const w =
     "workspace" in context
       ? (context as AgentSuggestionContext).workspace
@@ -184,7 +183,9 @@ function buildProhibitionRules(
     lines.push("- Adding or connecting an OpenRouter API key (already set).");
   }
   if (conn?.hasConnectedTools === true) {
-    lines.push("- Connecting MCP tools or connected tools (already connected).");
+    lines.push(
+      "- Connecting MCP tools or connected tools (already connected).",
+    );
   }
   if (conn?.hasEmailConnection === true) {
     lines.push("- Connecting email (already connected).");
@@ -213,7 +214,9 @@ function buildProhibitionRules(
       lines.push("- Enabling knowledge injection (already enabled).");
     }
     if ((agent?.enabledMcpServerIds?.length ?? 0) > 0) {
-      lines.push("- Connecting or enabling MCP tools for this agent (already configured).");
+      lines.push(
+        "- Connecting or enabling MCP tools for this agent (already configured).",
+      );
     }
     if ((agent?.evalJudgeCount ?? 0) > 0) {
       lines.push("- Adding evaluation judges (already configured).");
@@ -229,9 +232,7 @@ function buildProhibitionRules(
 }
 
 const buildContextHash = (context: unknown): string => {
-  return createHash("sha256")
-    .update(JSON.stringify(context))
-    .digest("hex");
+  return createHash("sha256").update(JSON.stringify(context)).digest("hex");
 };
 
 type SuggestionEntry = { text: string; actionType?: SuggestionActionType };
@@ -244,7 +245,10 @@ const generateSuggestionEntries = async (params: {
   const modelName = getDefaultModel();
   const model = await createModel("openrouter", modelName, params.workspaceId);
   const requestTimeout = createRequestTimeout();
-  const prohibitionRules = buildProhibitionRules(params.context, params.subject);
+  const prohibitionRules = buildProhibitionRules(
+    params.context,
+    params.subject,
+  );
 
   try {
     const result = await generateText({
@@ -271,10 +275,9 @@ const generateSuggestionEntries = async (params: {
       const text =
         typeof raw === "string"
           ? raw.replace(/\s+/g, " ").trim()
-          : (raw as { text: string; actionType?: string }).text?.replace(
-              /\s+/g,
-              " ",
-            )?.trim();
+          : (raw as { text: string; actionType?: string }).text
+              ?.replace(/\s+/g, " ")
+              ?.trim();
       if (!text) continue;
       const key = text.toLowerCase();
       if (seenText.has(key)) continue;
@@ -358,14 +361,19 @@ export const buildWorkspaceSuggestionContext = async (params: {
   apiKeys?: { openrouter?: boolean };
 }): Promise<WorkspaceSuggestionContext> => {
   const { db, workspaceId, workspace, apiKeys } = params;
-  const [hasConnectedTools, hasEmailConnection, hasAgents, hasDocuments, hasOutputChannels] =
-    await Promise.all([
-      hasAnyWorkspaceItems(db, { table: "mcp-server", workspaceId }),
-      hasAnyWorkspaceItems(db, { table: "email-connection", workspaceId }),
-      hasAnyWorkspaceItems(db, { table: "agent", workspaceId }),
-      hasAnyWorkspaceItems(db, { table: "workspace-document", workspaceId }),
-      hasAnyWorkspaceItems(db, { table: "output_channel", workspaceId }),
-    ]);
+  const [
+    hasConnectedTools,
+    hasEmailConnection,
+    hasAgents,
+    hasDocuments,
+    hasOutputChannels,
+  ] = await Promise.all([
+    hasAnyWorkspaceItems(db, { table: "mcp-server", workspaceId }),
+    hasAnyWorkspaceItems(db, { table: "email-connection", workspaceId }),
+    hasAnyWorkspaceItems(db, { table: "agent", workspaceId }),
+    hasAnyWorkspaceItems(db, { table: "workspace-document", workspaceId }),
+    hasAnyWorkspaceItems(db, { table: "output_channel", workspaceId }),
+  ]);
 
   return {
     workspace: {
