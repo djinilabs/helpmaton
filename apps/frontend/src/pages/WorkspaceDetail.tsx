@@ -389,7 +389,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto w-full max-w-6xl">
         <div className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
           <div className="absolute right-0 top-0 size-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">

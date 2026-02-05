@@ -3196,7 +3196,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
 
   return (
     <div className="min-h-screen bg-white p-8 dark:bg-neutral-950">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto w-full max-w-6xl">
         <AgentOverviewCard
           agent={agent}
           canEdit={canEdit}
