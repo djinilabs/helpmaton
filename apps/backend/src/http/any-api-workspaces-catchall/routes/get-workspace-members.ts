@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { getUserEmailById } from "../../../utils/subscriptionUtils";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -70,17 +71,23 @@ export const registerGetWorkspaceMembers = (app: express.Application) => {
           throw badRequest("Workspace resource not found");
         }
 
-        // Query permission table for workspace members
-        const permissions = await db.permission.query({
+        const limit = parseLimitParam(req.query.limit);
+        const cursor = req.query.cursor as string | undefined;
+
+        const query: Parameters<typeof db.permission.queryPaginated>[0] = {
           KeyConditionExpression: "pk = :workspacePk",
           ExpressionAttributeValues: {
             ":workspacePk": workspaceResource,
           },
+        };
+
+        const result = await db.permission.queryPaginated(query, {
+          limit,
+          cursor: cursor ?? null,
         });
 
-        // Get user emails for each member
         const members = await Promise.all(
-          permissions.items.map(async (permission) => {
+          result.items.map(async (permission) => {
             const userId = permission.sk.replace("users/", "");
             const email = await getUserEmailById(userId);
             return {
@@ -93,7 +100,10 @@ export const registerGetWorkspaceMembers = (app: express.Application) => {
           })
         );
 
-        res.json({ members });
+        res.json({
+          members,
+          nextCursor: result.nextCursor ?? undefined,
+        });
       } catch (error) {
         handleError(error, next, "GET /api/workspaces/:workspaceId/members");
       }

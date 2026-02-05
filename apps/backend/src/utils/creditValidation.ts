@@ -104,8 +104,16 @@ export async function validateCreditsAndLimits(
     throw new Error(`Workspace ${workspaceId} not found`);
   }
 
+  // Virtual agents (e.g. workspace agent _workspace) have no DB record; skip agent load for credit/limit checks.
+  const RESERVED_VIRTUAL_AGENT_IDS = ["_workspace", "workspace"] as const;
+  const isVirtualAgent =
+    agentId &&
+    RESERVED_VIRTUAL_AGENT_IDS.includes(
+      agentId as (typeof RESERVED_VIRTUAL_AGENT_IDS)[number]
+    );
+
   let agent: AgentRecord | undefined;
-  if (agentId) {
+  if (agentId && !isVirtualAgent) {
     const agentPk = `agents/${workspaceId}/${agentId}`;
     agent = await db.agent.get(agentPk, "agent");
     if (!agent) {
@@ -229,8 +237,16 @@ export async function validateCreditsAndLimitsAndReserve(
     throw new Error(`Workspace ${workspaceId} not found`);
   }
 
+  // Virtual agents (e.g. workspace agent _workspace) have no DB record; skip agent load for credit/limit checks.
+  const RESERVED_VIRTUAL_AGENT_IDS = ["_workspace", "workspace"] as const;
+  const isVirtualAgent =
+    agentId &&
+    RESERVED_VIRTUAL_AGENT_IDS.includes(
+      agentId as (typeof RESERVED_VIRTUAL_AGENT_IDS)[number]
+    );
+
   let agent: AgentRecord | undefined;
-  if (agentId) {
+  if (agentId && !isVirtualAgent) {
     const agentPk = `agents/${workspaceId}/${agentId}`;
     agent = await db.agent.get(agentPk, "agent");
     if (!agent) {

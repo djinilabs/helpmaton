@@ -1,6 +1,6 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { FC } from "react";
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -8,6 +8,9 @@ import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useAgentEvalResults, useEvalJudges } from "../hooks/useEvalJudges";
 import type { EvalResult, EvalResultsResponse } from "../utils/api";
 import { canOpenEvalConversation } from "../utils/evalResults";
+
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualTable } from "./VirtualTable";
 
 interface EvalResultsListProps {
   workspaceId: string;
@@ -26,6 +29,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
   endDate,
   onConversationOpen,
 }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedResult, setSelectedResult] = useState<EvalResult | null>(
     null
   );
@@ -286,51 +290,36 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
           No evaluation results yet.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-neutral-300 dark:border-neutral-700">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-                  Judge
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-                  Goal Completion
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-                  Tool Efficiency
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-                  Faithfulness
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-                  Critical Failure
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((result) => {
-                const isFailed = result.status === "failed";
-                const goalScore = result.scoreGoalCompletion;
-                const toolScore = result.scoreToolEfficiency;
-                const faithScore = result.scoreFaithfulness;
-                const showGoalScore = !isFailed && goalScore !== null;
-                const showToolScore = !isFailed && toolScore !== null;
-                const showFaithScore = !isFailed && faithScore !== null;
-                return (
-                  <tr
-                    key={`${result.conversationId}-${result.judgeId}-${result.evaluatedAt}`}
-                    className="border-b border-neutral-200 transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
-                  >
-                  <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+        <ScrollContainer ref={scrollRef} className="overflow-x-auto">
+          <VirtualTable<EvalResult>
+            scrollRef={scrollRef}
+            rows={results}
+            getItemKey={(_, r) => `${r.conversationId}-${r.judgeId}-${r.evaluatedAt}`}
+            rowHeight={52}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={fetchNextPage}
+            empty={
+              <p className="py-4 text-sm text-neutral-600 dark:text-neutral-300">
+                No evaluation results yet.
+              </p>
+            }
+            columns={[
+              {
+                key: "date",
+                header: "Date",
+                render: (result) => (
+                  <span className="text-neutral-600 dark:text-neutral-400">
                     {formatDate(result.evaluatedAt)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-neutral-900 dark:text-neutral-50">
+                  </span>
+                ),
+              },
+              {
+                key: "judge",
+                header: "Judge",
+                render: (result) => {
+                  const isFailed = result.status === "failed";
+                  return (
                     <div className="flex items-center gap-2">
                       <span>{result.judgeName}</span>
                       {isFailed && (
@@ -339,84 +328,102 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                         </span>
                       )}
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {showGoalScore ? (
-                      <span
-                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
-                          goalScore
-                        )}`}
-                      >
-                        {goalScore}%
-                      </span>
-                    ) : (
-                      <span className="text-xs text-neutral-500">N/A</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {showToolScore ? (
-                      <span
-                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
-                          toolScore
-                        )}`}
-                      >
-                        {toolScore}%
-                      </span>
-                    ) : (
-                      <span className="text-xs text-neutral-500">N/A</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {showFaithScore ? (
-                      <span
-                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
-                          faithScore
-                        )}`}
-                      >
-                        {faithScore}%
-                      </span>
-                    ) : (
-                      <span className="text-xs text-neutral-500">N/A</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {isFailed ? (
-                      <span className="text-xs text-neutral-500">N/A</span>
-                    ) : result.criticalFailureDetected ? (
-                      <span className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-100 px-2 py-1 text-xs font-semibold text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
-                        <ExclamationTriangleIcon className="size-3" />
-                        Yes
-                      </span>
-                    ) : (
-                      <span className="text-xs text-neutral-500">No</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => setSelectedResult(result)}
-                      className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  );
+                },
+              },
+              {
+                key: "goalCompletion",
+                header: "Goal Completion",
+                render: (result) => {
+                  const isFailed = result.status === "failed";
+                  const goalScore = result.scoreGoalCompletion;
+                  const showGoalScore = !isFailed && goalScore !== null;
+                  return showGoalScore ? (
+                    <span
+                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
+                        goalScore
+                      )}`}
                     >
-                      View Details
-                    </button>
-                  </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {hasNextPage && (
-        <div className="mt-4">
-          <button
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
-          >
-            {isFetchingNextPage ? "Loading..." : "Load More"}
-          </button>
-        </div>
+                      {goalScore}%
+                    </span>
+                  ) : (
+                    <span className="text-xs text-neutral-500">N/A</span>
+                  );
+                },
+              },
+              {
+                key: "toolEfficiency",
+                header: "Tool Efficiency",
+                render: (result) => {
+                  const isFailed = result.status === "failed";
+                  const toolScore = result.scoreToolEfficiency;
+                  const showToolScore = !isFailed && toolScore !== null;
+                  return showToolScore ? (
+                    <span
+                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
+                        toolScore
+                      )}`}
+                    >
+                      {toolScore}%
+                    </span>
+                  ) : (
+                    <span className="text-xs text-neutral-500">N/A</span>
+                  );
+                },
+              },
+              {
+                key: "faithfulness",
+                header: "Faithfulness",
+                render: (result) => {
+                  const isFailed = result.status === "failed";
+                  const faithScore = result.scoreFaithfulness;
+                  const showFaithScore = !isFailed && faithScore !== null;
+                  return showFaithScore ? (
+                    <span
+                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getScoreColor(
+                        faithScore
+                      )}`}
+                    >
+                      {faithScore}%
+                    </span>
+                  ) : (
+                    <span className="text-xs text-neutral-500">N/A</span>
+                  );
+                },
+              },
+              {
+                key: "criticalFailure",
+                header: "Critical Failure",
+                render: (result) => {
+                  const isFailed = result.status === "failed";
+                  return isFailed ? (
+                    <span className="text-xs text-neutral-500">N/A</span>
+                  ) : result.criticalFailureDetected ? (
+                    <span className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-100 px-2 py-1 text-xs font-semibold text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                      <ExclamationTriangleIcon className="size-3" />
+                      Yes
+                    </span>
+                  ) : (
+                    <span className="text-xs text-neutral-500">No</span>
+                  );
+                },
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                render: (result) => (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedResult(result)}
+                    className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  >
+                    View Details
+                  </button>
+                ),
+              },
+            ]}
+          />
+        </ScrollContainer>
       )}
 
       {selectedResult && (

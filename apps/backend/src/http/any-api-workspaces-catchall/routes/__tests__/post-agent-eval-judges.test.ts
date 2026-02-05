@@ -12,13 +12,11 @@ import {
 const {
   mockRandomUUID,
   mockDatabase,
-  mockEnsureWorkspaceSubscription,
-  mockCheckAgentEvalJudgeLimit,
+  mockEnsureAgentEvalJudgeCreationAllowed,
 } = vi.hoisted(() => ({
   mockRandomUUID: vi.fn(),
   mockDatabase: vi.fn(),
-  mockEnsureWorkspaceSubscription: vi.fn(),
-  mockCheckAgentEvalJudgeLimit: vi.fn(),
+  mockEnsureAgentEvalJudgeCreationAllowed: vi.fn(),
 }));
 
 vi.mock("crypto", () => ({
@@ -30,8 +28,7 @@ vi.mock("../../../../tables", () => ({
 }));
 
 vi.mock("../../../../utils/subscriptionUtils", () => ({
-  ensureWorkspaceSubscription: mockEnsureWorkspaceSubscription,
-  checkAgentEvalJudgeLimit: mockCheckAgentEvalJudgeLimit,
+  ensureAgentEvalJudgeCreationAllowed: mockEnsureAgentEvalJudgeCreationAllowed,
 }));
 
 import { registerPostAgentEvalJudges } from "../post-agent-eval-judges";
@@ -94,8 +91,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/eval-judges", () => 
       create: mockCreate,
     };
 
-    mockEnsureWorkspaceSubscription.mockResolvedValue("subscription-123");
-    mockCheckAgentEvalJudgeLimit.mockResolvedValue(undefined);
+    mockEnsureAgentEvalJudgeCreationAllowed.mockResolvedValue(undefined);
 
     const req = createMockRequest({
       workspaceResource: `workspaces/${workspaceId}`,
@@ -118,13 +114,9 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/eval-judges", () => 
 
     await handler(req as never, res as never, next);
 
-    expect(mockEnsureWorkspaceSubscription).toHaveBeenCalledWith(
+    expect(mockEnsureAgentEvalJudgeCreationAllowed).toHaveBeenCalledWith(
       workspaceId,
-      "user-123"
-    );
-    expect(mockCheckAgentEvalJudgeLimit).toHaveBeenCalledWith(
-      "subscription-123",
-      workspaceId,
+      "user-123",
       agentId
     );
     expect(mockCreate).toHaveBeenCalledWith(
@@ -173,8 +165,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/eval-judges", () => 
     };
     mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
 
-    mockEnsureWorkspaceSubscription.mockResolvedValue("subscription-123");
-    mockCheckAgentEvalJudgeLimit.mockRejectedValue(
+    mockEnsureAgentEvalJudgeCreationAllowed.mockRejectedValue(
       badRequest(
         "Eval judge limit exceeded. Maximum 1 eval judge(s) allowed per agent for free plan."
       )
@@ -201,13 +192,9 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/eval-judges", () => 
 
     await handler(req as never, res as never, next);
 
-    expect(mockEnsureWorkspaceSubscription).toHaveBeenCalledWith(
+    expect(mockEnsureAgentEvalJudgeCreationAllowed).toHaveBeenCalledWith(
       workspaceId,
-      "user-123"
-    );
-    expect(mockCheckAgentEvalJudgeLimit).toHaveBeenCalledWith(
-      "subscription-123",
-      workspaceId,
+      "user-123",
       agentId
     );
     expect(next).toHaveBeenCalledWith(expect.any(Error));

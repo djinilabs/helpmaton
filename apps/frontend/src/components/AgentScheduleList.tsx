@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FC } from "react";
 
 import {
-  useAgentSchedules,
+  useAgentSchedulesInfinite,
   useDeleteAgentSchedule,
   useUpdateAgentSchedule,
 } from "../hooks/useAgentSchedules";
@@ -11,6 +11,8 @@ import { describeCronExpression } from "../utils/scheduleCron";
 import { trackEvent } from "../utils/tracking";
 
 import { AgentScheduleModal } from "./AgentScheduleModal";
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualList } from "./VirtualList";
 
 interface AgentScheduleListProps {
   workspaceId: string;
@@ -175,10 +177,14 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
   agentId,
   canEdit,
 }) => {
-  const { data: schedules, isLoading } = useAgentSchedules(
-    workspaceId,
-    agentId
-  );
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const {
+    data: schedulesData,
+    isLoading,
+    hasNextPage: hasNextSchedulesPage,
+    isFetchingNextPage: isFetchingNextSchedules,
+    fetchNextPage: fetchNextSchedulesPage,
+  } = useAgentSchedulesInfinite(workspaceId, agentId, 50);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(
     null
@@ -189,6 +195,9 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
     setEditingScheduleId(null);
   };
 
+  const schedulesList: AgentSchedule[] =
+    schedulesData?.pages.flatMap((p) => p.schedules) ?? [];
+
   if (isLoading) {
     return (
       <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
@@ -198,8 +207,6 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
       </div>
     );
   }
-
-  const schedulesList = schedules || [];
 
   return (
     <div className="space-y-4">
@@ -223,26 +230,39 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
         )}
       </div>
 
-      {schedulesList.length === 0 ? (
-        <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
-          <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
-            No schedules yet.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {schedulesList.map((schedule) => (
-            <ScheduleItem
-              key={schedule.id}
-              schedule={schedule}
-              workspaceId={workspaceId}
-              agentId={agentId}
-              canEdit={canEdit}
-              onEdit={setEditingScheduleId}
-            />
-          ))}
-        </div>
-      )}
+      <ScrollContainer
+        ref={scrollRef}
+        className="rounded-xl border-2 border-neutral-300 dark:border-neutral-700"
+        maxHeight="min(60vh, 500px)"
+      >
+        <VirtualList<AgentSchedule>
+          scrollRef={scrollRef}
+          items={schedulesList}
+          estimateSize={() => 140}
+          getItemKey={(_i, schedule) => schedule.id}
+          renderRow={(schedule) => (
+            <div className="border-b border-neutral-200 last:border-b-0 dark:border-neutral-700">
+              <ScheduleItem
+                schedule={schedule}
+                workspaceId={workspaceId}
+                agentId={agentId}
+                canEdit={canEdit}
+                onEdit={setEditingScheduleId}
+              />
+            </div>
+          )}
+          hasNextPage={hasNextSchedulesPage ?? false}
+          isFetchingNextPage={isFetchingNextSchedules}
+          fetchNextPage={fetchNextSchedulesPage}
+          empty={
+            <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+              <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
+                No schedules yet.
+              </p>
+            </div>
+          }
+        />
+      </ScrollContainer>
 
       {(isCreateModalOpen || editingScheduleId) && (
         <AgentScheduleModal

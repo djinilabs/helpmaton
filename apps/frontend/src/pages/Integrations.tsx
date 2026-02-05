@@ -1,13 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { DiscordCommandDialog } from "../components/DiscordCommandDialog";
 import { DiscordConnectModal } from "../components/DiscordConnectModal";
 import { IntegrationCard } from "../components/IntegrationCard";
 import { LoadingScreen } from "../components/LoadingScreen";
+import { ScrollContainer } from "../components/ScrollContainer";
 import { SlackConnectModal } from "../components/SlackConnectModal";
+import { VirtualList } from "../components/VirtualList";
 import { useToast } from "../hooks/useToast";
 import {
   listIntegrations,
@@ -27,16 +29,28 @@ const Integrations: FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const { data: integrations, isLoading } = useQuery({
-    queryKey: ["integrations", workspaceId],
-    queryFn: () => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const {
+    data: integrationsData,
+    isLoading,
+    hasNextPage: hasNextIntegrationsPage,
+    isFetchingNextPage: isFetchingNextIntegrations,
+    fetchNextPage: fetchNextIntegrationsPage,
+  } = useInfiniteQuery({
+    queryKey: ["integrations", workspaceId, "infinite"],
+    queryFn: async ({ pageParam }) => {
       if (!workspaceId) {
         throw new Error("Workspace ID is required");
       }
-      return listIntegrations(workspaceId);
+      return listIntegrations(workspaceId, 50, pageParam);
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!workspaceId,
   });
+
+  const integrations = integrationsData?.pages.flatMap((p) => p.integrations) ?? [];
 
   // Track page view
   useEffect(() => {
@@ -56,8 +70,13 @@ const Integrations: FC = () => {
     },
     onSuccess: (_, integrationId) => {
       if (workspaceId) {
+        const state = queryClient.getQueryData<{
+          pages: Array<{ integrations: Array<{ id: string; platform?: string; agentId?: string }> }>;
+        }>(["integrations", workspaceId, "infinite"]);
+        const integration = state?.pages
+          .flatMap((p) => p.integrations)
+          .find((i) => i.id === integrationId);
         queryClient.invalidateQueries({ queryKey: ["integrations", workspaceId] });
-        const integration = integrations?.find((i) => i.id === integrationId);
         trackEvent("integration_deleted", {
           workspace_id: workspaceId,
           integration_id: integrationId,
@@ -81,8 +100,13 @@ const Integrations: FC = () => {
     },
     onSuccess: (_, { id, status }) => {
       if (workspaceId) {
+        const state = queryClient.getQueryData<{
+          pages: Array<{ integrations: Array<{ id: string; platform?: string; agentId?: string }> }>;
+        }>(["integrations", workspaceId, "infinite"]);
+        const integration = state?.pages
+          .flatMap((p) => p.integrations)
+          .find((i) => i.id === id);
         queryClient.invalidateQueries({ queryKey: ["integrations", workspaceId] });
-        const integration = integrations?.find((i) => i.id === id);
         trackEvent("integration_updated", {
           workspace_id: workspaceId,
           integration_id: id,
@@ -166,26 +190,39 @@ const Integrations: FC = () => {
         </div>
       </div>
 
-      {integrations && integrations.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {integrations.map((integration) => (
-            <IntegrationCard
-              key={integration.id}
-              integration={integration}
-              onDelete={handleDelete}
-              onUpdate={handleUpdate}
-              onInstallCommand={handleInstallCommand}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-neutral-200 bg-white p-12 text-center dark:border-neutral-700 dark:bg-neutral-900">
-          <p className="text-neutral-600 dark:text-neutral-400">
-            No integrations yet. Connect Slack or Discord to let your agent
-            reply there.
-          </p>
-        </div>
-      )}
+      <ScrollContainer
+        ref={scrollRef}
+        className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+        maxHeight="70vh"
+      >
+        <VirtualList
+          scrollRef={scrollRef}
+          items={integrations}
+          estimateSize={() => 180}
+          getItemKey={(_i, integration) => integration.id}
+          renderRow={(integration) => (
+            <div className="border-b border-neutral-200 p-4 last:border-b-0 dark:border-neutral-700">
+              <IntegrationCard
+                integration={integration}
+                onDelete={handleDelete}
+                onUpdate={handleUpdate}
+                onInstallCommand={handleInstallCommand}
+              />
+            </div>
+          )}
+          hasNextPage={hasNextIntegrationsPage ?? false}
+          isFetchingNextPage={isFetchingNextIntegrations}
+          fetchNextPage={fetchNextIntegrationsPage}
+          empty={
+            <div className="rounded-lg border border-neutral-200 bg-white p-12 text-center dark:border-neutral-700 dark:bg-neutral-900">
+              <p className="text-neutral-600 dark:text-neutral-400">
+                No integrations yet. Connect Slack or Discord to let your agent
+                reply there.
+              </p>
+            </div>
+          }
+        />
+      </ScrollContainer>
 
       {showSlackModal && (
         <SlackConnectModal

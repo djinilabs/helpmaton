@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -92,38 +93,39 @@ export const registerGetAgentEvalJudges = (app: express.Application) => {
           throw badRequest("Agent does not belong to this workspace");
         }
 
-        // Query all judges for this agent using GSI with queryAsync for memory efficiency
-        const judgesList: Array<{
-          id: string;
-          name: string;
-          enabled: boolean;
-          samplingProbability: number;
-          provider: string;
-          modelName: string;
-          evalPrompt: string;
-          createdAt: string;
-        }> = [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for await (const judge of (db as any)["agent-eval-judge"].queryAsync({
+        const limit = parseLimitParam(req.query.limit);
+        const cursor = req.query.cursor as string | undefined;
+
+        const query = {
           IndexName: "byAgentId",
           KeyConditionExpression: "agentId = :agentId",
           ExpressionAttributeValues: {
             ":agentId": agentId,
           },
-        })) {
-          judgesList.push({
-            id: judge.judgeId,
-            name: judge.name,
-            enabled: judge.enabled,
-            samplingProbability: judge.samplingProbability ?? 100,
-            provider: judge.provider,
-            modelName: judge.modelName,
-            evalPrompt: judge.evalPrompt,
-            createdAt: judge.createdAt,
-          });
-        }
+        };
 
-        res.json(judgesList);
+        const result = await (
+          db as unknown as { "agent-eval-judge": { queryPaginated: (q: typeof query, o: { limit: number; cursor: string | null }) => Promise<{ items: Array<{ judgeId: string; name: string; enabled: boolean; samplingProbability?: number; provider: string; modelName: string; evalPrompt: string; createdAt: string }>; nextCursor: string | null }> } }
+        )["agent-eval-judge"].queryPaginated(query, {
+          limit,
+          cursor: cursor ?? null,
+        });
+
+        const judgesList = result.items.map((judge) => ({
+          id: judge.judgeId,
+          name: judge.name,
+          enabled: judge.enabled,
+          samplingProbability: judge.samplingProbability ?? 100,
+          provider: judge.provider,
+          modelName: judge.modelName,
+          evalPrompt: judge.evalPrompt,
+          createdAt: judge.createdAt,
+        }));
+
+        res.json({
+          judges: judgesList,
+          nextCursor: result.nextCursor ?? undefined,
+        });
       } catch (error) {
         handleError(error, next);
       }

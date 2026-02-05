@@ -4,11 +4,9 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
-  DUE_PARTITION,
-  DISABLED_PARTITION,
   buildAgentSchedulePk,
+  buildScheduleUpdatePayload,
 } from "../../../utils/agentSchedule";
-import { getNextRunAtEpochSeconds } from "../../../utils/cron";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateAgentScheduleSchema } from "../../utils/schemas/workspaceSchemas";
@@ -114,35 +112,14 @@ export const registerPutAgentSchedule = (app: express.Application) => {
           throw badRequest("Schedule does not belong to this agent");
         }
 
-        const updateData: Partial<typeof schedule> = {
-          updatedAt: new Date().toISOString(),
-        };
-
-        if (name !== undefined) updateData.name = name;
-        if (prompt !== undefined) updateData.prompt = prompt;
-        if (cronExpression !== undefined) {
-          updateData.cronExpression = cronExpression;
-        }
-        if (enabled !== undefined) {
-          updateData.enabled = enabled;
-          updateData.duePartition = enabled ? DUE_PARTITION : DISABLED_PARTITION;
-        }
-
-        const shouldRecomputeNextRunAt =
-          cronExpression !== undefined || (enabled === true && !schedule.enabled);
-        if (shouldRecomputeNextRunAt) {
-          const finalCronExpression =
-            cronExpression ?? schedule.cronExpression;
-          updateData.nextRunAt = getNextRunAtEpochSeconds(
-            finalCronExpression,
-            new Date()
-          );
-        }
-
-        await db["agent-schedule"].update({
-          ...schedule,
-          ...updateData,
+        const updateData = buildScheduleUpdatePayload(schedule, {
+          name,
+          cronExpression,
+          prompt,
+          enabled,
         });
+
+        await db["agent-schedule"].update(updateData);
 
         const updatedSchedule = await db["agent-schedule"].get(
           schedulePk,

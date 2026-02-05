@@ -29,6 +29,7 @@ import {
 import {
   useQueryErrorResetBoundary,
   useQuery,
+  useInfiniteQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -56,6 +57,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LazyAccordionContent } from "../components/LazyAccordionContent";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { QueryPanel } from "../components/QueryPanel";
+import { ScrollContainer } from "../components/ScrollContainer";
 import { SectionGroup } from "../components/SectionGroup";
 import { Slider } from "../components/Slider";
 // Lazy load accordion components
@@ -558,6 +560,8 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
   workspaceId,
   agentId,
 }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   if (keys.length === 0) {
     return (
       <p className="text-sm opacity-75">
@@ -567,7 +571,12 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
   }
 
   return (
-    <div className="space-y-2">
+    <ScrollContainer
+      ref={scrollRef}
+      className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+      maxHeight="min(40vh, 280px)"
+    >
+      <div className="space-y-2 p-1">
       {keys.map((keyData) => {
         const WidgetKeyItem: FC = () => {
           const deleteKey = useDeleteAgentKey(
@@ -611,7 +620,8 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
         };
         return <WidgetKeyItem key={keyData.id} />;
       })}
-    </div>
+      </div>
+    </ScrollContainer>
   );
 };
 
@@ -695,6 +705,7 @@ function useAgentDetailState({
     currentCommandName?: string;
   } | null>(null);
   const systemPromptRef = useRef<HTMLDivElement>(null);
+  const agentIntegrationsScrollRef = useRef<HTMLDivElement>(null);
 
   const { expandedSection, toggleSection } = useAccordion(
     `agent-detail-${agentId}`
@@ -715,16 +726,42 @@ function useAgentDetailState({
     }
   }, [agentId, expandedSection]);
 
-  // Fetch integrations for this agent
-  const { data: allIntegrations } = useQuery({
-    queryKey: ["integrations", workspaceId],
-    queryFn: () => listIntegrations(workspaceId),
+  // Fetch all integrations for this workspace (paginated) to filter by agent
+  const {
+    data: integrationsData,
+    fetchNextPage: fetchNextIntegrationsPage,
+    hasNextPage: hasNextIntegrationsPage,
+    isFetchingNextPage: isFetchingNextIntegrations,
+  } = useInfiniteQuery({
+    queryKey: ["integrations", workspaceId, "infinite"],
+    queryFn: async ({ pageParam }) =>
+      listIntegrations(workspaceId, 50, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!workspaceId,
   });
 
+  // Load all pages so we have the full list to filter by agentId
+  useEffect(() => {
+    if (
+      hasNextIntegrationsPage &&
+      !isFetchingNextIntegrations &&
+      fetchNextIntegrationsPage
+    ) {
+      fetchNextIntegrationsPage();
+    }
+  }, [
+    hasNextIntegrationsPage,
+    isFetchingNextIntegrations,
+    fetchNextIntegrationsPage,
+  ]);
+
+  const allIntegrations =
+    integrationsData?.pages.flatMap((p) => p.integrations) ?? [];
+
   // Filter integrations for this agent
   const agentIntegrations =
-    allIntegrations?.filter((integration) => integration.agentId === agentId) ||
+    allIntegrations.filter((integration) => integration.agentId === agentId) ||
     [];
 
   // Mutations for integrations
@@ -2115,6 +2152,7 @@ function useAgentDetailState({
     commandDialogState,
     setCommandDialogState,
     systemPromptRef,
+    agentIntegrationsScrollRef,
     expandedSection,
     toggleSection,
     chatClearKey,
@@ -3070,6 +3108,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     commandDialogState,
     setCommandDialogState,
     systemPromptRef,
+    agentIntegrationsScrollRef,
     expandedSection,
     toggleSection,
     chatClearKey,
@@ -3311,7 +3350,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
           navCollapsed ? "lg:pl-[4rem]" : "lg:pl-[16rem]"
         }`}
       >
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto w-full max-w-6xl">
         <AgentOverviewCard
           agent={agent}
           canEdit={canEdit}
@@ -3686,6 +3725,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         */}
 
         <SectionGroup
+          compact
           title={
             <>
               <BeakerIcon className="mr-2 inline-block size-5" />
@@ -3712,6 +3752,44 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               agentId={agentId}
               onClear={() => setChatClearKey((prev) => prev + 1)}
               isEmbedded
+              headerMessage={
+                <>
+                  Improve or change this agent by describing what you want in
+                  natural language—for example, update the prompt, add or remove
+                  tools, change settings, or test how the agent responds. The
+                  assistant can apply changes for you.
+                </>
+              }
+            />
+          </AgentAccordionSection>
+
+          {/* Configure with AI (meta-agent) */}
+          <AgentAccordionSection
+            id="config-chat"
+            title={
+              <>
+                <Cog6ToothIcon className="mr-2 inline-block size-5" />
+                CONFIGURE WITH AI
+              </>
+            }
+            expandedSection={expandedSection}
+            onToggle={toggleSection}
+            contentClassName="p-0 lg:p-0"
+          >
+            <AgentChatWithFunctionUrl
+              workspaceId={workspaceId}
+              agentId={agentId}
+              agent={{ name: "Configure with AI" }}
+              streamPathSuffix="config/test"
+              isEmbedded
+              headerMessage={
+                <>
+                  Improve or change this agent by describing what you want in
+                  natural language—for example, update the prompt, add or remove
+                  tools, change settings, or test how the agent responds. The
+                  assistant can apply changes for you.
+                </>
+              }
             />
           </AgentAccordionSection>
 
@@ -7032,21 +7110,27 @@ body {
                   started.
                 </p>
               ) : (
-                <div className="space-y-4">
-                  {agentIntegrations.map((integration) => (
-                    <Suspense
-                      key={integration.id}
-                      fallback={<LoadingScreen compact />}
-                    >
-                      <IntegrationCard
-                        integration={integration}
-                        onDelete={handleDeleteIntegration}
-                        onUpdate={handleUpdateIntegration}
-                        onInstallCommand={handleInstallCommand}
-                      />
-                    </Suspense>
-                  ))}
-                </div>
+                <ScrollContainer
+                  ref={agentIntegrationsScrollRef}
+                  className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+                  maxHeight="min(50vh, 400px)"
+                >
+                  <div className="space-y-4 p-1">
+                    {agentIntegrations.map((integration) => (
+                      <Suspense
+                        key={integration.id}
+                        fallback={<LoadingScreen compact />}
+                      >
+                        <IntegrationCard
+                          integration={integration}
+                          onDelete={handleDeleteIntegration}
+                          onUpdate={handleUpdateIntegration}
+                          onInstallCommand={handleInstallCommand}
+                        />
+                      </Suspense>
+                    ))}
+                  </div>
+                </ScrollContainer>
               )}
           </AgentAccordionSection>
         </SectionGroup>

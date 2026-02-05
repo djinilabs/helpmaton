@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { WORKSPACE_AGENT_ID } from "../streamEndpointDetection";
 import { extractStreamPathParameters } from "../streamPathExtraction";
 
 import { createAPIGatewayEventV2 } from "./test-helpers";
@@ -121,6 +122,41 @@ describe("streamPathExtraction", () => {
         endpointType: "test",
       });
     });
+
+    it("should extract parameters for workspace agent path (_workspace)", () => {
+      const event = createAPIGatewayEventV2({
+        rawPath: "/api/streams/workspace123/_workspace/test",
+      });
+      const result = extractStreamPathParameters(event);
+      expect(result).toEqual({
+        workspaceId: "workspace123",
+        agentId: WORKSPACE_AGENT_ID,
+        endpointType: "test",
+      });
+    });
+
+    it("should extract parameters for workspace agent path (workspace)", () => {
+      const event = createAPIGatewayEventV2({
+        rawPath: "/api/streams/workspace123/workspace/test",
+      });
+      const result = extractStreamPathParameters(event);
+      expect(result).toEqual({
+        workspaceId: "workspace123",
+        agentId: WORKSPACE_AGENT_ID,
+        endpointType: "test",
+      });
+    });
+
+    it("should extract parameters for config-test (meta-agent) path", () => {
+      const event = createAPIGatewayEventV2({
+        rawPath: "/api/streams/workspace123/agent456/config/test",
+      });
+      const result = extractStreamPathParameters(event);
+      expect(result).toEqual({
+        workspaceId: "workspace123",
+        agentId: "agent456",
+        endpointType: "config-test",
+      });
+    });
   });
 });
-

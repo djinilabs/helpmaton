@@ -5,7 +5,11 @@ import {
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
 
-import { detectEndpointType, type EndpointType } from "./streamEndpointDetection";
+import {
+  detectEndpointType,
+  type EndpointType,
+  WORKSPACE_AGENT_ID,
+} from "./streamEndpointDetection";
 
 /**
  * Path parameters extracted from the request
@@ -21,7 +25,7 @@ export interface PathParameters {
  * Extracts path parameters from the event (supports both Lambda Function URL and API Gateway)
  */
 export function extractStreamPathParameters(
-  event: LambdaUrlEvent | APIGatewayProxyEventV2
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
 ): PathParameters | null {
   // Normalize to HTTP v2 event format
   // If event already has version "2.0", it's already an APIGatewayProxyEventV2, don't transform
@@ -29,8 +33,8 @@ export function extractStreamPathParameters(
     "version" in event && event.version === "2.0"
       ? (event as APIGatewayProxyEventV2)
       : "rawPath" in event && "requestContext" in event
-      ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
-      : (event as APIGatewayProxyEventV2);
+        ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
+        : (event as APIGatewayProxyEventV2);
 
   let rawPath = httpV2Event.rawPath || "";
 
@@ -54,14 +58,32 @@ export function extractStreamPathParameters(
   let secret: string | undefined;
 
   // Extract based on endpoint type
-  if (endpointType === "test") {
-    // Pattern: /api/streams/{workspaceId}/{agentId}/test
-    const streamTestMatch = normalizedPath.match(
-      /^\/api\/streams\/([^/]+)\/([^/]+)\/test$/
+  if (endpointType === "config-test") {
+    // Pattern: /api/streams/{workspaceId}/{agentId}/config/test
+    const configTestMatch = normalizedPath.match(
+      /^\/api\/streams\/([^/]+)\/([^/]+)\/config\/test$/,
     );
-    if (streamTestMatch) {
-      workspaceId = streamTestMatch[1];
-      agentId = streamTestMatch[2];
+    if (configTestMatch) {
+      workspaceId = configTestMatch[1];
+      agentId = configTestMatch[2];
+    }
+  } else if (endpointType === "test") {
+    // Pattern: /api/streams/{workspaceId}/workspace/test or /_workspace/test → agentId = _workspace
+    const workspaceAgentMatch = normalizedPath.match(
+      /^\/api\/streams\/([^/]+)\/(?:workspace|_workspace)\/test$/,
+    );
+    if (workspaceAgentMatch) {
+      workspaceId = workspaceAgentMatch[1];
+      agentId = WORKSPACE_AGENT_ID;
+    } else {
+      // Pattern: /api/streams/{workspaceId}/{agentId}/test
+      const streamTestMatch = normalizedPath.match(
+        /^\/api\/streams\/([^/]+)\/([^/]+)\/test$/,
+      );
+      if (streamTestMatch) {
+        workspaceId = streamTestMatch[1];
+        agentId = streamTestMatch[2];
+      }
     }
   } else {
     // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}
@@ -69,7 +91,7 @@ export function extractStreamPathParameters(
     secret = httpV2Event.pathParameters?.secret;
     if (!workspaceId || !agentId || !secret) {
       const streamMatch = normalizedPath.match(
-        /^\/api\/streams\/([^/]+)\/([^/]+)\/(.+)$/
+        /^\/api\/streams\/([^/]+)\/([^/]+)\/(.+)$/,
       );
       if (streamMatch) {
         workspaceId = streamMatch[1];
@@ -101,4 +123,3 @@ export function extractStreamPathParameters(
 
   return { workspaceId, agentId, secret, endpointType };
 }
-

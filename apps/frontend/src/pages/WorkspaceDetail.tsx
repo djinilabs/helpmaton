@@ -106,6 +106,11 @@ const InviteMember = lazy(() =>
     default: module.InviteMember,
   }))
 );
+const AgentChatWithFunctionUrl = lazy(() =>
+  import("../components/AgentChatWithFunctionUrl").then((module) => ({
+    default: module.AgentChatWithFunctionUrl,
+  }))
+);
 import { useAccordion } from "../hooks/useAccordion";
 import { useSubscription } from "../hooks/useSubscription";
 import { useTrialStatus } from "../hooks/useTrialCredits";
@@ -389,7 +394,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto w-full max-w-6xl">
         <div className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
           <div className="absolute right-0 top-0 size-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
@@ -602,6 +607,47 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             onUpgradeClick={() => setIsUpgradeModalOpen(true)}
           />
         )}
+
+        <SectionGroup
+          title={
+            <>
+              <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
+              Workspace assistant
+            </>
+          }
+        >
+          <AccordionSection
+            id="workspace-assistant"
+            title={
+              <>
+                <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
+                Chat with workspace assistant
+              </>
+            }
+            isExpanded={expandedSection === "workspace-assistant"}
+            onToggle={() => toggleSection("workspace-assistant")}
+          >
+            <LazyAccordionContent isExpanded={expandedSection === "workspace-assistant"}>
+              <Suspense fallback={<LoadingScreen compact message="Loading chat..." />}>
+                <AgentChatWithFunctionUrl
+                  workspaceId={id!}
+                  agentId="_workspace"
+                  agent={{ name: "Workspace assistant" }}
+                  isEmbedded
+                  headerMessage={
+                    <>
+                      Improve or change this workspace by describing what you
+                      want in natural language—for example, add or configure
+                      agents, manage documents, set up channels, or change
+                      workspace settings. The assistant can apply changes for
+                      you.
+                    </>
+                  }
+                />
+              </Suspense>
+            </LazyAccordionContent>
+          </AccordionSection>
+        </SectionGroup>
 
         <SectionGroup
           title={

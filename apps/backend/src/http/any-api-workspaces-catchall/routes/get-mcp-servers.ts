@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -74,16 +75,24 @@ export const registerGetMcpServers = (app: express.Application) => {
         }
         const workspaceId = req.params.workspaceId;
 
-        // Query all MCP servers for this workspace
-        const result = await db["mcp-server"].query({
+        const limit = parseLimitParam(req.query.limit);
+        const cursor = req.query.cursor as string | undefined;
+
+        const query: Parameters<
+          (typeof db)["mcp-server"]["queryPaginated"]
+        >[0] = {
           IndexName: "byWorkspaceId",
           KeyConditionExpression: "workspaceId = :workspaceId",
           ExpressionAttributeValues: {
             ":workspaceId": workspaceId,
           },
+        };
+
+        const result = await db["mcp-server"].queryPaginated(query, {
+          limit,
+          cursor: cursor ?? null,
         });
 
-        // Return servers without sensitive config data
         const servers = result.items.map((server) => {
           const serverId = server.pk.replace(`mcp-servers/${workspaceId}/`, "");
           const config = server.config as {
@@ -106,7 +115,10 @@ export const registerGetMcpServers = (app: express.Application) => {
           };
         });
 
-        res.json({ servers });
+        res.json({
+          servers,
+          nextCursor: result.nextCursor ?? undefined,
+        });
       } catch (error) {
         handleError(
           error,

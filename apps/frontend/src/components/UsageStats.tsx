@@ -1,9 +1,11 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { UsageStats as UsageStatsType, Currency } from "../utils/api";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
+
+import { ScrollContainer } from "./ScrollContainer";
 
 interface UsageStatsProps {
   stats: UsageStatsType;
@@ -18,6 +20,8 @@ export const UsageStats: FC<UsageStatsProps> = ({
   stats,
   title = "Usage Statistics",
 }) => {
+  const byModelScrollRef = useRef<HTMLDivElement>(null);
+  const byProviderScrollRef = useRef<HTMLDivElement>(null);
   const currency: Currency = "usd";
   const chargeTypes: Array<{
     key: keyof UsageStatsType["costByType"];
@@ -92,68 +96,80 @@ export const UsageStats: FC<UsageStatsProps> = ({
       {stats.byModel.length > 0 && (
         <div className="mb-8">
           <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">By Model</h4>
-          <div className="space-y-3">
-            {stats.byModel.map((model: { model: string; totalTokens: number; cost: number }) => (
-              <div
-                key={model.model}
-                className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-neutral-900 dark:text-neutral-50">{model.model}</span>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getTokenUsageColor(
-                        model.totalTokens
-                      )}`}
-                    >
-                      {formatNumber(model.totalTokens)} tokens
-                    </span>
-                    <span
-                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
-                        model.cost
-                      )}`}
-                    >
-                      {formatCurrency(model.cost, currency, 10)}
-                    </span>
+          <ScrollContainer
+            ref={byModelScrollRef}
+            className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+            maxHeight="min(40vh, 320px)"
+          >
+            <div className="space-y-3 p-1">
+              {stats.byModel.map((model: { model: string; totalTokens: number; cost: number }) => (
+                <div
+                  key={model.model}
+                  className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-neutral-900 dark:text-neutral-50">{model.model}</span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getTokenUsageColor(
+                          model.totalTokens
+                        )}`}
+                      >
+                        {formatNumber(model.totalTokens)} tokens
+                      </span>
+                      <span
+                        className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                          model.cost
+                        )}`}
+                      >
+                        {formatCurrency(model.cost, currency, 10)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollContainer>
         </div>
       )}
 
       {stats.byProvider.length > 0 && (
         <div className="mb-8">
           <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">By Provider</h4>
-          <div className="space-y-3">
-            {stats.byProvider.map((provider: { provider: string; totalTokens: number; cost: number }) => (
-              <div
-                key={provider.provider}
-                className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-neutral-900 dark:text-neutral-50">{provider.provider}</span>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getTokenUsageColor(
-                        provider.totalTokens
-                      )}`}
-                    >
-                      {formatNumber(provider.totalTokens)} tokens
-                    </span>
-                    <span
-                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
-                        provider.cost
-                      )}`}
-                    >
-                      {formatCurrency(provider.cost, currency, 10)}
-                    </span>
+          <ScrollContainer
+            ref={byProviderScrollRef}
+            className="rounded-xl border border-neutral-200 dark:border-neutral-700"
+            maxHeight="min(40vh, 320px)"
+          >
+            <div className="space-y-3 p-1">
+              {stats.byProvider.map((provider: { provider: string; totalTokens: number; cost: number }) => (
+                <div
+                  key={provider.provider}
+                  className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-neutral-900 dark:text-neutral-50">{provider.provider}</span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getTokenUsageColor(
+                          provider.totalTokens
+                        )}`}
+                      >
+                        {formatNumber(provider.totalTokens)} tokens
+                      </span>
+                      <span
+                        className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                          provider.cost
+                        )}`}
+                      >
+                        {formatCurrency(provider.cost, currency, 10)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollContainer>
         </div>
       )}
 

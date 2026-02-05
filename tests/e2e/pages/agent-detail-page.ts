@@ -1,8 +1,10 @@
-import { Page, Locator } from "@playwright/test";
+import { expect, Page, Locator } from "@playwright/test";
 
 import { BasePage } from "./base-page";
 
 export class AgentDetailPage extends BasePage {
+  // Main content area (excludes the left nav so locators don't match nav items)
+  private mainContent: Locator;
   // Locators
   private testAgentAccordion: Locator;
   private conversationsAccordion: Locator;
@@ -15,17 +17,28 @@ export class AgentDetailPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    // Accordion section locators
-    this.testAgentAccordion = page.locator('[id="test"]');
-    this.conversationsAccordion = page.locator('[id="conversations"]');
-    this.memoryAccordion = page.locator('[id="memory"]');
-    this.usageAccordion = page.locator('[id="usage"]');
-    this.backButton = page.locator('button:has-text("Back")').first();
+    // Main content area: the div that contains both the agent heading and accordions
+    // (avoids left nav). Accordion content uses id="accordion-content-{sectionId}".
+    this.mainContent = page
+      .locator("main")
+      .locator("div")
+      .filter({ has: page.locator("h1.text-4xl") })
+      .filter({ has: page.locator('[id="accordion-content-test"]') })
+      .first();
 
-    // Chat interface locators
+    // Accordion section locators (in main content)
+    this.testAgentAccordion = this.mainContent.locator('[id="test"]');
+    this.conversationsAccordion = this.mainContent.locator('[id="conversations"]');
+    this.memoryAccordion = this.mainContent.locator('[id="memory"]');
+    this.usageAccordion = this.mainContent.locator('[id="usage"]');
+    this.backButton = this.mainContent.locator('button:has-text("Back")').first();
+
+    // Chat interface locators (in main content)
     // Note: AgentChat uses a textarea element
-    this.chatInput = page.locator('textarea[placeholder="Type your message..."]');
-    this.chatSubmitButton = page.locator(
+    this.chatInput = this.mainContent.locator(
+      'textarea[placeholder="Type your message..."]'
+    );
+    this.chatSubmitButton = this.mainContent.locator(
       'button[type="submit"]:has-text("Send")'
     );
   }
@@ -40,18 +53,21 @@ export class AgentDetailPage extends BasePage {
 
   /**
    * Wait for agent detail page to load
+   * Waits for the agent name heading (content appears after data loads).
+   * Main content is used for subsequent locators to avoid the left nav.
    */
   async waitForAgentDetailPage(): Promise<void> {
-    // Wait for agent name heading
-    await this.page.waitForSelector("h1.text-4xl", { timeout: 10000 });
+    await this.page
+      .locator("h1.text-4xl")
+      .waitFor({ state: "visible", timeout: 30000 });
   }
 
   /**
    * Expand an accordion section
+   * Scoped to main content so we don't click the left nav by mistake.
    */
   async expandAccordion(sectionTitle: string): Promise<void> {
-    // Find the button by its heading text (more reliable than id)
-    const accordion = this.page
+    const accordion = this.mainContent
       .locator(`button:has-text("${sectionTitle}")`)
       .first();
 
@@ -61,18 +77,10 @@ export class AgentDetailPage extends BasePage {
 
     if (!isExpanded) {
       await this.clickElement(accordion);
-      // Wait for accordion to expand by checking aria-expanded attribute
-      await this.page.waitForFunction(
-        ({ title }) => {
-          const buttons = Array.from(document.querySelectorAll("button"));
-          const button = buttons.find((btn) =>
-            btn.textContent?.includes(title)
-          );
-          return button?.getAttribute("aria-expanded") === "true";
-        },
-        { title: sectionTitle },
-        { timeout: 5000 }
-      );
+      // Wait for the accordion we clicked (in main content) to be expanded
+      await expect(accordion).toHaveAttribute("aria-expanded", "true", {
+        timeout: 5000,
+      });
     }
   }
 
@@ -98,12 +106,14 @@ export class AgentDetailPage extends BasePage {
     await this.expandTestSection();
 
     // Wait for accordion content area to be visible (ensures expansion is complete)
-    const accordionContent = this.page.locator('[id="accordion-content-test"]');
+    const accordionContent = this.mainContent.locator(
+      '[id="accordion-content-test"]'
+    );
     await accordionContent.waitFor({ state: "visible", timeout: 10000 });
 
     // Wait for the form to appear (more reliable than waiting for textarea directly)
     // This handles lazy loading and ensures the component has rendered
-    const chatForm = this.page.locator('form:has(textarea)');
+    const chatForm = this.mainContent.locator('form:has(textarea)');
     await chatForm.waitFor({ state: "visible", timeout: 60000 });
 
     // Now find the textarea within the form (should be immediate since form is visible)
@@ -146,11 +156,13 @@ export class AgentDetailPage extends BasePage {
     await this.expandTestSection();
 
     // Wait for accordion content area to be visible (ensures expansion is complete)
-    const accordionContent = this.page.locator('[id="accordion-content-test"]');
+    const accordionContent = this.mainContent.locator(
+      '[id="accordion-content-test"]'
+    );
     await accordionContent.waitFor({ state: "visible", timeout: 10000 });
 
     // Wait for the form to appear (more reliable than waiting for textarea directly)
-    const chatForm = this.page.locator('form:has(textarea)');
+    const chatForm = this.mainContent.locator('form:has(textarea)');
     await chatForm.waitFor({ state: "visible", timeout: 60000 });
 
     // Now find the textarea within the form
@@ -189,7 +201,7 @@ export class AgentDetailPage extends BasePage {
 
     // Wait for loading to complete - either conversations appear or "No conversations yet" message
     // Wait for "Loading..." text to disappear (if present)
-    const loadingLocator = this.page.locator("text=Loading...");
+    const loadingLocator = this.mainContent.locator("text=Loading...");
     try {
       await loadingLocator.waitFor({ state: "hidden", timeout: 15000 });
     } catch {
@@ -197,15 +209,17 @@ export class AgentDetailPage extends BasePage {
     }
 
     // Wait for either conversations or the empty state message to appear
-    await this.page.waitForSelector(
-      'div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer, p:has-text("No conversations yet")',
-      { timeout: 15000 }
-    );
+    await this.mainContent
+      .locator(
+        'div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer, p:has-text("No conversations yet")'
+      )
+      .first()
+      .waitFor({ state: "visible", timeout: 15000 });
 
     // Count conversation items by looking for the conversation card structure
     // Conversations are rendered as divs with specific styling classes (p-4, not p-6)
     // Note: The selector matches conversation cards within the conversations section
-    const conversations = this.page
+    const conversations = this.mainContent
       .locator('[id="accordion-content-conversations"]')
       .locator(
         "div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer"
@@ -224,7 +238,7 @@ export class AgentDetailPage extends BasePage {
     await this.expandConversationsSection();
 
     // Wait for conversations to load
-    const loadingLocator = this.page.locator("text=Loading...");
+    const loadingLocator = this.mainContent.locator("text=Loading...");
     try {
       await loadingLocator.waitFor({ state: "hidden", timeout: 15000 });
     } catch {
@@ -232,7 +246,7 @@ export class AgentDetailPage extends BasePage {
     }
 
     // Get the first conversation (most recent)
-    const conversations = this.page
+    const conversations = this.mainContent
       .locator('[id="accordion-content-conversations"]')
       .locator(
         "div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer"
@@ -273,13 +287,15 @@ export class AgentDetailPage extends BasePage {
     // Check for either memory records or empty state message
     try {
       // Wait for the temporal grain selector to appear (indicates UI is loaded)
-      await this.page.waitForSelector(
-        'select:has(option:has-text("Working Memory"))',
-        { timeout: 10000, state: "visible" }
-      );
+      await this.mainContent
+        .locator('select:has(option:has-text("Working Memory"))')
+        .first()
+        .waitFor({ state: "visible", timeout: 10000 });
 
       // Wait for loading to complete
-      const loadingText = this.page.locator("text=Loading memory records...");
+      const loadingText = this.mainContent.locator(
+        "text=Loading memory records..."
+      );
       try {
         await loadingText.waitFor({ state: "hidden", timeout: 15000 });
       } catch {
@@ -288,21 +304,21 @@ export class AgentDetailPage extends BasePage {
 
       // Check if we have memory records or empty state
       // Memory records are rendered as divs with border-2 border-neutral-300 classes
-      const hasRecords = await this.page
+      const hasRecords = await this.mainContent
         .locator("div.border-2.border-neutral-300.rounded-xl.p-4.bg-white")
         .filter({ hasText: /./ }) // Has some content
         .count()
         .then((count) => count > 0)
         .catch(() => false);
 
-      const hasEmptyState = await this.page
+      const hasEmptyState = await this.mainContent
         .locator("text=/No memory records found|No records found/i")
         .isVisible()
         .catch(() => false);
 
       // Section is accessible if either records exist or empty state is shown
       // Or if the "Memory Records" heading is visible (indicates UI loaded)
-      const hasHeading = await this.page
+      const hasHeading = await this.mainContent
         .locator('h3:has-text("Memory Records")')
         .isVisible()
         .catch(() => false);
@@ -320,13 +336,15 @@ export class AgentDetailPage extends BasePage {
     await this.expandMemorySection();
 
     // Wait for memory records section to load
-    await this.page.waitForSelector(
-      'select:has(option:has-text("Working Memory"))',
-      { timeout: 10000, state: "visible" }
-    );
+    await this.mainContent
+      .locator('select:has(option:has-text("Working Memory"))')
+      .first()
+      .waitFor({ state: "visible", timeout: 10000 });
 
     // Wait for loading to complete
-    const loadingText = this.page.locator("text=Loading memory records...");
+    const loadingText = this.mainContent.locator(
+      "text=Loading memory records..."
+    );
     try {
       await loadingText.waitFor({ state: "hidden", timeout: 15000 });
     } catch {
@@ -335,7 +353,7 @@ export class AgentDetailPage extends BasePage {
 
     // Count memory records
     // Memory records are rendered as divs with specific classes
-    const memoryRecords = this.page
+    const memoryRecords = this.mainContent
       .locator("div.border-2.border-neutral-300.rounded-xl.p-4.bg-white")
       .filter({ hasText: /./ }); // Has some content (not empty)
 
@@ -346,7 +364,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Usage section
    */
   async expandUsageSection(): Promise<void> {
-    await this.expandAccordion("AGENT USAGE");
+    await this.expandAccordion("ASSISTANT USAGE");
   }
 
   /**
@@ -362,7 +380,7 @@ export class AgentDetailPage extends BasePage {
     const stats: { totalTokens?: number; totalCost?: number } = {};
 
     try {
-      const tokenText = await this.page
+      const tokenText = await this.mainContent
         .locator("text=/tokens/i")
         .first()
         .textContent();
@@ -377,7 +395,7 @@ export class AgentDetailPage extends BasePage {
     }
 
     try {
-      const costText = await this.page
+      const costText = await this.mainContent
         .locator("text=/cost|USD/i")
         .first()
         .textContent();
@@ -395,10 +413,10 @@ export class AgentDetailPage extends BasePage {
   }
 
   /**
-   * Get agent name
+   * Get agent name (uses main to avoid nav; first visible h1 is the agent name)
    */
   async getAgentName(): Promise<string> {
-    const heading = this.page.locator("h1.text-4xl");
+    const heading = this.page.locator("main h1.text-4xl").first();
     return await this.getElementText(heading);
   }
 
@@ -406,7 +424,7 @@ export class AgentDetailPage extends BasePage {
    * Get agent system prompt
    */
   async getSystemPrompt(): Promise<string> {
-    const promptContainer = this.page
+    const promptContainer = this.mainContent
       .locator('div:has-text("System Prompt:")')
       .locator("..")
       .locator("div.text-sm");
@@ -427,28 +445,29 @@ export class AgentDetailPage extends BasePage {
     await this.expandStreamServerSection();
 
     // Wait for accordion content to be visible
-    const accordionContent = this.page.locator(
+    const accordionContent = this.mainContent.locator(
       '[id="accordion-content-stream-server"]'
     );
     await accordionContent.waitFor({ state: "visible", timeout: 10000 });
 
     // Check if stream server already exists
-    const createButton = this.page.locator(
+    const createButton = this.mainContent.locator(
       'button:has-text("Create Stream Server")'
     );
-    const testButton = this.page.locator('button:has-text("Test")');
+    const testButton = this.mainContent.locator('button:has-text("Test")');
 
     // If create button exists, we need to create the stream server
     if (await createButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       // Click "Create Stream Server" button
       await this.clickElement(createButton);
 
-      // Wait for the form to appear - look for form with label "Allowed Origins"
+      // Wait for the form to appear (scoped to stream server section)
       const form = this.page
+        .locator('[id="accordion-content-stream-server"]')
         .locator('form')
         .filter({ has: this.page.locator('label:has-text("Allowed Origins")') })
         .first();
-      await form.waitFor({ state: "visible", timeout: 10000 });
+      await form.waitFor({ state: "visible", timeout: 15000 });
 
       // Fill in allowed origins - find input within the form
       const originsInput = form.locator('input[type="text"]').first();
@@ -477,15 +496,13 @@ export class AgentDetailPage extends BasePage {
     await this.expandStreamServerSection();
 
     // Wait for accordion content to be visible
-    const accordionContent = this.page.locator(
+    const accordionContent = this.mainContent.locator(
       '[id="accordion-content-stream-server"]'
     );
     await accordionContent.waitFor({ state: "visible", timeout: 10000 });
 
     // Check if the Test button is enabled (requires stream URL)
-    const testButton = this.page
-      .locator('button:has-text("Test")')
-      .first();
+    const testButton = this.mainContent.locator('button:has-text("Test")').first();
     
     const isEnabled = await testButton.isEnabled().catch(() => false);
     if (!isEnabled) {

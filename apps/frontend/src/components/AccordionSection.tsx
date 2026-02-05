@@ -192,10 +192,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   }, [isExpanded, scrollHeaderIntoView]);
 
   return (
-    <div
-      id={id}
-      className="mb-4 scroll-mt-[7.5rem] rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900"
-    >
+    <div className="mb-4 w-full scroll-mt-[7.5rem] rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
       <button
         ref={headerRef}
         onClick={onToggle}
@@ -231,8 +228,10 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       >
         <div
           ref={innerContentRef}
-          className={`border-t border-neutral-200 p-6 dark:border-neutral-700 lg:p-8 ${
-            contentClassName ?? ""
+          className={`border-t border-neutral-200 dark:border-neutral-700 ${
+            contentClassName !== undefined && contentClassName !== ""
+              ? contentClassName
+              : "p-6 lg:p-8"
           }`}
         >
           <LazyAccordionContent isExpanded={isExpanded}>

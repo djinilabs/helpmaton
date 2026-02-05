@@ -35,6 +35,8 @@ interface AgentChatProps {
   isWidget?: boolean; // If true, hide test message and use widget-appropriate styling
   enableFileUpload?: boolean; // If false, hide upload button and file input
   isEmbedded?: boolean; // If true, render without the outer frame
+  /** Optional context-specific header (e.g. for meta-agent / configure-with-AI). When set, replaces the default "Test your agent" copy. */
+  headerMessage?: React.ReactNode;
 }
 
 /**
@@ -64,6 +66,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   isWidget = false,
   enableFileUpload = true,
   isEmbedded = false,
+  headerMessage,
 }) => {
   // Use agent prop if provided, otherwise fetch from API
   // When agentProp is provided (e.g., in widget context), skip the query to avoid auth errors
@@ -633,15 +636,29 @@ export const AgentChat: FC<AgentChatProps> = ({
     >
       {!isWidget && (
         <div
-          className={`border-b-2 border-neutral-300 p-5 dark:border-neutral-700${
-            isEmbedded ? " bg-transparent" : " rounded-t-2xl bg-neutral-100 dark:bg-neutral-800"
+          className={`border-b-2 border-neutral-300 dark:border-neutral-700${
+            isEmbedded
+              ? " bg-transparent p-3"
+              : " rounded-t-2xl bg-neutral-100 p-5 dark:bg-neutral-800"
           }`}
         >
           <div className="flex items-center justify-between gap-4">
             <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
-              Test your agent by having a conversation. This chat interface lets
-              you interact with the agent in real-time to verify its behavior
-              and responses before deploying it.
+              {headerMessage ??
+                (agentId === "_workspace" || agentId === "workspace" ? (
+                  <>
+                    Improve or change this workspace by describing what you want
+                    in natural language—for example, add or configure agents,
+                    manage documents, set up channels, or change workspace
+                    settings. The assistant can apply changes for you.
+                  </>
+                ) : (
+                  <>
+                    Test your agent by having a conversation. This chat
+                    interface lets you interact with the agent in real-time to
+                    verify its behavior and responses before deploying it.
+                  </>
+                ))}
             </p>
             {messages.length > 0 && (
               <button
@@ -679,10 +696,12 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto bg-white p-4 dark:bg-neutral-900"
+        className={`flex-1 overflow-y-auto bg-white dark:bg-neutral-900 ${isEmbedded ? "p-2" : "p-4"}`}
       >
         {(error || apiError) && (
-          <div className="mb-4 rounded-xl border-2 border-error-300 bg-error-100 p-5 dark:border-error-800 dark:bg-error-900">
+          <div
+            className={`mb-4 rounded-xl border-2 border-error-300 bg-error-100 dark:border-error-800 dark:bg-error-900 ${isEmbedded ? "p-3" : "p-5"}`}
+          >
             <div className="text-base font-bold text-error-900 dark:text-error-50">
               Error
             </div>
@@ -765,7 +784,9 @@ export const AgentChat: FC<AgentChatProps> = ({
 
       {/* Pending Files Preview */}
       {enableFileUpload && pendingFiles.length > 0 && (
-        <div className="border-t-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+        <div
+          className={`border-t-2 border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 ${isEmbedded ? "p-2" : "p-3"}`}
+        >
           <div className="flex flex-wrap gap-2">
             {pendingFiles.map((fileData, index) => (
               <div
@@ -840,7 +861,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Input Form */}
       <form
         onSubmit={handleSubmit}
-        className="flex gap-4 rounded-b-2xl border-t-2 border-neutral-300 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900"
+        className={`flex gap-4 border-t-2 border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900 ${isEmbedded ? "p-2 sm:p-3" : "rounded-b-2xl p-5"}`}
       >
         {enableFileUpload && (
           <>

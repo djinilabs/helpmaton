@@ -13,15 +13,13 @@ const {
   mockRandomUUID,
   mockDatabase,
   mockGetNextRunAtEpochSeconds,
-  mockEnsureWorkspaceSubscription,
-  mockCheckAgentScheduleLimit,
+  mockEnsureAgentScheduleCreationAllowed,
   mockTrackBusinessEvent,
 } = vi.hoisted(() => ({
   mockRandomUUID: vi.fn(),
   mockDatabase: vi.fn(),
   mockGetNextRunAtEpochSeconds: vi.fn(),
-  mockEnsureWorkspaceSubscription: vi.fn(),
-  mockCheckAgentScheduleLimit: vi.fn(),
+  mockEnsureAgentScheduleCreationAllowed: vi.fn(),
   mockTrackBusinessEvent: vi.fn(),
 }));
 
@@ -39,8 +37,7 @@ vi.mock("../../../../utils/cron", () => ({
 }));
 
 vi.mock("../../../../utils/subscriptionUtils", () => ({
-  ensureWorkspaceSubscription: mockEnsureWorkspaceSubscription,
-  checkAgentScheduleLimit: mockCheckAgentScheduleLimit,
+  ensureAgentScheduleCreationAllowed: mockEnsureAgentScheduleCreationAllowed,
 }));
 
 vi.mock("../../../../utils/tracking", () => ({
@@ -81,8 +78,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
     const nextRunAt = 1712345678;
     mockRandomUUID.mockReturnValue(scheduleId);
     mockGetNextRunAtEpochSeconds.mockReturnValue(nextRunAt);
-    mockEnsureWorkspaceSubscription.mockResolvedValue("subscription-123");
-    mockCheckAgentScheduleLimit.mockResolvedValue(undefined);
+    mockEnsureAgentScheduleCreationAllowed.mockResolvedValue(undefined);
 
     const mockAgent = {
       pk: `agents/${workspaceId}/${agentId}`,
@@ -130,13 +126,9 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
 
     await handler(req as never, res as never, next);
 
-    expect(mockEnsureWorkspaceSubscription).toHaveBeenCalledWith(
+    expect(mockEnsureAgentScheduleCreationAllowed).toHaveBeenCalledWith(
       workspaceId,
-      "user-123"
-    );
-    expect(mockCheckAgentScheduleLimit).toHaveBeenCalledWith(
-      "subscription-123",
-      workspaceId,
+      "user-123",
       agentId
     );
     expect(mockTrackBusinessEvent).toHaveBeenCalledWith(
@@ -200,8 +192,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
     };
     mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
 
-    mockEnsureWorkspaceSubscription.mockResolvedValue("subscription-123");
-    mockCheckAgentScheduleLimit.mockRejectedValue(
+    mockEnsureAgentScheduleCreationAllowed.mockRejectedValue(
       badRequest(
         "Agent schedule limit exceeded. Maximum 1 schedule(s) allowed per agent for free plan."
       )
@@ -226,13 +217,9 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
 
     await handler(req as never, res as never, next);
 
-    expect(mockEnsureWorkspaceSubscription).toHaveBeenCalledWith(
+    expect(mockEnsureAgentScheduleCreationAllowed).toHaveBeenCalledWith(
       workspaceId,
-      "user-123"
-    );
-    expect(mockCheckAgentScheduleLimit).toHaveBeenCalledWith(
-      "subscription-123",
-      workspaceId,
+      "user-123",
       agentId
     );
     expect(next).toHaveBeenCalledWith(expect.any(Error));

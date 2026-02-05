@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo, useRef } from "react";
 import type { FC } from "react";
 import { toast } from "sonner";
 
-import { useMcpServers, useDeleteMcpServer } from "../hooks/useMcpServers";
+import {
+  useMcpServersInfinite,
+  useDeleteMcpServer,
+} from "../hooks/useMcpServers";
 import type { McpServer } from "../utils/api";
 import {
   initiateMcpOAuthFlow,
@@ -12,6 +15,8 @@ import { trackEvent } from "../utils/tracking";
 
 import { McpServerModal } from "./McpServerModal";
 import { McpServerToolsDialog } from "./McpServerToolsDialog";
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualList } from "./VirtualList";
 
 interface McpServerListProps {
   workspaceId: string;
@@ -241,7 +246,20 @@ export const McpServerList: FC<McpServerListProps> = ({
   workspaceId,
   canEdit,
 }) => {
-  const { data: serversData, isLoading } = useMcpServers(workspaceId);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useMcpServersInfinite(workspaceId, 50);
+
+  const servers = useMemo(
+    () => data?.pages.flatMap((p) => p.servers) ?? [],
+    [data],
+  );
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<string | null>(null);
 
@@ -254,15 +272,13 @@ export const McpServerList: FC<McpServerListProps> = ({
     setEditingServer(serverId);
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
         <p className="text-lg font-bold text-neutral-900 dark:text-neutral-50">Loading connected tools...</p>
       </div>
     );
   }
-
-  const servers = serversData?.servers || [];
 
   return (
     <div className="space-y-4">
@@ -277,24 +293,41 @@ export const McpServerList: FC<McpServerListProps> = ({
         </div>
       )}
 
-      {servers.length === 0 ? (
+      {!isLoading && servers.length === 0 ? (
         <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
           <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
             No connected tools configured.
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {servers.map((server) => (
-            <McpServerItem
-              key={server.id}
-              server={server}
-              workspaceId={workspaceId}
-              canEdit={canEdit}
-              onEdit={handleEdit}
-            />
-          ))}
-        </div>
+        <ScrollContainer ref={scrollRef} className="max-h-[70vh]">
+          <VirtualList<McpServer>
+            scrollRef={scrollRef}
+            items={servers}
+            estimateSize={() => 140}
+            getItemKey={(_, s) => s.id}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={fetchNextPage}
+            empty={
+              <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+                <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
+                  No connected tools configured.
+                </p>
+              </div>
+            }
+            renderRow={(server) => (
+              <div className="mb-2">
+                <McpServerItem
+                  server={server}
+                  workspaceId={workspaceId}
+                  canEdit={canEdit}
+                  onEdit={handleEdit}
+                />
+              </div>
+            )}
+          />
+        </ScrollContainer>
       )}
 
       {(isCreateModalOpen || editingServer) && (

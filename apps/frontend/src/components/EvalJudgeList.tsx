@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FC } from "react";
 
 import {
-  useEvalJudges,
+  useEvalJudgesInfinite,
   useDeleteEvalJudge,
   useUpdateEvalJudge,
 } from "../hooks/useEvalJudges";
 import type { EvalJudge } from "../utils/api";
 
 import { EvalJudgeModal } from "./EvalJudgeModal";
+import { ScrollContainer } from "./ScrollContainer";
+import { VirtualList } from "./VirtualList";
 
 interface EvalJudgeListProps {
   workspaceId: string;
@@ -123,7 +125,14 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
   agentId,
   canEdit,
 }) => {
-  const { data: judges, isLoading } = useEvalJudges(workspaceId, agentId);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const {
+    data: judgesData,
+    isLoading,
+    hasNextPage: hasNextJudgesPage,
+    isFetchingNextPage: isFetchingNextJudges,
+    fetchNextPage: fetchNextJudgesPage,
+  } = useEvalJudgesInfinite(workspaceId, agentId, 50);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingJudge, setEditingJudge] = useState<string | null>(null);
 
@@ -136,6 +145,9 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
     setEditingJudge(judgeId);
   };
 
+  const judgesList: EvalJudge[] =
+    judgesData?.pages.flatMap((p) => p.judges) ?? [];
+
   if (isLoading) {
     return (
       <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
@@ -145,8 +157,6 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
       </div>
     );
   }
-
-  const judgesList = judges || [];
 
   return (
     <div className="space-y-4">
@@ -161,26 +171,39 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
         </div>
       )}
 
-      {judgesList.length === 0 ? (
-        <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
-          <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
-            No evaluation judges configured.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {judgesList.map((judge) => (
-            <EvalJudgeItem
-              key={judge.id}
-              judge={judge}
-              workspaceId={workspaceId}
-              agentId={agentId}
-              canEdit={canEdit}
-              onEdit={handleEdit}
-            />
-          ))}
-        </div>
-      )}
+      <ScrollContainer
+        ref={scrollRef}
+        className="rounded-xl border-2 border-neutral-300 dark:border-neutral-700"
+        maxHeight="min(60vh, 500px)"
+      >
+        <VirtualList<EvalJudge>
+          scrollRef={scrollRef}
+          items={judgesList}
+          estimateSize={() => 140}
+          getItemKey={(_i, judge) => judge.id}
+          renderRow={(judge) => (
+            <div className="border-b border-neutral-200 last:border-b-0 dark:border-neutral-700">
+              <EvalJudgeItem
+                judge={judge}
+                workspaceId={workspaceId}
+                agentId={agentId}
+                canEdit={canEdit}
+                onEdit={handleEdit}
+              />
+            </div>
+          )}
+          hasNextPage={hasNextJudgesPage ?? false}
+          isFetchingNextPage={isFetchingNextJudges}
+          fetchNextPage={fetchNextJudgesPage}
+          empty={
+            <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+              <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
+                No evaluation judges configured.
+              </p>
+            </div>
+          }
+        />
+      </ScrollContainer>
 
       {(isCreateModalOpen || editingJudge) && (
         <EvalJudgeModal
