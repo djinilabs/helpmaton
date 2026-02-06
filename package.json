@@ -78,7 +78,7 @@
       "@sentry/cli"
     ],
     "overrides": {
-      "@types/node": "24.10.9",
+      "@types/node": "24.10.10",
       "esbuild": "^0.27.2",
       "vite": "^7.2.2",
       "next": "^16.0.7"
