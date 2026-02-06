@@ -1,4 +1,8 @@
-import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import type { FC } from "react";
 import { lazy, Suspense, useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
@@ -17,6 +21,8 @@ import { trackEvent } from "../utils/tracking";
 
 import { ScrollContainer } from "./ScrollContainer";
 import { VirtualTable } from "./VirtualTable";
+
+const DESCRIPTION_PREVIEW_LENGTH = 20;
 
 const ConversationDetailModal = lazy(() =>
   import("./ConversationDetailModal").then((module) => ({
@@ -38,6 +44,18 @@ export const TransactionTable: FC<TransactionTableProps> = ({
     conversationId: string;
     agentId: string;
   } | null>(null);
+  const [expandedDescriptionIds, setExpandedDescriptionIds] = useState<
+    Set<string>
+  >(new Set());
+
+  const toggleDescriptionExpanded = (id: string) => {
+    setExpandedDescriptionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const workspaceQuery = useWorkspaceTransactions(workspaceId, 50);
   const agentQuery = useAgentTransactions(workspaceId, agentId || "", 50, {
@@ -174,8 +192,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
         <div className="flex items-start gap-2">
           <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
-            Warning: Transaction records are automatically deleted after 1 year
-            for data retention purposes.
+            Warning: Transaction records are automatically deleted after 1 year.
           </p>
         </div>
       </div>
@@ -185,142 +202,189 @@ export const TransactionTable: FC<TransactionTableProps> = ({
           No transactions yet.
         </p>
       ) : (
-        <ScrollContainer ref={scrollRef} className="overflow-x-auto">
-          <VirtualTable<Transaction>
-            scrollRef={scrollRef}
-            rows={transactions}
-            getItemKey={(_i, t) => t.id}
-            rowHeight={52}
-            hasNextPage={hasNextPage}
-            isFetchingNextPage={isFetchingNextPage}
-            fetchNextPage={fetchNextPage}
-            empty={
-              <p className="py-4 text-sm text-neutral-600 dark:text-neutral-300">
-                No transactions yet.
-              </p>
-            }
-            columns={[
-              {
-                key: "date",
-                header: "Date",
-                render: (t) => (
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    {formatDate(t.createdAt)}
-                  </span>
-                ),
-              },
-              {
-                key: "description",
-                header: "Description",
-                render: (t) => (
-                  <span title={t.description} className="cursor-help">
-                    {t.description.length > 10
-                      ? `${t.description.substring(0, 10)}...`
-                      : t.description}
-                  </span>
-                ),
-              },
-              {
-                key: "source",
-                header: "Source",
-                render: (t) => (
-                  <span
-                    className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getTransactionTypeColor(
-                      t.source
-                    )}`}
-                  >
-                    {formatSource(t.source)}
-                  </span>
-                ),
-              },
-              {
-                key: "supplier",
-                header: "Supplier",
-                render: (t) => (
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    {t.supplier}
-                  </span>
-                ),
-              },
-              {
-                key: "agent",
-                header: "Agent",
-                render: (t) =>
-                  t.agentId ? (
-                    <Link
-                      to={`/workspaces/${workspaceId}/agents/${t.agentId}`}
-                      className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                    >
-                      View Agent
-                    </Link>
-                  ) : (
-                    "-"
+        <div className="text-xs">
+          <ScrollContainer ref={scrollRef} className="overflow-x-auto">
+            <VirtualTable<Transaction>
+              scrollRef={scrollRef}
+              rows={transactions}
+              getItemKey={(_i, t) => t.id}
+              estimateSize={() => 52}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+              empty={
+                <p className="py-4 text-sm text-neutral-600 dark:text-neutral-300">
+                  No transactions yet.
+                </p>
+              }
+              columns={[
+                {
+                  key: "date",
+                  header: "Date",
+                  width: "150px",
+                  render: (t) => (
+                    <span className="text-neutral-600 dark:text-neutral-400">
+                      {formatDate(t.createdAt)}
+                    </span>
                   ),
-              },
-              {
-                key: "conversation",
-                header: "Conversation",
-                render: (t) =>
-                  t.conversationId && t.agentId ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedConversation({
-                          conversationId: t.conversationId!,
-                          agentId: t.agentId!,
-                        });
-                      }}
-                      className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                },
+                {
+                  key: "description",
+                  header: "Description",
+                  width: "minmax(180px, 3fr)",
+                  render: (t) => {
+                    const isExpanded = expandedDescriptionIds.has(t.id);
+                    const showExpand =
+                      t.description.length > DESCRIPTION_PREVIEW_LENGTH;
+                    const preview =
+                      showExpand && !isExpanded
+                        ? `${t.description.slice(0, DESCRIPTION_PREVIEW_LENGTH)}…`
+                        : t.description;
+                    return (
+                      <span
+                        className={
+                          isExpanded && showExpand
+                            ? "whitespace-normal break-words"
+                            : "whitespace-nowrap"
+                        }
+                      >
+                        <span
+                          title={t.description}
+                          className="text-[11px]"
+                        >
+                          {preview}
+                        </span>
+                        {showExpand && (
+                          <button
+                            type="button"
+                            title={isExpanded ? "Collapse" : "Expand"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleDescriptionExpanded(t.id);
+                            }}
+                            className="ml-0.5 inline-flex shrink-0 rounded p-0.5 text-primary-600 hover:bg-primary-100 hover:text-primary-700 dark:text-primary-400 dark:hover:bg-primary-900/30 dark:hover:text-primary-300"
+                          >
+                            {isExpanded ? (
+                              <ChevronUpIcon className="size-3.5" aria-hidden />
+                            ) : (
+                              <ChevronDownIcon className="size-3.5" aria-hidden />
+                            )}
+                          </button>
+                        )}
+                      </span>
+                    );
+                  },
+                },
+                {
+                  key: "source",
+                  header: "Source",
+                  width: "120px",
+                  render: (t) => (
+                    <span
+                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getTransactionTypeColor(
+                        t.source
+                      )}`}
                     >
-                      View Conversation
-                    </button>
-                  ) : (
-                    "-"
+                      {formatSource(t.source)}
+                    </span>
                   ),
-              },
-              {
-                key: "model",
-                header: "Model",
-                render: (t) => (
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    {t.model || "-"}
-                  </span>
-                ),
-              },
-              {
-                key: "amount",
-                header: "Amount",
-                render: (t) => (
-                  <span
-                    className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
-                      t.amountNanoUsd / 1_000_000_000
-                    )}`}
-                  >
-                    {formatCurrency(t.amountNanoUsd, "usd")}
-                  </span>
-                ),
-              },
-              {
-                key: "balanceBefore",
-                header: "Balance Before",
-                render: (t) => (
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    {formatCurrency(t.workspaceCreditsBeforeNanoUsd, "usd")}
-                  </span>
-                ),
-              },
-              {
-                key: "balanceAfter",
-                header: "Balance After",
-                render: (t) => (
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    {formatCurrency(t.workspaceCreditsAfterNanoUsd, "usd")}
-                  </span>
-                ),
-              },
-            ]}
-          />
-        </ScrollContainer>
+                },
+                {
+                  key: "supplier",
+                  header: "Supplier",
+                  width: "100px",
+                  render: (t) => (
+                    <span className="text-neutral-600 dark:text-neutral-400">
+                      {t.supplier}
+                    </span>
+                  ),
+                },
+                {
+                  key: "agent",
+                  header: "Agent",
+                  width: "90px",
+                  render: (t) =>
+                    t.agentId ? (
+                      <Link
+                        to={`/workspaces/${workspaceId}/agents/${t.agentId}`}
+                        className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                      >
+                        View Agent
+                      </Link>
+                    ) : (
+                      "-"
+                    ),
+                },
+                {
+                  key: "conversation",
+                  header: "Conv.",
+                  width: "90px",
+                  render: (t) =>
+                    t.conversationId && t.agentId ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedConversation({
+                            conversationId: t.conversationId!,
+                            agentId: t.agentId!,
+                          });
+                        }}
+                        className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                      >
+                        View Conv.
+                      </button>
+                    ) : (
+                      "-"
+                    ),
+                },
+                {
+                  key: "model",
+                  header: "Model",
+                  width: "100px",
+                  render: (t) => (
+                    <span className="text-neutral-600 dark:text-neutral-400">
+                      {t.model || "-"}
+                    </span>
+                  ),
+                },
+                {
+                  key: "amount",
+                  header: "Amount",
+                  width: "90px",
+                  render: (t) => (
+                    <span
+                      className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                        t.amountNanoUsd / 1_000_000_000
+                      )}`}
+                    >
+                      {formatCurrency(t.amountNanoUsd, "usd")}
+                    </span>
+                  ),
+                },
+                {
+                  key: "balanceBefore",
+                  header: "Balance Before",
+                  width: "100px",
+                  render: (t) => (
+                    <span className="text-neutral-600 dark:text-neutral-400">
+                      {formatCurrency(t.workspaceCreditsBeforeNanoUsd, "usd")}
+                    </span>
+                  ),
+                },
+                {
+                  key: "balanceAfter",
+                  header: "Balance After",
+                  width: "100px",
+                  render: (t) => (
+                    <span className="text-neutral-600 dark:text-neutral-400">
+                      {formatCurrency(t.workspaceCreditsAfterNanoUsd, "usd")}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          </ScrollContainer>
+        </div>
       )}
 
       {selectedConversation && (

@@ -46,7 +46,11 @@ const suggestionEntrySchema = z.union([
 
 const suggestionsResponseSchema = z
   .object({
-    suggestions: z.array(suggestionEntrySchema).min(1).max(MAX_SUGGESTIONS),
+    suggestions: z
+      .array(suggestionEntrySchema)
+      .min(1)
+      .max(20)
+      .transform((arr) => arr.slice(0, MAX_SUGGESTIONS)),
   })
   .strict();
 

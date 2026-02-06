@@ -108,7 +108,7 @@ export function VirtualTable<T>({
             {columns.map((col) => (
               <div
                 key={col.key}
-                className="flex items-center px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300"
+                className="flex min-w-0 items-center px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300"
                 role="gridcell"
               >
                 {col.render(item, i)}
@@ -164,7 +164,7 @@ export function VirtualTable<T>({
               {columns.map((col) => (
                 <div
                   key={col.key}
-                  className="flex items-center px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300"
+                  className="flex min-w-0 items-center px-4 py-3 text-sm text-neutral-700 dark:text-neutral-300"
                   role="gridcell"
                 >
                   {col.render(item, virtualRow.index)}

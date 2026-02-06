@@ -20,7 +20,7 @@ export const Footer: FC = () => {
             </span>
           </div>
           <div className="text-right text-xs text-neutral-500 dark:text-neutral-300">
-            <div className="mb-1">RAW AI. NO BULLSHIT.</div>
+            <div className="mb-1">Straightforward AI. No fluff.</div>
             <div className="text-[10px]">
               © {currentYear} DjiniLabs & Gordon & Teixeira Lda.
             </div>

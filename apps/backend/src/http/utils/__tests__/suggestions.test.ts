@@ -98,6 +98,53 @@ describe("suggestions utils", () => {
     expect(updateCall.suggestions.generatedAt).toBeDefined();
   });
 
+  it("accepts more than 3 suggestions from LLM and uses only the first 3", async () => {
+    const db = createMockDb();
+    mockGenerateText.mockResolvedValue({
+      text: JSON.stringify({
+        suggestions: [
+          "First suggestion",
+          "Second suggestion",
+          "Third suggestion",
+          "Fourth suggestion",
+          "Fifth suggestion",
+        ],
+      }),
+    });
+
+    const workspace: {
+      name: string;
+      description: string;
+      creditBalance: number;
+      spendingLimits: never[];
+      suggestions: SuggestionsCache | null;
+    } = {
+      name: "Workspace One",
+      description: "Test",
+      creditBalance: 0,
+      spendingLimits: [],
+      suggestions: null,
+    };
+
+    const result = await resolveWorkspaceSuggestions({
+      db: db as unknown as SuggestionsDb,
+      workspaceId: "workspace-1",
+      workspacePk: "workspaces/workspace-1",
+      workspace,
+      apiKeys: { openrouter: false },
+    });
+
+    expect(result?.items).toHaveLength(3);
+    expect(result?.items?.map((i) => i.text)).toEqual([
+      "First suggestion",
+      "Second suggestion",
+      "Third suggestion",
+    ]);
+    const updateCall = (db.workspace.update as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(updateCall.suggestions.items).toHaveLength(3);
+  });
+
   it("reuses cached workspace suggestions when context is unchanged", async () => {
     const db = createMockDb();
     mockGenerateText.mockResolvedValue({
