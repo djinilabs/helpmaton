@@ -1,11 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 5,
-  "stabilityDays": 3,
+  "extends": ["config:recommended"],
+  "prHourlyLimit": 1,
+  "prConcurrentLimit": 3,
+  "stabilityDays": 7,
+  "schedule": ["before 10am on monday"],
+  "dependencyDashboard": true,
+  "minimumReleaseAge": "3 days",
+  "prCreation": "not-pending",
+  "internalChecksFilter": "strict",
+  "rangeStrategy": "bump",
   "packageRules": [
     {
       "groupName": "All non-major updates",
@@ -14,7 +18,8 @@
     },
     {
       "matchUpdateTypes": ["major"],
-      "groupName": null
+      "groupName": "Major dependency updates",
+      "automerge": false
     }
   ]
 }
