@@ -40,10 +40,11 @@ export function VirtualTable<T>({
   const [scrollReady, setScrollReady] = useState(false);
   useLayoutEffect(() => {
     if (scrollRef.current && !scrollReady) setScrollReady(true);
-  });
+  }, [scrollRef, scrollReady]);
 
   const count = rows.length;
   const estimate = rowHeight != null ? () => rowHeight : (estimateSize ?? (() => 52));
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable functions; React Compiler correctly skips this component.
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => scrollRef.current,
