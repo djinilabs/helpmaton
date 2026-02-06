@@ -85,9 +85,14 @@ export const handlingErrors = (
         // Make context available to Express handlers via module-level storage
         // Extract requestId from event (API Gateway includes it in requestContext.requestId)
         // In local sandbox environments, requestId might not be present, so generate one if needed
-        let requestId = event.requestContext?.requestId || context.awsRequestId;
+        let requestId: string | undefined =
+          event.requestContext?.requestId || context.awsRequestId;
+        // Treat empty string as missing so we always have a valid key for context lookup
+        if (typeof requestId === "string" && requestId.trim() === "") {
+          requestId = undefined;
+        }
 
-        // If no requestId is available (e.g., in local sandbox), generate one
+        // If no requestId is available (e.g., in local sandbox or Lambda URL), generate one
         if (!requestId) {
           // Generate a unique requestId for local development
           requestId = `local-${Date.now()}-${Math.random()

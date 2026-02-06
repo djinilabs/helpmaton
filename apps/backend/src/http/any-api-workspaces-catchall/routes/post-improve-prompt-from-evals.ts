@@ -8,6 +8,7 @@ import {
   checkPromptGenerationLimit,
   incrementPromptGenerationBucketSafe,
 } from "../../../utils/requestTracking";
+import { Sentry, ensureError } from "../../../utils/sentry";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
 import { getWorkspaceApiKey } from "../../utils/agentUtils";
@@ -244,7 +245,30 @@ export const registerPostImprovePromptFromEvals = (app: express.Application) => 
         !context ||
         typeof context.addWorkspaceCreditTransaction !== "function"
       ) {
-        throw new Error("Context not properly configured for credits.");
+        const err = new Error(
+          "Context not properly configured for credits. requestId=" +
+            String(awsRequestId ?? "undefined")
+        );
+        console.error("[improve-prompt-from-evals]", err.message, {
+          path: req.path,
+          workspaceId,
+          agentId,
+          hasApiGatewayEvent: Boolean(req.apiGateway?.event),
+        });
+        Sentry.captureException(ensureError(err), {
+          tags: {
+            handler: "improve-prompt-from-evals",
+            requestId: String(awsRequestId ?? "undefined"),
+          },
+          contexts: {
+            request: {
+              path: req.path,
+              method: req.method,
+              hasApiGatewayEvent: Boolean(req.apiGateway?.event),
+            },
+          },
+        });
+        throw err;
       }
 
       const db = await database();
