@@ -651,23 +651,38 @@ export function setupGlobalFetchOverride(): void {
       }
     }
 
-    // Handle 402 Payment Required - show appropriate error message based on endpoint type
+    // Handle 402 Payment Required - show clear spending limit / credits message
     if (response.status === 402) {
-      // Determine endpoint type: test (API Gateway) or streaming (Function URL)
-      // Test endpoint: relative URL starting with /api/ (same origin)
-      // Streaming endpoint: full HTTP URL (cross-origin Lambda Function URL)
-      const isTestEndpoint =
-        urlString.endsWith("/test") || requestUrl.pathname.endsWith("/test");
-
-      if (isTestEndpoint) {
-        // Test endpoint: message about workspace credits
-        throw new Error("Not enough workspace credits");
-      } else {
-        // Streaming endpoint: generic administrator message
-        throw new Error(
-          "There was an error. Please contact your administrator.",
-        );
+      let message: string;
+      try {
+        const body = (await response.clone().json()) as {
+          message?: string;
+          error?: string;
+        };
+        const text = (body?.message ?? body?.error ?? "").toLowerCase();
+        if (
+          text.includes("spending limit") ||
+          text.includes("spending limits exceeded")
+        ) {
+          message =
+            "Spending limit exceeded. Check your workspace or agent spending limits and try again.";
+        } else if (
+          text.includes("insufficient credit") ||
+          text.includes("not enough")
+        ) {
+          message =
+            "Not enough workspace credits. Add credits or check your balance.";
+        } else {
+          // Fallback: same-origin API shows combined message; cross-origin (e.g. streaming) shows admin message
+          message = isSameOrigin
+            ? "Spending limit exceeded or not enough credits. Check your workspace or agent spending limits and credit balance."
+            : "There was an error. Please contact your administrator.";
+        }
+      } catch {
+        message =
+          "Spending limit exceeded or not enough credits. Check your workspace or agent spending limits and credit balance.";
       }
+      throw new Error(message);
     }
 
     return response;
