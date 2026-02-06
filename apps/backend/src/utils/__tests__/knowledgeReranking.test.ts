@@ -15,9 +15,28 @@ vi.mock("../../http/utils/agentUtils", () => ({
 // Mock fetch globally
 global.fetch = vi.fn();
 
+const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+function chatCompletionsResponse(
+  content: string,
+  cost = 0.001,
+  id = "gen-123"
+) {
+  return {
+    ok: true,
+    text: async () =>
+      JSON.stringify({
+        choices: [{ message: { content } }],
+        usage: { cost },
+        id,
+      }),
+  };
+}
+
 // Import after mocks are set up
 import type { SearchResult } from "../documentSearch";
 import { getRerankingModels, rerankSnippets } from "../knowledgeReranking";
+import { DEFAULT_MAX_SNIPPET_CHARS } from "../rerankPrompt";
 
 describe("knowledgeReranking", () => {
   beforeEach(() => {
@@ -95,6 +114,22 @@ describe("knowledgeReranking", () => {
         "model-with-rerank-and-rank",
       ]);
     });
+
+    it("should include chat models suitable for reranking when in list", () => {
+      const models = ["openai/gpt-4o-mini", "google/gemini-pro"];
+      const result = getRerankingModels(models);
+      expect(result).toContain("openai/gpt-4o-mini");
+      expect(result).toHaveLength(1);
+    });
+
+    it("should include any provider's gpt-4o-style models by pattern", () => {
+      const models = ["anthropic/gpt-4o", "openai/gpt-4.1-mini", "other/gpt-4o-mini"];
+      const result = getRerankingModels(models);
+      expect(result).toContain("anthropic/gpt-4o");
+      expect(result).toContain("openai/gpt-4.1-mini");
+      expect(result).toContain("other/gpt-4o-mini");
+      expect(result).toHaveLength(3);
+    });
   });
 
   describe("rerankSnippets", () => {
@@ -132,18 +167,9 @@ describe("knowledgeReranking", () => {
     it("should use system API key when no workspace key available", async () => {
       mockGetWorkspaceApiKey.mockResolvedValue(null);
 
-      const mockResponse = {
-        results: [
-          { index: 1, relevance_score: 0.95 },
-          { index: 0, relevance_score: 0.85 },
-          { index: 2, relevance_score: 0.75 },
-        ],
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[1, 0, 2]")
+      );
 
       await rerankSnippets("test query", mockSnippets, "rerank-model", "workspace-1");
 
@@ -152,7 +178,7 @@ describe("knowledgeReranking", () => {
         "openrouter"
       );
       expect(global.fetch).toHaveBeenCalledWith(
-        "https://openrouter.ai/api/v1/rerank",
+        OPENROUTER_CHAT_URL,
         expect.objectContaining({
           method: "POST",
           headers: expect.objectContaining({
@@ -165,17 +191,9 @@ describe("knowledgeReranking", () => {
     it("should use workspace API key when available", async () => {
       mockGetWorkspaceApiKey.mockResolvedValue("workspace-key-123");
 
-      const mockResponse = {
-        results: [
-          { index: 1, relevance_score: 0.95 },
-          { index: 0, relevance_score: 0.85 },
-        ],
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[1, 0, 2]")
+      );
 
       await rerankSnippets(
         "test query",
@@ -189,7 +207,7 @@ describe("knowledgeReranking", () => {
         "openrouter"
       );
       expect(global.fetch).toHaveBeenCalledWith(
-        "https://openrouter.ai/api/v1/rerank",
+        OPENROUTER_CHAT_URL,
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: "Bearer workspace-key-123",
@@ -199,18 +217,9 @@ describe("knowledgeReranking", () => {
     });
 
     it("should re-rank snippets based on API response", async () => {
-      const mockResponse = {
-        results: [
-          { index: 1, relevance_score: 0.95 },
-          { index: 0, relevance_score: 0.85 },
-          { index: 2, relevance_score: 0.75 },
-        ],
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[1, 0, 2]")
+      );
 
       const result = await rerankSnippets(
         "test query",
@@ -220,24 +229,18 @@ describe("knowledgeReranking", () => {
       );
 
       expect(result.snippets).toHaveLength(3);
-      // Should be re-ordered by relevance_score (descending)
-      expect(result.snippets[0].snippet).toBe("Second snippet content"); // index 1, score 0.95
-      expect(result.snippets[0].similarity).toBe(0.95);
-      expect(result.snippets[1].snippet).toBe("First snippet content"); // index 0, score 0.85
-      expect(result.snippets[1].similarity).toBe(0.85);
-      expect(result.snippets[2].snippet).toBe("Third snippet content"); // index 2, score 0.75
-      expect(result.snippets[2].similarity).toBe(0.75);
+      expect(result.snippets[0].snippet).toBe("Second snippet content");
+      expect(result.snippets[0].similarity).toBe(1);
+      expect(result.snippets[1].snippet).toBe("First snippet content");
+      expect(result.snippets[1].similarity).toBe(0.99);
+      expect(result.snippets[2].snippet).toBe("Third snippet content");
+      expect(result.snippets[2].similarity).toBe(0.98);
     });
 
-    it("should update similarity scores with re-ranking scores", async () => {
-      const mockResponse = {
-        results: [{ index: 0, relevance_score: 0.99 }],
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+    it("should assign similarity by rank (first = 1.0)", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[0]")
+      );
 
       const result = await rerankSnippets(
         "test query",
@@ -246,19 +249,14 @@ describe("knowledgeReranking", () => {
         "workspace-1"
       );
 
-      expect(result.snippets[0].similarity).toBe(0.99);
+      expect(result.snippets[0].similarity).toBe(1);
       expect(result.snippets[0].snippet).toBe("First snippet content");
     });
 
     it("should include snippets not in re-ranking results", async () => {
-      const mockResponse = {
-        results: [{ index: 1, relevance_score: 0.95 }],
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[1]")
+      );
 
       const result = await rerankSnippets(
         "test query",
@@ -313,11 +311,27 @@ describe("knowledgeReranking", () => {
       expect(result.snippets).toEqual(mockSnippets);
     });
 
+    it("should fall back to original order when API returns HTML instead of JSON", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          "<!DOCTYPE html><html><body>Gateway Error</body></html>",
+      });
+
+      const result = await rerankSnippets(
+        "test query",
+        mockSnippets,
+        "rerank-model",
+        "workspace-1"
+      );
+
+      expect(result.snippets).toEqual(mockSnippets);
+    });
+
     it("should fall back to original order on invalid response format", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ invalid: "response" }),
-      });
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("not a json array")
+      );
 
       const result = await rerankSnippets(
         "test query",
@@ -330,11 +344,10 @@ describe("knowledgeReranking", () => {
       expect(result.snippets).toEqual(mockSnippets);
     });
 
-    it("should fall back to original order when results is not an array", async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ results: "not an array" }),
-      });
+    it("should fall back when model output has no parseable indices array", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("Here are the results: (none)")
+      );
 
       const result = await rerankSnippets(
         "test query",
@@ -347,19 +360,10 @@ describe("knowledgeReranking", () => {
       expect(result.snippets).toEqual(mockSnippets);
     });
 
-    it("should handle out-of-bounds indices in re-ranking results", async () => {
-      const mockResponse = {
-        results: [
-          { index: 1, relevance_score: 0.95 },
-          { index: 10, relevance_score: 0.85 }, // Out of bounds
-          { index: -1, relevance_score: 0.75 }, // Invalid index
-        ],
-      };
-
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+    it("should handle out-of-bounds indices in model output", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[1, 10, -1]")
+      );
 
       const result = await rerankSnippets(
         "test query",
@@ -373,15 +377,29 @@ describe("knowledgeReranking", () => {
       expect(result.snippets[0].snippet).toBe("Second snippet content");
     });
 
-    it("should send correct request body to OpenRouter API", async () => {
-      const mockResponse = {
-        results: [{ index: 0, relevance_score: 0.9 }],
-      };
+    it("should truncate long snippets in prompt to avoid context overflow", async () => {
+      const longSnippet = "x".repeat(DEFAULT_MAX_SNIPPET_CHARS + 100);
+      const snippetsWithLong: SearchResult[] = [
+        { ...mockSnippets[0], snippet: longSnippet },
+        mockSnippets[1],
+      ];
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[0, 1]")
+      );
 
-      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      await rerankSnippets("query", snippetsWithLong, "model", "workspace-1");
+
+      const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+      const content = body.messages[0].content;
+      expect(content).toContain("...");
+      expect(content).not.toContain("x".repeat(DEFAULT_MAX_SNIPPET_CHARS + 1));
+    });
+
+    it("should send chat completions request with model, messages, max_tokens, temperature", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[0]")
+      );
 
       await rerankSnippets(
         "test query",
@@ -390,25 +408,20 @@ describe("knowledgeReranking", () => {
         "workspace-1"
       );
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        "https://openrouter.ai/api/v1/rerank",
-        expect.objectContaining({
-          method: "POST",
-          headers: expect.objectContaining({
-            "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost:3000",
-          }),
-          body: JSON.stringify({
-            model: "rerank-model-v1",
-            query: "test query",
-            documents: [
-              "First snippet content",
-              "Second snippet content",
-              "Third snippet content",
-            ],
-          }),
-        })
-      );
+      const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(call[0]).toBe(OPENROUTER_CHAT_URL);
+      const body = JSON.parse(call[1].body);
+      expect(body.model).toBe("rerank-model-v1");
+      expect(body.messages).toHaveLength(1);
+      expect(body.messages[0].role).toBe("user");
+      expect(body.messages[0].content).toContain("test query");
+      expect(body.messages[0].content).toContain("First snippet content");
+      expect(body.max_tokens).toBe(200);
+      expect(body.temperature).toBe(0);
+      expect(call[1].headers).toMatchObject({
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost:3000",
+      });
     });
 
     it("should throw error if OPENROUTER_API_KEY is not set and no workspace key", async () => {

@@ -57,6 +57,7 @@
     "run-all-memory-summaries": "cd apps/backend && ARC_ENV=testing pnpm exec tsx ../../scripts/run-all-memory-summaries.mjs",
     "discord:register-commands": "pnpm exec tsx scripts/register-discord-commands.ts",
     "generate:openapi": "pnpm exec tsx scripts/generate-openapi.ts",
+    "test:openrouter-rerank": "pnpm exec tsx scripts/test-openrouter-rerank-via-chat.ts",
     "cleanup-ecr": "node scripts/cleanup-ecr-images.mjs",
     "cleanup-ecr:dry-run": "node scripts/cleanup-ecr-images.mjs --dry-run",
     "cleanup-ecr:execute": "node scripts/cleanup-ecr-images.mjs --execute"

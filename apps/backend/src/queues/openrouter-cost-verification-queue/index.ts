@@ -441,7 +441,10 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
       }
     );
 
-    await finalizeCreditReservation(db, reservationId, openrouterCost, context, 3);
+    await finalizeCreditReservation(db, reservationId, openrouterCost, context, 3, {
+      source: "tool-execution",
+      tool_call: "rerank",
+    });
   } else {
     // No reservation (BYOK case) - just log
     console.log(

@@ -909,6 +909,7 @@ export async function debitCredits(
  * @param openrouterCost - Cost from OpenRouter API in nano-dollars
  * @param context - Augmented Lambda context for transaction creation
  * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
+ * @param options - Optional transaction metadata (e.g. source "tool-execution", tool_call "rerank" for reranking)
  * @returns Updated workspace record (fetched after transaction creation)
  */
 export async function finalizeCreditReservation(
@@ -917,7 +918,11 @@ export async function finalizeCreditReservation(
   openrouterCost: number,
   context: AugmentedContext,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _maxRetries: number = 3
+  _maxRetries: number = 3,
+  options?: {
+    source?: "text-generation" | "tool-execution";
+    tool_call?: string;
+  }
 ): Promise<WorkspaceRecord> {
   // Get reservation to find token usage-based cost
   const reservationPk = `credit-reservations/${reservationId}`;
@@ -999,11 +1004,15 @@ export async function finalizeCreditReservation(
     const action = rawDifferenceNoToken > 0 ? "additional charge" : "refund";
 
     // Create transaction in memory
+    const txSource = options?.source ?? "text-generation";
     context.addWorkspaceCreditTransaction({
       workspaceId,
-      source: "text-generation",
+      agentId: reservation.agentId || undefined,
+      conversationId: reservation.conversationId || undefined,
+      source: txSource,
       supplier: "openrouter",
       model: reservation.modelName,
+      ...(options?.tool_call && { tool_call: options.tool_call }),
       description: `Finalize credit reservation (Step 3): OpenRouter cost ${openrouterCostFormatted}, ${action} ${differenceFormatted} (no token usage cost)`,
       amountNanoUsd: transactionAmount,
     });
@@ -1059,13 +1068,15 @@ export async function finalizeCreditReservation(
   const action = rawDifference > 0 ? "additional charge" : "refund";
 
   // Create transaction in memory
+  const txSource = options?.source ?? "text-generation";
   context.addWorkspaceCreditTransaction({
     workspaceId,
     agentId: reservation.agentId || undefined,
     conversationId: reservation.conversationId || undefined,
-    source: "text-generation",
+    source: txSource,
     supplier: "openrouter",
     model: reservation.modelName,
+    ...(options?.tool_call && { tool_call: options.tool_call }),
     description: `Finalize credit reservation (Step 3): OpenRouter cost ${openrouterCostFormatted}, token usage cost ${tokenUsageCostFormatted}, ${action} ${differenceFormatted}`,
     amountNanoUsd: transactionAmount,
   });

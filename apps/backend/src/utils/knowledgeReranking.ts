@@ -2,19 +2,32 @@ import { getWorkspaceApiKey } from "../http/utils/agentUtils";
 import { getDefined } from "../utils";
 
 import { getModelPricing } from "./pricing";
+import { buildRerankPrompt } from "./rerankPrompt";
 import { Sentry, ensureError } from "./sentry";
 
+const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 /**
- * Filter available OpenRouter models to find re-ranking models
- * Re-ranking models are identified by containing "rerank" in their name (case-insensitive)
+ * Filter available OpenRouter models to find re-ranking models.
+ * Re-ranking is done via chat completions, so we include both models with
+ * "rerank" in the name (legacy) and common chat models suitable for reranking.
  * @param availableModels - Array of available model names from OpenRouter
  * @returns Array of model names that are suitable for re-ranking
  */
+/** Pattern for chat model IDs that work well for reranking (any provider). */
+const CHAT_MODEL_PATTERN_FOR_RERANK =
+  /gpt-4o-mini|gpt-4o|gpt-4\.1-mini/i;
+
 export function getRerankingModels(availableModels: string[]): string[] {
-  return availableModels.filter((model) => {
+  const rerankNamed = availableModels.filter((model) => {
     const lowerModel = model.toLowerCase();
     return lowerModel.includes("rerank");
   });
+  const chatModels = availableModels.filter(
+    (m) =>
+      CHAT_MODEL_PATTERN_FOR_RERANK.test(m) && !rerankNamed.includes(m)
+  );
+  return [...rerankNamed, ...chatModels];
 }
 
 /**
@@ -32,10 +45,32 @@ export interface RerankableSnippet {
 }
 
 /**
- * Re-rank document snippets using OpenRouter re-ranking API
+ * Extract a JSON array of indices from model content (e.g. "[0, 2, 3, 1]" or "Here is the order: [0, 2, 3, 1]").
+ * Invalid or out-of-range indices are filtered when building the reranked list.
+ * Returns null if no array found or parse fails.
+ */
+function parseIndicesFromContent(content: string): number[] | null {
+  const trimmed = content.trim();
+  const match = trimmed.match(/\[[\s\d,-]+\]/);
+  if (!match) return null;
+  try {
+    const arr = JSON.parse(match[0]) as unknown;
+    if (!Array.isArray(arr)) return null;
+    const indices = arr.filter(
+      (x): x is number => typeof x === "number" && Number.isInteger(x)
+    );
+    return indices.length > 0 ? indices : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Re-rank document snippets using OpenRouter's OpenAI-compatible chat completions API.
+ * Uses a single prompt that asks the model to return document indices ordered by relevance.
  * @param query - The search query text
  * @param snippets - Array of search results to re-rank
- * @param model - Re-ranking model name from OpenRouter
+ * @param model - Model name from OpenRouter (should be a chat model, e.g. openai/gpt-4o-mini)
  * @param workspaceId - Workspace ID for API key lookup
  * @returns Re-ranked snippets with cost and generationId information
  */
@@ -57,7 +92,6 @@ export async function rerankSnippets<T extends RerankableSnippet>(
     );
   }
 
-  // Get API key - try workspace key first, fall back to system key
   let apiKey: string;
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
   if (workspaceApiKey) {
@@ -69,14 +103,11 @@ export async function rerankSnippets<T extends RerankableSnippet>(
     );
   }
 
-  // Prepare documents for re-ranking API
-  // OpenRouter re-ranking API expects an array of documents with text content
-  const documents = snippets.map((snippet) => snippet.snippet);
-
-  const url = "https://openrouter.ai/api/v1/rerank";
+  const documents = snippets.map((s) => s.snippet);
+  const prompt = buildRerankPrompt(query, documents);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(OPENROUTER_CHAT_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -85,18 +116,19 @@ export async function rerankSnippets<T extends RerankableSnippet>(
       },
       body: JSON.stringify({
         model,
-        query,
-        documents,
+        messages: [{ role: "user" as const, content: prompt }],
+        max_tokens: 200,
+        temperature: 0,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       const error = new Error(
-        `OpenRouter re-ranking API error: ${response.status} ${response.statusText} - ${errorText}`
+        `OpenRouter chat completions (rerank) error: ${response.status} ${response.statusText} - ${errorText}`
       );
       console.error(
-        `[knowledgeReranking] OpenRouter re-ranking API error: ${response.status} ${response.statusText}`,
+        `[knowledgeReranking] OpenRouter chat completions error: ${response.status} ${response.statusText}`,
         errorText
       );
       Sentry.captureException(error, {
@@ -112,25 +144,91 @@ export async function rerankSnippets<T extends RerankableSnippet>(
           errorText,
         },
       });
-      // Fall back to original order if re-ranking fails
-      return {
-        snippets,
-      };
+      return { snippets };
     }
 
-    const data = (await response.json()) as {
-      results?: Array<{ index: number; relevance_score: number }>;
-      cost?: number; // Provisional cost in USD
-      id?: string; // Generation ID
-      generationId?: string; // Alternative field name for generation ID
-    };
-
-    if (!data.results || !Array.isArray(data.results)) {
+    const rawBody = await response.text();
+    const trimmed = rawBody.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
       const error = new Error(
-        "Invalid response format from OpenRouter re-ranking API: missing or invalid results array"
+        `OpenRouter returned non-JSON response (e.g. HTML): ${trimmed.slice(0, 100)}...`
+      );
+      console.error(
+        "[knowledgeReranking] OpenRouter returned non-JSON response",
+        trimmed.slice(0, 200)
+      );
+      Sentry.captureException(error, {
+        tags: {
+          context: "knowledge-reranking",
+          operation: "rerank-api-call",
+        },
+        extra: {
+          model,
+          documentCount: snippets.length,
+          workspaceId,
+          responsePreview: trimmed.slice(0, 500),
+        },
+      });
+      return { snippets };
+    }
+
+    let data: {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { cost?: number };
+      id?: string;
+      error?: { message: string };
+    };
+    try {
+      data = JSON.parse(rawBody) as typeof data;
+    } catch (parseError) {
+      const err = ensureError(parseError);
+      console.error(
+        "[knowledgeReranking] Failed to parse response as JSON:",
+        err.message
+      );
+      Sentry.captureException(err, {
+        tags: {
+          context: "knowledge-reranking",
+          operation: "rerank-api-call",
+        },
+        extra: {
+          model,
+          documentCount: snippets.length,
+          workspaceId,
+          responsePreview: trimmed.slice(0, 500),
+        },
+      });
+      return { snippets };
+    }
+
+    if (data.error) {
+      const error = new Error(
+        `OpenRouter API error: ${data.error.message}`
+      );
+      console.error("[knowledgeReranking]", error.message);
+      Sentry.captureException(error, {
+        tags: {
+          context: "knowledge-reranking",
+          operation: "rerank-api-call",
+        },
+        extra: {
+          model,
+          documentCount: snippets.length,
+          workspaceId,
+        },
+      });
+      return { snippets };
+    }
+
+    const content = data.choices?.[0]?.message?.content ?? "";
+    const order = parseIndicesFromContent(content);
+
+    if (!order || order.length === 0) {
+      const error = new Error(
+        "Invalid response format: missing or invalid indices array in model output"
       );
       console.warn(
-        "[knowledgeReranking] Invalid response format from OpenRouter re-ranking API"
+        "[knowledgeReranking] Invalid response format: could not parse indices from content"
       );
       Sentry.captureException(error, {
         tags: {
@@ -141,86 +239,52 @@ export async function rerankSnippets<T extends RerankableSnippet>(
           model,
           documentCount: snippets.length,
           workspaceId,
-          responseData: data,
+          contentPreview: content.slice(0, 300),
         },
       });
-      return {
-        snippets,
-      };
+      return { snippets };
     }
 
-    // Extract cost and generationId from response
-    let costUsd = data.cost;
-    const generationId = data.id || data.generationId;
+    let costUsd = data.usage?.cost;
+    const generationId = data.id;
 
-    // If cost is not in the API response, calculate it from pricing config
-    // Re-ranking models use per-request pricing
     if (costUsd === undefined) {
       const modelPricing = getModelPricing("openrouter", model);
       if (modelPricing?.usd?.request !== undefined) {
-        // Apply 5.5% OpenRouter markup to match credit reservation logic
-        // This ensures consistency between displayed cost and actual charges
-        const baseCost = modelPricing.usd.request;
-        costUsd = baseCost * 1.055;
+        costUsd = modelPricing.usd.request * 1.055;
         console.log(
-          "[knowledgeReranking] Cost not in API response, calculated from pricing config with markup:",
-          {
-            model,
-            requestPrice: modelPricing.usd.request,
-            baseCost,
-            costUsd,
-            markup: "5.5%",
-          }
+          "[knowledgeReranking] Cost not in API response, using pricing config with markup:",
+          { model, costUsd }
         );
       } else {
         console.warn(
-          "[knowledgeReranking] Cost not in API response and no pricing config found:",
-          {
-            model,
-          }
+          "[knowledgeReranking] Cost not in API response and no pricing config:",
+          { model }
         );
       }
-    } else {
-      console.log("[knowledgeReranking] Extracted cost from API response:", {
-        costUsd,
-        generationId,
-      });
     }
 
-    if (generationId) {
-      console.log("[knowledgeReranking] Extracted generationId from response:", {
-        generationId,
-      });
-    }
-
-    // Re-order snippets based on re-ranking results
-    // Results are sorted by relevance_score in descending order
+    const includedIndices = new Set(
+      order.filter((i) => i >= 0 && i < snippets.length)
+    );
     const rerankedSnippets: T[] = [];
-    for (const result of data.results) {
-      const originalIndex = result.index;
+    for (let rank = 0; rank < order.length; rank++) {
+      const originalIndex = order[rank];
       if (originalIndex >= 0 && originalIndex < snippets.length) {
         const snippet = snippets[originalIndex];
-        // Update similarity score with re-ranking relevance score
-        // OpenRouter relevance scores are typically 0-1, so we can use them directly
+        const similarity = 1 - rank * 0.01;
         rerankedSnippets.push({
           ...snippet,
-          similarity: result.relevance_score,
+          similarity: Math.max(0, similarity),
         });
       }
     }
-
-    // If some snippets weren't included in re-ranking results, append them
-    const includedIndices = new Set(
-      data.results.map((r) => r.index).filter((i) => i >= 0 && i < snippets.length)
-    );
     for (let i = 0; i < snippets.length; i++) {
       if (!includedIndices.has(i)) {
         rerankedSnippets.push(snippets[i]);
       }
     }
 
-    // Always include costUsd if it was calculated (even if 0, though that shouldn't happen)
-    // This ensures the cost is always available for display
     return {
       snippets: rerankedSnippets,
       ...(costUsd !== undefined && { costUsd }),
@@ -228,7 +292,7 @@ export async function rerankSnippets<T extends RerankableSnippet>(
     };
   } catch (error) {
     console.error(
-      "[knowledgeReranking] Error calling OpenRouter re-ranking API:",
+      "[knowledgeReranking] Error calling OpenRouter:",
       error instanceof Error ? error.message : String(error)
     );
     Sentry.captureException(ensureError(error), {
@@ -242,9 +306,6 @@ export async function rerankSnippets<T extends RerankableSnippet>(
         workspaceId,
       },
     });
-    // Fall back to original order if re-ranking fails
-    return {
-      snippets,
-    };
+    return { snippets };
   }
 }

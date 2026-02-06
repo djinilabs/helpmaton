@@ -1200,6 +1200,28 @@ describe("creditManagement", () => {
       );
       expect(mockDelete).toHaveBeenCalledWith("credit-reservations/test-reservation");
     });
+
+    it("should record transaction as tool-execution/rerank when options passed (reranking cost to workspace)", async () => {
+      const openrouterCost = 45_000_000_000;
+
+      await finalizeCreditReservation(
+        mockDb,
+        "test-reservation",
+        openrouterCost,
+        mockContext,
+        3,
+        { source: "tool-execution", tool_call: "rerank" }
+      );
+
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "test-workspace",
+          source: "tool-execution",
+          tool_call: "rerank",
+          amountNanoUsd: 0,
+        })
+      );
+    });
   });
 
   describe("debitCredits", () => {
