@@ -7,8 +7,10 @@ import {
   escapeXml,
 } from "../index";
 import {
+  BLOCK_PAGE_ERROR_MESSAGE,
   getRefererForUrl,
   isBlockPageContent,
+  isScraperRelatedError,
   isStrictDomain,
   normalizeUrlForStrictDomain,
 } from "../scrapeHelpers";
@@ -247,6 +249,49 @@ describe("POST /api/scrape", () => {
       expect(
         isBlockPageContent("<document name=\"Real article title\"/>")
       ).toBe(false);
+    });
+  });
+
+  describe("isScraperRelatedError", () => {
+    it("returns true for Puppeteer TimeoutError", () => {
+      const err = new Error("Navigation timeout of 30000 ms exceeded");
+      err.name = "TimeoutError";
+      expect(isScraperRelatedError(err)).toBe(true);
+    });
+
+    it("returns true for error message containing timeout and exceeded", () => {
+      expect(
+        isScraperRelatedError(new Error("Navigation timeout of 30000 ms exceeded"))
+      ).toBe(true);
+      expect(
+        isScraperRelatedError(new Error("Waiting for selector timeout 5000 ms exceeded"))
+      ).toBe(true);
+    });
+
+    it("returns true for block-page error message", () => {
+      expect(
+        isScraperRelatedError(new Error(BLOCK_PAGE_ERROR_MESSAGE))
+      ).toBe(true);
+    });
+
+    it("returns false for generic server errors", () => {
+      expect(isScraperRelatedError(new Error("Database connection failed"))).toBe(false);
+      expect(isScraperRelatedError(new Error("Unexpected token"))).toBe(false);
+      expect(isScraperRelatedError(new Error("timeout"))).toBe(false); // no "exceeded"
+      expect(isScraperRelatedError(new Error("exceeded"))).toBe(false); // no "timeout"
+    });
+
+    it("returns false for null or non-object", () => {
+      expect(isScraperRelatedError(null)).toBe(false);
+      expect(isScraperRelatedError(undefined)).toBe(false);
+      expect(isScraperRelatedError("string")).toBe(false);
+    });
+
+    it("returns true when TimeoutError is in cause chain", () => {
+      const timeoutErr = new Error("Navigation timeout of 30000 ms exceeded");
+      timeoutErr.name = "TimeoutError";
+      const wrapped = new Error("Request failed", { cause: timeoutErr });
+      expect(isScraperRelatedError(wrapped)).toBe(true);
     });
   });
 

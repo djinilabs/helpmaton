@@ -109,6 +109,7 @@ vi.mock("../utils/errorHandler", () => ({
   expressErrorHandler: vi.fn((_err, _req, _res, next) => next()),
 }));
 
+import { Sentry } from "../../../utils/sentry";
 import { createApp } from "../index";
 
 describe("POST /api/scrape billing", () => {
@@ -198,5 +199,40 @@ describe("POST /api/scrape billing", () => {
     expect(mockReservationDelete).toHaveBeenCalledWith(
       "credit-reservations/res-1"
     );
+    // Sentry is reported by express error handler (mocked in this test), not by the route
+  });
+
+  it("does not report scraper-related errors to Sentry and sets skipSentryCapture", async () => {
+    const timeoutErr = new Error("Navigation timeout of 30000 ms exceeded");
+    timeoutErr.name = "TimeoutError";
+    mockLaunchBrowser.mockRejectedValue(timeoutErr);
+
+    const app = createApp();
+    const router = getAppRouter(app);
+    const handlerLayer = router?.stack.find(
+      (layer) => layer.route?.path === "/api/scrape"
+    );
+    const handler = handlerLayer?.route?.stack?.[0].handle;
+    if (!handler) throw new Error("Scrape handler not found");
+
+    const req = {
+      method: "POST",
+      path: "/api/scrape",
+      headers: { "x-amzn-requestid": "req-1" },
+      body: { url: "https://example.com" },
+    } as unknown as Request;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+    } as unknown as Response;
+
+    const next = vi.fn();
+
+    await handler(req, res, next);
+
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(req.skipSentryCapture).toBe(true);
   });
 });

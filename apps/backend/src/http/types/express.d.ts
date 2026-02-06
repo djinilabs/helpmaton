@@ -13,6 +13,8 @@ declare global {
       files?: Express.Multer.File[];
       file?: Express.Multer.File;
       context?: Context;
+      /** When set by a route (e.g. scrape), express error handler skips Sentry capture */
+      skipSentryCapture?: boolean;
     }
   }
 }

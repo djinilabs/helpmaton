@@ -31,7 +31,7 @@ import { launchBrowser } from "../../utils/puppeteerBrowser";
 // delay is still imported for small safety ticks, but used sparingly
 import { delay } from "../../utils/puppeteerContentLoading";
 import { setupResourceBlocking } from "../../utils/puppeteerResourceBlocking";
-import { ensureError, flushSentry, initSentry, Sentry } from "../../utils/sentry";
+import { ensureError, flushSentry, initSentry } from "../../utils/sentry";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { validateBody } from "../utils/bodyValidation";
@@ -40,8 +40,10 @@ import { extractWorkspaceContextFromToken } from "../utils/jwtUtils";
 import { scrapeRequestSchema } from "../utils/schemas/requestSchemas";
 
 import {
+  BLOCK_PAGE_ERROR_MESSAGE,
   getRefererForUrl,
   isBlockPageContent,
+  isScraperRelatedError,
   isStrictDomain,
   normalizeUrlForStrictDomain,
 } from "./scrapeHelpers";
@@ -277,10 +279,7 @@ export function createApp(): express.Application {
           await browser.close();
           browser = null;
           if (attempt === 2) {
-            const err = new Error(
-              "Content could not be loaded: the server returned a block or security page. Try another URL or provider."
-            );
-            throw err;
+            throw new Error(BLOCK_PAGE_ERROR_MESSAGE);
           }
           continue;
         }
@@ -328,16 +327,17 @@ export function createApp(): express.Application {
       }
 
       const boomed = boomify(ensureError(err));
+      const scraperRelated = isScraperRelatedError(err);
+      if (scraperRelated) {
+        req.skipSentryCapture = true;
+      }
       if (boomed.isServer) {
-        console.error("[scrape] Server error:", boomed);
-        Sentry.captureException(ensureError(err), {
-          tags: {
-            handler: "scrape-endpoint",
-            method: req.method,
-            path: req.path,
-            statusCode: boomed.output.statusCode,
-          },
-        });
+        console.error(
+          scraperRelated
+            ? "[scrape] Scraper/website error (not reported to Sentry):"
+            : "[scrape] Server error:",
+          boomed
+        );
       }
       next(boomed);
     } finally {

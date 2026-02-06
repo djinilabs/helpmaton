@@ -35,30 +35,31 @@ export const expressErrorHandler: ErrorRequestHandler = async (
     },
   });
 
-  // If it's a server error (5xx), log additional details and report to Sentry
+  // If it's a server error (5xx), log additional details and report to Sentry (unless route asked to skip)
   if (boomError.isServer) {
     console.error("[Express Error Handler] Server error details:", boomError);
-    // Report 500 errors to Sentry
-    Sentry.captureException(ensureError(error), {
-      tags: {
-        handler: "Express",
-        method: req.method,
-        path: req.path,
-        statusCode: boomError.output.statusCode,
-      },
-      contexts: {
-        request: {
+    if (!req.skipSentryCapture) {
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          handler: "Express",
           method: req.method,
-          url: req.url,
           path: req.path,
+          statusCode: boomError.output.statusCode,
         },
-      },
-    });
-    // Flush Sentry events before responding (critical for Lambda)
-    try {
-      await flushSentry();
-    } catch (flushError) {
-      console.error("[Sentry] Error flushing events:", flushError);
+        contexts: {
+          request: {
+            method: req.method,
+            url: req.url,
+            path: req.path,
+          },
+        },
+      });
+      // Flush Sentry events before responding (critical for Lambda)
+      try {
+        await flushSentry();
+      } catch (flushError) {
+        console.error("[Sentry] Error flushing events:", flushError);
+      }
     }
   } else {
     console.warn("[Express Error Handler] Client error:", boomError);

@@ -57,6 +57,34 @@ export function getRefererForUrl(url: string): string | undefined {
   }
 }
 
+/** Message we throw when block page is detected after retries */
+export const BLOCK_PAGE_ERROR_MESSAGE =
+  "Content could not be loaded: the server returned a block or security page. Try another URL or provider.";
+
+/**
+ * Returns true if the error is a known scraper/website failure (timeouts, block pages).
+ * Such errors should not be reported to Sentry; they are returned to the client and recorded in the conversation.
+ * Checks the error and its cause chain so wrapped Puppeteer errors are still detected.
+ */
+export function isScraperRelatedError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const message =
+    typeof (err as { message?: unknown }).message === "string"
+      ? ((err as { message: string }).message as string)
+      : "";
+  const name =
+    typeof (err as { name?: unknown }).name === "string"
+      ? ((err as { name: string }).name as string)
+      : "";
+  if (name === "TimeoutError") return true;
+  const lower = message.toLowerCase();
+  if (lower.includes("timeout") && lower.includes("exceeded")) return true;
+  if (message.includes(BLOCK_PAGE_ERROR_MESSAGE)) return true;
+  const cause = (err as { cause?: unknown }).cause;
+  if (cause) return isScraperRelatedError(cause);
+  return false;
+}
+
 /**
  * Returns true if content looks like a block/security page.
  * Requires either (1) one strong phrase, or (2) two or more of any block phrases,
