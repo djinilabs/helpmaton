@@ -1,3 +1,5 @@
+[![Tests](https://github.com/djinilabs/helpmaton/actions/workflows/test.yml/badge.svg)](https://github.com/djinilabs/helpmaton/actions/workflows/test.yml) [![E2E Tests](https://github.com/djinilabs/helpmaton/actions/workflows/test-e2e.yml/badge.svg)](https://github.com/djinilabs/helpmaton/actions/workflows/test-e2e.yml) [![Deploy Prod](https://github.com/djinilabs/helpmaton/actions/workflows/deploy-prod.yml/badge.svg)](https://github.com/djinilabs/helpmaton/actions/workflows/deploy-prod.yml) ![GitHub release (latest by SemVer)](https://img.shields.io/github/v/release/djinilabs/helpmaton)
+
 <div align="center" style="background-color: white; padding: 20px; display: inline-block; border-radius: 8px;">
   <img src="apps/frontend/public/images/helpmaton_logo_new.svg" alt="Helpmaton Logo" width="200">
 </div>

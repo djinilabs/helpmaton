@@ -1,3 +1,5 @@
+import { appendEmailFooter } from "./utils/emailFooter";
+
 const domain = process.env.MAILGUN_DOMAIN || "helpmaton.com";
 
 /**
@@ -21,11 +23,16 @@ export const sendEmail = async ({
   text: string;
   html?: string;
 }) => {
+  const { text: textWithFooter, html: htmlWithFooter } = appendEmailFooter({
+    text,
+    html,
+  });
+
   const emailContents = {
     to,
     subject,
-    text,
-    html,
+    text: textWithFooter,
+    html: htmlWithFooter,
     from: `info@${domain}`,
   };
 
@@ -58,9 +65,9 @@ export const sendEmail = async ({
   formData.append("from", `info@${domain}`);
   formData.append("to", to);
   formData.append("subject", subject);
-  formData.append("text", text);
-  if (html) {
-    formData.append("html", html);
+  formData.append("text", textWithFooter);
+  if (htmlWithFooter) {
+    formData.append("html", htmlWithFooter);
     // Add charset headers for Mailslurp compatibility
     formData.append("h:Content-Type", "text/html; charset=UTF-8");
     formData.append("h:Content-Transfer-Encoding", "8bit");

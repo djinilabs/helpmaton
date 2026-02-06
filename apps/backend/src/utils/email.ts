@@ -3,6 +3,7 @@ import type { Transporter } from "nodemailer";
 
 import { database } from "../tables";
 
+import { appendEmailFooter } from "./emailFooter";
 import { refreshGmailToken } from "./oauth/gmail";
 import { refreshOutlookToken } from "./oauth/outlook";
 
@@ -291,6 +292,11 @@ export async function sendEmailViaConnection(
     );
   }
 
+  const optionsWithFooter: EmailOptions = {
+    ...options,
+    ...appendEmailFooter({ text: options.text, html: options.html }),
+  };
+
   switch (connection.type) {
     case "gmail": {
       const config = connection.config as unknown as GmailConfig;
@@ -299,8 +305,8 @@ export async function sendEmailViaConnection(
       }
       const accessToken = await ensureGmailToken(config, workspaceId);
       await sendEmailViaGmail(accessToken, {
-        ...options,
-        from: options.from || config.email,
+        ...optionsWithFooter,
+        from: optionsWithFooter.from || config.email,
       });
       break;
     }
@@ -311,8 +317,8 @@ export async function sendEmailViaConnection(
       }
       const accessToken = await ensureOutlookToken(config, workspaceId);
       await sendEmailViaOutlook(accessToken, {
-        ...options,
-        from: options.from || config.email,
+        ...optionsWithFooter,
+        from: optionsWithFooter.from || config.email,
       });
       break;
     }
@@ -327,7 +333,7 @@ export async function sendEmailViaConnection(
       ) {
         throw new Error("SMTP connection missing required configuration");
       }
-      await sendEmailViaSMTP(config, options);
+      await sendEmailViaSMTP(config, optionsWithFooter);
       break;
     }
     default:
