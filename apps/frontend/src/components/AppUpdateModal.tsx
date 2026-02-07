@@ -1,5 +1,6 @@
 import { useEffect, type FC } from "react";
 
+import { BrandName } from "./BrandName";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
@@ -37,8 +38,8 @@ export const AppUpdateModal: FC<AppUpdateModalProps> = ({
           Update Available
         </h2>
         <p className="mb-4 text-lg font-medium text-neutral-700">
-          A newer version of Helpmaton is available. Reload to get the latest
-          improvements.
+          A newer version of <BrandName /> is available. Reload to get the
+          latest improvements.
         </p>
         {(currentVersion || latestVersion) && (
           <p className="mb-6 text-sm text-neutral-600">

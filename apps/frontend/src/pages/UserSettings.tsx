@@ -2,6 +2,7 @@ import { useRef, useState, lazy, Suspense, useEffect } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
 
+import { BrandName } from "../components/BrandName";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { ScrollContainer } from "../components/ScrollContainer";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -166,7 +167,7 @@ const UserSettings: FC = () => {
               to="/docs/api"
               className="font-semibold text-primary-600 underline hover:text-primary-700"
             >
-              Helpmaton API
+              <BrandName /> API
             </Link>
             . Use them in the{" "}
             <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-sm dark:bg-neutral-800 dark:text-neutral-50">

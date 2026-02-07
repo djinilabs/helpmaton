@@ -22,6 +22,7 @@ import type { FC } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 
 import { AccordionSection } from "../components/AccordionSection";
+import { BrandName } from "../components/BrandName";
 import {
   DetailPageNav,
   type DetailPageNavGroup,
@@ -207,7 +208,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
           </p>
           <p className="mb-3 text-sm text-orange-800 dark:text-orange-200">
             Upgrade to use your own provider key and pay the provider directly
-            while still using Helpmaton&apos;s tools and dashboards.
+            while still using <BrandName />&apos;s tools and dashboards.
           </p>
           <Link
             to="/subscription"

@@ -17,6 +17,7 @@ import {
 import { useEffect, useState } from "react";
 import type { FC, FormEvent, ReactNode } from "react";
 
+import { BrandName } from "./BrandName";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import {
@@ -1181,7 +1182,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                   How to Connect Your Zendesk Account
                 </p>
                 <p className="mt-1 text-neutral-600 dark:text-neutral-300">
-                  To allow your Helpmaton instance to access your helpdesk,
+                  To allow your <BrandName /> instance to access your helpdesk,
                   create an OAuth client in your Zendesk Admin Center.
                 </p>
                 <ol className="mt-3 list-decimal space-y-3 pl-5 text-neutral-700 dark:text-neutral-200">
@@ -1210,14 +1211,14 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                       <div className="mt-2 space-y-1 text-neutral-600 dark:text-neutral-300">
                         <div>
                           Client Name:{" "}
-                          <span className="font-mono">Helpmaton Agent</span>
+                          <span className="font-mono"><BrandName /> Agent</span>
                         </div>
                         <div>
                           Description:{" "}
                           <span className="font-mono">AI Agent Integration</span>
                         </div>
                         <div>
-                          Company: <span className="font-mono">Helpmaton</span>
+                          Company: <span className="font-mono"><BrandName /></span>
                         </div>
                         <div>
                           Unique Identifier:{" "}

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import type { FC } from "react";
 
+import { BrandName } from "./BrandName";
 import { useDialogTracking } from "../contexts/DialogContext";
 import {
   useCreateOrUpdateEmailConnection,
@@ -237,7 +238,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
               <p className="mb-4 text-sm text-neutral-700 dark:text-neutral-300">
                 Connect your {type === "gmail" ? "Gmail" : "Outlook"} account
-                using OAuth2. Click the button below to authorize Helpmaton to
+                using OAuth2. Click the button below to authorize <BrandName /> to
                 send emails on your behalf.
               </p>
               <button

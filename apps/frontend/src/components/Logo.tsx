@@ -1,256 +1,168 @@
-import type { FC, SVGProps } from "react";
+import type { FC, SVGAttributes } from "react";
 
-export const Logo: FC<SVGProps<SVGSVGElement>> = ({
+const LOGO_PATHS = [
+  { transform: "translate(498,305)", d: "m0 0h30l24 3 22 5 20 7 21 10 15 10 14 11 19 19 10 13 10 18 8 17 4 9 9 4-1-50-7-6-3-5-1-4v-7l3-8 7-6 2-1h12l9 6 3 5 1 4v7l-3 7-8 8-1 9v43l4 4 10 6 4 8 3 17 2 26v25l-2 26-4 25-3 6-7 6-29 10-5 15-10 21-4 7-5 9-10 13-11 13-14 14-14 11-14 9-19 10-22 8-21 5-15 2h-35l-20-3-19-5-16-6-17-8-16-10-12-9-10-9-7-6-7-8-12-15-9-14-11-21-9-23-26-9-9-6-4-8-3-19-1-13v-56l2-21 3-12 6-7 8-4 3-1v-55l-7-6-4-8v-9l3-7 5-5 4-2h12l6 4 5 6 1 3v11l-4 6-7 7v49l7-2 5-12 9-19 12-18 9-11 11-12 14-12 18-12 19-10 25-9 21-5z", fill: "#D0D3CE" },
+  { transform: "translate(503,213)", d: "m0 0h19l27 2 24 4 24 6 26 9 24 11 20 11 15 10 14 10 15 13 26 26 9 11 13 17 10 15 10 18 12 25 8 22 6 22 6 31 1 9v56l-4 27-8 32-9 25-11 24-10 18-10 15-13 17-12 14-16 17-8 7-13 11-23 16-22 13-16 8-19 8-27 9-26 6-21 3-12 1h-37l-27-3-24-5-24-7-21-8-29-14-20-12-18-13-11-9-10-9-8-7-10-10-7-8-13-16-16-24-10-18-11-23-10-28-6-24-4-23-2-19v-39l3-26 5-24 7-24 8-21 13-27 11-18 12-17 11-14 9-10 7-8 13-13 8-7 16-13 18-12 21-12 23-11 24-9 26-7 28-5zm-13 39-22 3-28 7-24 9-25 12-17 10-15 11-11 9-13 12-8 8-7 5-11 2-9 6-5 7-2 7 1 14-12 21-9 19-9 25-6 23-4 25-1 10v29l2 21 4 23 7 24 9 22 11 23 10 16 11 15 11 13 11 12 7 7 8 7 16 13 18 12 21 12 22 10 27 9 22 5 21 3 14 1h17l28-3 25-5 30-10 24-11 20-11 16-11 14-11 15-14 14-14 9-11 13-17 11-18 11-21 10-26 6-22 4-23 1-10v-42l-3-24-5-23-7-23-10-23-10-19-4-7v-18l-3-7-6-7-9-4-9-1-10-8-12-12-8-7-18-14-19-12-19-10-25-10-24-7-25-5-15-1z", fill: "#2978A4" },
+  { transform: "translate(470,348)", d: "m0 0h5v134h77v-134l9 1 19 7 16 8 14 9 14 12 7 7 9 11v209l-11 12-11 10-13 9-12 7-25 10-16 4v-89l-76 1-1 88-9-2-16-5-18-8-13-8-11-8-10-9-10-10-1-2v-209l12-14 8-8 10-8 15-10 21-10z", fill: "#2877A3" },
+  { transform: "translate(495,332)", d: "m0 0h38l24 4 19 6 12 5 16 8 16 11 12 11 11 11 9 13 8 14 7 15 6 22 3 20 1 9v57l-2 15-5 22-6 17-11 20-10 13-12 12-10 9-15 10-16 8-18 7-18 5-10 2-13 1h-38l-24-4-20-6-16-7-19-10-18-14-11-11v-2h-2l-10-14-10-19-8-22-3-16-2-18v-51l1-17 3-18 5-17 6-15 9-16 9-12 11-12 8-8 13-10 13-8 17-8 21-7 21-4zm-25 16-17 5-21 10-12 8-9 7-12 11-10 11-2 3v209l7 8 11 11 17 12 16 9 17 7 17 5h3l1-88 76-1v89l19-5 24-10 13-8 12-9 12-11 8-9v-209l-13-15-7-7-14-11-17-10-19-8-14-4h-4v134h-77v-134z", fill: "#070E20" },
+  { transform: "translate(470,348)", d: "m0 0h5v134h77v-134l9 1 19 7 16 8 14 9 14 12 7 7 9 11v209l-11 12-11 10-13 9-12 7-25 10-16 4v-89l-76 1-1 88-9-2-16-5-18-8-13-8-11-8-10-9-10-10-1-2v-209l12-14 8-8 10-8 15-10 21-10zm98 21v130h-110v-129l-9 3-14 8-12 9-10 9-10 10v197l6 7 11 9 10 7 14 8 12 5h3v-75l-1-8h110v83l6-1 16-8 14-9 10-8 10-10v-196l-7-8-11-11-16-11-14-8-6-1v-2z", fill: "#F9FAFB" },
+  { transform: "translate(503,213)", d: "m0 0h19l27 2 24 4 24 6 26 9 24 11 20 11 15 10 14 10 15 13 26 26 9 11 10 13-1 2h-2v3l3-1 3 4-1 1v7h-9l-8 2-6 1v10h-1l-2-15-6-8-7-4-12-2-10-8-12-12-8-7-18-14-19-12-19-10-25-10-24-7-25-5-15-1h-42l-22 3-28 7-24 9-25 12-17 10-15 11-11 9-13 12-8 8-7 5-11 2-9 6-4 6-2 7-1-2h-2l-1-7-4-2-1 4v-4l-11-2-2-1v-4l-2-2 10-13 9-11 14-15 10-10 8-7 16-13 18-12 21-12 23-11 24-9 26-7 28-5z", fill: "#41B5E0" },
+  { transform: "translate(351,544)", d: "m0 0h1l3 21 4 14 8 19 9 16 7 9v2h2l7 8 10 9 14 10 25 13 24 8 20 4 8 1h38l13-1 15-3 24-8 16-7 13-8 11-8 11-9 7-8 9-11 10-17 5-12 6-18 3-15h2l1-3 1 5h2l2-4 3 2v2h4v2l5 1 1 1v14l-3 16-8 24-8 15-10 13-11 12-10 9-15 11-14 8-14 7-19 7-23 6-18 3-11 1h-35l-24-3-21-5-18-6-16-7-15-8-16-11-8-6-16-16-10-13-10-18-6-17-4-16-1-16h2l1-7h5l5-2v-2l7-2z", fill: "#808380" },
+  { transform: "translate(493,344)", d: "m0 0h35l26 3-2 1v134h-77v-134l-3-1 11-1z", fill: "#818380" },
+  { transform: "translate(704,344)", d: "m0 0h12l9 6 3 5 1 4v7l-3 7-8 8-1 9v43l4 4 10 6 4 8 3 17 2 26v25l-2 26-4 25-3 6-7 6-26 9h-2l1-8 3-17 2-27v-42l-1-25-3-24-3-15v-4l7 1 2 1-1-50-7-6-3-5-1-4v-7l3-8 7-6z", fill: "#2D7BA7" },
+  { transform: "translate(311,344)", d: "m0 0h12l6 4 5 6 1 3v11l-4 6-7 7v49l8-1-4 21-2 16-1 15v62l1 20 2 15 3 13-9-2-19-7-8-6-3-7-3-19-1-13v-56l2-21 3-12 6-7 8-4 3-1v-55l-7-6-4-8v-9l3-7 5-5z", fill: "#174365" },
+  { transform: "translate(497,309)", d: "m0 0h32l22 3 19 4 21 7 23 11 15 10 10 8 1 2-1 2-5 3-2 1h-6l1 8 2 1v-2l3 1v7l3 2 4-2 2 4-1 5-4-2-12-12-17-12-14-8-14-6-18-6-20-4-8-1h-38l-25 4-20 6-18 8-14 8-7 5h-2l-1-4 7-1 1-3-2-2 1-2-3 1-1-1-6 1-5-1h-6l-2-3 13-10 18-10 16-7 17-6 25-5z", fill: "#FCFCFB" },
+  { transform: "translate(478,414)", d: "m0 0h2v10l5-2 2-3 8-1 3 1 6-1h22l13-1 4-1 4 3v2l4 1v60h-76v-29l1-34h1z", fill: "#495661" },
+  { transform: "translate(352,636)", d: "m0 0 5 5 9 10 12 12 15 11 11 7 19 9 12 5 11 4 21 5 17 3 13 1h37l28-4 28-8 24-10 14-8 13-9 11-9 15-15 6-8 1 2-9 13-9 11-9 10-11 11-14 11-14 9-19 10-22 8-21 5-15 2h-35l-20-3-19-5-16-6-17-8-16-10-12-9-10-9-7-6-7-8-12-15-8-12z", fill: "#0A1223" },
+  { transform: "translate(570,372)", d: "m0 0 12 5 10 4 8 6 4 5 8 7 7 7 3 4v72l-1 2-6-2-15-8-14-7-5 1-4-1-2-6-5-1z", fill: "#91D1E5" },
+  { transform: "translate(455,372)", d: "m0 0h2v88l-25 11-22 12h-3l-2-3v-70l9-10 7-7 15-11 15-8z", fill: "#92D1E5" },
+  { transform: "translate(695,429)", d: "m0 0 7 1 8 5 6 10 5 20 1 8v70l-3 19-3 14v4h-3v6l-15 5h-2l1-8 3-17 2-27v-42l-1-25-3-24-3-15z", fill: "#184465" },
+  { transform: "translate(478,380)", d: "m0 0 2 2 2 3 2 1 1-2 6-2h5l1 1v-1l10-1h21l21 1 2-1 1 33v68h-1l-1-58-1-2-3-1v-2l-4-2-7 1-14 1h-18l-7 1-1-1-8 1-4 4h-3v-10h-2v7l-2-2v-37z", fill: "#5A656D" },
+  { transform: "translate(503,449)", d: "m0 0h20l16 2 12 3v28h-76v-29l18-3z", fill: "#050C1E" },
+  { transform: "translate(311,344)", d: "m0 0h12l6 4 5 6 1 3v11l-4 6-7 7v47l1 3-3-1v-14l-10 2 1 16 7-1-4 6h-2l-3 10-4 19-2 18-2 2v-2l-12-1v-12l3-19 3-8 5-4 4-1 1-4 3-1v-55l-7-6-4-8v-9l3-7 5-5z", fill: "#2B77A3" },
+  { transform: "translate(676,550)", d: "m0 0 2 3v2h2l2-4 3 2v2h4v2l5 1 1 1v14l-3 16-8 24-8 15-10 13h-3l-5-5-2-3-5-2-1-4-4-1-1-5 7-9 8-14 5-12 6-18 3-15h2z", fill: "#9A9D99" },
+  { transform: "translate(351,544)", d: "m0 0h1l3 21 4 14 8 19 9 16 7 9-1 3-3-1-5 6-4 2-5 6-1 2-4-1-8-10-10-18-6-17-4-16-1-16h2l1-7h5l5-2v-2l7-2z", fill: "#9A9D99" },
+  { transform: "translate(621,410)", d: "m0 0h1v72l-1 2-6-2-15-8-14-7-5 1-4-1-2-6-5-1v-31l2 3 4-1 13 1h22l10 3z", fill: "#7EC8E0" },
+  { transform: "translate(456,413)", d: "m0 0h1v47l-25 11-22 12h-3l-2-3v-54l1-8h1l2 16 10-1 14-1h23z", fill: "#7DC8E0" },
+  { transform: "translate(586,505)", d: "m0 0h9l10 4 5 4 5 10 1 9-3 10-4 6-7 5-6 2h-11l-10-5-6-7-3-6v-13l5-10 7-6z", fill: "#F8FAFB" },
+  { transform: "translate(432,505)", d: "m0 0h8l9 3 6 5 5 8 1 3v12l-5 10-7 6-8 3h-10l-12-6-6-9-1-3v-14l4-8 5-5 7-4z", fill: "#F8FAFB" },
+  { transform: "translate(305,438)", d: "m0 0 2 1-3 3-6 4-3 8-3 19v11l9 1 3 1 1-9h1v58l2 1h-3l1 2 3 24 5 17 1 7-10-3-9-6-4-8-3-19-1-13v-56l2-21 3-12 6-7z", fill: "#2B78A4" },
+  { transform: "translate(704,344)", d: "m0 0h12l9 6 3 5 1 4v7l-3 7-8 8-1 9-1 24-2-2-2 4h-7v15l3 1-3 1-2-2v-50l-7-6-3-5-1-4v-7l3-8 7-6z", fill: "#327FA9" },
+  { transform: "translate(386,404)", d: "m0 0h1v208h-1v-129l-5-2-8-8-4-8-1-3v-16l5-17 11-21z", fill: "#404E5B" },
+  { transform: "translate(640,405)", d: "m0 0 4 5 8 15 6 17 1 6v12l-4 11-6 7-9 6z", fill: "#414D5A" },
+  { transform: "translate(703,531)", d: "m0 0 6 3 2 2h10v13l-2 13-3 14v4h-3v6l-15 5h-2l1-8 3-17z", fill: "#070F21" },
+  { transform: "translate(322,525)", d: "m0 0h1l2 18 1 20 2 15 3 13-9-2-7-3-2-7-5-17-2-15v-10h9v-2h2v-2h2l2-5z", fill: "#070E20" },
+  { transform: "translate(620,678)", d: "m0 0 2 1-3 5-16 8-19 7-22 6-28 4h-37l-21-2-22-5-16-5-14-5-15-8v-3h-2v-2l6 2 15 7 16 6 23 6 18 3 11 1h35l24-3 21-5 21-7 16-7z", fill: "#D1D4D0" },
+  { transform: "translate(514,435)", d: "m0 0 12 1v2h17l5 5 2 4h1v7l-17-3-11-1h-20l-21 3h-6v-13l2-3h2l1 6 4-3h12l6-2v-2z", fill: "#414D5A" },
+  { transform: "translate(712,437)", d: "m0 0 12 4 5 3 4 8 3 22v14l-5 1-3 1-1 7-4-3-3-29-5-20-3-6z", fill: "#7EC8E0" },
+  { transform: "translate(716,345)", d: "m0 0 5 2 5 5 3 7v7l-4 1-2 6h-4v2h-4v-2l-10-1-2-1 1 3-1 2-5-2-1-4 1 2 4-1-3-7-1-8 3-3 7-3 6-1 1-2 2 1z", fill: "#78C6E0" },
+  { transform: "translate(314,437)", d: "m0 0 1 2-5 13-3 16-2 18-2 2v-2l-12-1v-12l3-19 3-8 5-4z", fill: "#7FC9E0" },
+  { transform: "translate(309,345)", d: "m0 0 4 2h-3l2 4 8-1 6 4 2 3v9l2 1-3 3v4 2l-3 1v-2h-3v-3h-8l-7-1-3-4v-6h-3v6h-1v-9l3-7 5-5z", fill: "#7DC8E0" },
+  { transform: "translate(331,571)", d: "m0 0h1l3 16 6 20 8 16 7 11 11 13 7 7 4 3v2l4 2 14 10 11 7v3h2l-1 3-18-11-14-11-18-18-5-7-3-3-10-19-10-25-3-12v-4l4-1z", fill: "#CFD2CD" },
+  { transform: "translate(694,573)", d: "m0 0 1 4 2-1 1-2 1 1-1 8-8 24-10 21-4 7-2 3-5 5-7 8-13 13-16 12-12 7-1-3 5-5 12-8 11-9 10-9 9-10 9-13 8-16 8-24z", fill: "#CFD2CD" },
+  { transform: "translate(306,547)", d: "m0 0h1l3 20 4 12 1 7-10-3-9-6-4-8-1-5v-11l5-2 2 2h8z", fill: "#174163" },
+  { transform: "translate(720,549)", d: "m0 0 6 4 5 2 4 1 1 4-3 13-7 8-10 4-4-1 1-4 2-1 2-12 2-9z", fill: "#174163" },
+  { transform: "translate(386,404)", d: "m0 0h1v66h-1l-1-36-3 7-5 6-8 4v-10l6-16 9-17z", fill: "#495662" },
+  { transform: "translate(640,405)", d: "m0 0 4 5 8 15 6 17v12h-1l-1-7-4-5-3-3v-5l-7-2-1 33h-1z", fill: "#475561" },
+  { transform: "translate(621,448)", d: "m0 0h1v34l-1 2-6-2-15-8-11-6v-2h3v-2h8l5 2 8 2 2 1 2 9h3z", fill: "#3FB5E0" },
+  { transform: "translate(311,344)", d: "m0 0h12l6 4 5 6 1 3v11l-4 6-4 3v-3l-2-1 3-7-1-9-5-5-7-1-4 1v-2l-2-1z", fill: "#2E80AB" },
+  { transform: "translate(712,437)", d: "m0 0 12 4 5 3 3 5-1 7-4 6h-5l-2 1-5-18-3-6z", fill: "#91D1E5" },
+  { transform: "translate(314,437)", d: "m0 0 1 2-5 13-3 14-2-4-6-3-3-7v-5l6-5z", fill: "#91D1E5" },
+  { transform: "translate(407,679)", d: "m0 0 6 2 15 7 16 6 18 5 3 3 4 2-12-1-16-5-17-6-15-8v-3h-2z", fill: "#D2D4D0" },
+  { transform: "translate(406,465)", d: "m0 0 2 4v7l2-1 3-5 20-4 3 3-26 14h-3l-2-3v-13z", fill: "#3FB5E0" },
+  { transform: "translate(716,345)", d: "m0 0 5 2 5 5 3 7v7l-4 1-2 6h-4v2h-4v-2h-5v-1l7-2 4-5v-7l-4-5-9-2v-1l6-1 1-2 2 1z", fill: "#42B5DF" },
+  { transform: "translate(714,410)", d: "m0 0 2 4v21l-8-2-3-2v-15h7l1-4z", fill: "#050D20" },
+  { transform: "translate(705,351)", d: "m0 0h10l6 5 1 5-2 3-2-1-17-2v-6z", fill: "#91D1E5" },
+  { transform: "translate(315,350)", d: "m0 0 7 1 5 4v3l-7 3-11 3h-3v-6l3-5z", fill: "#8DD0E5" },
+  { transform: "translate(387,630)", d: "m0 0 4 2 7 7 11 8-1 3-6-1-8 1-2-2 1-7-4-1-1-8z", fill: "#969996" },
+  { transform: "translate(316,416)", d: "m0 0h6v15l-9 4h-1v-17z", fill: "#050C1E" },
+  { transform: "translate(309,345)", d: "m0 0 4 2h-3l1 6-3 3-1 2 1 9 5 4h-7l-3-4v-6h-3v6h-1v-9l3-7 5-5z", fill: "#43B6DF" },
+  { transform: "translate(386,404)", d: "m0 0h1v66h-1l-1-47h-2v-2l-5 1 1-5 6-10z", fill: "#6D7578" },
+  { transform: "translate(640,405)", d: "m0 0 4 5 5 9v3l-7 1-1 42h-1z", fill: "#5E6970" },
+  { transform: "translate(384,663)", d: "m0 0 11 7 12 8v3h2l-1 3-18-11-5-4-2-4z", fill: "#CED1CC" },
+  { transform: "translate(568,369)", d: "m0 0h2v2l8 2 10 6-2 1-15-7-1 38-2-3z", fill: "#2C7BA7" },
+  { transform: "translate(717,570)", d: "m0 0 5 1 2 5-2 2h3l1 3-10 4-4-1 1-4 2-1z", fill: "#29719B" },
+  { transform: "translate(493,344)", d: "m0 0h35l15 2v1h-35l-16-1z", fill: "#949895" },
+  { transform: "translate(309,571)", d: "m0 0 1 2h2l3 12-2 1-10-4 1-3 2-1-1-4z", fill: "#29719A" },
+  { transform: "translate(697,553)", d: "m0 0 2 3 2-1v11l-2 9-1 2h-3l1-19z", fill: "#F6F6F6" },
+  { transform: "translate(714,410)", d: "m0 0 2 4-1 4-1-1-4 2-1 10 3 5-5-2-2-1v-15h7l1-4z", fill: "#164163" },
+  { transform: "translate(696,452)", d: "m0 0 4 1 1 8v11l-2-1-2 2-1-2z", fill: "#F7F8F8" },
+  { transform: "translate(729,484)", d: "m0 0h7v4l-5 1-3 1-1 7-4-3v-9h2l1 4z", fill: "#3FB5E0" },
+  { transform: "translate(327,554)", d: "m0 0h2l2 13v6l-4 1-1-6v-13z", fill: "#FAFAFA" },
+  { transform: "translate(311,413)", d: "m0 0h2l1 5h-2l1 16 7-1-4 6-2-1-4 2-4-1 1-2 3-1z", fill: "#366A89" },
+  { transform: "translate(534,772)", d: "m0 0h6v2h9v1l-11 1-29-1v-1z", fill: "#315874" },
+  { transform: "translate(300,479)", d: "m0 0 4 2 1 5-2 2v-2l-12-1v-4z", fill: "#3FB5E0" },
+  { transform: "translate(486,772)", d: "m0 0 19 1 1 2-15 1h-10l2-3z", fill: "#345A75" },
+  { transform: "translate(707,445)", d: "m0 0 5 5v6h-7l-1-1v-6l3-1z", fill: "#2877A4" },
+  { transform: "translate(317,334)", d: "m0 0 3 1-1 3-11 2-4 1v-4z", fill: "#2877A4" },
+  { transform: "translate(628,639)", d: "m0 0 2 1-3 7h-2v2h-8l5-5z", fill: "#959895" },
+  { transform: "translate(326,443)", d: "m0 0 2 2-1 12-1-2h-2l-1-6 1-5z", fill: "#2C759E" },
+  { transform: "translate(326,367)", d: "m0 0 2 2-2 4 1 3-3 1v-2h-3v-3h-8v-1l9-1z", fill: "#3FB5E0" },
+  { transform: "translate(295,560)", d: "m0 0h1v9l-2 4-2-4v-7z", fill: "#0A1529" },
+  { transform: "translate(407,679)", d: "m0 0 6 2 4 2-1 4-6-2-1-4h-2z", fill: "#E2E4E1" },
+  { transform: "translate(575,461)", d: "m0 0 6 2 5 2-1 2-4 1-4-1z", fill: "#3FB5E0" },
+  { transform: "translate(592,347)", d: "m0 0 5 1 5 2 1 3-3 1-10-5z", fill: "#D0D2CE" },
+  { transform: "translate(305,438)", d: "m0 0 2 1-3 3-6 4-4 2 2-4 6-5z", fill: "#3581AA" },
+  { transform: "translate(671,570)", d: "m0 0h1v13l-4-1 2-10z", fill: "#CDD0CB" },
+  { transform: "translate(354,567)", d: "m0 0 2 3 1 7h-2v3h-2l-1-5h3l-2-1z", fill: "#C4C8C3" },
+  { transform: "translate(715,452)", d: "m0 0h3l1 9-5-2z", fill: "#2877A4" },
+  { transform: "translate(638,375)", d: "m0 0 3 3-1 6-4-2-1-3z", fill: "#F2F2F1" },
+  { transform: "translate(701,367)", d: "m0 0 2 1v2l2 1h-2l1 3-1 2-5-2-1-4 1 2 4-1z", fill: "#3FB5E0" },
+  { transform: "translate(534,772)", d: "m0 0h6v2h9v1l-11 1-4-2z", fill: "#2E5370" },
+  { transform: "translate(431,346)", d: "m0 0 5 2-5 4-5-2 3-1v-2z", fill: "#D4D6D2" },
+  { transform: "translate(755,340)", d: "m0 0h2l4 7-5-1-1-2h-2v-3zm2 7 3 1h-3z", fill: "#3081AC" },
+  { transform: "translate(459,699)", d: "m0 0 4 1 2 2 4 2-12-1-2-2h4z", fill: "#F1F1F0" },
+  { transform: "translate(710,335)", d: "m0 0 10 1 1 4-11-3z", fill: "#2877A4" },
+  { transform: "translate(383,657)", d: "m0 0 5 2v2h-2v2l-5-2-1-3z", fill: "#999B98" },
+];
+
+const logoStyles = `
+@keyframes logo-shine {
+  0% {
+    transform: translate(-120%) translateY(-120%) rotate(45deg);
+  }
+  18% {
+    transform: translate(120%) translateY(120%) rotate(45deg);
+  }
+  100% {
+    transform: translate(120%) translateY(120%) rotate(45deg);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .logo-shine {
+    animation: logo-shine 6s ease-in-out 1s infinite;
+  }
+}
+`;
+
+export const Logo: FC<SVGAttributes<SVGSVGElement>> = ({
   className,
-  style,
+  "aria-label": ariaLabel,
   ...props
 }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 240 240"
-    width="240"
-    height="240"
-    className={className ? `helpmaton-logo ${className}` : "helpmaton-logo"}
-    style={{ overflow: "visible", ...style }}
-    {...props}
-  >
-    <defs>
-      <radialGradient id="reactorGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-        <stop offset="0%" style={{ stopColor: "#ffffff", stopOpacity: 1 }} />
-        <stop offset="30%" style={{ stopColor: "#00ffff", stopOpacity: 0.9 }} />
-        <stop offset="80%" style={{ stopColor: "#0055ff", stopOpacity: 0.4 }} />
-        <stop offset="100%" style={{ stopColor: "#0000ff", stopOpacity: 0 }} />
-      </radialGradient>
-
-      <radialGradient id="panicGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-        <stop offset="0%" style={{ stopColor: "#ffff00", stopOpacity: 1 }} />
-        <stop offset="30%" style={{ stopColor: "#ff0055", stopOpacity: 0.9 }} />
-        <stop offset="80%" style={{ stopColor: "#ff0000", stopOpacity: 0.6 }} />
-        <stop offset="100%" style={{ stopColor: "#990000", stopOpacity: 0 }} />
-      </radialGradient>
-
-      <filter id="neonBloom" x="-100%" y="-100%" width="300%" height="300%">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
-        <feComponentTransfer in="blur" result="brightBlur">
-          <feFuncR type="linear" slope="1.5" />
-          <feFuncG type="linear" slope="1.5" />
-          <feFuncB type="linear" slope="2" />
-        </feComponentTransfer>
-        <feMerge>
-          <feMergeNode in="brightBlur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-
-      <style>
-        {`
-          @keyframes jitter {
-            0% { transform: translate(120px, 120px) rotate(0deg) scale(1); }
-            25% { transform: translate(118px, 122px) rotate(-5deg) scale(0.9); }
-            50% { transform: translate(122px, 118px) rotate(5deg) scale(0.95); }
-            75% { transform: translate(119px, 121px) rotate(-3deg) scale(0.9); }
-            100% { transform: translate(120px, 120px) rotate(0deg) scale(1); }
-          }
-          .helpmaton-logo:hover .main-shaker {
-            animation: jitter 0.15s infinite linear !important;
-            cursor: help;
-          }
-          .helpmaton-logo:hover .stator-ring { stroke: #ff0055 !important; transition: stroke 0.2s; }
-          .helpmaton-logo:hover .ring-1 { stroke: #ffff00 !important; transition: stroke 0.2s; }
-          .helpmaton-logo:hover .ring-2 { stroke: #ff4400 !important; transition: stroke 0.2s; }
-          .helpmaton-logo:hover .ring-3 { stroke: #ff0099 !important; transition: stroke 0.2s; }
-          .helpmaton-logo:hover .ring-4 { stroke: #ffaa00 !important; transition: stroke 0.2s; }
-          .helpmaton-logo:hover .particle { fill: #ffff00 !important; transition: fill 0.2s; }
-          .helpmaton-logo:hover .core-fill { fill: url(#panicGlow) !important; transition: fill 0.2s; }
-          .helpmaton-logo:hover .core-inner { fill: #ffff00 !important; transition: fill 0.2s; }
-        `}
-      </style>
-    </defs>
-
-    <circle cx="120" cy="120" r="120" fill="#050a19" />
-
-    <g className="main-shaker" transform="translate(120 120)">
-      <g>
-        <circle
-          className="core-inner"
-          cx="0"
-          cy="0"
-          r="15"
-          fill="#ffffff"
-          filter="url(#neonBloom)"
-        >
-          <animate attributeName="r" values="15;18;15" dur="0.8s" repeatCount="indefinite" />
-        </circle>
-
-        <circle
-          className="core-fill"
-          cx="0"
-          cy="0"
-          r="28"
-          fill="url(#reactorGlow)"
-          opacity="0.8"
-        >
-          <animate
-            attributeName="r"
-            values="28;32;28"
-            dur="2s"
-            repeatCount="indefinite"
-            calcMode="spline"
-            keySplines="0.4 0 0.2 1; 0.4 0 0.2 1"
-          />
-        </circle>
-
-        <path
-          className="stator-ring"
-          d="M0,-36 A36,36 0 0,1 36,0 M0,36 A36,36 0 0,1 -36,0"
-          fill="none"
-          stroke="#00ffff"
-          strokeWidth="3"
-          strokeLinecap="round"
-          opacity="0.9"
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 0 0"
-            to="360 0 0"
-            dur="5s"
-            repeatCount="indefinite"
-          />
-        </path>
-        <path
-          className="stator-ring"
-          d="M36,0 A36,36 0 0,1 0,36 M-36,0 A36,36 0 0,1 0,-36"
-          fill="none"
-          stroke="#0055ff"
-          strokeWidth="3"
-          strokeLinecap="round"
-          opacity="0.9"
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="360 0 0"
-            to="0 0 0"
-            dur="5s"
-            repeatCount="indefinite"
-          />
-        </path>
-      </g>
-
-      <g filter="url(#neonBloom)">
-        <circle
-          className="ring-1"
-          cx="0"
-          cy="0"
-          r="50"
-          fill="none"
-          stroke="#00ffff"
-          strokeWidth="1.5"
-          strokeDasharray="5 10"
-          opacity="0.6"
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="360 0 0"
-            to="0 0 0"
-            dur="8s"
-            repeatCount="indefinite"
-          />
-        </circle>
-        <g>
-          <circle className="particle" cx="0" cy="-50" r="3" fill="#ffffff">
-            <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
-          </circle>
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="360 0 0"
-            to="0 0 0"
-            dur="8s"
-            repeatCount="indefinite"
-          />
+  <>
+    <style>{logoStyles}</style>
+    <span
+      className={`logo-wrap ${className ?? ""}`.trim()}
+      style={{
+        display: "inline-block",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <span
+        className="logo-shine"
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "linear-gradient(105deg, transparent 0%, transparent 35%, rgba(255,255,255,0.45) 50%, transparent 65%, transparent 100%)",
+          width: "60%",
+          height: "200%",
+          left: "50%",
+          top: "50%",
+          marginLeft: "-30%",
+          marginTop: "-100%",
+          transformOrigin: "center center",
+        }}
+      />
+      <svg
+        viewBox="0 0 598 599"
+        xmlns="http://www.w3.org/2000/svg"
+        role={ariaLabel ? "img" : undefined}
+        aria-label={ariaLabel}
+        className="logo-svg"
+        style={{ display: "block", width: "100%", height: "100%", position: "relative" }}
+        {...props}
+      >
+        <g transform="translate(-214,-213)">
+          {LOGO_PATHS.map((pathProps, i) => (
+            <path key={i} {...pathProps} />
+          ))}
         </g>
-      </g>
-
-      <g opacity="0.7">
-        <path
-          className="ring-2"
-          d="M0,-70 L40,-55 L65,0 L40,55 L0,70 L-40,55 L-65,0 L-40,-55 Z"
-          fill="none"
-          stroke="#0055ff"
-          strokeWidth="1"
-          strokeDasharray="20 5"
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 0 0"
-            to="360 0 0"
-            dur="15s"
-            repeatCount="indefinite"
-          />
-        </path>
-      </g>
-
-      <g filter="url(#neonBloom)">
-        <circle
-          className="ring-3"
-          cx="0"
-          cy="0"
-          r="90"
-          fill="none"
-          stroke="#00ffff"
-          strokeWidth="2"
-          strokeDasharray="50 30 10 30"
-          opacity="0.8"
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="360 0 0"
-            to="0 0 0"
-            dur="12s"
-            repeatCount="indefinite"
-          />
-        </circle>
-        <g>
-          <circle className="particle" cx="0" cy="-90" r="4" fill="#00ffff" />
-          <circle className="particle" cx="0" cy="90" r="4" fill="#00ffff" />
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="360 0 0"
-            to="0 0 0"
-            dur="12s"
-            repeatCount="indefinite"
-          />
-        </g>
-      </g>
-
-      <g filter="url(#neonBloom)" opacity="0.5">
-        <circle
-          className="ring-4"
-          cx="0"
-          cy="0"
-          r="110"
-          fill="none"
-          stroke="#0055ff"
-          strokeWidth="4"
-          strokeDasharray="80 120"
-          strokeLinecap="round"
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 0 0"
-            to="360 0 0"
-            dur="25s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      </g>
-    </g>
-  </svg>
+      </svg>
+    </span>
+  </>
 );

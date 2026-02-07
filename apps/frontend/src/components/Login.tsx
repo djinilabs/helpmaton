@@ -2,6 +2,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import type { FC } from "react";
 
+import { BrandName } from "./BrandName";
 import { Logo } from "./Logo";
 
 const Login: FC = () => {
@@ -106,8 +107,8 @@ const Login: FC = () => {
           <div className="relative size-16 shrink-0">
             <Logo className="relative z-10 size-full" aria-label="Helpmaton Logo" />
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
-            Helpmaton
+          <h1 className="text-4xl font-black tracking-tight">
+            <BrandName />
           </h1>
         </div>
         <h2
@@ -119,7 +120,7 @@ const Login: FC = () => {
         </h2>
         {!emailSent && (
           <p className="mb-10 text-sm text-neutral-600 dark:text-neutral-400">
-            Enter your email to sign in or create a new Helpmaton account.
+            Enter your email to sign in or create a new <BrandName /> account.
           </p>
         )}
 
@@ -143,7 +144,7 @@ const Login: FC = () => {
               </svg>
             </div>
             <p className="text-base text-neutral-700 dark:text-neutral-200">
-              We sent a Helpmaton sign-in link to{" "}
+              We sent a <BrandName /> sign-in link to{" "}
               <span className="font-semibold text-neutral-900 dark:text-neutral-50">
                 {email}
               </span>

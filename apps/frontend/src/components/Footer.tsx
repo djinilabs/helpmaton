@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import { Link } from "react-router-dom";
 
+import { BrandName } from "./BrandName";
 import { Logo } from "./Logo";
 
 export const Footer: FC = () => {
@@ -15,9 +16,7 @@ export const Footer: FC = () => {
             <div className="relative size-8 shrink-0">
               <Logo className="relative z-10 size-full opacity-60" aria-label="Helpmaton Logo" />
             </div>
-            <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-              Helpmaton
-            </span>
+            <BrandName className="text-sm font-medium" />
           </div>
           <div className="text-right text-xs text-neutral-500 dark:text-neutral-300">
             <div className="mb-1">Straightforward AI. No fluff.</div>
