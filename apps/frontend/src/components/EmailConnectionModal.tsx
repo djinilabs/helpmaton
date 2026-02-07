@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import type { FC } from "react";
 
-import { BrandName } from "./BrandName";
 import { useDialogTracking } from "../contexts/DialogContext";
 import {
   useCreateOrUpdateEmailConnection,
@@ -11,6 +10,8 @@ import {
 } from "../hooks/useEmailConnection";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { EmailConnection } from "../utils/api";
+
+import { BrandName } from "./BrandName";
 
 interface EmailConnectionModalProps {
   isOpen: boolean;

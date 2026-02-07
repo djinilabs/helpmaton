@@ -17,7 +17,6 @@ import {
 import { useEffect, useState } from "react";
 import type { FC, FormEvent, ReactNode } from "react";
 
-import { BrandName } from "./BrandName";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import {
@@ -31,6 +30,8 @@ import type {
   UpdateMcpServerInput,
 } from "../utils/api";
 import { trackEvent } from "../utils/tracking";
+
+import { BrandName } from "./BrandName";
 
 type McpServerType =
   | "google-drive"

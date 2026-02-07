@@ -1,8 +1,9 @@
 import { useEffect, type FC } from "react";
 
-import { BrandName } from "./BrandName";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+
+import { BrandName } from "./BrandName";
 
 interface AppUpdateModalProps {
   isOpen: boolean;
