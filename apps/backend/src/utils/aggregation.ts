@@ -1531,18 +1531,44 @@ async function queryAggregatesForDate(
   const aggregates: TokenUsageAggregateRecord[] = [];
 
   if (workspaceId && agentId) {
-    // Query by GSI byWorkspaceIdAndAgentId: key-only, no scan/filter
+    // Query by GSI byWorkspaceIdAndAgentId when available; fallback to byWorkspaceIdAndDate + filter if GSI is missing (e.g. production not yet updated)
     const agentIdDate = `${agentId}#${date}`;
-    const query = await db["token-usage-aggregates"].query({
-      IndexName: "byWorkspaceIdAndAgentId",
-      KeyConditionExpression:
-        "workspaceId = :workspaceId AND agentIdDate = :agentIdDate",
-      ExpressionAttributeValues: {
-        ":workspaceId": workspaceId,
-        ":agentIdDate": agentIdDate,
-      },
-    });
-    aggregates.push(...query.items);
+    try {
+      const query = await db["token-usage-aggregates"].query({
+        IndexName: "byWorkspaceIdAndAgentId",
+        KeyConditionExpression:
+          "workspaceId = :workspaceId AND agentIdDate = :agentIdDate",
+        ExpressionAttributeValues: {
+          ":workspaceId": workspaceId,
+          ":agentIdDate": agentIdDate,
+        },
+      });
+      aggregates.push(...query.items);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("does not have the specified index") ||
+        msg.includes("byWorkspaceIdAndAgentId")
+      ) {
+        // GSI not yet created on table; use byWorkspaceIdAndDate and filter by agentId
+        const query = await db["token-usage-aggregates"].query({
+          IndexName: "byWorkspaceIdAndDate",
+          KeyConditionExpression:
+            "workspaceId = :workspaceId AND #date = :date",
+          FilterExpression: "agentId = :agentId",
+          ExpressionAttributeNames: { "#date": "date" },
+          ExpressionAttributeValues: {
+            ":workspaceId": workspaceId,
+            ":date": date,
+            ":agentId": agentId,
+          },
+        });
+        aggregates.push(...query.items);
+      } else {
+        throw err;
+      }
+    }
   } else if (agentId) {
     const query = await db["token-usage-aggregates"].query({
       IndexName: "byAgentIdAndDate",
