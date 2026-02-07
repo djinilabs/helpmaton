@@ -7,6 +7,20 @@ import { Sentry, ensureError } from "./sentry";
 
 const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+/** Fallback chat model when agent uses a deprecated rerank-only model ID (not valid for chat completions). */
+const DEFAULT_RERANK_CHAT_MODEL = "openai/gpt-4o-mini";
+
+/**
+ * Model IDs that are for dedicated rerank APIs (e.g. Cohere rerank) and are not valid
+ * for OpenRouter's chat completions API. Agents may have these saved from when they were
+ * offered; we map them to a valid chat model so reranking keeps working.
+ */
+const DEPRECATED_RERANK_ONLY_MODEL_IDS = new Set([
+  "cohere/rerank-v3",
+  "cohere/rerank-english-v3.0",
+  "cohere/rerank-multilingual-v3.0",
+]);
+
 /**
  * Filter available OpenRouter models to find re-ranking models.
  * Re-ranking is done via chat completions, so we include both models with
@@ -92,6 +106,16 @@ export async function rerankSnippets<T extends RerankableSnippet>(
     );
   }
 
+  const resolvedModel = DEPRECATED_RERANK_ONLY_MODEL_IDS.has(model)
+    ? DEFAULT_RERANK_CHAT_MODEL
+    : model;
+  if (resolvedModel !== model) {
+    console.warn(
+      "[knowledgeReranking] Deprecated rerank-only model ID is not valid for chat completions; using fallback:",
+      { from: model, to: resolvedModel }
+    );
+  }
+
   let apiKey: string;
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
   if (workspaceApiKey) {
@@ -115,7 +139,7 @@ export async function rerankSnippets<T extends RerankableSnippet>(
         "HTTP-Referer": process.env.DEFAULT_REFERER || "http://localhost:3000",
       },
       body: JSON.stringify({
-        model,
+        model: resolvedModel,
         messages: [{ role: "user" as const, content: prompt }],
         max_tokens: 200,
         temperature: 0,
@@ -138,7 +162,8 @@ export async function rerankSnippets<T extends RerankableSnippet>(
           statusCode: response.status,
         },
         extra: {
-          model,
+          model: resolvedModel,
+          requestedModel: model,
           documentCount: snippets.length,
           workspaceId,
           errorText,
@@ -163,7 +188,8 @@ export async function rerankSnippets<T extends RerankableSnippet>(
           operation: "rerank-api-call",
         },
         extra: {
-          model,
+          model: resolvedModel,
+          requestedModel: model,
           documentCount: snippets.length,
           workspaceId,
           responsePreview: trimmed.slice(0, 500),
@@ -192,7 +218,8 @@ export async function rerankSnippets<T extends RerankableSnippet>(
           operation: "rerank-api-call",
         },
         extra: {
-          model,
+          model: resolvedModel,
+          requestedModel: model,
           documentCount: snippets.length,
           workspaceId,
           responsePreview: trimmed.slice(0, 500),
@@ -212,7 +239,8 @@ export async function rerankSnippets<T extends RerankableSnippet>(
           operation: "rerank-api-call",
         },
         extra: {
-          model,
+          model: resolvedModel,
+          requestedModel: model,
           documentCount: snippets.length,
           workspaceId,
         },
@@ -236,7 +264,8 @@ export async function rerankSnippets<T extends RerankableSnippet>(
           operation: "rerank-response-validation",
         },
         extra: {
-          model,
+          model: resolvedModel,
+          requestedModel: model,
           documentCount: snippets.length,
           workspaceId,
           contentPreview: content.slice(0, 300),
@@ -249,17 +278,17 @@ export async function rerankSnippets<T extends RerankableSnippet>(
     const generationId = data.id;
 
     if (costUsd === undefined) {
-      const modelPricing = getModelPricing("openrouter", model);
+      const modelPricing = getModelPricing("openrouter", resolvedModel);
       if (modelPricing?.usd?.request !== undefined) {
         costUsd = modelPricing.usd.request * 1.055;
         console.log(
           "[knowledgeReranking] Cost not in API response, using pricing config with markup:",
-          { model, costUsd }
+          { model: resolvedModel, costUsd }
         );
       } else {
         console.warn(
           "[knowledgeReranking] Cost not in API response and no pricing config:",
-          { model }
+          { model: resolvedModel }
         );
       }
     }
@@ -301,7 +330,8 @@ export async function rerankSnippets<T extends RerankableSnippet>(
         operation: "rerank-api-call",
       },
       extra: {
-        model,
+        model: resolvedModel,
+        requestedModel: model,
         documentCount: snippets.length,
         workspaceId,
       },

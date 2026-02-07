@@ -198,7 +198,6 @@ import {
   getModelsForProvider,
   getDefaultModelForProvider,
   fetchAvailableModels,
-  getRerankingModels,
   getImageModelsForProvider,
   resolveDefaultModel,
   type Provider,
@@ -1303,13 +1302,13 @@ function useAgentDetailState({
         .then((models) => {
           const openrouterModels = models.openrouter?.models || [];
           const capabilities = models.openrouter?.capabilities;
-          const capabilityFiltered = capabilities
-            ? filterModelsByCapability(openrouterModels, capabilities, "rerank")
+          const resolvedRerankModels = capabilities
+            ? filterModelsByCapability(
+                openrouterModels,
+                capabilities,
+                "text_generation"
+              )
             : [];
-          const resolvedRerankModels =
-            capabilityFiltered.length > 0
-              ? capabilityFiltered
-              : getRerankingModels(openrouterModels);
           setRerankingModels(resolvedRerankModels);
           setIsLoadingRerankingModels(false);
           setKnowledgeRerankingModel((current) =>

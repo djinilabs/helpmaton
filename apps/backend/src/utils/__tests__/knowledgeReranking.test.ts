@@ -424,6 +424,23 @@ describe("knowledgeReranking", () => {
       });
     });
 
+    it("should map deprecated rerank-only model IDs to openai/gpt-4o-mini for chat completions", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        chatCompletionsResponse("[0]")
+      );
+
+      await rerankSnippets(
+        "test query",
+        mockSnippets,
+        "cohere/rerank-english-v3.0",
+        "workspace-1"
+      );
+
+      const call = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+      expect(body.model).toBe("openai/gpt-4o-mini");
+    });
+
     it("should throw error if OPENROUTER_API_KEY is not set and no workspace key", async () => {
       delete process.env.OPENROUTER_API_KEY;
       mockGetWorkspaceApiKey.mockResolvedValue(null);
