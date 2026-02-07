@@ -264,9 +264,9 @@
         },
         "z-ai/glm-4.7-flash": {
           "usd": {
-            "input": 0.07,
+            "input": 0.06,
             "output": 0.39999999999999997,
-            "cachedInput": 0.007000000000000001
+            "cachedInput": 0.006
           },
           "capabilities": {
             "input_modalities": [
@@ -3577,7 +3577,7 @@
         "alibaba/tongyi-deepresearch-30b-a3b": {
           "usd": {
             "input": 0.09,
-            "output": 0.39999999999999997,
+            "output": 0.44999999999999996,
             "cachedInput": 0.009
           },
           "capabilities": {
@@ -5235,7 +5235,7 @@
         "qwen/qwen3-coder": {
           "usd": {
             "input": 0.22,
-            "output": 0.95,
+            "output": 1,
             "cachedInput": 0.022000000000000002
           },
           "capabilities": {
@@ -10690,9 +10690,9 @@
         },
         "meta-llama/llama-3.1-405b-instruct": {
           "usd": {
-            "input": 3.5,
-            "output": 3.5,
-            "cachedInput": 0.35000000000000003
+            "input": 4,
+            "output": 4,
+            "cachedInput": 0.4
           },
           "capabilities": {
             "input_modalities": [
@@ -12458,9 +12458,40 @@
             "structured_output": true,
             "image": false
           }
+        },
+        "openrouter/pony-alpha": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
         }
       }
     }
   },
-  "lastUpdated": "2026-02-06T00:17:45.991Z"
+  "lastUpdated": "2026-02-07T00:19:06.158Z"
 }
