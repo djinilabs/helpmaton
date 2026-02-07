@@ -607,7 +607,10 @@ export function setupGlobalFetchOverride(): void {
       });
     } catch (error) {
       // Network error (no internet, server down, etc.)
-      if (error instanceof TypeError && error.message === "Failed to fetch") {
+      // Chrome/FF use "Failed to fetch"; Safari/iOS (WebKit) use "Load failed"
+      const msg =
+        error instanceof TypeError ? (error.message as string) : "";
+      if (msg === "Failed to fetch" || msg === "Load failed") {
         throw new Error(
           "Network error: Unable to connect to the server. Please check your internet connection.",
         );
