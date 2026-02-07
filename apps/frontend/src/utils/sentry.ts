@@ -51,6 +51,15 @@ export function initSentry(): void {
     // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring
     // Adjust this value in production
     tracesSampleRate: environment === "production" ? 0.1 : 1.0,
+    // Ignore CefSharp bot errors (e.g. Outlook SafeSearch scanning links).
+    // "Object Not Found Matching Id:..., MethodName:..., ParamCount:..." is thrown
+    // by CefSharp when bots load the page; not a real user issue.
+    ignoreErrors: [
+      // CefSharp bot errors (e.g. Outlook SafeSearch); rejection value is the string below
+      /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/,
+      // Sentry's message for non-Error rejections
+      /Non-Error promise rejection.*Object Not Found Matching Id:/,
+    ],
     // Set sample rate for session replay
     replaysSessionSampleRate: environment === "production" ? 0.1 : 1.0,
     replaysOnErrorSampleRate: 1.0,
