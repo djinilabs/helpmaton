@@ -52,6 +52,7 @@ Builds and pushes Lambda container images to ECR for deployment.
 ### Production Operations
 
 - `cleanup-production-log-groups.mjs` - Remove unused production CloudWatch log groups
+- `posthog-reset-data.mjs` - Remove all persons and their events/recordings from a PostHog project via API (env: `POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID`; use `--confirm` to delete)
 
 ### Backend Build and Deployment
 
