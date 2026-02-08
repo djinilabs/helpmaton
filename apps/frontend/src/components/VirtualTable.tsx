@@ -8,8 +8,32 @@ export interface VirtualTableColumn<T> {
   header: ReactNode;
   /** Render cell content for this column */
   render: (item: T, index: number) => ReactNode;
-  /** Optional column width (e.g. "120px", "1fr"). Default: auto */
+  /** Optional column width (e.g. "120px", "1fr", "minmax(180px, 3fr)"). Default: auto */
   width?: string;
+}
+
+/** Sum minimum pixel width from column width strings so the table can use min-width and avoid overlapping columns. */
+function getTableMinWidth<T>(columns: VirtualTableColumn<T>[]): number {
+  let total = 0;
+  for (const col of columns) {
+    const w = col.width;
+    if (!w) {
+      total += 80;
+      continue;
+    }
+    const pxMatch = w.match(/(\d+)px/);
+    if (pxMatch) {
+      total += parseInt(pxMatch[1], 10);
+      continue;
+    }
+    const minmaxMatch = w.match(/minmax\(\s*(\d+)px/);
+    if (minmaxMatch) {
+      total += parseInt(minmaxMatch[1], 10);
+      continue;
+    }
+    total += 80;
+  }
+  return total;
 }
 
 export interface VirtualTableProps<T> {
@@ -72,6 +96,8 @@ export function VirtualTable<T>({
   const gridTemplateColumns = columns
     .map((c) => c.width ?? "1fr")
     .join(" ");
+  const tableMinWidth = getTableMinWidth(columns);
+  const tableStyle = { minWidth: `${tableMinWidth}px` };
 
   const headerRowStyle = {
     gridTemplateColumns,
@@ -83,7 +109,7 @@ export function VirtualTable<T>({
   // Before scroll element is measured, virtualizer can return 0 items; show all rows so table isn't empty and scroll works
   if (count > 0 && virtualItems.length === 0) {
     return (
-      <div className="w-full" role="table" aria-rowcount={count}>
+      <div className="w-full" role="table" aria-rowcount={count} style={tableStyle}>
         <div
           className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
           style={headerRowStyle}
@@ -122,7 +148,7 @@ export function VirtualTable<T>({
   }
 
   return (
-    <div className="w-full" role="table" aria-rowcount={count}>
+    <div className="w-full" role="table" aria-rowcount={count} style={tableStyle}>
       {/* Sticky header: stays fixed at top of scroll container */}
       <div
         className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
