@@ -2,6 +2,8 @@
 
 ## Current Status
 
+- **Login page legal links (2026-02-08)**: Added small Terms of Service and Privacy Statement links at the bottom of the login card in `Login.tsx`. Import `Link` from react-router-dom; footer block with `text-xs`, separator “·”, links to `/terms-of-service` and `/privacy`; same labels as Footer. Typecheck and lint pass.
+
 - **Rerank: map deprecated Cohere rerank model IDs to chat model (2026-02-07)**: Production 400 from OpenRouter for `cohere/rerank-english-v3.0` ("is not a valid model ID"). Reranking uses OpenRouter **chat completions** API; Cohere rerank-only IDs are not valid there. In `knowledgeReranking.ts` added `DEPRECATED_RERANK_ONLY_MODEL_IDS` (cohere/rerank-v3, cohere/rerank-english-v3.0, cohere/rerank-multilingual-v3.0) and map them to `openai/gpt-4o-mini` at call time so agents that still have these saved keep working. Log warning when mapping; Sentry extra includes `requestedModel` and `model` (resolved). Unit test: "should map deprecated rerank-only model IDs to openai/gpt-4o-mini for chat completions". Typecheck and knowledgeReranking tests pass.
 
 - **Sentry: ignore CefSharp bot error (2026-02-07)**: Production UnhandledRejection "Object Not Found Matching Id:1, MethodName:update, ParamCount:4" is from **CefSharp** (e.g. Outlook SafeSearch) when bots load the app—not app code. Added `ignoreErrors` in `apps/frontend/src/utils/sentry.ts` for the CefSharp pattern and for "Non-Error promise rejection.*Object Not Found Matching Id:" so these are not reported. No code fix required; filter only.

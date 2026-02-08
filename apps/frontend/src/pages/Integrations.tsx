@@ -190,11 +190,7 @@ const Integrations: FC = () => {
         </div>
       </div>
 
-      <ScrollContainer
-        ref={scrollRef}
-        className="rounded-xl border border-neutral-200 dark:border-neutral-700"
-        maxHeight="70vh"
-      >
+      <ScrollContainer ref={scrollRef} maxHeight="70vh">
         <VirtualList
           scrollRef={scrollRef}
           items={integrations}

@@ -171,11 +171,7 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
         </div>
       )}
 
-      <ScrollContainer
-        ref={scrollRef}
-        className="rounded-xl border-2 border-neutral-300 dark:border-neutral-700"
-        maxHeight="min(60vh, 500px)"
-      >
+      <ScrollContainer ref={scrollRef} maxHeight="min(60vh, 500px)">
         <VirtualList<EvalJudge>
           scrollRef={scrollRef}
           items={judgesList}

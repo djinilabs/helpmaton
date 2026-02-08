@@ -1,6 +1,7 @@
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import type { FC } from "react";
+import { Link } from "react-router-dom";
 
 import { BrandName } from "./BrandName";
 import { Logo } from "./Logo";
@@ -218,6 +219,22 @@ const Login: FC = () => {
             )}
           </form>
         )}
+
+        <p className="mt-10 flex items-center justify-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+          <Link
+            to="/terms-of-service"
+            className="transition-colors hover:text-neutral-700 dark:hover:text-neutral-300"
+          >
+            Terms of Service
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link
+            to="/privacy"
+            className="transition-colors hover:text-neutral-700 dark:hover:text-neutral-300"
+          >
+            Privacy Statement
+          </Link>
+        </p>
       </div>
     </div>
   );

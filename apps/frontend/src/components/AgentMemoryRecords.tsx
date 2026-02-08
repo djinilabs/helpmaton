@@ -294,11 +294,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             </h3>
           </div>
 
-          <ScrollContainer
-            ref={scrollRef}
-            className="rounded-xl border-2 border-neutral-300 dark:border-neutral-700"
-            maxHeight="min(60vh, 500px)"
-          >
+          <ScrollContainer ref={scrollRef} maxHeight="min(60vh, 500px)">
             <VirtualList<AgentMemoryResult>
               scrollRef={scrollRef}
               items={data.records}

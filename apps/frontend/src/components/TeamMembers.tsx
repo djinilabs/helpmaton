@@ -181,7 +181,6 @@ export const TeamMembers: FC<TeamMembersProps> = ({
           </h3>
           <ScrollContainer
             ref={invitesScrollRef}
-            className="rounded-xl border border-neutral-200 dark:border-neutral-700"
             maxHeight="min(40vh, 400px)"
           >
             <VirtualList<WorkspaceInviteListItem>
@@ -259,7 +258,6 @@ export const TeamMembers: FC<TeamMembersProps> = ({
         </h3>
         <ScrollContainer
           ref={membersScrollRef}
-          className="rounded-xl border border-neutral-200 dark:border-neutral-700"
           maxHeight="min(50vh, 500px)"
         >
           <VirtualList<Member>
