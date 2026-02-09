@@ -82,7 +82,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
     return (
       <div
-        className={`flex min-h-screen items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
+        className={`bg-page flex min-h-screen items-center justify-center ${className}`}
       >
         <div className="flex items-center gap-3">
           <LockSpinner size="small" />
@@ -110,7 +110,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
   return (
     <div
-      className={`flex min-h-screen flex-col items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
+      className={`bg-page flex min-h-screen flex-col items-center justify-center ${className}`}
     >
       <div className="relative mb-8">
         <LockSpinner size="large" />

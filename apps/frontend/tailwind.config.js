@@ -5,13 +5,19 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class',
-  safelist: [
-    'bg-gradient-soft-dark',
-    'dark:bg-gradient-soft-dark',
-  ],
+  safelist: [],
   theme: {
     extend: {
       colors: {
+        /* Dark theme base - match marketing website */
+        surface: {
+          DEFAULT: '#0a0a0f',
+          50: '#18181f',
+          100: '#1e1e28',
+          200: '#252532',
+          300: '#2d2d3a',
+          400: '#3d3d4a',
+        },
         primary: {
           50: '#f0fdfa',
           100: '#ccfbf1',
@@ -88,18 +94,27 @@ export default {
           'sans-serif',
         ],
         display: [
+          '"Orbitron"',
+          '"Space Grotesk"',
           'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
-          '"Segoe UI"',
-          'Roboto',
           'sans-serif',
+        ],
+        mono: [
+          '"JetBrains Mono"',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace',
         ],
       },
       fontSize: {
-        'display-1': ['5rem', { lineHeight: '1.1', letterSpacing: '-0.03em', fontWeight: '900' }],
-        'display-2': ['4rem', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '800' }],
-        'display-3': ['3rem', { lineHeight: '1.3', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'display-1': ['4rem', { lineHeight: '1.1', letterSpacing: '-0.03em', fontWeight: '700' }],
+        'display-2': ['3rem', { lineHeight: '1.2', letterSpacing: '-0.025em', fontWeight: '700' }],
+        'display-3': ['2.25rem', { lineHeight: '1.3', letterSpacing: '-0.02em', fontWeight: '600' }],
       },
       spacing: {
         '18': '4.5rem',

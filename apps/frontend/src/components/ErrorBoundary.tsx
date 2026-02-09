@@ -72,7 +72,7 @@ const DefaultErrorFallback: React.FC<DefaultErrorFallbackProps> = ({
   resetError,
 }) => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-8">
+    <div className="bg-page flex min-h-screen items-center justify-center p-8">
       <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-large">
         <h1 className="mb-4 text-4xl font-semibold text-neutral-900">Error</h1>
         <p className="mb-4 text-xl font-semibold text-red-600">

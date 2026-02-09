@@ -129,7 +129,7 @@ const UserSettings: FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Suspense fallback={<LoadingScreen compact />}>

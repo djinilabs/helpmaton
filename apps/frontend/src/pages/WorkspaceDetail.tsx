@@ -460,7 +460,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <DetailPageNav
         groups={navGroups}
         expandedSection={expandedSection}
@@ -1270,7 +1270,7 @@ const WorkspaceDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+        <div className="bg-page flex min-h-screen items-center justify-center p-8">
           <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
             <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
               Error

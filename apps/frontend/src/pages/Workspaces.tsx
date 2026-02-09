@@ -71,7 +71,7 @@ const WorkspacesList: FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <div className="mx-auto max-w-5xl">
         <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900 lg:p-12">
           <div className="opacity-8 absolute right-0 top-0 size-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-accent blur-3xl"></div>
@@ -327,7 +327,7 @@ const Workspaces: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+        <div className="bg-page flex min-h-screen items-center justify-center p-8">
           <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
             <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
               Error

@@ -2,10 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Page background - match marketing website (helpmaton-website) in dark mode */
+:root {
+  --bg-page: #fafaf9; /* neutral-50 light */
+  --bg-surface: #18181f;
+}
+html.dark {
+  --bg-page: #0a0a0f;
+  --bg-surface: #18181f;
+}
+
 @layer base {
   body {
-    @apply bg-neutral-50 text-neutral-900 font-sans antialiased;
-    @apply dark:bg-neutral-950 dark:text-neutral-50;
+    @apply text-neutral-900 font-sans antialiased;
+    @apply dark:text-neutral-100;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
   
@@ -15,26 +25,23 @@
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-display text-neutral-900 dark:text-neutral-50;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
   }
 
   h1 {
-    @apply text-5xl lg:text-6xl font-black tracking-tight;
-    letter-spacing: -0.03em;
+    @apply text-4xl font-bold;
   }
 
   h2 {
-    @apply text-4xl font-bold tracking-tight;
-    letter-spacing: -0.02em;
+    @apply text-3xl font-semibold;
   }
 
   h3 {
-    @apply text-3xl font-bold tracking-tight;
-    letter-spacing: -0.02em;
+    @apply text-2xl font-semibold;
   }
 
   h4 {
-    @apply text-2xl font-bold;
+    @apply text-xl font-medium;
   }
 }
 
@@ -111,4 +118,17 @@
   .manga-shine-overlay {
     animation: manga-shine 10s ease 0s infinite normal none running;
   }
+}
+
+/* Page background: must be last so it wins over Tailwind. Apply to full chain. */
+html,
+body,
+#root {
+  min-height: 100vh;
+  background-color: var(--bg-page) !important;
+}
+
+/* Layout background - use class so it always applies (no Tailwind purge/arbitrary value) */
+.bg-page {
+  background-color: var(--bg-page) !important;
 }

@@ -87,7 +87,7 @@ export const InviteAccept: FC = () => {
 
   if (error || !invite) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+      <div className="bg-page flex min-h-screen items-center justify-center p-8">
         <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
           <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Invalid Invite
@@ -110,7 +110,7 @@ export const InviteAccept: FC = () => {
   // The accept API will create the user if needed and send a magic link
   if (!session?.user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+      <div className="bg-page flex min-h-screen items-center justify-center p-8">
         <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
           <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Workspace Invitation
@@ -174,7 +174,7 @@ export const InviteAccept: FC = () => {
   const inviteEmail = invite.email.toLowerCase();
   if (userEmail !== inviteEmail) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+      <div className="bg-page flex min-h-screen items-center justify-center p-8">
         <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
           <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Email Mismatch
@@ -198,7 +198,7 @@ export const InviteAccept: FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+    <div className="bg-page flex min-h-screen items-center justify-center p-8">
       <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
         <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
           Workspace Invitation

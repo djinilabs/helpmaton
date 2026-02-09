@@ -3339,7 +3339,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
   ]);
 
   return (
-    <div className="min-h-screen bg-white p-8 dark:bg-neutral-950">
+    <div className="bg-page min-h-screen p-8">
       <DetailPageNav
         groups={navGroups}
         expandedSection={expandedSection}
@@ -7623,7 +7623,7 @@ const AgentDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-neutral-950">
+        <div className="bg-page flex min-h-screen items-center justify-center p-8">
           <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
             <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">
               Error
