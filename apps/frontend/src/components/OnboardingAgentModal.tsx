@@ -640,7 +640,8 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
 };
 
 /** Option text that should show a "please specify" text box when selected */
-function isOtherSpecifyOption(opt: string): boolean {
+function isOtherSpecifyOption(opt: unknown): boolean {
+  if (opt == null || typeof opt !== "string") return false;
   const o = opt.toLowerCase().trim();
   return (
     o.includes("other") &&
@@ -671,7 +672,7 @@ const QuestionsStep: FC<{
         );
       } else {
         nextIntent[q.id] =
-          isOtherSpecifyOption(val as string) && otherText
+          isOtherSpecifyOption(val) && otherText
             ? `${val}: ${otherText}`
             : val;
       }
@@ -689,7 +690,7 @@ const QuestionsStep: FC<{
       const arr = Array.isArray(val) ? val : [val];
       return arr.some((opt) => isOtherSpecifyOption(opt)) && !otherText;
     }
-    return isOtherSpecifyOption(val as string) && !otherText;
+    return isOtherSpecifyOption(val) && !otherText;
   });
 
   return (
@@ -747,7 +748,7 @@ const QuestionsStep: FC<{
                   val !== undefined &&
                   (q.multiple
                     ? Array.isArray(val) && val.some(isOtherSpecifyOption)
-                    : isOtherSpecifyOption(val as string));
+                    : isOtherSpecifyOption(val));
                 return showOther ? (
                   <div>
                     <label
