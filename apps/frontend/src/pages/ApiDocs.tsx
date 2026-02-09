@@ -14,14 +14,8 @@ const ApiDocs = () => {
   const prevPreferenceRef = useRef<string | null>(null);
   const isInitialMount = useRef<boolean>(true);
 
-  console.log("theme", theme);
-  console.log("preference", preference);
-
   // Force page reload when theme preference changes (only after initial mount)
   useEffect(() => {
-    console.log("preference", preference);
-    console.log("prevPreferenceRef", prevPreferenceRef.current);
-
     // Skip on initial mount to avoid reloading on first render
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -79,6 +73,39 @@ const ApiDocs = () => {
           /* Target Scalar's main wrapper element */
           .scalar-api-reference > div:first-child {
             background-color: inherit !important;
+          }
+          /* Neutralize Helpmaton base typography inside Scalar so Scalar's styles apply (avoid revert to preserve Scalar theming) */
+          .scalar-api-reference h1,
+          .scalar-api-reference h2,
+          .scalar-api-reference h3,
+          .scalar-api-reference h4,
+          .scalar-api-reference h5,
+          .scalar-api-reference h6 {
+            font-size: inherit;
+            font-weight: inherit;
+            letter-spacing: inherit;
+            margin: initial;
+            line-height: inherit;
+          }
+          .scalar-api-reference p {
+            margin: initial;
+            font-size: inherit;
+            font-weight: inherit;
+            line-height: inherit;
+          }
+          .scalar-api-reference a {
+            color: inherit;
+            text-decoration: inherit;
+          }
+          .scalar-api-reference ul,
+          .scalar-api-reference ol {
+            margin: initial;
+            padding: initial;
+            list-style: inherit;
+          }
+          .scalar-api-reference li {
+            margin: initial;
+            list-style: inherit;
           }
         `}
       </style>

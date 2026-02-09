@@ -189,6 +189,67 @@
           }
         }
       },
+      "SuggestionItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Suggestion ID"
+          },
+          "text": {
+            "type": "string",
+            "description": "Suggestion text"
+          },
+          "actionType": {
+            "type": "string",
+            "description": "Optional action type associated with this suggestion"
+          }
+        }
+      },
+      "SuggestionsCache": {
+        "type": "object",
+        "required": [
+          "items",
+          "generatedAt"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SuggestionItem"
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the suggestions were generated"
+          }
+        }
+      },
+      "SuggestionsResponse": {
+        "type": "object",
+        "properties": {
+          "suggestions": {
+            "$ref": "#/components/schemas/SuggestionsCache",
+            "nullable": true
+          }
+        }
+      },
+      "DismissSuggestionRequest": {
+        "type": "object",
+        "required": [
+          "suggestionId"
+        ],
+        "properties": {
+          "suggestionId": {
+            "type": "string"
+          }
+        }
+      },
       "Workspace": {
         "type": "object",
         "properties": {
@@ -227,6 +288,10 @@
               "$ref": "#/components/schemas/SpendingLimit"
             },
             "description": "Spending limits configuration"
+          },
+          "suggestions": {
+            "$ref": "#/components/schemas/SuggestionsCache",
+            "nullable": true
           },
           "createdAt": {
             "type": "string",
@@ -345,6 +410,10 @@
               }
             },
             "description": "Per-server tool allowlist for MCP servers"
+          },
+          "suggestions": {
+            "$ref": "#/components/schemas/SuggestionsCache",
+            "nullable": true
           },
           "enableMemorySearch": {
             "type": "boolean",
@@ -4638,6 +4707,184 @@
         }
       }
     },
+    "/api/workspaces/onboarding-agent/stream": {
+      "post": {
+        "summary": "Onboarding agent stream",
+        "description": "Onboarding-agent flow. Accepts onboardingContext (step intent or refine with template + chatMessage),\nruns the LLM with self-correction (up to 3 validation retries), and returns assistantText and\nfinalEvent (onboarding_agent_result or onboarding_agent_validation_failed). Subscription limits\nare passed to the LLM so it respects plan limits.\n",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "onboardingContext"
+                ],
+                "properties": {
+                  "onboardingContext": {
+                    "description": "Discriminated by step; \"intent\" may include intent; \"refine\" requires template and chatMessage",
+                    "discriminator": {
+                      "propertyName": "step"
+                    },
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "step": {
+                            "type": "string",
+                            "enum": [
+                              "intent"
+                            ]
+                          },
+                          "intent": {
+                            "type": "object",
+                            "description": "For step intent; goals, businessType, tasksOrRoles, freeText"
+                          }
+                        },
+                        "required": [
+                          "step"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "step": {
+                            "type": "string",
+                            "enum": [
+                              "refine"
+                            ]
+                          },
+                          "template": {
+                            "type": "object",
+                            "description": "For step refine; workspace export schema"
+                          },
+                          "chatMessage": {
+                            "type": "string",
+                            "description": "For step refine; user message"
+                          }
+                        },
+                        "required": [
+                          "step",
+                          "template",
+                          "chatMessage"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Streamed or final result with assistantText and finalEvent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assistantText": {
+                      "type": "string"
+                    },
+                    "finalEvent": {
+                      "type": "object",
+                      "description": "onboarding_agent_result or onboarding_agent_validation_failed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/suggestions/dismiss": {
+      "post": {
+        "summary": "Dismiss a workspace suggestion",
+        "description": "Dismisses a single suggestion for the workspace.",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissSuggestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated suggestions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Workspace not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/spending-limits": {
       "post": {
         "summary": "Create workspace spending limit",
@@ -5776,7 +6023,7 @@
       },
       "get": {
         "summary": "List workspace agents",
-        "description": "Returns all agents in a workspace",
+        "description": "Returns paginated list of agents in a workspace",
         "tags": [
           "Agents"
         ],
@@ -5794,6 +6041,25 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of agents to return (1-100, default 50)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Pagination cursor from previous response",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5802,7 +6068,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentsResponse"
+                  "type": "object",
+                  "properties": {
+                    "agents": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Agent"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
                 }
               }
             }
@@ -6311,6 +6589,120 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/improve-prompt-from-evals": {
+      "post": {
+        "summary": "Improve an agent system prompt using evaluation results",
+        "description": "Generates a revised system prompt based on selected evaluation results and user instructions",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userPrompt",
+                  "selectedEvaluations"
+                ],
+                "properties": {
+                  "userPrompt": {
+                    "type": "string"
+                  },
+                  "modelName": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "selectedEvaluations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "conversationId",
+                        "judgeId"
+                      ],
+                      "properties": {
+                        "conversationId": {
+                          "type": "string"
+                        },
+                        "judgeId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Improved system prompt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "prompt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/generate-prompt": {
       "post": {
         "summary": "Generate system prompt for an agent",
@@ -6498,6 +6890,84 @@
         "responses": {
           "200": {
             "description": "CORS headers returned"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/suggestions/dismiss": {
+      "post": {
+        "summary": "Dismiss an agent suggestion",
+        "description": "Dismisses a single suggestion for the agent.",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissSuggestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated suggestions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -7869,6 +8339,65 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/suggestions": {
+      "get": {
+        "summary": "Get workspace suggestions",
+        "description": "Returns LLM-generated suggestions for the workspace. May take a few seconds on first load. Does not block the main workspace response.",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestions (or null if none)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Workspace not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -9382,6 +9911,74 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/suggestions": {
+      "get": {
+        "summary": "Get agent suggestions",
+        "description": "Returns LLM-generated suggestions for the agent. May take a few seconds on first load. Does not block the main agent response.",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestions (or null if none)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Workspace or agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/memory": {
       "get": {
         "summary": "Get agent memory records",
@@ -10791,6 +11388,38 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModelsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Verifies API and database connectivity",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "Health check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "dbOk": {
+                      "type": "boolean"
+                    }
+                  }
                 }
               }
             }

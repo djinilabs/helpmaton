@@ -25,7 +25,7 @@ Bot integrations allow you to connect your agents to Slack or Discord bots. See 
     "platform": "slack",
     "name": "Support Bot",
     "agentId": "agent-id",
-    "webhookUrl": "https://api.helpmaton.com/api/webhooks/slack/workspace-id/integration-id",
+    "webhookUrl": "https://app.helpmaton.com/api/webhooks/slack/workspace-id/integration-id",
     "status": "active",
     "lastUsedAt": "2024-01-01T00:00:00.000Z",
     "createdAt": "2024-01-01T00:00:00.000Z"
@@ -101,7 +101,7 @@ Bot integrations allow you to connect your agents to Slack or Discord bots. See 
 ```json
 {
   "manifest": { ... },
-  "webhookUrl": "https://api.helpmaton.com/api/webhooks/slack/workspace-id/integration-id",
+  "webhookUrl": "https://app.helpmaton.com/api/webhooks/slack/workspace-id/integration-id",
   "instructions": [ ... ]
 }
 ```
@@ -356,30 +356,36 @@ Deletes an agent.
 
 ## Webhooks
 
-### List Webhooks
+### Agent keys (webhook keys)
+
+Manage per-agent webhook keys used to authenticate requests to the agent webhook and widget endpoints.
+
+**List webhooks**: `GET /api/workspaces/:workspaceId/agents/:agentId/keys` — Returns all webhook keys for an agent.
+
+**Create webhook**: `POST /api/workspaces/:workspaceId/agents/:agentId/keys` — Body: `{ name?: string }`. Creates a new webhook key; the key value is returned only once.
+
+**Delete webhook**: `DELETE /api/workspaces/:workspaceId/agents/:agentId/keys/:keyId` — Deletes a webhook key.
+
+### Agent webhook endpoint
 
 ```
-GET /api/workspaces/:workspaceId/agents/:agentId/keys
+POST /api/webhook/:workspaceId/:agentId/:key
 ```
 
-Returns all webhooks for an agent.
+Sends a message to an agent and receives a streaming response. Authenticated by the agent key in the path.
 
-### Create Webhook
+### Streaming and test endpoints
 
-```
-POST /api/workspaces/:workspaceId/agents/:agentId/keys
-Body: { name?: string }
-```
+Streaming uses the same base URL as the app (or the Lambda stream URL from `GET /api/stream-url`). All require `POST` with an AI SDK message array in the body.
 
-Creates a new webhook for an agent.
+| Path | Auth | Use |
+|------|------|-----|
+| `POST /api/streams/:workspaceId/:agentId/:secret` | Secret (path) | Production streaming; secret from agent stream server config |
+| `POST /api/streams/:workspaceId/:agentId/test` | Session/JWT | Test a specific agent |
+| `POST /api/streams/:workspaceId/_workspace/test` | Session/JWT | Workspace assistant (virtual agent) |
+| `POST /api/streams/:workspaceId/:agentId/config/test` | Session/JWT | Meta-agent "Configure with AI" chat |
 
-### Delete Webhook
-
-```
-DELETE /api/workspaces/:workspaceId/agents/:agentId/keys/:keyId
-```
-
-Deletes a webhook.
+See [Streaming System](./streaming-system.md) and [Webhook System](./webhook-system.md) for details.
 
 ## Documents
 
@@ -442,24 +448,6 @@ DELETE /api/workspaces/:workspaceId/documents/:documentId
 ```
 
 Deletes a document.
-
-## Webhooks
-
-### Agent Webhook
-
-```
-POST /api/webhook/:workspaceId/:agentId/:key
-```
-
-Sends a message to an agent and receives a streaming response.
-
-### Test Agent
-
-```
-POST /api/streams/:workspaceId/:agentId/test
-```
-
-Tests an agent with a message and receives a streaming response.
 
 ## Error Responses
 
@@ -551,6 +539,8 @@ Rate limits apply to all `/api/*` routes except `/api/auth/*` and `/api/authoriz
 - [Authentication](./authentication.md) - Authentication methods
 - [Credit System](./credit-system.md) - Credit management
 - [Subscription Management](./subscription-management.md) - Subscription plans
+
+For a complete list of endpoints (including workspace onboarding agent stream, improve-prompt-from-evals, export/import, credits purchase, trial, stream-servers, user API keys, and auth token endpoints), see the OpenAPI specification below.
 
 ## OpenAPI Specification
 

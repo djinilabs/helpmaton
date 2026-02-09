@@ -20,13 +20,77 @@ import { handleError, requireAuth } from "../middleware";
 const ONBOARDING_AGENT_VALIDATION_FAILED = "onboarding_agent_validation_failed";
 
 /**
- * POST /api/workspaces/onboarding-agent/stream
- *
- * Onboarding-agent flow: accepts onboardingContext (step, intent, template, chatMessage),
- * runs the LLM with self-correction (up to 3 validation retries), and returns
- * assistantText + finalEvent (onboarding_agent_result or onboarding_agent_validation_failed).
- * Template output is always validated against workspaceExportSchema before being sent.
- * Subscription limits are passed to the LLM so it respects plan limits.
+ * @openapi
+ * /api/workspaces/onboarding-agent/stream:
+ *   post:
+ *     summary: Onboarding agent stream
+ *     description: |
+ *       Onboarding-agent flow. Accepts onboardingContext (step intent or refine with template + chatMessage),
+ *       runs the LLM with self-correction (up to 3 validation retries), and returns assistantText and
+ *       finalEvent (onboarding_agent_result or onboarding_agent_validation_failed). Subscription limits
+ *       are passed to the LLM so it respects plan limits.
+ *     tags:
+ *       - Workspaces
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - onboardingContext
+ *             properties:
+ *               onboardingContext:
+ *                 description: Discriminated by step; "intent" may include intent; "refine" requires template and chatMessage
+ *                 discriminator:
+ *                   propertyName: step
+ *                 oneOf:
+ *                   - type: object
+ *                     properties:
+ *                       step:
+ *                         type: string
+ *                         enum: [intent]
+ *                       intent:
+ *                         type: object
+ *                         description: For step intent; goals, businessType, tasksOrRoles, freeText
+ *                     required:
+ *                       - step
+ *                   - type: object
+ *                     properties:
+ *                       step:
+ *                         type: string
+ *                         enum: [refine]
+ *                       template:
+ *                         type: object
+ *                         description: For step refine; workspace export schema
+ *                       chatMessage:
+ *                         type: string
+ *                         description: For step refine; user message
+ *                     required:
+ *                       - step
+ *                       - template
+ *                       - chatMessage
+ *     responses:
+ *       200:
+ *         description: Streamed or final result with assistantText and finalEvent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assistantText:
+ *                   type: string
+ *                 finalEvent:
+ *                   type: object
+ *                   description: onboarding_agent_result or onboarding_agent_validation_failed
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 export const registerPostWorkspacesOnboardingAgentStream = (
   app: express.Application,
