@@ -134,7 +134,7 @@ function createAgentConfigTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const { docId } = z.object({ docId: z.string().min(1) }).parse(args);
-      return executeReadInternalDoc(readInternalDocState, docId);
+      return await executeReadInternalDoc(readInternalDocState, docId);
     },
   });
 

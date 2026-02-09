@@ -31,6 +31,15 @@ This documentation is organized into folders for easy navigation:
 - `docs/` - Main documentation (this folder)
 - Additional folders can be created as needed
 
+## Internal docs (workspace / meta-agent)
+
+A subset of these docs is bundled for the **workspace assistant** and **Configure with AI (meta-agent)** so they can answer product and support questions. The list is kept in `scripts/generate-internal-docs.mjs` (whitelist). To add a doc there:
+
+1. Add its id (filename without `.md`) to the `WHITELIST` in that script.
+2. Run `pnpm generate:internal-docs` (or start the backend sandbox; it regenerates when the script or any `docs/*.md` changes).
+
+Generated output is `apps/backend/src/utils/internalDocs.ts`. Do not edit that file by hand.
+
 ## Contributing to Documentation
 
 When adding new documentation:

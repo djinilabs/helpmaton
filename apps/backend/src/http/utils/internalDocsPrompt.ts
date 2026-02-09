@@ -3,7 +3,7 @@
  * Single source of truth so instructions stay in sync.
  */
 
-import { getInternalDocsIndexForPrompt } from "../../utils/internalDocs";
+import { getInternalDocsIndexForPrompt } from "../../utils/internalDocsIndex";
 
 export const READ_INTERNAL_DOC_TOOL_DESCRIPTION =
   "Read one internal documentation document (customer support). Use only doc IDs from the internal docs index in the system prompt. Returns the full markdown content or an error if the doc does not exist.";
