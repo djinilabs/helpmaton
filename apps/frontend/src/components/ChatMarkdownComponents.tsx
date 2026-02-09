@@ -11,7 +11,7 @@ export const markdownComponents: Components = {
     if (isInline) {
       return (
         <code
-          className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+          className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
           {...rest}
         >
           {children}
@@ -20,7 +20,7 @@ export const markdownComponents: Components = {
     }
     return (
       <code
-        className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+        className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
         {...rest}
       >
         {children}

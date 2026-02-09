@@ -105,7 +105,7 @@ export const DiscordCommandDialog: FC<DiscordCommandDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-surface-50">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
             {currentCommandName ? "Update Discord Command" : "Install Discord Command"}
@@ -157,7 +157,7 @@ export const DiscordCommandDialog: FC<DiscordCommandDialogProps> = ({
                   onChange={(e) => handleCommandNameChange(e.target.value)}
                   placeholder="chat"
                   disabled={isLoading}
-                  className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
+                  className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
                   autoFocus
                 />
               </div>

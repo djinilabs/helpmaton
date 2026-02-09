@@ -198,14 +198,14 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-4xl font-black text-neutral-900 dark:text-neutral-50">
             OpenRouter Model Prices
           </h2>
           <button
             onClick={onClose}
-            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>
@@ -217,7 +217,7 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
             placeholder="Search models..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+            className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           />
         </div>
 
@@ -281,7 +281,7 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
                       </button>
                     ),
                     render: (row) => (
-                      <code className="break-words rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                      <code className="break-words rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                         {row.modelName}
                       </code>
                     ),

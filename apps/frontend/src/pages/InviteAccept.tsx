@@ -87,8 +87,8 @@ export const InviteAccept: FC = () => {
 
   if (error || !invite) {
     return (
-      <div className="bg-page flex min-h-screen items-center justify-center p-8">
-        <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
+      <div className="flex min-h-screen items-center justify-center bg-page p-8">
+        <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-surface-50 lg:p-10">
           <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Invalid Invite
           </h1>
@@ -110,8 +110,8 @@ export const InviteAccept: FC = () => {
   // The accept API will create the user if needed and send a magic link
   if (!session?.user) {
     return (
-      <div className="bg-page flex min-h-screen items-center justify-center p-8">
-        <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+      <div className="flex min-h-screen items-center justify-center bg-page p-8">
+        <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
           <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Workspace Invitation
           </h1>
@@ -159,7 +159,7 @@ export const InviteAccept: FC = () => {
             <button
               onClick={() => navigate("/workspaces")}
               disabled={accept.isPending}
-              className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>
@@ -174,8 +174,8 @@ export const InviteAccept: FC = () => {
   const inviteEmail = invite.email.toLowerCase();
   if (userEmail !== inviteEmail) {
     return (
-      <div className="bg-page flex min-h-screen items-center justify-center p-8">
-        <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
+      <div className="flex min-h-screen items-center justify-center bg-page p-8">
+        <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-surface-50 lg:p-10">
           <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Email Mismatch
           </h1>
@@ -198,8 +198,8 @@ export const InviteAccept: FC = () => {
   }
 
   return (
-    <div className="bg-page flex min-h-screen items-center justify-center p-8">
-      <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+    <div className="flex min-h-screen items-center justify-center bg-page p-8">
+      <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
         <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
           Workspace Invitation
         </h1>
@@ -241,7 +241,7 @@ export const InviteAccept: FC = () => {
           <button
             onClick={() => navigate("/workspaces")}
             disabled={accept.isPending}
-            className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Cancel
           </button>

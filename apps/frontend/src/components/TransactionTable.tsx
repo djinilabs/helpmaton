@@ -132,7 +132,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
@@ -154,7 +154,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
@@ -182,7 +182,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
         <button
           onClick={() => refetch()}
           disabled={isRefetching}
-          className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+          className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
         >
           {isRefetching ? "Refreshing..." : "Refresh"}
         </button>
@@ -391,7 +391,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
         <Suspense
           fallback={
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-              <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+              <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-surface-50">
                 <div className="text-2xl font-semibold">
                   Loading conversation...
                 </div>

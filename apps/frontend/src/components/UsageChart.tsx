@@ -50,7 +50,7 @@ export const UsageChart: FC<UsageChartProps> = ({
   
   if (data.length === 0) {
     return (
-      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
         <h3 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
         <p className="text-lg text-neutral-600 dark:text-neutral-300">No data available</p>
       </div>
@@ -180,13 +180,13 @@ export const UsageChart: FC<UsageChartProps> = ({
   };
 
   return (
-    <div ref={parentContainerRef} className="overflow-visible rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+    <div ref={parentContainerRef} className="overflow-visible rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
           <select
             value={selectedMetric}
             onChange={(e) => setSelectedMetric(e.target.value as ChartMetric)}
-            className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+            className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           >
             <option value="cost">Cost</option>
             <option value="rerankingCost">Reranking Cost</option>

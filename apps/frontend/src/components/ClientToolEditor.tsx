@@ -110,7 +110,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
       </div>
 
       {editingIndex !== null || editingTool ? (
-        <div className="space-y-4 rounded-lg border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+        <div className="space-y-4 rounded-lg border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Tool Name (Function Name) *
@@ -127,7 +127,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
                   setEditingTool({ ...editingTool, name: value });
                 }
               }}
-              className="w-full rounded border border-neutral-300 px-3 py-2 font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="w-full rounded border border-neutral-300 px-3 py-2 font-mono dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
               placeholder="e.g., getWeather"
             />
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
@@ -145,7 +145,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
               onChange={(e) =>
                 setEditingTool({ ...editingTool, description: e.target.value })
               }
-              className="w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
               rows={3}
               placeholder="Describe what this tool does for the AI"
             />
@@ -196,7 +196,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
           {tools.map((tool, index) => (
             <div
               key={index}
-              className="flex items-start justify-between rounded border border-neutral-300 p-3 dark:border-neutral-700 dark:bg-neutral-900"
+              className="flex items-start justify-between rounded border border-neutral-300 p-3 dark:border-neutral-700 dark:bg-surface-50"
             >
               <div className="flex-1">
                 <div className="font-medium dark:text-neutral-50">{tool.name}</div>

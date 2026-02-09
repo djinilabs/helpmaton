@@ -74,7 +74,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
       if (isInline) {
         return (
           <code
-            className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+            className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
             {...rest}
           >
             {children}
@@ -83,7 +83,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
       }
       return (
         <code
-          className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+          className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
           {...rest}
         >
           {children}
@@ -272,7 +272,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     href={fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex max-w-[80%] items-center gap-2 rounded-lg border-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
+                    className="inline-flex max-w-[80%] items-center gap-2 rounded-lg border-2 border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-100 dark:hover:bg-neutral-700"
                   >
                     {displayName}
                   </a>
@@ -593,14 +593,14 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
             Conversation Details
           </h2>
           <button
             onClick={onClose}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>
@@ -617,7 +617,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         {/* Conversation Metadata */}
         <div className="mb-4 space-y-4">
           {/* Basic Information */}
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
               <ChatBubbleLeftRightIcon className="size-4" />
               Basic Information
@@ -628,7 +628,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   <TagIcon className="size-3.5" />
                   Type
                 </div>
-                <div className="inline-block rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50">
+                <div className="inline-block rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50">
                   {conversationDetail.conversationType}
                 </div>
               </div>
@@ -670,7 +670,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
           {/* Performance Metrics */}
           {(conversationDetail.totalGenerationTimeMs !== undefined ||
             conversationDetail.tokenUsage) && (
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                 <BoltIcon className="size-4" />
                 Performance
@@ -762,7 +762,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
           {(tokenBasedCost !== undefined ||
             conversationDetail.costUsd !== undefined ||
             conversationDetail.rerankingCostUsd !== undefined) && (
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                 <CurrencyDollarIcon className="size-4" />
                 Costs
@@ -860,7 +860,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         {conversationDetail.delegations &&
           Array.isArray(conversationDetail.delegations) &&
           conversationDetail.delegations.length > 0 && (
-            <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
                   Delegations
@@ -944,7 +944,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         <div className="mb-4">
           <button
             onClick={() => setShowRawJson(!showRawJson)}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {showRawJson ? "Show Formatted" : "Show Raw JSON"}
           </button>
@@ -952,7 +952,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
 
         {showRawJson ? (
           /* Raw JSON View */
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
             <div className="mb-2 flex items-center justify-end">
               <button
                 onClick={() => {
@@ -964,7 +964,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   navigator.clipboard.writeText(jsonString);
                   toast.success("JSON copied to clipboard");
                 }}
-                className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                 title="Copy JSON to clipboard"
               >
                 <ClipboardDocumentIcon className="size-4" />
@@ -1157,8 +1157,8 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                               role === "user"
                                 ? "bg-gradient-primary text-white"
                                 : role === "assistant"
-                                ? "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                                : "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                ? "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
+                                : "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
                             }`}
                           >
                             <div className="mb-2 flex items-center justify-between">

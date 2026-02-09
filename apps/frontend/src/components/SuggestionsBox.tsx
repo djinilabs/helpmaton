@@ -32,7 +32,7 @@ export const SuggestionsBox: FC<SuggestionsBoxProps> = ({
   }
 
   return (
-    <div className="mb-6 rounded-xl border border-neutral-200 bg-neutral-50 p-5 shadow-soft dark:border-neutral-700 dark:bg-neutral-800/60">
+    <div className="mb-6 rounded-xl border border-neutral-200 bg-neutral-50 p-5 shadow-soft dark:border-neutral-700 dark:bg-surface-100/60">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
         <LightBulbIcon className="size-4" />
         {title}
@@ -43,7 +43,7 @@ export const SuggestionsBox: FC<SuggestionsBoxProps> = ({
           return (
             <div
               key={item.id}
-              className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+              className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-200"
             >
               <div className="flex items-start justify-between gap-3">
                 <span>{item.text}</span>

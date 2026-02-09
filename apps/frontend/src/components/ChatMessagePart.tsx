@@ -106,7 +106,7 @@ export const FilePart = memo<FilePartProps>(
     return (
       <div
         key={`${messageId}-part-${partIndex}`}
-        className="mt-2 flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+        className="mt-2 flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-surface-100"
       >
         <PaperClipIcon className="size-5 shrink-0 text-neutral-600 dark:text-neutral-400" />
         <div className="min-w-0 flex-1">

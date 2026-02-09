@@ -9,7 +9,7 @@ export const Header: FC = () => {
   const location = useLocation();
 
   return (
-    <header className="border-b-2 border-neutral-300 bg-white/90 shadow-medium backdrop-blur-md dark:border-neutral-700 dark:bg-neutral-900/90">
+    <header className="border-b-2 border-neutral-300 bg-white/90 shadow-medium backdrop-blur-md dark:border-neutral-700 dark:bg-surface-50/90">
       <div className="mx-auto max-w-7xl p-6 lg:px-8">
         <div className="flex items-center justify-between">
           <Link
@@ -28,7 +28,7 @@ export const Header: FC = () => {
               className={`transform rounded-xl px-6 py-3 text-base font-bold transition-all duration-200 hover:scale-[1.05] ${
                 location.pathname === "/"
                   ? "bg-gradient-primary text-white shadow-colored"
-                  : "border-2 border-transparent text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100 hover:text-primary-600 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-primary-400"
+                  : "border-2 border-transparent text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100 hover:text-primary-600 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-surface-100 dark:hover:text-primary-400"
               }`}
             >
               Home
@@ -38,7 +38,7 @@ export const Header: FC = () => {
               className={`transform rounded-xl px-6 py-3 text-base font-bold transition-all duration-200 hover:scale-[1.05] ${
                 location.pathname.startsWith("/workspaces")
                   ? "bg-gradient-primary text-white shadow-colored"
-                  : "border-2 border-transparent text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100 hover:text-primary-600 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-primary-400"
+                  : "border-2 border-transparent text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100 hover:text-primary-600 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-surface-100 dark:hover:text-primary-400"
               }`}
             >
               Workspaces
@@ -49,7 +49,7 @@ export const Header: FC = () => {
                 location.pathname === "/settings" ||
                 location.pathname.startsWith("/settings/")
                   ? "bg-gradient-primary text-white shadow-colored"
-                  : "border-2 border-transparent text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100 hover:text-primary-600 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-primary-400"
+                  : "border-2 border-transparent text-neutral-900 hover:border-neutral-300 hover:bg-neutral-100 hover:text-primary-600 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-surface-100 dark:hover:text-primary-400"
               }`}
             >
               Settings

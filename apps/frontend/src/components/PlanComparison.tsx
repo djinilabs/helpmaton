@@ -150,7 +150,7 @@ const PlanCard: FC<PlanCardProps> = ({
       className={`rounded-2xl border p-6 ${
         isCurrent
           ? "border-primary-500 bg-primary-50 dark:border-primary-500 dark:bg-primary-950"
-          : "border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+          : "border-neutral-200 bg-white dark:border-neutral-700 dark:bg-surface-50"
       }`}
     >
       <div className="mb-4">

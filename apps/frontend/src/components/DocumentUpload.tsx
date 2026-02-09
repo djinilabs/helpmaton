@@ -168,7 +168,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
     ));
 
   return (
-    <div className="mb-8 rounded-lg border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="mb-8 rounded-lg border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
       <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
         Upload Documents
       </h2>
@@ -191,7 +191,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               setSelectedFolder(e.target.value);
               setNewFolderName("");
             }}
-            className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+            className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           >
             <option value="">Root</option>
             {folderOptions}
@@ -204,7 +204,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               setSelectedFolder("");
             }}
             placeholder="Or create new folder..."
-            className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+            className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           />
         </div>
       </div>
@@ -212,7 +212,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
       {/* Drag and drop area */}
       <div
         className={`mb-4 rounded-lg border-2 border-dashed border-neutral-300 p-8 text-center transition-colors ${
-          isDragging ? "border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-950" : "bg-neutral-50 dark:bg-neutral-800"
+          isDragging ? "border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-950" : "bg-neutral-50 dark:bg-surface-100"
         }`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
@@ -244,7 +244,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
       </div>
 
       {/* Text document creation */}
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
         <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           Create Text Document
         </h3>
@@ -258,7 +258,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               value={textDocumentName}
               onChange={(e) => setTextDocumentName(e.target.value)}
               placeholder="e.g., My Document"
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             />
           </div>
           <div>
@@ -269,7 +269,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               value={textDocumentContent}
               onChange={(e) => setTextDocumentContent(e.target.value)}
               placeholder="Enter document content here..."
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               rows={8}
             />
           </div>

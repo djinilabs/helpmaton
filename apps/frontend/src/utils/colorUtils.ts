@@ -85,7 +85,7 @@ export const getAgeColor = (daysAgo: number): string => {
   } else if (daysAgo < 30) {
     return "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-700";
   } else {
-    return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
+    return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-surface-100 dark:text-neutral-300 dark:border-neutral-700";
   }
 };
 
@@ -102,7 +102,7 @@ export const getPercentageColor = (percent: number): string => {
   } else if (percent >= 30) {
     return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
   } else {
-    return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
+    return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-surface-100 dark:text-neutral-300 dark:border-neutral-700";
   }
 };
 
@@ -120,7 +120,7 @@ export const getTimeFrameColor = (timeFrame: "daily" | "weekly" | "monthly"): st
     case "monthly":
       return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
     default:
-      return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
+      return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-surface-100 dark:text-neutral-300 dark:border-neutral-700";
   }
 };
 
@@ -140,7 +140,7 @@ export const getTransactionTypeColor = (
     case "tool-execution":
       return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
     default:
-      return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
+      return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-surface-100 dark:text-neutral-300 dark:border-neutral-700";
   }
 };
 

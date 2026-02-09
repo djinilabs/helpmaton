@@ -22,7 +22,7 @@ export const CreditBalance: FC<CreditBalanceProps> = ({ balance }) => {
   const balanceColorClasses = getBalanceColor(numericBalance);
 
   return (
-    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           Credit Balance

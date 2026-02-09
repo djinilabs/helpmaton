@@ -35,7 +35,7 @@ const ChannelItem: FC<ChannelItemProps> = ({
   const testChannel = useTestChannel(workspaceId, channel.id);
 
   return (
-    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-surface-50">
       <div>
         <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           {channel.name}
@@ -60,13 +60,13 @@ const ChannelItem: FC<ChannelItemProps> = ({
               }
             }}
             disabled={testChannel.isPending}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {testChannel.isPending ? "✨ Testing..." : "✨ Test"}
           </button>
           <button
             onClick={() => onEdit(channel.id)}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Edit
           </button>
@@ -134,7 +134,7 @@ export const ChannelList: FC<ChannelListProps> = ({ workspaceId, canEdit }) => {
 
   return (
     <>
-      <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
             Notification Channels

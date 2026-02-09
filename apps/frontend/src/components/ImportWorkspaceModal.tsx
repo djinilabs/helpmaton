@@ -126,7 +126,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <h2 className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
           Import a workspace
         </h2>
@@ -144,7 +144,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
               type="file"
               accept=".json,application/json"
               onChange={handleFileSelect}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 transition-all duration-200 file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:file:bg-primary-900/20 dark:file:text-primary-300 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 transition-all duration-200 file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:file:bg-primary-900/20 dark:file:text-primary-300 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
             />
             {selectedFile && (
@@ -174,7 +174,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={importWorkspace.isPending}
-              className="flex-1 transform rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.02] hover:border-neutral-400 hover:bg-neutral-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+              className="flex-1 transform rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.02] hover:border-neutral-400 hover:bg-neutral-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>

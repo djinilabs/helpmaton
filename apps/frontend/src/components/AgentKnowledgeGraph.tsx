@@ -164,7 +164,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
         </div>
       )}
 
-      <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+      <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label
@@ -179,7 +179,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
               value={queryText}
               onChange={(event) => setQueryText(event.target.value)}
               placeholder="e.g., project name or person"
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             />
           </div>
           <div>
@@ -222,7 +222,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
       )}
 
       {!isLoading && facts.length === 0 && !error && (
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-surface-50">
           <p className="text-sm text-neutral-600 dark:text-neutral-300">
             No knowledge graph facts found for the current filters.
           </p>
@@ -233,13 +233,13 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr,1fr]">
           <div
             ref={containerRef}
-            className="relative h-[520px] overflow-auto rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+            className="relative h-[520px] overflow-auto rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50"
           >
             <div className="absolute right-4 top-4 z-10">
               <button
                 type="button"
                 onClick={handleResetView}
-                className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
               >
                 Reset view
               </button>
@@ -401,7 +401,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
 
             {hoveredNode && (
               <div
-                className="pointer-events-none absolute z-20 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
+                className="pointer-events-none absolute z-20 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-neutral-700 dark:bg-surface-50"
                 style={{
                   left: hoveredNode.screenX + 12,
                   top: hoveredNode.screenY + 12,
@@ -417,7 +417,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
             )}
           </div>
 
-          <div className="flex h-[520px] min-h-0 flex-col rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="flex h-[520px] min-h-0 flex-col rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50">
             <div className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
               {activeNodeId ? "Connected facts" : "Facts overview"}
             </div>
@@ -429,7 +429,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
               {relatedFacts.slice(0, 12).map((fact) => (
                 <div
                   key={fact.id}
-                  className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                  className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-200"
                 >
                   <span className="font-semibold">{fact.source_id}</span>{" "}
                   <span className="text-neutral-500 dark:text-neutral-400">
@@ -439,7 +439,7 @@ export const AgentKnowledgeGraph: FC<AgentKnowledgeGraphProps> = ({
                 </div>
               ))}
               {relatedFacts.length === 0 && (
-                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-500 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-400">
                   No facts match the selected node.
                 </div>
               )}

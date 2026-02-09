@@ -191,7 +191,7 @@ export const Slider: FC<SliderProps> = ({
             onFocus={handleTextFocus}
             onBlur={handleTextBlur}
             disabled={disabled}
-            className={`w-24 rounded-xl border-2 bg-white px-3 py-2 text-sm text-neutral-900 transition-all duration-200 focus:outline-none focus:ring-4 dark:bg-neutral-900 dark:text-neutral-50 ${
+            className={`w-24 rounded-xl border-2 bg-white px-3 py-2 text-sm text-neutral-900 transition-all duration-200 focus:outline-none focus:ring-4 dark:bg-surface-50 dark:text-neutral-50 ${
               error
                 ? "border-error-500 focus:border-error-500 focus:ring-error-500 dark:border-error-500"
                 : "border-neutral-300 focus:border-primary-500 focus:ring-primary-500 dark:border-neutral-700 dark:focus:border-primary-500 dark:focus:ring-primary-400"

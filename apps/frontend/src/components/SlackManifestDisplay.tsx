@@ -22,7 +22,7 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
             type="text"
             readOnly
             value={manifestData.webhookUrl}
-            className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+            className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
           />
           <button
             onClick={onCopy}
@@ -53,7 +53,7 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
               readOnly
               value={JSON.stringify(manifestData.manifest, null, 2)}
               rows={20}
-              className="w-full rounded-md border border-neutral-300 bg-white p-3 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="w-full rounded-md border border-neutral-300 bg-white p-3 font-mono text-xs dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
             />
           </div>
         </details>

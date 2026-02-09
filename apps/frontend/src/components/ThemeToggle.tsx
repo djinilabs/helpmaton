@@ -23,7 +23,7 @@ export const ThemeToggle: FC = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="transform rounded-xl border-2 border-neutral-300 bg-white p-2 text-neutral-900 transition-all duration-200 hover:scale-[1.05] hover:border-neutral-400 hover:bg-neutral-100 active:scale-[0.95] dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+      className="transform rounded-xl border-2 border-neutral-300 bg-white p-2 text-neutral-900 transition-all duration-200 hover:scale-[1.05] hover:border-neutral-400 hover:bg-neutral-100 active:scale-[0.95] dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
       title={`Current: ${preference === "system" ? "system" : theme} (Click to toggle)`}
     >

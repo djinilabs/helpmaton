@@ -166,7 +166,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
@@ -188,7 +188,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
@@ -220,7 +220,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               onChange={(e) =>
                 setFilterJudgeId(e.target.value || undefined)
               }
-              className="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               <option value="">All Judges</option>
               {judges.map((judge) => (
@@ -233,7 +233,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as "date" | "judge")}
-            className="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             <option value="date">Sort by Date</option>
             <option value="judge">Sort by Judge</option>
@@ -241,7 +241,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
@@ -250,7 +250,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
 
       {data && aggregates.totalEvaluations > 0 && (
         <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50">
             <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               Total Evaluations
             </div>
@@ -258,7 +258,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               {aggregates.totalEvaluations}
             </div>
           </div>
-          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50">
             <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               Avg Goal Completion
             </div>
@@ -266,7 +266,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               {aggregates.averageScores.goalCompletion.toFixed(1)}%
             </div>
           </div>
-          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50">
             <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               Avg Tool Efficiency
             </div>
@@ -274,7 +274,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               {aggregates.averageScores.toolEfficiency.toFixed(1)}%
             </div>
           </div>
-          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50">
             <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               Critical Failures
             </div>
@@ -430,14 +430,14 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
         <Suspense
           fallback={
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-              <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+              <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-surface-50">
                 <div className="text-2xl font-semibold">Loading...</div>
               </div>
             </div>
           }
         >
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   Evaluation Details
@@ -456,7 +456,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                     )}
                   <button
                     onClick={() => setSelectedResult(null)}
-                    className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                    className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                   >
                     Close
                   </button>
@@ -546,7 +546,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                   <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                     Summary
                   </div>
-                  <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {selectedResult.status === "failed"
@@ -560,7 +560,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                   <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                     Reasoning Trace
                   </div>
-                  <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {selectedResult.status === "failed"

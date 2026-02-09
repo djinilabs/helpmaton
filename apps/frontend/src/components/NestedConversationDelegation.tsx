@@ -30,7 +30,7 @@ export const NestedConversationDelegation: FC<NestedConversationDelegationProps>
   const hasNestedConversation = !!delegation.targetConversationId;
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-surface-50">
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {hasNestedConversation && (

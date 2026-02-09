@@ -164,7 +164,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <h2 className="mb-8 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           {isEditing ? "Edit Channel" : "Create Channel"}
         </h2>
@@ -180,7 +180,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
               id="type"
               value={type}
               onChange={(e) => setType(e.target.value as "discord" | "slack")}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
               disabled={isEditing}
             >
@@ -200,7 +200,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
               autoFocus
             />
@@ -220,7 +220,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
                   type="text"
                   value={discordChannelId}
                   onChange={(e) => setDiscordChannelId(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing && type === "discord"}
                   placeholder="123456789012345678"
                 />
@@ -250,7 +250,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
                   type="password"
                   value={botToken}
                   onChange={(e) => setBotToken(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing && type === "discord"}
                   placeholder={
                     isEditing ? "Enter new token to update" : "MTIzNDU2..."
@@ -285,19 +285,19 @@ export const ChannelModal: FC<ChannelModalProps> = ({
                   type="url"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing && type === "slack"}
                   placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
                 />
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   Get this from your Slack App settings → Incoming Webhooks. The
                   webhook URL should start with{" "}
-                  <code className="rounded bg-neutral-200 px-1 py-0.5 text-xs dark:bg-neutral-800">
+                  <code className="rounded bg-neutral-200 px-1 py-0.5 text-xs dark:bg-surface-100">
                     https://hooks.slack.com/services/
                   </code>
                 </p>
               </div>
-              <div className="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                 <button
                   type="button"
                   onClick={() => setShowSlackHelp(!showSlackHelp)}
@@ -379,7 +379,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
                           <li>You will be redirected back to the settings page. You should now see a new entry in the table with a <strong>Webhook URL</strong></li>
                           <li>
                             It will look something like{" "}
-                            <code className="rounded bg-neutral-200 px-1 py-0.5 text-xs dark:bg-neutral-800">
+                            <code className="rounded bg-neutral-200 px-1 py-0.5 text-xs dark:bg-surface-100">
                               https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
                             </code>
                           </li>
@@ -394,7 +394,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
             </>
           )}
           {canTest && (
-            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
                   Test Channel
@@ -417,7 +417,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
                   disabled={
                     testChannel.isPending || isPending || !channelIdForTest
                   }
-                  className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                  className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                 >
                   {testChannel.isPending ? "✨ Testing..." : "✨ Send Test Message"}
                 </button>
@@ -452,7 +452,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={isPending}
-              className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               {createdChannelId ? "Done" : "Cancel"}
             </button>

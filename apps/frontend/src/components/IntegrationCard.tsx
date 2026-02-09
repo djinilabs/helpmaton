@@ -26,7 +26,7 @@ export const IntegrationCard: FC<IntegrationCardProps> = ({
   const canInstallCommand = isDiscord && integration.status === "active" && onInstallCommand;
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-surface-50">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3">
@@ -46,7 +46,7 @@ export const IntegrationCard: FC<IntegrationCardProps> = ({
           </p>
           {hasCommand && integration.discordCommand && (
             <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
-              Command: <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-xs dark:bg-neutral-800">/{integration.discordCommand.commandName}</code>
+              Command: <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-xs dark:bg-surface-100">/{integration.discordCommand.commandName}</code>
             </p>
           )}
           <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-500">

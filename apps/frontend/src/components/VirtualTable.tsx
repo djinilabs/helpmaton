@@ -111,7 +111,7 @@ export function VirtualTable<T>({
     return (
       <div className="w-full" role="table" aria-rowcount={count} style={tableStyle}>
         <div
-          className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+          className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-surface-50"
           style={headerRowStyle}
           role="row"
         >
@@ -151,7 +151,7 @@ export function VirtualTable<T>({
     <div className="w-full" role="table" aria-rowcount={count} style={tableStyle}>
       {/* Sticky header: stays fixed at top of scroll container */}
       <div
-        className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+        className="grid border-b border-neutral-200 bg-white dark:border-neutral-700 dark:bg-surface-50"
         style={headerRowStyle}
         role="row"
       >

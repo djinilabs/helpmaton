@@ -176,7 +176,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
       </div>
 
       {/* Filters */}
-      <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+      <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
@@ -185,7 +185,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             <select
               value={grain}
               onChange={(e) => setGrain(e.target.value as TemporalGrain)}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             >
               {grainOptions.map((g) => (
                 <option key={g} value={g}>
@@ -220,7 +220,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
             placeholder="e.g., React project discussion"
-            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           />
         </div>
 
@@ -303,7 +303,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                 record.id ?? `${record.timestamp}-${index}`
               }
               renderRow={(record) => (
-                <div className="rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500">
+                <div className="rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500">
                   <div className="mb-2 flex items-start justify-between">
                     <div className="flex-1">
                       <div className="mb-2 flex items-center gap-2">
@@ -365,7 +365,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                             <summary className="cursor-pointer text-xs font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50">
                               Metadata
                             </summary>
-                            <pre className="mt-1 overflow-x-auto rounded border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                            <pre className="mt-1 overflow-x-auto rounded border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                               {JSON.stringify(record.metadata, null, 2)}
                             </pre>
                           </details>
@@ -386,7 +386,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                 </div>
               )}
               empty={
-                <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-900">
+                <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center dark:border-neutral-700 dark:bg-surface-50">
                   <p className="text-sm text-neutral-600 dark:text-neutral-300">
                     No memory records found for the selected filters.
                   </p>

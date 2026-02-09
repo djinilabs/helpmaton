@@ -62,9 +62,9 @@ const Home: FC = () => {
   }, []);
 
   return (
-    <div className="bg-page min-h-screen p-6 lg:p-10">
+    <div className="min-h-screen bg-page p-6 lg:p-10">
       <div className="mx-auto max-w-6xl">
-        <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900 lg:p-12">
+        <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 lg:p-12">
           <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
             <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
@@ -91,7 +91,7 @@ const Home: FC = () => {
         {hasWorkspaces ? (
           <>
             <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+              <div className="rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-surface-50">
                 <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
                   Get started
                 </h2>
@@ -130,7 +130,7 @@ const Home: FC = () => {
             <UserUsageSection />
           </>
         ) : (
-          <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-12 text-center shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-14">
+          <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-12 text-center shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-14">
             <div className="mx-auto max-w-md">
               <div className="bg-gradient-primary/15 mx-auto mb-8 flex size-20 items-center justify-center rounded-2xl">
                 <svg
@@ -202,7 +202,7 @@ const Home: FC = () => {
 
         {isCreateChoiceOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
               <h2 className="mb-2 text-xl font-bold text-neutral-900 dark:text-neutral-50">
                 Create a workspace
               </h2>
@@ -215,7 +215,7 @@ const Home: FC = () => {
                     setIsCreateChoiceOpen(false);
                     setIsOnboardingModalOpen(true);
                   }}
-                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
                 >
                   <span className="block">✨ Guided setup</span>
                   <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
@@ -228,7 +228,7 @@ const Home: FC = () => {
                     setIsCreateChoiceOpen(false);
                     setIsCreateModalOpen(true);
                   }}
-                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
                 >
                   <span className="block">Name and description only</span>
                   <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
@@ -239,7 +239,7 @@ const Home: FC = () => {
               <button
                 type="button"
                 onClick={() => setIsCreateChoiceOpen(false)}
-                className="mt-4 w-full rounded-xl border-2 border-neutral-300 bg-neutral-100 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                className="mt-4 w-full rounded-xl border-2 border-neutral-300 bg-neutral-100 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
               >
                 Cancel
               </button>
@@ -265,7 +265,7 @@ const Home: FC = () => {
           />
         </Suspense>
 
-        <div className="flex justify-end rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="flex justify-end rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50">
           <button
             onClick={() => {
               // Clear tokens immediately on logout
@@ -341,7 +341,7 @@ const AddPasskeyPrompt: FC = () => {
   if (!show) return null;
 
   return (
-    <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-surface-50">
       <h2 className="mb-3 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
         Sign in faster with a passkey
       </h2>
@@ -361,7 +361,7 @@ const AddPasskeyPrompt: FC = () => {
         type="button"
         disabled={isPasskeyLoading}
         onClick={handleCreatePasskey}
-        className="inline-flex transform items-center gap-2 rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+        className="inline-flex transform items-center gap-2 rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:scale-[1.02] hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-200 dark:hover:border-primary-500 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
       >
         {isPasskeyLoading ? "Creating passkey..." : "Create passkey"}
         {!isPasskeyLoading && (
@@ -423,7 +423,7 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   if (isLoading) {
     return (
-      <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-surface-50">
         <LoadingScreen compact message="Loading usage data..." />
       </div>
     );
@@ -431,7 +431,7 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   if (usageError) {
     return (
-      <div className="mb-8 rounded-2xl border-2 border-error-300 bg-white p-10 shadow-large dark:border-error-700 dark:bg-neutral-900">
+      <div className="mb-8 rounded-2xl border-2 border-error-300 bg-white p-10 shadow-large dark:border-error-700 dark:bg-surface-50">
         <p className="text-lg font-bold text-error-700 dark:text-error-400">
           Error loading usage:{" "}
           {usageError instanceof Error ? usageError.message : "Unknown error"}
@@ -442,7 +442,7 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   if (dailyError) {
     return (
-      <div className="mb-8 rounded-2xl border-2 border-error-300 bg-white p-10 shadow-large dark:border-error-700 dark:bg-neutral-900">
+      <div className="mb-8 rounded-2xl border-2 border-error-300 bg-white p-10 shadow-large dark:border-error-700 dark:bg-surface-50">
         <p className="text-lg font-bold text-error-700 dark:text-error-400">
           Error loading daily usage:{" "}
           {dailyError instanceof Error ? dailyError.message : "Unknown error"}

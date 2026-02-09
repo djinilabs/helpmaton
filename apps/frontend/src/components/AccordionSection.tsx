@@ -194,12 +194,12 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   return (
     <div
       id={id}
-      className="mb-4 w-full scroll-mt-[7.5rem] rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900"
+      className="mb-4 w-full scroll-mt-[7.5rem] rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-surface-50"
     >
       <button
         ref={headerRef}
         onClick={onToggle}
-        className="w-full rounded-2xl bg-white p-6 text-left transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 lg:p-8"
+        className="w-full rounded-2xl bg-white p-6 text-left transition-all duration-200 hover:bg-neutral-50 dark:bg-surface-50 dark:hover:bg-neutral-800 lg:p-8"
         aria-expanded={isExpanded}
         aria-controls={`accordion-content-${id}`}
         aria-label={`${isExpanded ? "Collapse" : "Expand"} section ${typeof title === "string" ? title : id}`}

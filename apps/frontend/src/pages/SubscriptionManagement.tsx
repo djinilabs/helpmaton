@@ -192,9 +192,9 @@ const SubscriptionManagement: FC = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-page min-h-screen p-6 lg:p-10">
+      <div className="min-h-screen bg-page p-6 lg:p-10">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
             <LoadingScreen compact message="Loading subscription..." />
           </div>
         </div>
@@ -204,9 +204,9 @@ const SubscriptionManagement: FC = () => {
 
   if (error) {
     return (
-      <div className="bg-page min-h-screen p-6 lg:p-10">
+      <div className="min-h-screen bg-page p-6 lg:p-10">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-error-200 bg-white p-8 shadow-medium dark:border-error-700 dark:bg-neutral-900 lg:p-10">
+          <div className="rounded-2xl border border-error-200 bg-white p-8 shadow-medium dark:border-error-700 dark:bg-surface-50 lg:p-10">
             <h1 className="mb-4 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
               Error
             </h1>
@@ -329,9 +329,9 @@ const SubscriptionManagement: FC = () => {
   };
 
   return (
-    <div className="bg-page min-h-screen p-6 lg:p-10">
+    <div className="min-h-screen bg-page p-6 lg:p-10">
       <div className="mx-auto max-w-4xl">
-        <div className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+        <div className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
           <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
             <h1 className="mb-4 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
@@ -454,7 +454,7 @@ const SubscriptionManagement: FC = () => {
           </div>
         </div>
 
-        <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
           <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
             Change your plan
           </h2>
@@ -532,14 +532,14 @@ const SubscriptionManagement: FC = () => {
           />
         </div>
 
-        <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
           <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
             Plan limits & usage
           </h2>
 
           <div className="space-y-6">
             {/* Seat Usage - Prominently Displayed */}
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 dark:border-neutral-700 dark:bg-surface-100">
               <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                 Team seats
               </div>
@@ -558,7 +558,7 @@ const SubscriptionManagement: FC = () => {
             {/* Other Limits */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* Workspaces */}
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                   Workspaces
                 </div>
@@ -569,7 +569,7 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* Documents */}
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                   Documents
                 </div>
@@ -592,7 +592,7 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* Agents */}
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                   Agents
                 </div>
@@ -602,7 +602,7 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* Managers */}
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                   Billing managers
                 </div>
@@ -615,7 +615,7 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* Webhooks */}
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                   Webhook keys
                 </div>
@@ -626,7 +626,7 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* Channels */}
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                   Message channels
                 </div>
@@ -637,7 +637,7 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* MCP Servers */}
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+              <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
                   Connected tools
                 </div>
@@ -650,7 +650,7 @@ const SubscriptionManagement: FC = () => {
           </div>
         </div>
 
-        <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
           <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
             Billing managers
           </h2>
@@ -673,7 +673,7 @@ const SubscriptionManagement: FC = () => {
                   return (
                     <div
                       key={manager.userId}
-                      className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-4 transition-colors duration-200 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                      className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-4 transition-colors duration-200 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-surface-100 dark:hover:bg-neutral-700"
                     >
                       <div>
                         <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
@@ -714,7 +714,7 @@ const SubscriptionManagement: FC = () => {
         </div>
 
         {!isManagerLimitReached && (
-          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
             <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
               Add a billing manager
             </h2>
@@ -731,7 +731,7 @@ const SubscriptionManagement: FC = () => {
                   type="email"
                   value={email}
                   onChange={handleEmailChange}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   placeholder="user@example.com"
                   disabled={isSubmitting}
                 />

@@ -37,7 +37,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
     { key: "eval", label: "Eval" },
   ];
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
       <h3 className="mb-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h3>
       <p className="mb-8 text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
         Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Total Cost includes all costs: token costs (from model usage), tool costs (from external tools like web search), reranking costs (from knowledge base document reranking), and eval costs (from evaluation judge calls). Reranking Cost and Eval Cost are shown separately when present. Conversation count shows the number of unique conversations. Messages in are user messages, messages out are assistant responses. Tool usage shows calls to external tools like web search and URL fetching. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
@@ -105,7 +105,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
               {stats.byModel.map((model: { model: string; totalTokens: number; cost: number }) => (
                 <div
                   key={model.model}
-                  className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
+                  className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-neutral-900 dark:text-neutral-50">{model.model}</span>
@@ -145,7 +145,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
               {stats.byProvider.map((provider: { provider: string; totalTokens: number; cost: number }) => (
                 <div
                   key={provider.provider}
-                  className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
+                  className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:border-primary-300 dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-neutral-900 dark:text-neutral-50">{provider.provider}</span>
@@ -188,7 +188,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
             return (
               <div
                 key={key}
-                className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50"
               >
                 <span className="font-medium text-neutral-700 dark:text-neutral-200">{label}</span>
                 <span className={`text-sm font-semibold ${getCostColor(value)}`}>
@@ -203,7 +203,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
       <div>
         <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">By Key Type</h4>
         <div className="grid grid-cols-2 gap-4">
-          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-surface-50">
             <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">BYOK</div>
             <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
               {formatCurrency(stats.byByok.byok.cost, currency, 10)}
@@ -270,7 +270,7 @@ const ToolUsageSection: FC<ToolUsageSectionProps> = ({ toolExpenses, currency })
         return (
           <div
             key={supplier}
-            className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+            className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-surface-50"
           >
             <button
               onClick={() => toggleSupplier(supplier)}
@@ -318,13 +318,13 @@ const ToolUsageSection: FC<ToolUsageSectionProps> = ({ toolExpenses, currency })
                   {tools.map((tool) => (
                     <div
                       key={`${tool.toolCall}-${tool.supplier}`}
-                      className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                      className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-surface-100"
                     >
                       <span className="font-medium text-neutral-900 dark:text-neutral-50">
                         {tool.toolCall}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+                        <span className="rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-600 dark:bg-surface-50 dark:text-neutral-300">
                           {formatNumber(tool.callCount)} {tool.callCount === 1 ? "call" : "calls"}
                         </span>
                         <span

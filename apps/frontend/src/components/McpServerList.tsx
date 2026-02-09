@@ -135,7 +135,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
 
   return (
     <>
-      <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-surface-50">
         <div className="flex-1">
           <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
             {server.name}
@@ -162,7 +162,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
         <div className="flex gap-2">
           <button
             onClick={() => setIsToolsOpen(true)}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             View tools
           </button>
@@ -182,7 +182,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
                       <button
                         onClick={handleDisconnect}
                         disabled={isDisconnecting}
-                        className="rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-600 dark:bg-neutral-900 dark:text-orange-400 dark:hover:bg-orange-950"
+                        className="rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-600 dark:bg-surface-50 dark:text-orange-400 dark:hover:bg-orange-950"
                       >
                         {isDisconnecting ? "Disconnecting..." : "Disconnect"}
                       </button>
@@ -200,7 +200,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
               )}
               <button
                 onClick={() => onEdit(server.id)}
-                className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
               >
                 Edit
               </button>
@@ -274,7 +274,7 @@ export const McpServerList: FC<McpServerListProps> = ({
 
   if (isLoading && !data) {
     return (
-      <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-surface-50">
         <p className="text-lg font-bold text-neutral-900 dark:text-neutral-50">Loading connected tools...</p>
       </div>
     );
@@ -294,7 +294,7 @@ export const McpServerList: FC<McpServerListProps> = ({
       )}
 
       {!isLoading && servers.length === 0 ? (
-        <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-surface-50">
           <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
             No connected tools configured.
           </p>
@@ -310,7 +310,7 @@ export const McpServerList: FC<McpServerListProps> = ({
             isFetchingNextPage={isFetchingNextPage}
             fetchNextPage={fetchNextPage}
             empty={
-              <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+              <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-surface-50">
                 <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
                   No connected tools configured.
                 </p>

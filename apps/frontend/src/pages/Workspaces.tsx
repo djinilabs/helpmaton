@@ -66,14 +66,14 @@ const WorkspacesList: FC = () => {
     if (level === 2)
       return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
     if (level === 1)
-      return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
-    return "bg-neutral-50 text-neutral-500 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700";
+      return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-surface-100 dark:text-neutral-300 dark:border-neutral-700";
+    return "bg-neutral-50 text-neutral-500 border-neutral-200 dark:bg-surface-100 dark:text-neutral-400 dark:border-neutral-700";
   };
 
   return (
-    <div className="bg-page min-h-screen p-6 lg:p-10">
+    <div className="min-h-screen bg-page p-6 lg:p-10">
       <div className="mx-auto max-w-5xl">
-        <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900 lg:p-12">
+        <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 lg:p-12">
           <div className="opacity-8 absolute right-0 top-0 size-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-accent blur-3xl"></div>
           <div className="relative z-10">
             <div className="mb-8 flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
@@ -89,7 +89,7 @@ const WorkspacesList: FC = () => {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={() => setIsImportModalOpen(true)}
-                  className="flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.03] hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.97] dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+                  className="flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.03] hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.97] dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
                 >
                   <ArrowUpTrayIcon className="size-5" />
                   Import a workspace
@@ -115,7 +115,7 @@ const WorkspacesList: FC = () => {
         </div>
 
         {workspaces.length === 0 ? (
-          <div className="rounded-2xl border-2 border-neutral-300 bg-white p-12 text-center shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-14">
+          <div className="rounded-2xl border-2 border-neutral-300 bg-white p-12 text-center shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-14">
             <div className="mx-auto max-w-md">
               <div className="bg-gradient-primary/15 mx-auto mb-8 flex size-20 items-center justify-center rounded-2xl">
                 <svg
@@ -179,10 +179,10 @@ const WorkspacesList: FC = () => {
                   });
                   navigate(`/workspaces/${workspace.id}`);
                 }}
-                className="group relative transform cursor-pointer overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large transition-all duration-200 hover:scale-[1.03] hover:border-primary-400 hover:shadow-bold active:scale-[0.97] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500 lg:p-10"
+                className="group relative transform cursor-pointer overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large transition-all duration-200 hover:scale-[1.03] hover:border-primary-400 hover:shadow-bold active:scale-[0.97] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500 lg:p-10"
               >
                 {loadingWorkspaceId === workspace.id && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/90 backdrop-blur-sm dark:bg-neutral-900/90">
+                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/90 backdrop-blur-sm dark:bg-surface-50/90">
                     <div className="flex flex-col items-center gap-3">
                       <LockSpinner size="medium" />
                       <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
@@ -237,7 +237,7 @@ const WorkspacesList: FC = () => {
 
         {isCreateChoiceOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
               <h2 className="mb-2 text-xl font-bold text-neutral-900 dark:text-neutral-50">
                 Create a workspace
               </h2>
@@ -250,7 +250,7 @@ const WorkspacesList: FC = () => {
                     setIsCreateChoiceOpen(false);
                     setIsOnboardingModalOpen(true);
                   }}
-                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
                 >
                   <span className="block">✨ Guided setup</span>
                   <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
@@ -263,7 +263,7 @@ const WorkspacesList: FC = () => {
                     setIsCreateChoiceOpen(false);
                     setIsCreateModalOpen(true);
                   }}
-                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
                 >
                   <span className="block">Name and description only</span>
                   <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
@@ -274,7 +274,7 @@ const WorkspacesList: FC = () => {
               <button
                 type="button"
                 onClick={() => setIsCreateChoiceOpen(false)}
-                className="mt-4 w-full rounded-xl border-2 border-neutral-300 bg-neutral-100 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                className="mt-4 w-full rounded-xl border-2 border-neutral-300 bg-neutral-100 px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
               >
                 Cancel
               </button>
@@ -327,8 +327,8 @@ const Workspaces: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="bg-page flex min-h-screen items-center justify-center p-8">
-          <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
+        <div className="flex min-h-screen items-center justify-center bg-page p-8">
+          <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-surface-50 lg:p-10">
             <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
               Error
             </h1>
@@ -347,7 +347,7 @@ const Workspaces: FC = () => {
               </button>
               <button
                 onClick={() => (window.location.href = "/")}
-                className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Go Home
               </button>

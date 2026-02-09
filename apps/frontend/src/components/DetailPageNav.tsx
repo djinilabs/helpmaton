@@ -92,7 +92,7 @@ export const DetailPageNav: FC<DetailPageNavProps> = ({
   return (
     <nav
       aria-label={ariaLabel}
-      className="fixed left-0 z-30 hidden flex-col border-r border-neutral-200 bg-white transition-[width] duration-200 dark:border-neutral-700 dark:bg-neutral-900 lg:flex"
+      className="fixed left-0 z-30 hidden flex-col border-r border-neutral-200 bg-white transition-[width] duration-200 dark:border-neutral-700 dark:bg-surface-50 lg:flex"
       style={{
         top: `${topPx}px`,
         bottom: 0,

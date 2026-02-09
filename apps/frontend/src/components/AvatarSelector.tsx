@@ -39,7 +39,7 @@ export const AvatarSelector: FC<AvatarSelectorProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <h2 className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
           Select Avatar
         </h2>
@@ -68,7 +68,7 @@ export const AvatarSelector: FC<AvatarSelectorProps> = ({
                 className={`transform rounded-lg border-2 p-2 transition-all duration-200 hover:scale-105 active:scale-95 ${
                   isSelected
                     ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
-                    : "border-neutral-300 bg-white hover:border-primary-400 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-primary-500"
+                    : "border-neutral-300 bg-white hover:border-primary-400 dark:border-neutral-700 dark:bg-surface-100 dark:hover:border-primary-500"
                 }`}
               >
                 <img
@@ -85,7 +85,7 @@ export const AvatarSelector: FC<AvatarSelectorProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Cancel
           </button>

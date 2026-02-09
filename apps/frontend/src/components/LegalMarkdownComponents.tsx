@@ -41,7 +41,7 @@ export const legalMarkdownComponents: Components = {
     </a>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="my-4 rounded-xl border-l-4 border-neutral-300 bg-neutral-50 p-4 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+    <blockquote className="my-4 rounded-xl border-l-4 border-neutral-300 bg-neutral-50 p-4 text-neutral-700 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-300">
       {children}
     </blockquote>
   ),

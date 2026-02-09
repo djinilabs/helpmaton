@@ -63,7 +63,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
       <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
         Purchase Credits
       </h2>
@@ -81,7 +81,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
               id="workspace"
               value={selectedWorkspaceId}
               onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             >
               <option value="">Select a workspace</option>
               {workspaces.map((workspace) => (

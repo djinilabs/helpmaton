@@ -311,7 +311,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <div className="flex items-center justify-between border-b border-neutral-200 p-6 dark:border-neutral-700">
           <h2 className="text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
             {isCreatedStep ? "Workspace created!" : "Guided workspace setup"}
@@ -320,7 +320,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
+              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:bg-neutral-700"
             >
               Cancel
             </button>
@@ -353,7 +353,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                       className={`rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-colors ${
                         goals.includes(opt.value)
                           ? "border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                          : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-600"
+                          : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300 dark:hover:border-neutral-600"
                       }`}
                     >
                       {opt.label}
@@ -371,7 +371,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                     type="text"
                     value={freeText}
                     onChange={(e) => setFreeText(e.target.value)}
-                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
                     placeholder="e.g. Automate my inbox"
                   />
                   {goals.includes("other") && !freeText.trim() && (
@@ -408,7 +408,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
           {step === "template" && template && (
             <div className="space-y-4">
               {summary && (
-                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
                   <p className="font-semibold text-neutral-900 dark:text-neutral-50">Summary</p>
                   <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">{summary}</p>
                 </div>
@@ -418,7 +418,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                 <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                   Workspace
                 </p>
-                <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-100">
                   <p className="font-medium text-neutral-900 dark:text-neutral-50">{template.name}</p>
                   {template.description && (
                     <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
@@ -458,7 +458,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                       return (
                         <li
                           key={agent.id ?? idx}
-                          className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                          className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-surface-100"
                         >
                           <p className="font-medium text-neutral-900 dark:text-neutral-50">
                             {agent.name}
@@ -487,7 +487,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                     {template.outputChannels!.map((ch, idx) => (
                       <li
                         key={ch.id ?? idx}
-                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm font-medium capitalize text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm font-medium capitalize text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300"
                       >
                         {ch.type}: {ch.name}
                       </li>
@@ -505,7 +505,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                     {template.emailConnections!.map((conn, idx) => (
                       <li
                         key={conn.id ?? idx}
-                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm capitalize text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm capitalize text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300"
                       >
                         {conn.type}: {conn.name}
                       </li>
@@ -523,7 +523,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                     {template.botIntegrations!.map((bot, idx) => (
                       <li
                         key={bot.id ?? idx}
-                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm capitalize text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm capitalize text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300"
                       >
                         {bot.type}
                       </li>
@@ -541,7 +541,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                     {template.mcpServers!.map((srv, idx) => (
                       <li
                         key={srv.id ?? idx}
-                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                        className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300"
                       >
                         {srv.name}
                       </li>
@@ -556,7 +556,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                   value={refineInput}
                   onChange={(e) => setRefineInput(e.target.value)}
                   placeholder="Ask for changes (e.g. Add a second agent for sales)"
-                  className="flex-1 rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                  className="flex-1 rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
                 />
                 <button
                   type="submit"
@@ -595,7 +595,7 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
                 <button
                   type="button"
                   onClick={onSkipToSimpleCreate}
-                  className="flex-1 rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 font-bold text-neutral-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+                  className="flex-1 rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 font-bold text-neutral-800 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-100"
                 >
                   Create without guided setup
                 </button>
@@ -734,7 +734,7 @@ const QuestionsStep: FC<{
                       className={`rounded-xl border-2 px-4 py-2 text-sm font-semibold ${
                         selected
                           ? "border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                          : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                          : "border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300"
                       }`}
                     >
                       {opt}
@@ -771,7 +771,7 @@ const QuestionsStep: FC<{
                           [`${q.id}_other`]: e.target.value,
                         }))
                       }
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
                       placeholder="Your answer"
                     />
                   </div>
@@ -783,7 +783,7 @@ const QuestionsStep: FC<{
               type="text"
               value={(typeof answers[q.id] === "string" ? answers[q.id] : "") ?? ""}
               onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
               placeholder="Your answer"
             />
           )}

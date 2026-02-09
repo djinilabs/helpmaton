@@ -76,7 +76,7 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
                 const avatar = agent.avatar || getDefaultAvatar();
                 return (
                   <div className="mb-3">
-                    <div className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.02] hover:border-primary-400 hover:shadow-bold active:scale-[0.98] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500">
+                    <div className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.02] hover:border-primary-400 hover:shadow-bold active:scale-[0.98] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500">
                       <Link
                         to={`/workspaces/${workspaceId}/agents/${agent.id}`}
                         className="flex items-center gap-4"

@@ -137,7 +137,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
   };
 
   return (
-    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
       <div className="mb-4 flex items-center justify-end">
         {canEdit &&
           !isAdding &&
@@ -174,7 +174,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
       )}
 
       {isAdding && (
-        <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+        <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
           <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
             Add Spending Limit
           </h3>
@@ -195,7 +195,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                       | "",
                   })
                 }
-                className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               >
                 <option value="">Select time frame</option>
                 {availableTimeFrames.map((tf) => (
@@ -240,7 +240,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                   setNewLimit({ timeFrame: "", amount: "" });
                 }}
                 disabled={addLimit.isPending || updateWorkspace.isPending}
-                className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Cancel
               </button>
@@ -254,7 +254,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
           {spendingLimits.map((limit) => (
             <div
               key={limit.timeFrame}
-              className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+              className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50"
             >
               {editingLimit === limit.timeFrame ? (
                 <div className="flex flex-1 items-center gap-4">
@@ -293,7 +293,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                     <button
                       onClick={cancelEdit}
                       disabled={updateLimit.isPending}
-                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                     >
                       Cancel
                     </button>
@@ -318,7 +318,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(limit)}
-                        className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                        className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                       >
                         Edit
                       </button>

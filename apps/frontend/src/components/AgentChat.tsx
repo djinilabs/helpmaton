@@ -632,14 +632,14 @@ export const AgentChat: FC<AgentChatProps> = ({
     <div
       className={`flex ${
         isWidget ? "h-full" : "h-[600px]"
-      } flex-col${isEmbedded ? "" : " rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900"}`}
+      } flex-col${isEmbedded ? "" : " rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-surface-50"}`}
     >
       {!isWidget && (
         <div
           className={`border-b-2 border-neutral-300 dark:border-neutral-700${
             isEmbedded
               ? " bg-transparent p-3"
-              : " rounded-t-2xl bg-neutral-100 p-5 dark:bg-neutral-800"
+              : " rounded-t-2xl bg-neutral-100 p-5 dark:bg-surface-100"
           }`}
         >
           <div className="flex items-center justify-between gap-4">
@@ -664,7 +664,7 @@ export const AgentChat: FC<AgentChatProps> = ({
               <button
                 onClick={handleClearConversation}
                 disabled={isLoading}
-                className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
                 title="Clear conversation"
               >
                 <TrashIcon className="size-4" />
@@ -677,14 +677,14 @@ export const AgentChat: FC<AgentChatProps> = ({
       {isWidget && messages.length > 0 && (
         <div
           className={`border-b-2 border-neutral-300 p-3 dark:border-neutral-700${
-            isEmbedded ? " bg-transparent" : " rounded-t-2xl bg-neutral-100 dark:bg-neutral-800"
+            isEmbedded ? " bg-transparent" : " rounded-t-2xl bg-neutral-100 dark:bg-surface-100"
           }`}
         >
           <div className="flex items-center justify-end">
             <button
               onClick={handleClearConversation}
               disabled={isLoading}
-              className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
               title="Clear conversation"
             >
               <TrashIcon className="size-4" />
@@ -696,7 +696,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className={`flex-1 overflow-y-auto bg-white dark:bg-neutral-900 ${isEmbedded ? "p-2" : "p-4"}`}
+        className={`flex-1 overflow-y-auto bg-white dark:bg-surface-50 ${isEmbedded ? "p-2" : "p-4"}`}
       >
         {(error || apiError) && (
           <div
@@ -785,13 +785,13 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Pending Files Preview */}
       {enableFileUpload && pendingFiles.length > 0 && (
         <div
-          className={`border-t-2 border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 ${isEmbedded ? "p-2" : "p-3"}`}
+          className={`border-t-2 border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100 ${isEmbedded ? "p-2" : "p-3"}`}
         >
           <div className="flex flex-wrap gap-2">
             {pendingFiles.map((fileData, index) => (
               <div
                 key={index}
-                className="relative flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                className="relative flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white p-2 dark:border-neutral-700 dark:bg-surface-50"
               >
                 {fileData.preview ? (
                   <img
@@ -861,7 +861,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Input Form */}
       <form
         onSubmit={handleSubmit}
-        className={`flex gap-4 border-t-2 border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900 ${isEmbedded ? "p-2 sm:p-3" : "rounded-b-2xl p-5"}`}
+        className={`flex gap-4 border-t-2 border-neutral-300 bg-white dark:border-neutral-700 dark:bg-surface-50 ${isEmbedded ? "p-2 sm:p-3" : "rounded-b-2xl p-5"}`}
       >
         {enableFileUpload && (
           <>
@@ -877,7 +877,7 @@ export const AgentChat: FC<AgentChatProps> = ({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
-              className="flex shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white p-4 text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              className="flex shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white p-4 text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
               title="Attach file"
             >
               <PaperClipIcon className="size-5" />
@@ -891,7 +891,7 @@ export const AgentChat: FC<AgentChatProps> = ({
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
           rows={1}
-          className="flex-1 resize-none overflow-hidden rounded-xl border-2 border-neutral-300 bg-white p-4 text-base font-medium text-neutral-900 transition-all duration-200 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          className="flex-1 resize-none overflow-hidden rounded-xl border-2 border-neutral-300 bg-white p-4 text-base font-medium text-neutral-900 transition-all duration-200 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           style={{ minHeight: "56px", maxHeight: "200px" }}
         />
         <button

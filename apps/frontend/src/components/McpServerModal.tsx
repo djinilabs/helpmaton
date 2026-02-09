@@ -257,7 +257,7 @@ const LABEL_CLASSNAME =
   "mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300";
 const HINT_CLASSNAME = "mt-1.5 text-xs text-neutral-600 dark:text-neutral-300";
 const INPUT_CLASSNAME =
-  "w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400";
+  "w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400";
 const INPUT_MONO_CLASSNAME = `${INPUT_CLASSNAME} font-mono`;
 const SELECT_CLASSNAME = INPUT_CLASSNAME;
 
@@ -596,7 +596,7 @@ const FormField = ({
 );
 
 const OAuthManagedNotice = ({ name }: { name: string }) => (
-  <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+  <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
     <p className="text-sm text-neutral-700 dark:text-neutral-300">
       This is a {name} connected tool. OAuth connection is managed separately.
     </p>
@@ -621,7 +621,7 @@ const ServerTypeCard = ({
       className={`relative flex flex-col items-center rounded-xl border-2 p-4 text-left transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 ${
         isSelected
           ? "border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20"
-          : "border-neutral-300 bg-white hover:border-primary-400 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-primary-500"
+          : "border-neutral-300 bg-white hover:border-primary-400 dark:border-neutral-700 dark:bg-surface-100 dark:hover:border-primary-500"
       }`}
     >
       <div className="mb-3 flex size-12 items-center justify-center">
@@ -944,7 +944,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <h2 className="mb-8 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           {isEditing ? "Edit Connected Tool" : "Create Connected Tool"}
         </h2>
@@ -996,7 +996,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
           )}
 
           {!isEditing && formState.mcpType && (
-            <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+            <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-200">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
@@ -1009,7 +1009,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                 <button
                   type="button"
                   onClick={handleClearTypeSelection}
-                  className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                  className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-100 dark:border-neutral-600 dark:bg-surface-50 dark:text-neutral-200 dark:hover:bg-neutral-700"
                 >
                   Change type
                 </button>
@@ -1178,7 +1178,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
                   required={!isEditing}
                 />
               </FormField>
-              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-200">
                 <p className="font-semibold text-neutral-900 dark:text-neutral-100">
                   How to Connect Your Zendesk Account
                 </p>
@@ -1423,7 +1423,7 @@ const McpServerModalContent: FC<McpServerModalStateProps> = (props) => {
               type="button"
               onClick={handleClose}
               disabled={isPending}
-              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>

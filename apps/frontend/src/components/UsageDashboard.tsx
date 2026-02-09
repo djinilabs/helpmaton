@@ -42,7 +42,7 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
   ];
 
   return (
-    <div className={`${showBorder ? "rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900" : ""} mb-8`}>
+    <div className={`${showBorder ? "rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50" : ""} mb-8`}>
       <div className={`mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center ${showBorder ? 'justify-between' : 'justify-end'}`}>
         {showBorder && <h2 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h2>}
         <div className="flex flex-wrap items-center gap-3">
@@ -50,7 +50,7 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
             <select
               value={dateRangePreset}
               onChange={(e) => onDateRangeChange(e.target.value as DateRangePreset)}
-              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             >
               {dateRangePresets.map((preset) => (
                 <option key={preset} value={preset}>
@@ -63,7 +63,7 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>

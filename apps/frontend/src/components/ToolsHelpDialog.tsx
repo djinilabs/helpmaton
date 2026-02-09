@@ -49,7 +49,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   if (isLoadingTools) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div className="rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
           <p className="text-neutral-700 dark:text-neutral-300">
             Loading tools...
           </p>
@@ -60,14 +60,14 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-4xl font-black text-neutral-900 dark:text-neutral-50">
             Available Tools
           </h2>
           <button
             onClick={onClose}
-            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>
@@ -97,10 +97,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
               {group.tools.map((tool) => (
                 <div
                   key={tool.name}
-                  className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900"
+                  className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-surface-50"
                 >
                   <div className="mb-2 flex items-start justify-between">
-                    <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                    <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                       {tool.name}
                     </code>
                     {tool.alwaysAvailable ? (
@@ -135,7 +135,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                       {tool.condition}
                     </p>
                   )}
-                  <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                  <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-surface-100">
                     <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
                       Parameters:
                     </p>
@@ -148,10 +148,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                         {tool.parameters.map((param, index) => (
                           <div
                             key={index}
-                            className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                            className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-surface-50"
                           >
                             <div className="mb-1 flex items-center gap-2">
-                              <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                              <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                                 {param.name}
                               </code>
                               <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
@@ -162,7 +162,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                                   Required
                                 </span>
                               ) : (
-                                <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300">
                                   Optional
                                 </span>
                               )}
@@ -181,7 +181,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           ))}
 
           {groupedTools?.some((g) => g.category === "MCP Server Tools") && (
-            <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
               <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
                 🔌 Connected tool actions
               </h3>
@@ -191,10 +191,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                   ?.tools.map((tool) => (
                     <div
                       key={tool.name}
-                      className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                      className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-50"
                     >
                       <div className="mb-2 flex items-start justify-between">
-                        <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                        <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                           {tool.name}
                         </code>
                         {tool.alwaysAvailable ? (
@@ -229,7 +229,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                           {tool.condition}
                         </p>
                       )}
-                      <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                      <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-surface-100">
                         <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
                           Parameters:
                         </p>
@@ -242,10 +242,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                             {tool.parameters.map((param, index) => (
                               <div
                                 key={index}
-                                className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-surface-50"
                               >
                                 <div className="mb-1 flex items-center gap-2">
-                                  <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                  <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                                     {param.name}
                                   </code>
                                   <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
@@ -256,7 +256,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                                       Required
                                     </span>
                                   ) : (
-                                    <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                    <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-300">
                                       Optional
                                     </span>
                                   )}
@@ -277,7 +277,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
 
           {!groupedTools?.some((g) => g.category === "MCP Server Tools") &&
             (agent?.enabledMcpServerIds?.length ?? 0) === 0 && (
-              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
                 <p className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
                   🔌 Connected tool actions
                 </p>

@@ -246,7 +246,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
 
   if (!graphData) {
     return (
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-400">
         No temporal data available for this conversation
       </div>
     );
@@ -316,7 +316,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
       if (isInline) {
         return (
           <code
-            className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+            className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
             {...rest}
           >
             {children}
@@ -325,7 +325,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
       }
       return (
         <code
-          className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+          className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
           {...rest}
         >
           {children}
@@ -584,7 +584,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
   };
 
   return (
-    <div className="relative rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
+    <div className="relative rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-100">
       <div className="mb-4 flex items-center gap-2">
         <ClockIcon className="size-5 text-neutral-600 dark:text-neutral-400" />
       </div>
@@ -980,8 +980,8 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                     role === "user"
                       ? "bg-gradient-primary text-white"
                       : role === "assistant"
-                      ? "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                      : "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                      ? "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
+                      : "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
                   }`}
                 >
                   <div className="mb-2 flex items-center justify-between">

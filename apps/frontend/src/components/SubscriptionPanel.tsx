@@ -10,7 +10,7 @@ export const SubscriptionPanel: FC = () => {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
         <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           Subscription
         </h2>
@@ -21,7 +21,7 @@ export const SubscriptionPanel: FC = () => {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-error-200 bg-white p-8 shadow-medium dark:border-error-700 dark:bg-neutral-900">
+      <div className="rounded-2xl border border-error-200 bg-white p-8 shadow-medium dark:border-error-700 dark:bg-surface-50">
         <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           Subscription
         </h2>
@@ -50,7 +50,7 @@ export const SubscriptionPanel: FC = () => {
     : null;
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50">
       <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">Subscription</h2>
       <div className="mb-6">
         <div className="mb-2 text-3xl font-bold text-neutral-900 dark:text-neutral-50">

@@ -135,7 +135,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-surface-50">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
             Connect Slack Bot
@@ -158,7 +158,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 value={selectedAgentId}
                 onChange={(e) => setSelectedAgentId(e.target.value)}
                 disabled={!!preSelectedAgentId}
-                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
+                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
               >
                 <option value="">Select an agent...</option>
                 {agents?.map((agent) => (
@@ -210,7 +210,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 value={integrationName}
                 onChange={(e) => setIntegrationName(e.target.value)}
                 placeholder="My Slack Bot"
-                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
               />
             </div>
             <div>
@@ -222,7 +222,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 value={botToken}
                 onChange={(e) => setBotToken(e.target.value)}
                 placeholder="xoxb-..."
-                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
               />
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                 Found in Slack app settings → &quot;OAuth &amp; Permissions&quot; → &quot;Bot User OAuth Token&quot;.
@@ -239,7 +239,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 value={signingSecret}
                 onChange={(e) => setSigningSecret(e.target.value)}
                 placeholder="..."
-                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
               />
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                 Found in Slack app settings → &quot;Basic Information&quot; → &quot;App Credentials&quot; → &quot;Signing Secret&quot;
@@ -303,7 +303,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                   type="text"
                   readOnly
                   value={createdIntegration.webhookUrl}
-                  className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                  className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
                 />
                 <button
                   onClick={() => handleCopy(createdIntegration.webhookUrl)}

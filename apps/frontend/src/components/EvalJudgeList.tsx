@@ -47,7 +47,7 @@ const EvalJudgeItem: FC<EvalJudgeItemProps> = ({
   };
 
   return (
-    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-surface-50">
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
@@ -58,7 +58,7 @@ const EvalJudgeItem: FC<EvalJudgeItemProps> = ({
               Enabled
             </span>
           ) : (
-            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200">
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-800 dark:bg-surface-100 dark:text-neutral-200">
               Disabled
             </span>
           )}
@@ -78,8 +78,8 @@ const EvalJudgeItem: FC<EvalJudgeItemProps> = ({
             disabled={updateJudge.isPending}
             className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               judge.enabled
-                ? "border border-orange-300 bg-white text-orange-600 hover:bg-orange-50 dark:border-orange-600 dark:bg-neutral-900 dark:text-orange-400 dark:hover:bg-orange-950"
-                : "border border-green-300 bg-white text-green-600 hover:bg-green-50 dark:border-green-600 dark:bg-neutral-900 dark:text-green-400 dark:hover:bg-green-950"
+                ? "border border-orange-300 bg-white text-orange-600 hover:bg-orange-50 dark:border-orange-600 dark:bg-surface-50 dark:text-orange-400 dark:hover:bg-orange-950"
+                : "border border-green-300 bg-white text-green-600 hover:bg-green-50 dark:border-green-600 dark:bg-surface-50 dark:text-green-400 dark:hover:bg-green-950"
             }`}
           >
             {updateJudge.isPending
@@ -90,7 +90,7 @@ const EvalJudgeItem: FC<EvalJudgeItemProps> = ({
           </button>
           <button
             onClick={() => onEdit(judge.id)}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             Edit
           </button>
@@ -150,7 +150,7 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-surface-50">
         <p className="text-lg font-bold text-neutral-900 dark:text-neutral-50">
           Loading evaluation judges...
         </p>
@@ -192,7 +192,7 @@ export const EvalJudgeList: FC<EvalJudgeListProps> = ({
           isFetchingNextPage={isFetchingNextJudges}
           fetchNextPage={fetchNextJudgesPage}
           empty={
-            <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-surface-50">
               <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
                 No evaluation judges configured.
               </p>

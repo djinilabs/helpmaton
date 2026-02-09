@@ -101,7 +101,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
   if (createdIntegration) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-surface-50">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
               Integration Created Successfully
@@ -132,7 +132,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
                   type="text"
                   readOnly
                   value={createdIntegration.webhookUrl}
-                  className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                  className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
                 />
                 <button
                   onClick={() => handleCopy(createdIntegration.webhookUrl)}
@@ -176,7 +176,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-surface-50">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
             Connect Discord Bot
@@ -219,7 +219,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
               value={selectedAgentId}
               onChange={(e) => setSelectedAgentId(e.target.value)}
               disabled={!!preSelectedAgentId}
-              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
             >
               <option value="">Select an agent...</option>
               {agents?.map((agent) => (
@@ -244,7 +244,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
               value={integrationName}
               onChange={(e) => setIntegrationName(e.target.value)}
               placeholder="My Discord Bot"
-              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
             />
           </div>
 
@@ -257,7 +257,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
               placeholder="..."
-              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
             />
           </div>
 
@@ -270,7 +270,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
               value={publicKey}
               onChange={(e) => setPublicKey(e.target.value)}
               placeholder="..."
-              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
             />
           </div>
 
@@ -283,7 +283,7 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
               value={applicationId}
               onChange={(e) => setApplicationId(e.target.value)}
               placeholder="..."
-              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50"
             />
           </div>
 

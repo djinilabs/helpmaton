@@ -210,7 +210,7 @@ const Integrations: FC = () => {
           isFetchingNextPage={isFetchingNextIntegrations}
           fetchNextPage={fetchNextIntegrationsPage}
           empty={
-            <div className="rounded-lg border border-neutral-200 bg-white p-12 text-center dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="rounded-lg border border-neutral-200 bg-white p-12 text-center dark:border-neutral-700 dark:bg-surface-50">
               <p className="text-neutral-600 dark:text-neutral-400">
                 No integrations yet. Connect Slack or Discord to let your agent
                 reply there.

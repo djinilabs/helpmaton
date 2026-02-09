@@ -129,7 +129,7 @@ const UserSettings: FC = () => {
   }, []);
 
   return (
-    <div className="bg-page min-h-screen p-6 lg:p-10">
+    <div className="min-h-screen bg-page p-6 lg:p-10">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Suspense fallback={<LoadingScreen compact />}>
@@ -137,7 +137,7 @@ const UserSettings: FC = () => {
           </Suspense>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
           <h1 className="mb-2 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
             Sign-in methods
           </h1>
@@ -150,14 +150,14 @@ const UserSettings: FC = () => {
               type="button"
               disabled={isPasskeyLoading}
               onClick={handleCreatePasskey}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
+              className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
             >
               {isPasskeyLoading ? "Creating passkey..." : "Create passkey"}
             </button>
           </div>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
           <h1 className="mb-2 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
             API keys
           </h1>
@@ -170,7 +170,7 @@ const UserSettings: FC = () => {
               <BrandName /> API
             </Link>
             . Use them in the{" "}
-            <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-sm dark:bg-neutral-800 dark:text-neutral-50">
+            <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-sm dark:bg-surface-100 dark:text-neutral-50">
               Authorization: Bearer &lt;key&gt;
             </code>{" "}
             request header.
@@ -248,7 +248,7 @@ const UserSettings: FC = () => {
       {/* Create Key Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50">
             <h2 className="mb-4 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
               Create a new API key
             </h2>
@@ -266,7 +266,7 @@ const UserSettings: FC = () => {
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   placeholder="e.g., Website, Zapier"
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                 />
                 <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-300">
                   Use a name that helps you remember where it&apos;s used.
@@ -301,7 +301,7 @@ const UserSettings: FC = () => {
       {/* Show Key Modal */}
       {newlyCreatedKey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50">
             <h2 className="mb-2 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
               Your API key is ready
             </h2>
@@ -313,7 +313,7 @@ const UserSettings: FC = () => {
                 API Key
               </label>
               <div className="flex gap-2">
-                <code className="flex-1 break-all rounded-xl border border-neutral-300 bg-neutral-100 px-4 py-3 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                <code className="flex-1 break-all rounded-xl border border-neutral-300 bg-neutral-100 px-4 py-3 font-mono text-sm dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                   {newlyCreatedKey.key}
                 </code>
                 <button

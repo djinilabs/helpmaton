@@ -584,7 +584,7 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
             keyData.id
           );
           return (
-            <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-surface-50">
               <div>
                 <p className="text-sm font-medium">
                   {keyData.name || "Widget Key"}
@@ -2305,11 +2305,11 @@ const AgentHeaderCard: FC<AgentHeaderCardProps> = ({
   setShowScrollIndicator,
 }) => {
   return (
-    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
       <div className="mb-4 flex items-center justify-between">
         <button
           onClick={onBack}
-          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
         >
           ← Back to workspace
         </button>
@@ -2343,7 +2343,7 @@ const AgentHeaderCard: FC<AgentHeaderCardProps> = ({
           {agent.updatedAt &&
             ` • Updated: ${new Date(agent.updatedAt).toLocaleString()}`}
         </p>
-        <div className="mb-4 rounded-lg border-2 border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+        <div className="mb-4 rounded-lg border-2 border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
           <h3 className="mb-2 text-lg font-semibold dark:text-neutral-50">
             System Prompt
           </h3>
@@ -2356,7 +2356,7 @@ const AgentHeaderCard: FC<AgentHeaderCardProps> = ({
                 element.clientHeight + 10;
               setShowScrollIndicator(!isAtBottom);
             }}
-            className="relative max-h-64 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="relative max-h-64 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-surface-50"
           >
             <div className="prose prose-sm dark:prose-invert max-w-none">
               <Suspense fallback={<LoadingScreen compact />}>
@@ -2364,12 +2364,12 @@ const AgentHeaderCard: FC<AgentHeaderCardProps> = ({
                   components={{
                     // Code blocks
                     code: ({ children }) => (
-                      <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-sm dark:bg-neutral-800">
+                      <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-sm dark:bg-surface-100">
                         {children}
                       </code>
                     ),
                     pre: ({ children }) => (
-                      <pre className="overflow-x-auto rounded-lg bg-neutral-100 p-4 dark:bg-neutral-800">
+                      <pre className="overflow-x-auto rounded-lg bg-neutral-100 p-4 dark:bg-surface-100">
                         {children}
                       </pre>
                     ),
@@ -2460,7 +2460,7 @@ const AgentHeaderCard: FC<AgentHeaderCardProps> = ({
               </Suspense>
             </div>
             {showScrollIndicator && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-neutral-800">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-surface-100">
                 <div className="text-center">
                   <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                     ▼ More below
@@ -2625,14 +2625,14 @@ const AgentDetailModals: FC<AgentDetailModalsProps> = ({
         streamUrlData?.url &&
         streamServerConfig.secret && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700 dark:bg-surface-50">
               <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4 dark:border-neutral-700">
                 <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
                   Test Stream Server
                 </h2>
                 <button
                   onClick={onCloseStreamTestModal}
-                  className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:bg-neutral-800"
                 >
                   Close
                 </button>
@@ -2741,11 +2741,11 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
   setShowScrollIndicator,
   setModelName,
 }) => (
-  <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+  <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
     <div className="mb-4 flex items-center justify-between">
       <button
         onClick={onBack}
-        className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+        className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
       >
         ← Back to workspace
       </button>
@@ -2832,7 +2832,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
                           selectedModel === defaultModel ? null : selectedModel
                         );
                       }}
-                      className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                      className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                     >
                       {isLoadingModels ? (
                         <option value="">Loading...</option>
@@ -2859,7 +2859,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
               <button
                 type="button"
                 onClick={onOpenModelPrices}
-                className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 See model prices
               </button>
@@ -2906,7 +2906,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
           <button
             type="button"
             onClick={onOpenToolsHelp}
-            className="rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
+            className="rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:bg-neutral-50 dark:bg-surface-100"
           >
             Tools this assistant can use
           </button>
@@ -2925,7 +2925,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
                 element.clientHeight + 10;
               setShowScrollIndicator(!isAtBottom);
             }}
-            className="max-h-[400px] overflow-y-auto rounded-lg bg-neutral-50 p-4 text-sm dark:bg-neutral-800"
+            className="max-h-[400px] overflow-y-auto rounded-lg bg-neutral-50 p-4 text-sm dark:bg-surface-100"
           >
             <Suspense
               fallback={<LoadingScreen compact message="Loading markdown..." />}
@@ -2940,7 +2940,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
                     if (isInline) {
                       return (
                         <code
-                          className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                          className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-surface-100"
                           {...rest}
                         >
                           {children}
@@ -2949,7 +2949,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
                     }
                     return (
                       <code
-                        className="block overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                        className="block overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 font-mono text-xs dark:border-neutral-700 dark:bg-surface-100"
                         {...rest}
                       >
                         {children}
@@ -3039,7 +3039,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
             </Suspense>
           </div>
           {showScrollIndicator && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-surface-100">
               <div className="text-center">
                 <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                   ▼ More below
@@ -3339,7 +3339,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
   ]);
 
   return (
-    <div className="bg-page min-h-screen p-8">
+    <div className="min-h-screen bg-page p-8">
       <DetailPageNav
         groups={navGroups}
         expandedSection={expandedSection}
@@ -3406,11 +3406,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
         />
 
         {/*
-        <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
           <div className="mb-4 flex items-center justify-between">
             <button
               onClick={() => navigate(`/workspaces/${workspaceId}`)}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               ← Back to workspace
             </button>
@@ -3474,7 +3474,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   : selectedModel
                               );
                             }}
-                            className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                            className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                           >
                             {isLoadingModels ? (
                               <option value="">Loading...</option>
@@ -3501,7 +3501,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     <button
                       type="button"
                       onClick={() => setIsModelPricesOpen(true)}
-                      className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                     >
                       See model prices
                     </button>
@@ -3544,7 +3544,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                 <button
                   type="button"
                   onClick={() => setIsHelpOpen(true)}
-                  className="rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:bg-neutral-50 dark:bg-surface-100"
                 >
                   Tools this assistant can use
                 </button>
@@ -3556,7 +3556,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
               <div className="relative rounded-lg border border-neutral-200 dark:border-neutral-700">
                 <div
                   ref={systemPromptRef}
-                  className="max-h-[400px] overflow-y-auto rounded-lg bg-neutral-50 p-4 text-sm dark:bg-neutral-800"
+                  className="max-h-[400px] overflow-y-auto rounded-lg bg-neutral-50 p-4 text-sm dark:bg-surface-100"
                 >
                   <Suspense
                     fallback={
@@ -3573,7 +3573,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           if (isInline) {
                             return (
                               <code
-                                className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                                className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-surface-100"
                                 {...rest}
                               >
                                 {children}
@@ -3582,7 +3582,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           }
                           return (
                             <code
-                              className="block overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                              className="block overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 font-mono text-xs dark:border-neutral-700 dark:bg-surface-100"
                               {...rest}
                             >
                               {children}
@@ -3657,7 +3657,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         ),
                         // Blockquotes
                         blockquote: ({ children }) => (
-                          <blockquote className="my-2 rounded-r border-l-4 border-primary-500 bg-neutral-50 py-2 pl-4 italic dark:bg-neutral-800">
+                          <blockquote className="my-2 rounded-r border-l-4 border-primary-500 bg-neutral-50 py-2 pl-4 italic dark:bg-surface-100">
                             {children}
                           </blockquote>
                         ),
@@ -3711,7 +3711,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                   </Suspense>
                 </div>
                 {showScrollIndicator && (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-neutral-800">
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-surface-100">
                     <div className="text-center">
                       <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                         ▼ More below
@@ -3933,7 +3933,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                   graph database. When enabled, this will update the working
                   memory record for the conversation on every update.
                 </p>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                   <input
                     type="checkbox"
                     checked={memoryExtractionEnabled}
@@ -3961,7 +3961,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         e.target.value.length > 0 ? e.target.value : null
                       )
                     }
-                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   >
                     <option value="">
                       {defaultModel
@@ -4004,7 +4004,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                             DEFAULT_MEMORY_EXTRACTION_PROMPT
                           )
                         }
-                        className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                        className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                       >
                         Use default
                       </button>
@@ -4014,7 +4014,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     value={memoryExtractionPrompt}
                     onChange={(e) => setMemoryExtractionPrompt(e.target.value)}
                     rows={8}
-                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   />
                 </div>
                 <button
@@ -4069,7 +4069,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                               onClick={() =>
                                 handleResetSummarizationPrompt(grain)
                               }
-                              className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                              className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                             >
                               Use default
                             </button>
@@ -4084,7 +4084,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                             )
                           }
                           rows={6}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                         />
                       </div>
                     );
@@ -4136,7 +4136,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     implications.
                   </p>
                 </div>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                   <input
                     type="checkbox"
                     checked={enableMemorySearch}
@@ -4183,7 +4183,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     knowledge from agent memories and workspace documents into
                     user prompts before they are sent to the agent.
                   </p>
-                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100">
                     <p className="text-sm font-semibold dark:text-neutral-300">
                       What are snippets?
                     </p>
@@ -4195,7 +4195,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       working memory and knowledge graph.
                     </p>
                   </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                     <input
                       type="checkbox"
                       checked={enableKnowledgeInjection}
@@ -4217,7 +4217,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                   {enableKnowledgeInjection && (
                     <>
                       <div className="space-y-3">
-                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                           <input
                             type="checkbox"
                             checked={enableKnowledgeInjectionFromMemories}
@@ -4239,7 +4239,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                             </div>
                           </div>
                         </label>
-                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                           <input
                             type="checkbox"
                             checked={enableKnowledgeInjectionFromDocuments}
@@ -4279,7 +4279,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 e.target.value.length > 0 ? e.target.value : null
                               )
                             }
-                            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                           >
                             <option value="">
                               {defaultModel
@@ -4344,7 +4344,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           (default: 0)
                         </p>
                       </div>
-                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                         <input
                           type="checkbox"
                           checked={enableKnowledgeReranking}
@@ -4373,7 +4373,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 setModelPricesFilter("rerank");
                                 setIsModelPricesOpen(true);
                               }}
-                              className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                              className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                             >
                               💰 Model prices
                             </button>
@@ -4400,7 +4400,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   e.target.value || null
                                 )
                               }
-                              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                             >
                               <option value="">
                                 Select a re-ranking model
@@ -4474,7 +4474,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     Enable the document search tool to allow this agent to
                     search workspace documents using semantic vector search.
                   </p>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                     <input
                       type="checkbox"
                       checked={enableSearchDocuments}
@@ -4544,7 +4544,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       </p>
                     </div>
                   )}
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                     <input
                       type="checkbox"
                       checked={enableSendEmail}
@@ -4594,7 +4594,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     Free (no credits charged).
                   </p>
                   <div className="space-y-3">
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="radio"
                         name="searchWebProvider"
@@ -4610,7 +4610,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         </div>
                       </div>
                     </label>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="radio"
                         name="searchWebProvider"
@@ -4627,7 +4627,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         </div>
                       </div>
                     </label>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="radio"
                         name="searchWebProvider"
@@ -4678,7 +4678,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     (no credits charged).
                   </p>
                   <div className="space-y-3">
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="radio"
                         name="fetchWebProvider"
@@ -4694,7 +4694,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         </div>
                       </div>
                     </label>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="radio"
                         name="fetchWebProvider"
@@ -4711,7 +4711,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         </div>
                       </div>
                     </label>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="radio"
                         name="fetchWebProvider"
@@ -4728,7 +4728,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         </div>
                       </div>
                     </label>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="radio"
                         name="fetchWebProvider"
@@ -4786,7 +4786,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     number of results).
                   </p>
                   <div className="space-y-3">
-                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                       <input
                         type="checkbox"
                         checked={enableExaSearch}
@@ -4837,7 +4837,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                   Only OpenRouter models that support image output are listed.
                 </p>
                 <div className="space-y-4">
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100">
                     <input
                       type="checkbox"
                       checked={enableImageGeneration}
@@ -4866,7 +4866,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           setModelPricesFilter("image_generation");
                           setIsModelPricesOpen(true);
                         }}
-                        className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                        className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
                       >
                         💰 Model prices
                       </button>
@@ -4883,7 +4883,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         imageGenerationModelInputRef.current = value;
                         setImageGenerationModel(value);
                       }}
-                      className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                      className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                     >
                       {isLoadingImageModels ? (
                         <option value="">Loading image models...</option>
@@ -5011,7 +5011,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         return (
                           <div
                             key={server.id}
-                            className="space-y-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
+                            className="space-y-3 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100"
                           >
                             <label className="flex cursor-pointer items-start gap-2">
                               <input
@@ -5134,11 +5134,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                   Configure which other agents in this workspace this agent can
                   delegate tasks to. When delegation is enabled, this agent will
                   have access to the{" "}
-                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                     list_agents
                   </code>{" "}
                   and{" "}
-                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                     call_agent
                   </code>{" "}
                   tools.
@@ -5151,7 +5151,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         .map((targetAgent) => (
                           <label
                             key={targetAgent.id}
-                            className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
+                            className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100 dark:hover:bg-neutral-800"
                           >
                             <input
                               type="checkbox"
@@ -5323,7 +5323,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       type="text"
                       value={stopSequences}
                       onChange={(e) => setStopSequences(e.target.value)}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       placeholder="e.g., END, STOP, ###"
                     />
                   </div>
@@ -5363,7 +5363,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     <button
                       onClick={handleResetAdvanced}
                       disabled={updateAgent.isPending}
-                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
+                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:bg-neutral-700"
                     >
                       Reset to Defaults
                     </button>
@@ -5421,7 +5421,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                 </p>
                 <div className="space-y-4">
                   {/* Enable Widget Toggle */}
-                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-surface-50">
                     <div>
                       <label
                         htmlFor="widget-enabled"
@@ -5476,7 +5476,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   : value.split(",").map((s) => s.trim()),
                             });
                           }}
-                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                         />
                         <p className="mt-1 text-xs opacity-75">
                           Comma-separated list of allowed origins, or &quot;*&quot; for
@@ -5504,7 +5504,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 | "auto",
                             })
                           }
-                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                         >
                           <option value="auto">Auto (system preference)</option>
                           <option value="light">Light</option>
@@ -5513,7 +5513,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       </div>
 
                       {/* Widget Customization Options */}
-                      <details className="group rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+                      <details className="group rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-surface-50">
                         <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800 [&::-webkit-details-marker]:hidden">
                           <span>Customization Options</span>
                           <ChevronRightIcon className="size-4 shrink-0 text-neutral-400 transition-transform group-open:rotate-90 dark:text-neutral-500" />
@@ -5584,7 +5584,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#3b82f6 or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5663,7 +5663,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#ffffff or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5742,7 +5742,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#1f2937 or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5821,7 +5821,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#e5e7eb or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5865,12 +5865,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                               })
                             }
                             placeholder="8px"
-                            className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                            className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                           />
                         </div>
 
                         {/* Outer Border Toggle */}
-                        <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-surface-50">
                           <div>
                             <label
                               htmlFor="widget-outer-border"
@@ -5987,7 +5987,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           })
                                         }
                                         placeholder="#e5e7eb or rgba(...)"
-                                        className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                        className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                       />
                                     </div>
                                     <Slider
@@ -6043,7 +6043,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   })
                                 }
                                 placeholder="Inter, system-ui, sans-serif"
-                                className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                               />
                             </div>
                             <div>
@@ -6082,7 +6082,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-surface-50">
                           <div>
                             <label
                               htmlFor="widget-upload-toggle"
@@ -6115,7 +6115,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       </details>
 
                       {/* Preview Page Styling */}
-                      <details className="group rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900">
+                      <details className="group rounded-lg border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-surface-50">
                         <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800 [&::-webkit-details-marker]:hidden">
                           <span>Preview Page Styling</span>
                           <ChevronRightIcon className="size-4 shrink-0 text-neutral-400 transition-transform group-open:rotate-90 dark:text-neutral-500" />
@@ -6158,7 +6158,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   theme: e.target.value as WidgetPreviewSettings["theme"],
                                 })
                               }
-                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                             >
                               <option value="light">Light</option>
                               <option value="dark">Dark</option>
@@ -6180,7 +6180,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                     e.target.value as WidgetPreviewSettings["fontFamily"],
                                 })
                               }
-                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                             >
                               {Object.entries(PREVIEW_FONT_FAMILIES).map(
                                 ([value, option]) => (
@@ -6247,7 +6247,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.backgroundColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6288,7 +6288,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.surfaceColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6329,7 +6329,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.textColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6370,7 +6370,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.mutedTextColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6411,7 +6411,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.accentColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6452,7 +6452,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.borderColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6535,7 +6535,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
 </script>`;
                         
                         return (
-                          <details className="rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+                          <details className="rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-surface-50">
                             <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-50 dark:text-neutral-100 dark:hover:bg-neutral-800">
                               Embed Code
                             </summary>
@@ -6543,14 +6543,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                               <p className="mb-3 text-xs opacity-75">
                                 Add the container div where you want the widget to
                                 appear, include the script tag once, then call
-                                <code className="mx-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] dark:bg-neutral-800">
+                                <code className="mx-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] dark:bg-surface-100">
                                   AgentWidget.init
                                 </code>
                                 with your IDs and widget key. The widget expands to
                                 fill the container size you provide.
                               </p>
                               <div className="relative">
-                                <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-surface-50">
                                   <code>{embedCode}</code>
                                 </pre>
                                 <button
@@ -6588,13 +6588,13 @@ body {
 }`;
 
                         return (
-                          <details className="rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+                          <details className="rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-surface-50">
                             <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-50 dark:text-neutral-100 dark:hover:bg-neutral-800">
                               Site Styles Snippet (Optional)
                             </summary>
                             <div className="border-t border-neutral-200 px-4 py-3 text-sm dark:border-neutral-800">
                               <div className="relative">
-                                <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-surface-50">
                                   <code>{previewStylesSnippet}</code>
                                 </pre>
                                 <button
@@ -6664,7 +6664,7 @@ body {
                               const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview${queryString ? `?${queryString}` : ""}`;
                               window.open(previewUrl, "_blank", "noopener,noreferrer");
                             }}
-                            className="flex items-center gap-2 rounded-xl border-2 border-primary-600 bg-white px-4 py-2.5 font-semibold text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-400 dark:bg-neutral-900 dark:text-primary-400 dark:hover:bg-neutral-800"
+                            className="flex items-center gap-2 rounded-xl border-2 border-primary-600 bg-white px-4 py-2.5 font-semibold text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-400 dark:bg-surface-50 dark:text-primary-400 dark:hover:bg-neutral-800"
                           >
                             <ArrowTopRightOnSquareIcon className="size-5" />
                             Preview Widget
@@ -6746,13 +6746,13 @@ body {
                   <ul className="mb-2 ml-2 list-inside list-disc space-y-1">
                     <li>
                       Text chunks:{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                      <code className="bg-neutral-100 px-1 dark:bg-surface-100">
                         data: {`{"type":"text-delta","textDelta":"Hello"}`}\n\n
                       </code>
                     </li>
                     <li>
                       Tool calls:{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                      <code className="bg-neutral-100 px-1 dark:bg-surface-100">
                         data:{" "}
                         {`{"type":"tool-call","toolCallId":"...","toolName":"...","args":{...}}`}
                         \n\n
@@ -6772,7 +6772,7 @@ body {
                         useChat hook
                       </a>{" "}
                       from{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                      <code className="bg-neutral-100 px-1 dark:bg-surface-100">
                         @ai-sdk/react
                       </code>{" "}
                       - it handles SSE parsing automatically
@@ -6780,7 +6780,7 @@ body {
                     <li>
                       <strong>Other frameworks:</strong> Parse SSE format by
                       reading lines starting with{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                      <code className="bg-neutral-100 px-1 dark:bg-surface-100">
                         data:{" "}
                       </code>
                       , then parse the JSON object
@@ -6813,7 +6813,7 @@ body {
                   ) : (
                     <form
                       onSubmit={handleCreateStreamServer}
-                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100"
                     >
                       <div className="mb-4">
                         <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
@@ -6847,7 +6847,7 @@ body {
                             setIsConfiguringStreamServer(false);
                             setAllowedOrigins("");
                           }}
-                          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
+                          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-surface-100"
                         >
                           Cancel
                         </button>
@@ -6860,7 +6860,7 @@ body {
                   <div>
                     <p className="mb-2 text-xs font-semibold">Stream URL:</p>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+                      <code className="flex-1 break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-surface-100">
                         {getStreamUrl(streamServerConfig?.secret)}
                       </code>
                       <button
@@ -6881,7 +6881,7 @@ body {
                         <p className="mb-2 text-xs font-semibold">
                           Allowed Origins:
                         </p>
-                        <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+                        <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-surface-100">
                           {streamServerConfig.allowedOrigins.join(", ")}
                         </p>
                       </div>
@@ -6931,7 +6931,7 @@ body {
                   ) : (
                     <form
                       onSubmit={handleUpdateStreamServer}
-                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100"
                     >
                       <div className="mb-4">
                         <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
@@ -6967,7 +6967,7 @@ body {
                               );
                             }
                           }}
-                          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
+                          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-surface-100"
                         >
                           Cancel
                         </button>
@@ -7011,7 +7011,7 @@ body {
               {isCreatingKey && canEdit && (
                 <form
                   onSubmit={handleCreateKey}
-                  className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                  className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-surface-100"
                 >
                   <div className="mb-4">
                     <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
@@ -7039,7 +7039,7 @@ body {
                         setIsCreatingKey(false);
                         setNewKeyName("");
                       }}
-                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
+                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:bg-neutral-700"
                     >
                       Cancel
                     </button>
@@ -7347,7 +7347,7 @@ const KeyItem: FC<KeyItemProps> = ({
   };
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
+    <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-surface-100">
       <div className="mb-2 flex items-start justify-between">
         <div className="flex-1">
           <div className="mb-2 flex items-center gap-2">
@@ -7370,7 +7370,7 @@ const KeyItem: FC<KeyItemProps> = ({
             <div className="flex items-center gap-2">
               <code
                 onClick={handleCopyUrl}
-                className="flex-1 cursor-pointer select-all break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                className="flex-1 cursor-pointer select-all break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50"
                 title="Click to copy"
               >
                 {webhookUrl}
@@ -7388,7 +7388,7 @@ const KeyItem: FC<KeyItemProps> = ({
               Key Value:
             </p>
             {keyData.key ? (
-              <code className="block break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+              <code className="block break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50">
                 {keyData.key}
               </code>
             ) : (
@@ -7470,7 +7470,7 @@ const EvaluationsRefreshButton: FC<{
       <button
         onClick={handleRefresh}
         disabled={isRefreshing}
-        className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+        className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
         title="Refresh all evaluation data"
       >
         <ArrowPathIcon
@@ -7623,8 +7623,8 @@ const AgentDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="bg-page flex min-h-screen items-center justify-center p-8">
-          <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="flex min-h-screen items-center justify-center bg-page p-8">
+          <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-surface-50">
             <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">
               Error
             </h1>
@@ -7643,7 +7643,7 @@ const AgentDetail: FC = () => {
               </button>
               <button
                 onClick={() => navigate(`/workspaces/${workspaceId || ""}`)}
-                className="ml-4 rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="ml-4 rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Back to Workspace
               </button>
