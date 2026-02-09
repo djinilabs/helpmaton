@@ -379,7 +379,30 @@ export async function applyMemoryOperationsToGraph(params: {
       }
     }
 
-    await graphDb.save();
+    try {
+      await graphDb.save();
+    } catch (saveError) {
+      const message =
+        saveError &&
+        typeof saveError === "object" &&
+        "message" in saveError
+          ? String((saveError as { message?: unknown }).message)
+          : String(saveError);
+      console.error("[Memory Extraction] Graph DB save (S3 write) failed:", {
+        workspaceId,
+        agentId,
+        conversationId,
+        factCount: memoryOperations.length,
+        errorMessage: message,
+      });
+      throw new Error(
+        `Knowledge graph S3 write failed (workspaceId=${workspaceId}, agentId=${agentId}): ${message}`,
+        {
+          cause:
+            saveError instanceof Error ? saveError : new Error(String(saveError)),
+        },
+      );
+    }
   } finally {
     await graphDb.close();
   }

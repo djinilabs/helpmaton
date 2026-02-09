@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 
 import type { UIMessage } from "../../utils/messageTypes";
+import { Sentry, ensureError } from "../sentry";
 import { sendWriteOperation } from "../vectordb/queueClient";
 import type { FactRecord, TemporalGrain } from "../vectordb/types";
 import type { AugmentedContext } from "../workspaceCreditContext";
@@ -187,16 +188,33 @@ export async function writeToWorkingMemory(
           }
         }
       } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        const isGraphWrite = /S3|graph|COPY TO|HeadObject|Knowledge graph/i.test(
+          err.message,
+        );
+        const stage = isGraphWrite ? "graph_write" : "memory_extraction";
         console.error(
           `[Memory Write] Memory extraction failed for conversation ${conversationId}, falling back to raw text:`,
-          error instanceof Error
-            ? {
-                message: error.message,
-                stack: error.stack,
-                name: error.name,
-              }
-            : String(error),
+          {
+            message: err.message,
+            stack: err.stack,
+            name: err.name,
+            workspaceId,
+            agentId,
+            conversationId,
+            stage,
+          },
         );
+        Sentry.captureException(ensureError(error), {
+          extra: {
+            workspaceId,
+            agentId,
+            conversationId,
+            stage,
+            errorMessage: err.message,
+          },
+          tags: { feature: "memory_write", failure: stage },
+        });
       }
     }
 

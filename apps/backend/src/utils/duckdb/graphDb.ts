@@ -173,12 +173,24 @@ function resolveS3Credentials(): {
     };
   }
 
+  // In production with no custom endpoint, use path-style to match s3.ts and DuckDB httpfs
+  const isProductionAws =
+    arcEnv === "production" &&
+    !customEndpoint?.includes("localhost") &&
+    !customEndpoint?.includes("127.0.0.1");
+  const urlStyle =
+    isProductionAws && !customEndpoint ? "path" : "vhost";
+  const endpoint =
+    isProductionAws && !customEndpoint
+      ? `https://s3.${region}.amazonaws.com`
+      : customEndpoint;
+
   logS3Config("Resolved AWS S3 credentials", {
     arcEnv,
     region,
-    endpoint: customEndpoint ?? "aws-default",
-    urlStyle: "vhost",
-    useSsl: customEndpoint ? !customEndpoint.startsWith("http://") : undefined,
+    endpoint: endpoint ?? "aws-default",
+    urlStyle,
+    useSsl: endpoint ? !endpoint.startsWith("http://") : undefined,
     accessKeyId: envAccessKeyId ? "env" : roleAccessKeyId ? "role" : "missing",
     secretAccessKey: envSecretAccessKey
       ? "env"
@@ -192,9 +204,9 @@ function resolveS3Credentials(): {
     secretAccessKey: secretAccessKey ?? "",
     sessionToken,
     region,
-    endpoint: customEndpoint,
-    urlStyle: "vhost",
-    useSsl: customEndpoint ? !customEndpoint.startsWith("http://") : undefined,
+    endpoint,
+    urlStyle,
+    useSsl: endpoint ? !endpoint.startsWith("http://") : undefined,
   };
 }
 
@@ -232,20 +244,25 @@ async function parquetExists(location: S3Location): Promise<boolean> {
       error && typeof error === "object" && "$metadata" in error
         ? (error.$metadata as { httpStatusCode?: number }).httpStatusCode
         : undefined;
+    const requestId =
+      error &&
+      typeof error === "object" &&
+      "$metadata" in error &&
+      (error.$metadata as { requestId?: string }).requestId
+        ? (error.$metadata as { requestId?: string }).requestId
+        : undefined;
+    const errorMessage =
+      error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message)
+        : String(error);
     logS3Config("HEAD parquet failed", {
       bucket: location.bucket,
       key: location.key,
       statusCode,
+      requestId,
       errorName:
         error && typeof error === "object" && "name" in error
           ? (error as { name?: string }).name
-          : undefined,
-      requestId:
-        error &&
-        typeof error === "object" &&
-        "$metadata" in error &&
-        (error.$metadata as { requestId?: string }).requestId
-          ? (error.$metadata as { requestId?: string }).requestId
           : undefined,
     });
     if (
@@ -254,7 +271,12 @@ async function parquetExists(location: S3Location): Promise<boolean> {
     ) {
       return false;
     }
-    throw error;
+    const cause =
+      error instanceof Error ? error : new Error(String(error));
+    throw new Error(
+      `S3 HeadObject failed for graph facts: ${errorMessage} (bucket=${location.bucket}, key=${location.key}, statusCode=${statusCode ?? "unknown"}, requestId=${requestId ?? "unknown"})`,
+      { cause },
+    );
   }
 }
 
@@ -314,25 +336,49 @@ async function configureDuckDb(connection: DuckDbConnection): Promise<boolean> {
 
   await runStatement(connection, `${createSecretSqlParts.join(", ")});`);
 
-  if (credentials.endpoint) {
+  const arcEnv = process.env.ARC_ENV;
+  const isProductionAws =
+    arcEnv === "production" &&
+    !credentials.endpoint?.includes("localhost") &&
+    !credentials.endpoint?.includes("127.0.0.1");
+
+  // Use path-style and regional endpoint for production AWS S3 so DuckDB matches how the rest
+  // of the app writes to S3 (s3.ts uses https://s3.${region}.amazonaws.com). Virtual-hosted style
+  // (DuckDB default) can yield 400 Bad Request with some bucket/account configurations on COPY TO.
+  if (isProductionAws) {
+    const pathStyleEndpoint = `s3.${credentials.region}.amazonaws.com`;
+    logS3Config("Production AWS: using path-style for DuckDB httpfs", {
+      s3_endpoint: pathStyleEndpoint,
+      s3_url_style: "path",
+    });
     await runStatement(
       connection,
-      `SET s3_endpoint='${escapeSingleQuotes(
-        normalizeDuckDbEndpoint(credentials.endpoint),
-      )}';`,
+      `SET s3_endpoint='${escapeSingleQuotes(pathStyleEndpoint)}';`,
     );
-  }
-  if (credentials.urlStyle) {
-    await runStatement(
-      connection,
-      `SET s3_url_style='${credentials.urlStyle}';`,
-    );
-  }
-  if (credentials.useSsl !== undefined) {
-    await runStatement(
-      connection,
-      `SET s3_use_ssl=${credentials.useSsl ? "true" : "false"};`,
-    );
+    await runStatement(connection, "SET s3_url_style='path';");
+    await runStatement(connection, "SET s3_use_ssl=true;");
+  } else {
+    // Local or custom S3-compatible backend
+    if (credentials.endpoint) {
+      await runStatement(
+        connection,
+        `SET s3_endpoint='${escapeSingleQuotes(
+          normalizeDuckDbEndpoint(credentials.endpoint),
+        )}';`,
+      );
+    }
+    if (credentials.urlStyle) {
+      await runStatement(
+        connection,
+        `SET s3_url_style='${credentials.urlStyle}';`,
+      );
+    }
+    if (credentials.useSsl !== undefined) {
+      await runStatement(
+        connection,
+        `SET s3_use_ssl=${credentials.useSsl ? "true" : "false"};`,
+      );
+    }
   }
 
   return duckpgqEnabled;
@@ -439,10 +485,29 @@ export async function createGraphDb(
       runQuery<T>(connection, sql),
     save: async () => {
       const escapedUri = escapeSingleQuotes(location.uri);
-      await runStatement(
-        connection,
-        `COPY facts TO '${escapedUri}' (FORMAT PARQUET, OVERWRITE 1);`,
-      );
+      try {
+        await runStatement(
+          connection,
+          `COPY facts TO '${escapedUri}' (FORMAT PARQUET, OVERWRITE 1);`,
+        );
+      } catch (error) {
+        const message =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message?: unknown }).message)
+            : String(error);
+        logS3Config("COPY TO S3 failed (graph facts write)", {
+          bucket: location.bucket,
+          key: location.key,
+          uri: location.uri,
+          errorMessage: message,
+        });
+        const cause =
+          error instanceof Error ? error : new Error(String(error));
+        throw new Error(
+          `Graph DB save failed (COPY TO S3): ${message} | s3Uri=${location.uri} | bucket=${location.bucket} key=${location.key}`,
+          { cause },
+        );
+      }
     },
     close: async () => closeDuckDb(connection, instance),
   };
