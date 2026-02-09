@@ -1,9 +1,12 @@
+import { createWriteStream } from "node:fs";
 import { mkdir, readFile, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -16,6 +19,9 @@ const DEFAULT_S3_REGION = "eu-west-2";
 const DEFAULT_LOCAL_S3_ENDPOINT = "http://localhost:4568";
 const LOCAL_S3_ACCESS_KEY = "S3RVER";
 const LOCAL_S3_SECRET_KEY = "S3RVER";
+
+/** Prefix for graph parquet temp files (load and save). */
+const GRAPH_TEMP_FILE_PREFIX = "helpmaton-graph";
 
 type DuckDbInstance = Awaited<ReturnType<typeof DuckDBInstance.create>>;
 type DuckDbConnection = Awaited<ReturnType<DuckDbInstance["connect"]>>;
@@ -113,16 +119,6 @@ function buildFactsS3Location(
     key,
     uri: `s3://${bucket}/${key}`,
   };
-}
-
-function normalizeDuckDbEndpoint(endpoint: string): string {
-  if (endpoint.startsWith("http://")) {
-    return endpoint.slice("http://".length);
-  }
-  if (endpoint.startsWith("https://")) {
-    return endpoint.slice("https://".length);
-  }
-  return endpoint;
 }
 
 function resolveS3Credentials(): {
@@ -226,6 +222,52 @@ function createS3Client() {
   });
 }
 
+/**
+ * Downloads the graph parquet from S3 to a temp file. Caller must unlink the returned path.
+ * We use the SDK instead of DuckDB read_parquet(s3://...) because httpfs can yield HTTP 400 in production.
+ */
+async function downloadParquetToTemp(location: S3Location): Promise<string> {
+  const tmpDir = tmpdir();
+  await mkdir(tmpDir, { recursive: true });
+  const tmpPath = path.join(
+    tmpDir,
+    `${GRAPH_TEMP_FILE_PREFIX}-load-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.parquet`,
+  );
+  try {
+    const client = createS3Client();
+    const response = await client.send(
+      new GetObjectCommand({
+        Bucket: location.bucket,
+        Key: location.key,
+      }),
+    );
+    if (!response.Body) {
+      throw new Error(`S3 GetObject returned no body for ${location.uri}`);
+    }
+    await pipeline(
+      response.Body as NodeJS.ReadableStream,
+      createWriteStream(tmpPath),
+    );
+    logS3Config("Graph parquet downloaded via SDK", {
+      bucket: location.bucket,
+      key: location.key,
+    });
+    return tmpPath;
+  } catch (error) {
+    try {
+      await unlink(tmpPath);
+    } catch {
+      // Best-effort cleanup of partial file
+    }
+    const cause =
+      error instanceof Error ? error : new Error(String(error));
+    throw new Error(
+      `Graph DB load failed: ${cause.message} | bucket=${location.bucket} key=${location.key}`,
+      { cause },
+    );
+  }
+}
+
 async function parquetExists(location: S3Location): Promise<boolean> {
   const client = createS3Client();
   logS3Config("HEAD parquet", {
@@ -306,8 +348,8 @@ async function configureDuckDb(connection: DuckDbConnection): Promise<boolean> {
     `SET home_directory='${escapeSingleQuotes(homeDirectory)}';`,
   );
 
-  await runStatement(connection, "INSTALL httpfs;");
-  await runStatement(connection, "LOAD httpfs;");
+  // Graph facts are read/written via the SDK (temp file + GetObject/PutObject). DuckDB only
+  // uses read_parquet(local path) and COPY TO local path, so we do not install httpfs or set S3 credentials.
   let duckpgqEnabled = false;
   try {
     await runStatement(connection, "INSTALL duckpgq FROM community;");
@@ -319,70 +361,6 @@ async function configureDuckDb(connection: DuckDbConnection): Promise<boolean> {
     });
   }
 
-  const credentials = resolveS3Credentials();
-  if (!credentials.accessKeyId || !credentials.secretAccessKey) {
-    throw new Error("DuckDB S3 credentials are not configured.");
-  }
-
-  const createSecretSqlParts = [
-    "CREATE SECRET (TYPE S3",
-    `KEY_ID '${escapeSingleQuotes(credentials.accessKeyId)}'`,
-    `SECRET '${escapeSingleQuotes(credentials.secretAccessKey)}'`,
-    `REGION '${escapeSingleQuotes(credentials.region)}'`,
-  ];
-  if (credentials.sessionToken) {
-    createSecretSqlParts.push(
-      `SESSION_TOKEN '${escapeSingleQuotes(credentials.sessionToken)}'`,
-    );
-  }
-
-  await runStatement(connection, `${createSecretSqlParts.join(", ")});`);
-
-  const arcEnv = process.env.ARC_ENV;
-  const isProductionAws =
-    arcEnv === "production" &&
-    !credentials.endpoint?.includes("localhost") &&
-    !credentials.endpoint?.includes("127.0.0.1");
-
-  // Use path-style and regional endpoint for production AWS S3 so DuckDB matches how the rest
-  // of the app writes to S3 (s3.ts uses https://s3.${region}.amazonaws.com). Virtual-hosted style
-  // (DuckDB default) can yield 400 Bad Request with some bucket/account configurations on COPY TO.
-  if (isProductionAws) {
-    const pathStyleEndpoint = `s3.${credentials.region}.amazonaws.com`;
-    logS3Config("Production AWS: using path-style for DuckDB httpfs", {
-      s3_endpoint: pathStyleEndpoint,
-      s3_url_style: "path",
-    });
-    await runStatement(
-      connection,
-      `SET s3_endpoint='${escapeSingleQuotes(pathStyleEndpoint)}';`,
-    );
-    await runStatement(connection, "SET s3_url_style='path';");
-    await runStatement(connection, "SET s3_use_ssl=true;");
-  } else {
-    // Local or custom S3-compatible backend
-    if (credentials.endpoint) {
-      await runStatement(
-        connection,
-        `SET s3_endpoint='${escapeSingleQuotes(
-          normalizeDuckDbEndpoint(credentials.endpoint),
-        )}';`,
-      );
-    }
-    if (credentials.urlStyle) {
-      await runStatement(
-        connection,
-        `SET s3_url_style='${credentials.urlStyle}';`,
-      );
-    }
-    if (credentials.useSsl !== undefined) {
-      await runStatement(
-        connection,
-        `SET s3_use_ssl=${credentials.useSsl ? "true" : "false"};`,
-      );
-    }
-  }
-
   return duckpgqEnabled;
 }
 
@@ -392,12 +370,24 @@ async function initializeFactsTable(
   duckpgqEnabled: boolean,
 ): Promise<void> {
   const exists = await parquetExists(location);
-  const escapedUri = escapeSingleQuotes(location.uri);
   if (exists) {
-    await runStatement(
-      connection,
-      `CREATE TABLE facts AS SELECT * FROM read_parquet('${escapedUri}');`,
-    );
+    let tmpPath: string | null = null;
+    try {
+      tmpPath = await downloadParquetToTemp(location);
+      const escapedPath = escapeSingleQuotes(tmpPath);
+      await runStatement(
+        connection,
+        `CREATE TABLE facts AS SELECT * FROM read_parquet('${escapedPath}');`,
+      );
+    } finally {
+      if (tmpPath) {
+        try {
+          await unlink(tmpPath);
+        } catch {
+          // Best-effort cleanup
+        }
+      }
+    }
   } else {
     await runStatement(
       connection,
@@ -442,7 +432,7 @@ async function saveFactsToS3(
   await mkdir(tmpDir, { recursive: true });
   const tmpPath = path.join(
     tmpDir,
-    `helpmaton-graph-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.parquet`,
+    `${GRAPH_TEMP_FILE_PREFIX}-save-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.parquet`,
   );
   const escapedTmpPath = escapeSingleQuotes(tmpPath);
   try {

@@ -58,8 +58,16 @@ vi.mock("@duckdb/node-api", () => ({
   },
 }));
 
-vi.mock("@aws-sdk/client-s3", () => {
+vi.mock("@aws-sdk/client-s3", async () => {
+  const { Readable } = await import("node:stream");
   class HeadObjectCommand {
+    input: { Bucket: string; Key: string };
+    constructor(input: { Bucket: string; Key: string }) {
+      this.input = input;
+    }
+  }
+
+  class GetObjectCommand {
     input: { Bucket: string; Key: string };
     constructor(input: { Bucket: string; Key: string }) {
       this.input = input;
@@ -81,16 +89,19 @@ vi.mock("@aws-sdk/client-s3", () => {
   }
 
   class S3Client {
-    send = vi.fn(async (command: HeadObjectCommand | PutObjectCommand) => {
+    send = vi.fn(async (command: HeadObjectCommand | GetObjectCommand | PutObjectCommand) => {
       sendCalls.push(command);
       if (sendError.value) {
         throw sendError.value;
+      }
+      if (command.constructor?.name === "GetObjectCommand") {
+        return { Body: Readable.from(Buffer.from([])) };
       }
       return {};
     });
   }
 
-  return { S3Client, HeadObjectCommand, PutObjectCommand, DeleteObjectCommand };
+  return { S3Client, HeadObjectCommand, GetObjectCommand, PutObjectCommand, DeleteObjectCommand };
 });
 
 vi.mock("../../vectordb/config", () => ({
@@ -129,16 +140,26 @@ describe("createGraphDb", () => {
         statement.startsWith("SET home_directory="),
       ),
     ).toBe(true);
-    expect(runStatements).toContain("INSTALL httpfs;");
-    expect(runStatements).toContain("LOAD httpfs;");
     expect(runStatements).toContain("INSTALL duckpgq FROM community;");
     expect(runStatements).toContain("LOAD duckpgq;");
-    expect(runStatements).toContain(
-      "CREATE SECRET (TYPE S3, KEY_ID 'ACCESS_KEY', SECRET 'SECRET_KEY', REGION 'us-east-1');",
-    );
-    expect(runStatements).toContain(
-      "CREATE TABLE facts AS SELECT * FROM read_parquet('s3://vectordb.bucket/graphs/workspace-1/agent-1/facts.parquet');",
-    );
+    expect(
+      runStatements.some(
+        (s) =>
+          s.startsWith("CREATE TABLE facts AS SELECT * FROM read_parquet('") &&
+          s.includes("helpmaton-graph-load-") &&
+          s.endsWith(".parquet');"),
+      ),
+    ).toBe(true);
+    const getCall = sendCalls.find(
+      (c: unknown) =>
+        (c as { constructor?: { name?: string } }).constructor?.name ===
+        "GetObjectCommand",
+    ) as { input: { Bucket: string; Key: string } } | undefined;
+    expect(getCall).toBeDefined();
+    expect(getCall?.input).toMatchObject({
+      Bucket: "vectordb.bucket",
+      Key: "graphs/workspace-1/agent-1/facts.parquet",
+    });
     expect(runStatements).toContain(
       "CREATE PROPERTY GRAPH facts_graph VERTEX TABLES ( nodes ) EDGE TABLES ( facts SOURCE KEY ( source_id ) REFERENCES nodes ( id ) DESTINATION KEY ( target_id ) REFERENCES nodes ( id ) LABEL label );",
     );
@@ -193,7 +214,7 @@ describe("createGraphDb", () => {
       "UPDATE facts SET label = 'likes' WHERE id = 'fact-1';",
     );
     expect(runStatements).toContain("DELETE FROM facts WHERE id = 'fact-1';");
-    expect(runStatements.some((s) => /COPY facts TO '.*helpmaton-graph-.*\.parquet' \(FORMAT PARQUET, OVERWRITE 1\)/.test(s))).toBe(true);
+    expect(runStatements.some((s) => /COPY facts TO '.*helpmaton-graph-save-.*\.parquet' \(FORMAT PARQUET, OVERWRITE 1\)/.test(s))).toBe(true);
     const putCall = sendCalls.find(
       (c: unknown) => (c as { constructor?: { name?: string } }).constructor?.name === "PutObjectCommand",
     ) as { input: { Bucket: string; Key: string } } | undefined;
