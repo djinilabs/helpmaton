@@ -89,12 +89,26 @@ Content-Type: application/json
 ]
 ```
 
+### Stream path variants
+
+All stream paths use `POST` and the same request body (AI SDK message array). Authentication and use differ by path:
+
+| Path | Auth | Use |
+|------|------|-----|
+| `POST /api/streams/{workspaceId}/{agentId}/{secret}` | Secret (path segment) | Production streaming; secret from agent stream server config |
+| `POST /api/streams/{workspaceId}/{agentId}/test` | Session/JWT | Test a specific agent in the UI |
+| `POST /api/streams/{workspaceId}/_workspace/test` | Session/JWT | Workspace assistant (virtual workspace agent) |
+| `POST /api/streams/{workspaceId}/{agentId}/config/test` | Session/JWT | Meta-agent "Configure with AI" chat for that agent |
+
+- **Secret path**: `{secret}` is the stream server secret; no cookies/headers required.
+- **Test paths**: Require authenticated session (cookie or `Authorization: Bearer`). Use the same base URL as the app (e.g. `https://app.helpmaton.com` or the Lambda stream URL from `GET /api/stream-url`).
+
 ## Getting the Streaming URL
 
 ### Endpoint
 
 ```
-GET /api/streams/url
+GET /api/stream-url
 ```
 
 **Response**:
@@ -126,7 +140,7 @@ For manual integration, you can use `fetch` with a ReadableStream:
 
 ```typescript
 // Get streaming URL
-const response = await fetch("/api/streams/url");
+const response = await fetch("/api/stream-url");
 const { url } = await response.json();
 
 // Construct streaming endpoint
@@ -432,7 +446,7 @@ async function streamAgentMessage(
   userMessage: string
 ) {
   // Get streaming URL
-  const urlResponse = await fetch("/api/streams/url");
+  const urlResponse = await fetch("/api/stream-url");
   const { url } = await urlResponse.json();
 
   // Construct stream endpoint
