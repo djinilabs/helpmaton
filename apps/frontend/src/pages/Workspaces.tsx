@@ -62,7 +62,7 @@ const WorkspacesList: FC = () => {
   };
 
   const getPermissionColor = (level: number | null): string => {
-    if (level === 3) return "bg-gradient-primary text-white";
+    if (level === 3) return "bg-blue-600 text-white dark:bg-blue-500 dark:text-white";
     if (level === 2)
       return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
     if (level === 1)
@@ -71,7 +71,7 @@ const WorkspacesList: FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-page p-6 lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <div className="mx-auto max-w-5xl">
         <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 lg:p-12">
           <div className="opacity-8 absolute right-0 top-0 size-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-accent blur-3xl"></div>
@@ -104,7 +104,7 @@ const WorkspacesList: FC = () => {
                 ) : (
                   <Link
                     to="/subscription"
-                    className="inline-flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-primary-500 bg-primary-50 px-8 py-4 font-bold text-primary-700 transition-all duration-200 hover:bg-primary-100 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                    className="inline-flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-blue-500 bg-blue-50 px-8 py-4 font-bold text-blue-700 transition-all duration-200 hover:bg-blue-100 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/40"
                   >
                     Upgrade to create more workspaces
                   </Link>
@@ -119,7 +119,7 @@ const WorkspacesList: FC = () => {
             <div className="mx-auto max-w-md">
               <div className="bg-gradient-primary/15 mx-auto mb-8 flex size-20 items-center justify-center rounded-2xl">
                 <svg
-                  className="size-10 text-primary-600 dark:text-primary-400"
+                  className="size-10 text-blue-600 dark:text-blue-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -158,7 +158,7 @@ const WorkspacesList: FC = () => {
                     </p>
                     <Link
                       to="/subscription"
-                      className="inline-flex transform items-center gap-2 rounded-xl border-2 border-primary-500 bg-primary-50 px-6 py-3 font-semibold text-primary-700 transition-all duration-200 hover:bg-primary-100 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                      className="inline-flex transform items-center gap-2 rounded-xl border-2 border-blue-500 bg-blue-50 px-6 py-3 font-semibold text-blue-700 transition-all duration-200 hover:bg-blue-100 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/40"
                     >
                       View subscription
                     </Link>
@@ -179,7 +179,7 @@ const WorkspacesList: FC = () => {
                   });
                   navigate(`/workspaces/${workspace.id}`);
                 }}
-                className="group relative transform cursor-pointer overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large transition-all duration-200 hover:scale-[1.03] hover:border-primary-400 hover:shadow-bold active:scale-[0.97] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500 lg:p-10"
+                className="group relative transform cursor-pointer overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large transition-all duration-200 hover:scale-[1.03] hover:border-blue-400 hover:shadow-bold active:scale-[0.97] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-blue-400/60 dark:hover:shadow-blue-glow lg:p-10"
               >
                 {loadingWorkspaceId === workspace.id && (
                   <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/90 backdrop-blur-sm dark:bg-surface-50/90">
@@ -194,7 +194,7 @@ const WorkspacesList: FC = () => {
                 <div className="group-hover:opacity-8 absolute right-0 top-0 size-40 rounded-full bg-gradient-primary opacity-0 blur-3xl transition-opacity duration-200"></div>
                 <div className="relative z-10">
                   <div className="mb-5 flex items-start justify-between">
-                    <h2 className="text-3xl font-bold text-neutral-900 transition-colors group-hover:text-primary-600 dark:text-neutral-50 dark:group-hover:text-primary-400">
+                    <h2 className="text-3xl font-bold text-neutral-900 transition-colors group-hover:text-blue-600 dark:text-neutral-50 dark:group-hover:text-blue-400">
                       {workspace.name}
                     </h2>
                     <span
@@ -250,7 +250,7 @@ const WorkspacesList: FC = () => {
                     setIsCreateChoiceOpen(false);
                     setIsOnboardingModalOpen(true);
                   }}
-                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-6 py-4 text-left font-semibold text-neutral-900 transition-colors hover:border-blue-400 hover:bg-blue-50 dark:border-neutral-700 dark:bg-surface-100 dark:text-neutral-50 dark:hover:border-blue-400/60 dark:hover:bg-blue-400/10"
                 >
                   <span className="block">✨ Guided setup</span>
                   <span className="mt-1 block text-sm font-normal text-neutral-600 dark:text-neutral-400">
@@ -327,7 +327,7 @@ const Workspaces: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex min-h-screen items-center justify-center bg-page p-8">
+        <div className="bg-page flex min-h-screen items-center justify-center p-8">
           <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-surface-50 lg:p-10">
             <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
               Error

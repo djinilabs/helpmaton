@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Page background - match marketing website (helpmaton-website) in dark mode */
+/* Page background and dark theme - match marketing website (helpmaton-website) */
 :root {
   --bg-page: #fafaf9; /* neutral-50 light */
   --bg-surface: #18181f;
@@ -10,6 +10,14 @@
 html.dark {
   --bg-page: #0a0a0f;
   --bg-surface: #18181f;
+  --text-primary: #f5f5f4;
+  --text-muted: #a8a29e;
+  --border-subtle: rgba(0, 245, 255, 0.15);
+  --border-neon: rgba(0, 245, 255, 0.4);
+  /* Primary button in dark: toned-down electric blue (one place to adjust) */
+  --btn-primary-bg: #00a8b5;
+  --btn-primary-bg-hover: #00b8c6;
+  --btn-primary-text: #0a0a0f;
 }
 
 @layer base {
@@ -17,6 +25,12 @@ html.dark {
     @apply text-neutral-900 font-sans antialiased;
     @apply dark:text-neutral-100;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  .dark {
+    color: var(--text-primary);
+  }
+  .dark .text-muted {
+    color: var(--text-muted);
   }
   
   * {
@@ -46,59 +60,119 @@ html.dark {
 }
 
 @layer components {
-  /* Button Variants */
+  /* Primary button: one style for dark mode, reused everywhere (vars in html.dark) */
+  .btn-primary-dark {
+    background-image: none;
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text) !important;
+  }
+  .btn-primary-dark:hover:not(:disabled) {
+    background-color: var(--btn-primary-bg-hover);
+  }
+
   .btn-primary {
     @apply bg-gradient-primary px-6 py-3.5 text-white font-bold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97];
+    @apply dark:shadow-none dark:hover:shadow-none;
   }
-  
+  .dark .btn-primary {
+    background-image: none;
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text) !important;
+  }
+  .dark .btn-primary:hover:not(:disabled) {
+    background-color: var(--btn-primary-bg-hover);
+  }
+
   .btn-primary-lg {
     @apply bg-gradient-primary px-8 py-4 text-white font-bold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97];
+    @apply dark:shadow-none dark:hover:shadow-none;
+  }
+  .dark .btn-primary-lg {
+    background-image: none;
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text) !important;
+  }
+  .dark .btn-primary-lg:hover:not(:disabled) {
+    background-color: var(--btn-primary-bg-hover);
+  }
+
+  /* Inline primary buttons (bg-gradient-primary) use same dark style */
+  .dark [class*="bg-gradient-primary"]:is(button, a, [role="button"]) {
+    background-image: none;
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text) !important;
+  }
+  .dark [class*="bg-gradient-primary"]:is(button, a, [role="button"]):hover:not(:disabled) {
+    background-color: var(--btn-primary-bg-hover);
+  }
+
+  /* Light mode: primary buttons always white text */
+  html:not(.dark) .btn-primary,
+  html:not(.dark) .btn-primary-lg,
+  html:not(.dark) .btn-primary-dark,
+  html:not(.dark) [class*="bg-gradient-primary"]:is(button, a, [role="button"]) {
+    color: #ffffff;
   }
   
   .btn-secondary {
     @apply border-2 border-neutral-300 bg-white px-5 py-3 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:border-neutral-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98];
-    @apply dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-surface-100 dark:hover:border-neutral-600;
+    @apply dark:border-blue-400/30 dark:bg-surface-50 dark:text-neutral-100 dark:hover:bg-blue-400/10 dark:hover:border-blue-400/50 dark:hover:shadow-blue-glow;
   }
   
   .btn-secondary-lg {
     @apply border-2 border-neutral-300 bg-white px-7 py-3.5 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:border-neutral-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98];
-    @apply dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-surface-100 dark:hover:border-neutral-600;
+    @apply dark:border-blue-400/30 dark:bg-surface-50 dark:text-neutral-100 dark:hover:bg-blue-400/10 dark:hover:border-blue-400/50 dark:hover:shadow-blue-glow;
   }
   
   .btn-danger {
     @apply bg-error-600 px-6 py-3.5 text-white font-bold rounded-xl hover:bg-error-700 hover:shadow-error disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97];
   }
   
-  /* Card Variants */
+  /* Card Variants - dark: blue borders (no teal) */
   .card {
     @apply bg-white rounded-2xl shadow-large border-2 border-neutral-300;
-    @apply dark:bg-surface-50 dark:border-neutral-700;
+    @apply dark:bg-surface-50 dark:border-blue-400/20 dark:shadow-none;
   }
   
   .card-secondary {
     @apply bg-white rounded-xl shadow-medium border-2 border-neutral-300;
-    @apply dark:bg-surface-50 dark:border-neutral-700;
+    @apply dark:bg-surface-50 dark:border-blue-400/20;
   }
   
   .card-hover {
     @apply card hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98];
-    @apply dark:hover:border-primary-500;
+    @apply dark:hover:border-blue-400/50 dark:hover:shadow-blue-glow dark:hover:scale-[1.02];
   }
   
-  /* Form Input */
+  /* Form Input - dark: neon focus ring */
   .input {
-    @apply w-full border-2 border-neutral-300 rounded-xl bg-white px-5 py-3.5 text-neutral-900 font-medium placeholder:text-neutral-500 placeholder:font-normal focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
-    @apply dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:ring-primary-400 dark:focus:border-primary-500;
+    @apply w-full border-2 border-neutral-300 rounded-xl bg-white px-5 py-3.5 text-neutral-900 font-medium placeholder:text-neutral-500 placeholder:font-normal focus:outline-none focus:ring-4 focus:ring-blue-500 focus:border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
+    @apply dark:border-blue-400/20 dark:bg-surface-50 dark:text-neutral-100 dark:placeholder:text-neutral-400 dark:focus:ring-blue-400/40 dark:focus:border-blue-400/50;
   }
   
   .input-sm {
-    @apply w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-sm text-neutral-900 font-medium placeholder:text-neutral-500 placeholder:font-normal focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
-    @apply dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:ring-primary-400 dark:focus:border-primary-500;
+    @apply w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-sm text-neutral-900 font-medium placeholder:text-neutral-500 placeholder:font-normal focus:outline-none focus:ring-4 focus:ring-blue-500 focus:border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
+    @apply dark:border-blue-400/20 dark:bg-surface-50 dark:text-neutral-100 dark:placeholder:text-neutral-400 dark:focus:ring-blue-400/40 dark:focus:border-blue-400/50;
   }
 
-  /* Brand name gradient (same as header) */
+  /* Brand name: teal/purple in light, neon cyan→magenta in dark (marketing style) */
   .text-brand-gradient {
     @apply bg-gradient-to-r from-primary-700 to-accent-700 bg-clip-text text-transparent;
+  }
+  .dark .text-brand-gradient {
+    @apply bg-gradient-to-r from-neon-cyan to-neon-magenta bg-clip-text text-transparent;
+  }
+  
+  /* Links: ensure blue/purple (no green) - override any primary/green usage */
+  a[href][class*="primary"] {
+    @apply text-blue-600 hover:text-blue-700;
+  }
+  .dark a[href][class*="primary"] {
+    @apply text-blue-400 hover:text-blue-300;
+  }
+  /* Links and interactive text in dark mode (general) */
+  .dark a:not(.no-neon):hover {
+    @apply text-blue-400 transition-colors;
   }
 }
 

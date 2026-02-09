@@ -44,8 +44,8 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   // If it's an invite route, allow it through without requiring authentication
   if (isInviteRoute || isAuthGateRoute) {
     return (
-      <div className="flex min-h-screen flex-col bg-page">
-        <main className="flex-1 bg-page">{children}</main>
+      <div className="bg-page flex min-h-screen flex-col">
+        <main className="bg-page flex-1">{children}</main>
       </div>
     );
   }
@@ -53,8 +53,8 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   // If it's a widget preview route, allow it through without requiring authentication and without layout
   if (isWidgetPreviewRoute) {
     return (
-      <div className="flex min-h-screen flex-col bg-page">
-        <main className="flex-1 bg-page">{children}</main>
+      <div className="bg-page flex min-h-screen flex-col">
+        <main className="bg-page flex-1">{children}</main>
       </div>
     );
   }
@@ -63,10 +63,10 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   // but still show the layout (Header, LocationBar, Footer)
   if (isApiDocsRoute || isLegalRoute) {
     return (
-      <div className="flex min-h-screen flex-col bg-page">
+      <div className="bg-page flex min-h-screen flex-col">
         <Header />
         <LocationBar />
-        <main className="flex-1 bg-page">{children}</main>
+        <main className="bg-page flex-1">{children}</main>
         <Footer />
       </div>
     );
@@ -83,10 +83,10 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-page">
+    <div className="bg-page flex min-h-screen flex-col">
       <Header />
       <LocationBar />
-      <main className="flex-1 bg-page">
+      <main className="bg-page flex-1">
         {children}
       </main>
       <Footer />

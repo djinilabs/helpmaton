@@ -97,7 +97,7 @@ const AgentModalContent: FC<{
           type="text"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
-          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
           required
           autoFocus
         />
@@ -131,7 +131,7 @@ const AgentModalContent: FC<{
           id="systemPrompt"
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}
-          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
           rows={8}
           required
         />
@@ -165,7 +165,7 @@ const AgentModalContent: FC<{
               selectedModel === defaultModel ? null : selectedModel
             );
           }}
-          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
         >
           {isLoadingModels ? (
             <option value="">Loading models...</option>
@@ -232,7 +232,7 @@ const AgentModalContent: FC<{
           id="notificationChannel"
           value={notificationChannelId || ""}
           onChange={(e) => onNotificationChannelChange(e.target.value || null)}
-          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
         >
           <option value="">None</option>
           {channels.map((channel) => (

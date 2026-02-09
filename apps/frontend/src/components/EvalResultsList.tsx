@@ -415,7 +415,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedResult(result)}
-                    className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    className="font-medium text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                   >
                     View Details
                   </button>
@@ -449,7 +449,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                         onClick={() =>
                           onConversationOpen(selectedResult.conversationId)
                         }
-                        className="rounded-xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-700 dark:bg-primary-950 dark:text-primary-200 dark:hover:bg-primary-900"
+                        className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-blue-900"
                       >
                         View Conversation
                       </button>

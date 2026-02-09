@@ -90,7 +90,7 @@ export const InviteMember: FC<InviteMemberProps> = ({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="user@example.com"
-          className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400 dark:disabled:bg-neutral-800"
+          className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40 dark:disabled:bg-neutral-800"
           required
           disabled={isDisabled}
         />
@@ -102,7 +102,7 @@ export const InviteMember: FC<InviteMemberProps> = ({
         <select
           value={permissionLevel}
           onChange={(e) => setPermissionLevel(Number(e.target.value))}
-          className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400 dark:disabled:bg-neutral-800"
+          className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40 dark:disabled:bg-neutral-800"
           disabled={isDisabled}
         >
           <option value={PERMISSION_LEVELS.READ}>Read - View only</option>

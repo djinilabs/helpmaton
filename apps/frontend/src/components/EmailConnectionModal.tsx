@@ -208,7 +208,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               onChange={(e) =>
                 setType(e.target.value as "gmail" | "outlook" | "smtp")
               }
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               required
               disabled={isEditing}
             >
@@ -229,7 +229,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               required
               autoFocus
             />
@@ -274,7 +274,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="text"
                   value={smtpHost}
                   onChange={(e) => setSmtpHost(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   required={!isEditing}
                   placeholder="smtp.gmail.com"
                 />
@@ -291,7 +291,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="number"
                   value={smtpPort}
                   onChange={(e) => setSmtpPort(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   required={!isEditing}
                   placeholder="587"
                 />
@@ -322,7 +322,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="text"
                   value={smtpUsername}
                   onChange={(e) => setSmtpUsername(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   required={!isEditing}
                   placeholder="your-email@example.com"
                 />
@@ -343,7 +343,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="password"
                   value={smtpPassword}
                   onChange={(e) => setSmtpPassword(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   required={!isEditing}
                   placeholder={
                     isEditing
@@ -364,7 +364,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="email"
                   value={smtpFromEmail}
                   onChange={(e) => setSmtpFromEmail(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   required={!isEditing}
                   placeholder="sender@example.com"
                 />

@@ -160,7 +160,7 @@ export const DetailPageNav: FC<DetailPageNavProps> = ({
                         onClick={() => scrollToSection(item.id)}
                         className={`w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                           isActive
-                            ? "bg-primary-100 font-semibold text-primary-800 dark:bg-primary-900/50 dark:text-primary-200"
+                            ? "bg-primary-100 font-semibold text-primary-800 dark:bg-neon-cyan/15 dark:text-neon-cyan"
                             : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-50"
                         }`}
                       >

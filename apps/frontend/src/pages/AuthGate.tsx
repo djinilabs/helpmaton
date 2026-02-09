@@ -182,7 +182,7 @@ const AuthGate: FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-page p-4">
+    <div className="bg-page relative flex min-h-screen items-center justify-center overflow-hidden p-4">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.08),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.15),transparent_50%)]"></div>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.08),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.15),transparent_50%)]"></div>
 
@@ -210,7 +210,7 @@ const AuthGate: FC = () => {
               type="checkbox"
               checked={acceptedTerms}
               onChange={(event) => setAcceptedTerms(event.target.checked)}
-              className="mt-1 size-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+              className="mt-1 size-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
             />
             <span>
               I have read and accept the{" "}

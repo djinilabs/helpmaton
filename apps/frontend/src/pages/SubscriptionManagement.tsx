@@ -192,7 +192,7 @@ const SubscriptionManagement: FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-page p-6 lg:p-10">
+      <div className="bg-page min-h-screen p-6 lg:p-10">
         <div className="mx-auto max-w-4xl">
           <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
             <LoadingScreen compact message="Loading subscription..." />
@@ -204,7 +204,7 @@ const SubscriptionManagement: FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-page p-6 lg:p-10">
+      <div className="bg-page min-h-screen p-6 lg:p-10">
         <div className="mx-auto max-w-4xl">
           <div className="rounded-2xl border border-error-200 bg-white p-8 shadow-medium dark:border-error-700 dark:bg-surface-50 lg:p-10">
             <h1 className="mb-4 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
@@ -329,7 +329,7 @@ const SubscriptionManagement: FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-page p-6 lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <div className="mx-auto max-w-4xl">
         <div className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-10">
           <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
@@ -731,7 +731,7 @@ const SubscriptionManagement: FC = () => {
                   type="email"
                   value={email}
                   onChange={handleEmailChange}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   placeholder="user@example.com"
                   disabled={isSubmitting}
                 />

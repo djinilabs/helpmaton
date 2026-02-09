@@ -82,7 +82,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
     return (
       <div
-        className={`flex min-h-screen items-center justify-center bg-page ${className}`}
+        className={`bg-page flex min-h-screen items-center justify-center ${className}`}
       >
         <div className="flex items-center gap-3">
           <LockSpinner size="small" />
@@ -110,7 +110,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
   return (
     <div
-      className={`flex min-h-screen flex-col items-center justify-center bg-page ${className}`}
+      className={`bg-page flex min-h-screen flex-col items-center justify-center ${className}`}
     >
       <div className="relative mb-8">
         <LockSpinner size="large" />
@@ -124,21 +124,21 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
         {/* Animated dots */}
         <div className="mt-4 flex items-center justify-center gap-1.5">
           <div
-            className="size-2 rounded-full bg-primary-400"
+            className="size-2 rounded-full bg-blue-400 dark:bg-neon-cyan"
             style={{
               animation: "pulse 1.4s ease-in-out infinite",
               animationDelay: "0s",
             }}
           />
           <div
-            className="size-2 rounded-full bg-primary-400"
+            className="size-2 rounded-full bg-blue-400 dark:bg-neon-cyan"
             style={{
               animation: "pulse 1.4s ease-in-out infinite",
               animationDelay: "0.2s",
             }}
           />
           <div
-            className="size-2 rounded-full bg-primary-400"
+            className="size-2 rounded-full bg-blue-400 dark:bg-neon-cyan"
             style={{
               animation: "pulse 1.4s ease-in-out infinite",
               animationDelay: "0.4s",

@@ -257,7 +257,7 @@ const LABEL_CLASSNAME =
   "mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300";
 const HINT_CLASSNAME = "mt-1.5 text-xs text-neutral-600 dark:text-neutral-300";
 const INPUT_CLASSNAME =
-  "w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400";
+  "w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40";
 const INPUT_MONO_CLASSNAME = `${INPUT_CLASSNAME} font-mono`;
 const SELECT_CLASSNAME = INPUT_CLASSNAME;
 
@@ -618,7 +618,7 @@ const ServerTypeCard = ({
     <button
       type="button"
       onClick={onSelect}
-      className={`relative flex flex-col items-center rounded-xl border-2 p-4 text-left transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 ${
+      className={`relative flex flex-col items-center rounded-xl border-2 p-4 text-left transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 ${
         isSelected
           ? "border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20"
           : "border-neutral-300 bg-white hover:border-primary-400 dark:border-neutral-700 dark:bg-surface-100 dark:hover:border-primary-500"

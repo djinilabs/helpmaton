@@ -2832,7 +2832,7 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
                           selectedModel === defaultModel ? null : selectedModel
                         );
                       }}
-                      className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                      className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                     >
                       {isLoadingModels ? (
                         <option value="">Loading...</option>
@@ -3339,7 +3339,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
   ]);
 
   return (
-    <div className="min-h-screen bg-page p-8">
+    <div className="bg-page min-h-screen p-8">
       <DetailPageNav
         groups={navGroups}
         expandedSection={expandedSection}
@@ -3474,7 +3474,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   : selectedModel
                               );
                             }}
-                            className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                            className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                           >
                             {isLoadingModels ? (
                               <option value="">Loading...</option>
@@ -3961,7 +3961,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         e.target.value.length > 0 ? e.target.value : null
                       )
                     }
-                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   >
                     <option value="">
                       {defaultModel
@@ -4014,7 +4014,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     value={memoryExtractionPrompt}
                     onChange={(e) => setMemoryExtractionPrompt(e.target.value)}
                     rows={8}
-                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   />
                 </div>
                 <button
@@ -4084,7 +4084,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                             )
                           }
                           rows={6}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                         />
                       </div>
                     );
@@ -4279,7 +4279,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 e.target.value.length > 0 ? e.target.value : null
                               )
                             }
-                            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                           >
                             <option value="">
                               {defaultModel
@@ -4400,7 +4400,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   e.target.value || null
                                 )
                               }
-                              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                             >
                               <option value="">
                                 Select a re-ranking model
@@ -4883,7 +4883,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                         imageGenerationModelInputRef.current = value;
                         setImageGenerationModel(value);
                       }}
-                      className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                      className="w-full rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                     >
                       {isLoadingImageModels ? (
                         <option value="">Loading image models...</option>
@@ -5323,7 +5323,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                       type="text"
                       value={stopSequences}
                       onChange={(e) => setStopSequences(e.target.value)}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                       placeholder="e.g., END, STOP, ###"
                     />
                   </div>
@@ -5443,7 +5443,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                           enabled: e.target.checked,
                         })
                       }
-                      className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
+                      className="size-5 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700"
                     />
                   </div>
 
@@ -5476,7 +5476,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   : value.split(",").map((s) => s.trim()),
                             });
                           }}
-                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                         />
                         <p className="mt-1 text-xs opacity-75">
                           Comma-separated list of allowed origins, or &quot;*&quot; for
@@ -5504,7 +5504,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 | "auto",
                             })
                           }
-                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                          className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                         >
                           <option value="auto">Auto (system preference)</option>
                           <option value="light">Light</option>
@@ -5584,7 +5584,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#3b82f6 or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                      className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5663,7 +5663,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#ffffff or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                      className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5742,7 +5742,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#1f2937 or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                      className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5821,7 +5821,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                         })
                                       }
                                       placeholder="#e5e7eb or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                      className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                     />
                                   </div>
                                   <Slider
@@ -5865,7 +5865,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                               })
                             }
                             placeholder="8px"
-                            className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                            className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                           />
                         </div>
 
@@ -5892,7 +5892,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 outerBorderEnabled: e.target.checked,
                               })
                             }
-                            className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
+                            className="size-5 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700"
                           />
                         </div>
 
@@ -5987,7 +5987,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           })
                                         }
                                         placeholder="#e5e7eb or rgba(...)"
-                                        className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                        className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                       />
                                     </div>
                                     <Slider
@@ -6043,7 +6043,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   })
                                 }
                                 placeholder="Inter, system-ui, sans-serif"
-                                className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                               />
                             </div>
                             <div>
@@ -6104,7 +6104,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                 enableFileUpload: e.target.checked,
                               })
                             }
-                            className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
+                            className="size-5 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700"
                           />
                         </div>
 
@@ -6158,7 +6158,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                   theme: e.target.value as WidgetPreviewSettings["theme"],
                                 })
                               }
-                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                              className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                             >
                               <option value="light">Light</option>
                               <option value="dark">Dark</option>
@@ -6180,7 +6180,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                     e.target.value as WidgetPreviewSettings["fontFamily"],
                                 })
                               }
-                              className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                              className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                             >
                               {Object.entries(PREVIEW_FONT_FAMILIES).map(
                                 ([value, option]) => (
@@ -6247,7 +6247,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.backgroundColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                    className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6288,7 +6288,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.surfaceColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                    className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6329,7 +6329,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.textColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                    className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6370,7 +6370,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.mutedTextColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                    className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6411,7 +6411,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.accentColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                    className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6452,7 +6452,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                                           DEFAULT_WIDGET_PREVIEW_SETTINGS.borderColor,
                                       });
                                     }}
-                                    className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-surface-50"
+                                    className="flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-800 dark:bg-surface-50"
                                   />
                                 </div>
                               );
@@ -6827,7 +6827,7 @@ body {
                           type="text"
                           value={allowedOrigins}
                           onChange={(e) => setAllowedOrigins(e.target.value)}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500"
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500"
                           placeholder="* or https://example.com, https://app.example.com"
                         />
                       </div>
@@ -6945,7 +6945,7 @@ body {
                           type="text"
                           value={allowedOrigins}
                           onChange={(e) => setAllowedOrigins(e.target.value)}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500"
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500"
                           placeholder="* or https://example.com, https://app.example.com"
                         />
                       </div>
@@ -7021,7 +7021,7 @@ body {
                       type="text"
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
                       placeholder="e.g., Production Key"
                     />
                   </div>
@@ -7623,7 +7623,7 @@ const AgentDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex min-h-screen items-center justify-center bg-page p-8">
+        <div className="bg-page flex min-h-screen items-center justify-center p-8">
           <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-surface-50">
             <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">
               Error

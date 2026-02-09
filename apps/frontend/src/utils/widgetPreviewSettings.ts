@@ -47,7 +47,7 @@ export const DEFAULT_WIDGET_PREVIEW_SETTINGS: WidgetPreviewSettings = {
   surfaceColor: "#ffffff",
   textColor: "#1c1917",
   mutedTextColor: "#57534e",
-  accentColor: "#14b8a6",
+  accentColor: "#3b82f6",
   borderColor: "#e7e5e4",
 };
 
@@ -59,7 +59,7 @@ export const DEFAULT_WIDGET_PREVIEW_DARK_SETTINGS: WidgetPreviewSettings = {
   surfaceColor: "#1c1917",
   textColor: "#fafaf9",
   mutedTextColor: "#a8a29e",
-  accentColor: "#2dd4bf",
+  accentColor: "#60a5fa",
   borderColor: "#292524",
 };
 

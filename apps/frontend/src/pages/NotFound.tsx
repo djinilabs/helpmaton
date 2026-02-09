@@ -5,7 +5,7 @@ const NotFound: FC = () => {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page p-6">
+    <div className="bg-page flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-12 text-center shadow-medium">
         <h1 className="mb-6 text-8xl font-black tracking-tight text-neutral-900">
           404

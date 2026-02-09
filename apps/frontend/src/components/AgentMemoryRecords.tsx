@@ -185,7 +185,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             <select
               value={grain}
               onChange={(e) => setGrain(e.target.value as TemporalGrain)}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
             >
               {grainOptions.map((g) => (
                 <option key={g} value={g}>
@@ -220,7 +220,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
             placeholder="e.g., React project discussion"
-            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
           />
         </div>
 
@@ -303,7 +303,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                 record.id ?? `${record.timestamp}-${index}`
               }
               renderRow={(record) => (
-                <div className="rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500">
+                <div className="rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:border-blue-400 hover:shadow-bold dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-blue-400/60 dark:hover:shadow-blue-glow">
                   <div className="mb-2 flex items-start justify-between">
                     <div className="flex-1">
                       <div className="mb-2 flex items-center gap-2">
@@ -319,7 +319,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                           <button
                             type="button"
                             onClick={() => handleToggleRecord(record.id, true)}
-                            className="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             Show less
                           </button>
@@ -338,7 +338,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                           <button
                             type="button"
                             onClick={() => handleToggleRecord(record.id, true)}
-                            className="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             Show more
                           </button>

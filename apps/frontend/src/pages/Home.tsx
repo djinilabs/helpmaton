@@ -62,7 +62,7 @@ const Home: FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-page p-6 lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <div className="mx-auto max-w-6xl">
         <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 lg:p-12">
           <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>

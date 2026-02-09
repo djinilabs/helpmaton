@@ -62,7 +62,7 @@ export const LockSpinner: FC<LockSpinnerProps> = ({ size, className = "" }) => {
           fill="none"
           stroke="currentColor"
           strokeWidth={arcs[0].strokeWidth}
-          className="text-primary-500"
+          className="text-blue-500 dark:text-neon-cyan"
           style={{
             animation: "lock-spin-cw 2s linear infinite",
             transformOrigin: `${center}px ${center}px`,
@@ -75,7 +75,7 @@ export const LockSpinner: FC<LockSpinnerProps> = ({ size, className = "" }) => {
           fill="none"
           stroke="currentColor"
           strokeWidth={arcs[1].strokeWidth}
-          className="text-primary-400"
+          className="text-blue-400 dark:text-neon-cyan/80"
           style={{
             animation: "lock-spin-ccw 1.5s linear infinite",
             transformOrigin: `${center}px ${center}px`,
@@ -88,7 +88,7 @@ export const LockSpinner: FC<LockSpinnerProps> = ({ size, className = "" }) => {
           fill="none"
           stroke="currentColor"
           strokeWidth={arcs[2].strokeWidth}
-          className="text-primary-300"
+          className="text-blue-300 dark:text-neon-cyan/60"
           style={{
             animation: "lock-spin-cw 2.5s linear infinite",
             transformOrigin: `${center}px ${center}px`,
@@ -102,7 +102,7 @@ export const LockSpinner: FC<LockSpinnerProps> = ({ size, className = "" }) => {
             fill="none"
             stroke="currentColor"
             strokeWidth={arcs[3].strokeWidth}
-            className="text-primary-200"
+            className="text-blue-200 dark:text-neon-cyan/50"
             style={{
               animation: "lock-spin-ccw 1.8s linear infinite",
               transformOrigin: `${center}px ${center}px`,

@@ -156,7 +156,7 @@ export const DocumentList: FC<DocumentListProps> = ({
                   }
                 }}
                 placeholder="Search documents..."
-                className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-12 pr-4 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-12 pr-4 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               />
             </div>
             <button
@@ -185,7 +185,7 @@ export const DocumentList: FC<DocumentListProps> = ({
                 {index > 0 && <span className="text-neutral-400"> / </span>}
                 <button
                   onClick={() => handleBreadcrumbClick(index)}
-                  className={`text-sm font-medium transition-colors hover:text-primary-600 ${
+                  className={`text-sm font-medium transition-colors hover:text-blue-600 ${
                     index === breadcrumbs.length - 1
                       ? "text-neutral-900 dark:text-neutral-50"
                       : "text-neutral-600 dark:text-neutral-300"
@@ -262,13 +262,13 @@ export const DocumentList: FC<DocumentListProps> = ({
                       0,
                       50
                     )}`}
-                    className="flex flex-col gap-3 rounded-xl border-2 border-primary-200 bg-primary-50/30 p-6 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-primary-800 dark:bg-primary-950/30 dark:hover:border-primary-600"
+                    className="flex flex-col gap-3 rounded-xl border-2 border-blue-200 bg-blue-50/30 p-6 transition-all duration-200 hover:border-blue-400 hover:shadow-bold dark:border-blue-800 dark:bg-blue-950/30 dark:hover:border-blue-400/60 dark:hover:shadow-blue-glow"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <button
                           onClick={() => handleDocumentClick(result.documentId)}
-                          className="text-left text-xl font-bold text-neutral-900 transition-colors hover:text-primary-600 dark:text-neutral-50 dark:hover:text-primary-400"
+                          className="text-left text-xl font-bold text-neutral-900 transition-colors hover:text-blue-600 dark:text-neutral-50 dark:hover:text-blue-400"
                         >
                           {result.documentName}
                         </button>
@@ -316,12 +316,12 @@ export const DocumentList: FC<DocumentListProps> = ({
               .map((document) => (
                 <div
                   key={document.id}
-                  className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500"
+                  className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:border-blue-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-blue-400/60 dark:hover:shadow-blue-glow"
                 >
                   <div className="flex-1">
                     <button
                       onClick={() => handleDocumentClick(document.id)}
-                      className="text-left text-xl font-bold text-neutral-900 transition-colors hover:text-primary-600 dark:text-neutral-50 dark:hover:text-primary-400"
+                      className="text-left text-xl font-bold text-neutral-900 transition-colors hover:text-blue-600 dark:text-neutral-50 dark:hover:text-blue-400"
                     >
                       {document.name}
                     </button>

@@ -144,7 +144,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
               type="file"
               accept=".json,application/json"
               onChange={handleFileSelect}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 transition-all duration-200 file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:file:bg-primary-900/20 dark:file:text-primary-300 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 transition-all duration-200 file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:file:bg-primary-900/20 dark:file:text-primary-300 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               required
             />
             {selectedFile && (

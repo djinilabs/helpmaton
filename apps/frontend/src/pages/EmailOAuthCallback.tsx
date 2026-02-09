@@ -53,7 +53,7 @@ const EmailOAuthCallback = () => {
 
   if (!workspaceId && !error && !success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-page">
+      <div className="bg-page flex min-h-screen items-center justify-center">
         <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
           <h1 className="mb-4 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Connecting...</h1>
           <p className="text-sm text-neutral-700 dark:text-neutral-300">
@@ -66,7 +66,7 @@ const EmailOAuthCallback = () => {
 
   if (status === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-page">
+      <div className="bg-page flex min-h-screen items-center justify-center">
         <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
           <h1 className="mb-4 text-2xl font-semibold text-red-600 dark:text-red-400">Error</h1>
           <p className="mb-4 text-sm text-neutral-700 dark:text-neutral-300">
@@ -86,7 +86,7 @@ const EmailOAuthCallback = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page">
+    <div className="bg-page flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
         <h1 className="mb-4 text-2xl font-semibold text-green-600 dark:text-green-400">Success</h1>
         <p className="mb-4 text-sm text-neutral-700 dark:text-neutral-300">

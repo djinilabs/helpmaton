@@ -77,7 +77,7 @@ export const ConversationList: FC<ConversationListProps> = ({
   ): string => {
     switch (type) {
       case "test":
-        return "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-700";
+        return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-700";
       case "webhook":
         return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
       case "stream":
@@ -197,7 +197,7 @@ export const ConversationList: FC<ConversationListProps> = ({
                       });
                       onConversationClick(conversation.id);
                     }}
-                    className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-primary-500"
+                    className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-blue-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-surface-50 dark:hover:border-blue-400/60 dark:hover:shadow-blue-glow"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">

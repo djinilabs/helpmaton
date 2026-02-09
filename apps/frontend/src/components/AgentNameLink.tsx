@@ -16,7 +16,7 @@ interface AgentNameLinkProps {
 export const AgentNameLink: FC<AgentNameLinkProps> = ({
   workspaceId,
   agentId,
-  className = "font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300",
+  className = "font-medium text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300",
 }) => {
   const { data: agent } = useAgentOptional(workspaceId, agentId, false);
 

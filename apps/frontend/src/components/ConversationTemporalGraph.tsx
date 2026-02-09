@@ -28,9 +28,9 @@ const MESSAGE_COLORS: Record<
   { base: string; light: string; dark: string }
 > = {
   user: {
-    base: "#14b8a6", // primary-500 (teal) - matches bg-gradient-primary
-    light: "#2dd4bf", // primary-400
-    dark: "#0d9488", // primary-600
+    base: "#3b82f6", // primary-500 (blue)
+    light: "#60a5fa", // primary-400
+    dark: "#2563eb", // primary-600
   },
   assistant: {
     base: "#d6d3d1", // neutral-300 - darker for visibility, still matches neutral theme
@@ -794,7 +794,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                       r={10}
                       fill="white"
                       fillOpacity="0.95"
-                      stroke="#0d9488"
+                      stroke="#2563eb"
                       strokeWidth={1.5}
                     />
                     {/* User head */}
@@ -803,7 +803,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                       cy={y + barHeight / 2 - 3}
                       r={3}
                       fill="none"
-                      stroke="#0d9488"
+                      stroke="#2563eb"
                       strokeWidth={1.2}
                     />
                     {/* User body (shoulders) */}
@@ -812,7 +812,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                         y + barHeight / 2 + 0.5
                       } A 3.5 3.5 0 0 0 ${x + 3.5} ${y + barHeight / 2 + 0.5}`}
                       fill="none"
-                      stroke="#0d9488"
+                      stroke="#2563eb"
                       strokeWidth={1.2}
                       strokeLinecap="round"
                     />

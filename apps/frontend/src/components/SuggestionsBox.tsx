@@ -63,7 +63,7 @@ export const SuggestionsBox: FC<SuggestionsBoxProps> = ({
                 <button
                   type="button"
                   onClick={() => onGoToAction(action)}
-                  className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   {"openEdit" in action ? "Open settings" : `Go to ${action.label}`}
                   <ArrowTopRightOnSquareIcon className="size-3" />

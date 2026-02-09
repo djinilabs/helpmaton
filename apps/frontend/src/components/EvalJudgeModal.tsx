@@ -266,7 +266,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               required
             />
           </div>
@@ -277,7 +277,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
               type="checkbox"
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
-              className="size-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 dark:border-neutral-700"
+              className="size-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500 dark:border-neutral-700"
             />
             <label
               htmlFor="enabled"
@@ -304,7 +304,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
               onChange={(e) =>
                 setSamplingProbability(Number.parseInt(e.target.value, 10))
               }
-              className="w-full accent-primary-500"
+              className="w-full accent-blue-500 dark:accent-neon-cyan"
             />
             <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
               Controls how often this judge evaluates conversations (0–100%).
@@ -337,7 +337,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
                   selectedModel === defaultModel ? null : selectedModel
                 );
               }}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               required
             >
               {isLoadingModels ? (
@@ -385,7 +385,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
               value={evalPrompt}
               onChange={(e) => setEvalPrompt(e.target.value)}
               rows={10}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-sm text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-sm text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               placeholder="Enter the evaluation prompt template..."
               required
             />

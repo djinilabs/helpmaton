@@ -33,7 +33,7 @@ export const legalMarkdownComponents: Components = {
   a: ({ children, href }) => (
     <a
       href={href}
-      className="font-semibold text-primary-700 underline decoration-2 underline-offset-2 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200"
+      className="font-semibold text-blue-700 underline decoration-2 underline-offset-2 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
       target={href?.startsWith("http") ? "_blank" : undefined}
       rel={href?.startsWith("http") ? "noreferrer" : undefined}
     >

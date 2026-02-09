@@ -278,7 +278,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
                   ? "Paste a new key to replace the current one"
                   : "Paste your OpenRouter key"
               }
-              className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               disabled={isSaving || isClearing}
             />
           </div>
@@ -460,7 +460,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-page p-6 lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <DetailPageNav
         groups={navGroups}
         expandedSection={expandedSection}
@@ -536,7 +536,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                     required
                   />
                   <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -550,7 +550,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                     rows={4}
                   />
                   <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -633,7 +633,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                           }, 100);
                         }
                       }}
-                      className="text-sm font-semibold text-primary-600 transition-colors duration-200 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                      className="text-sm font-semibold text-blue-600 transition-colors duration-200 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                     >
                       Buy credits
                     </a>
@@ -1270,7 +1270,7 @@ const WorkspaceDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex min-h-screen items-center justify-center bg-page p-8">
+        <div className="bg-page flex min-h-screen items-center justify-center p-8">
           <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-surface-50 lg:p-10">
             <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
               Error

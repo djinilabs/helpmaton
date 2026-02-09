@@ -129,7 +129,7 @@ const UserSettings: FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-page p-6 lg:p-10">
+    <div className="bg-page min-h-screen p-6 lg:p-10">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Suspense fallback={<LoadingScreen compact />}>
@@ -266,7 +266,7 @@ const UserSettings: FC = () => {
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   placeholder="e.g., Website, Zapier"
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 px-4 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                 />
                 <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-300">
                   Use a name that helps you remember where it&apos;s used.

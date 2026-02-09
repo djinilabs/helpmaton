@@ -9,7 +9,7 @@ export const Footer: FC = () => {
   const version = import.meta.env.VITE_APP_VERSION || "0.0.0";
 
   return (
-    <footer className="mt-auto border-t border-neutral-200 bg-white dark:border-neutral-700 dark:bg-surface-50">
+    <footer className="mt-auto border-t border-neutral-200 bg-white dark:border-t dark:border-neon-cyan/20 dark:bg-surface-50">
       <div className="mx-auto max-w-6xl px-8 py-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -27,21 +27,21 @@ export const Footer: FC = () => {
             <div className="mt-3 flex items-center justify-end gap-2">
               <Link
                 to="/docs/api"
-                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-neutral-50 dark:text-neutral-300 dark:hover:text-neutral-50"
+                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400"
               >
                 API Docs
               </Link>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
               <Link
                 to="/privacy"
-                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-neutral-50 dark:text-neutral-300 dark:hover:text-neutral-50"
+                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400"
               >
                 Privacy Statement
               </Link>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
               <Link
                 to="/terms-of-service"
-                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-neutral-50 dark:text-neutral-300 dark:hover:text-neutral-50"
+                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400"
               >
                 Terms of Service
               </Link>

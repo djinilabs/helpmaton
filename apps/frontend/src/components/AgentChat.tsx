@@ -891,7 +891,7 @@ export const AgentChat: FC<AgentChatProps> = ({
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
           rows={1}
-          className="flex-1 resize-none overflow-hidden rounded-xl border-2 border-neutral-300 bg-white p-4 text-base font-medium text-neutral-900 transition-all duration-200 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          className="flex-1 resize-none overflow-hidden rounded-xl border-2 border-neutral-300 bg-white p-4 text-base font-medium text-neutral-900 transition-all duration-200 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
           style={{ minHeight: "56px", maxHeight: "200px" }}
         />
         <button

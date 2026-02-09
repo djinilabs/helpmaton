@@ -110,7 +110,7 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
                   ? "e.g., Make the agent more friendly and conversational, or add instructions to handle refund requests."
                   : "e.g., I want an agent that helps customers with technical support questions, provides clear explanations, and escalates complex issues to the engineering team."
               }
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:ring-primary-400"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
               rows={4}
             />
             <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
@@ -169,7 +169,7 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
                   id="generatedPrompt"
                   value={generatedPrompt}
                   onChange={(e) => setGeneratedPrompt(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-sm text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:ring-primary-400"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-sm text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
                   rows={12}
                 />
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
