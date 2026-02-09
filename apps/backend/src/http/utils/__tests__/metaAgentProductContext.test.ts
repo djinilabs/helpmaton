@@ -87,6 +87,15 @@ describe("workspace agent system prompt", () => {
     expect(prompt).toContain("configure_agent");
     expect(prompt).toMatch(/1=READ|2=WRITE|3=OWNER/);
   });
+
+  it("includes internal documentation section and read_internal_doc index", () => {
+    const descriptor = createWorkspaceAgentDescriptor("ws-789");
+    const prompt = descriptor.systemPrompt;
+    expect(prompt).toContain("Internal documentation (customer support)");
+    expect(prompt).toContain("read_internal_doc");
+    expect(prompt).toContain("3 read attempts");
+    expect(prompt).toMatch(/- \[[\w-]+\] .+ [—-] .+/);
+  });
 });
 
 describe("agent-config meta-agent system prompt", () => {
@@ -102,5 +111,13 @@ describe("agent-config meta-agent system prompt", () => {
     expect(prompt).toContain("create_my_schedule");
     expect(prompt).toContain("eval judge");
     expect(prompt).toMatch(/subscription caps|limits per agent/i);
+  });
+
+  it("includes internal documentation section and read_internal_doc index", () => {
+    const prompt = getMetaAgentSystemPrompt("ConfigAgent");
+    expect(prompt).toContain("Internal documentation (customer support)");
+    expect(prompt).toContain("read_internal_doc");
+    expect(prompt).toContain("3 read attempts");
+    expect(prompt).toMatch(/- \[[\w-]+\] .+ [—-] .+/);
   });
 });

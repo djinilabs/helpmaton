@@ -5,7 +5,7 @@
  * and ensures quick shutdown when Control-C is pressed.
  */
 
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { exec } from 'child_process';
@@ -19,6 +19,14 @@ const backendDir = join(projectRoot, 'apps', 'backend');
 
 const isWindows = process.platform === 'win32';
 const SHUTDOWN_WAIT_MS = 1000; // Wait 1 second before force killing
+
+// Ensure internal docs are generated so workspace/meta-agent have up-to-date index
+try {
+  execSync('node scripts/generate-internal-docs.mjs', { cwd: projectRoot, stdio: 'inherit' });
+} catch (err) {
+  console.error('Internal docs generator failed; sandbox may have stale or missing docs.');
+  process.exit(1);
+}
 
 // Spawn the sandbox process
 const sandboxProcess = spawn('pnpm', ['arc', 'sandbox'], {

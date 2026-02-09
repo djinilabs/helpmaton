@@ -17,8 +17,8 @@ import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 
 import { getWorkspaceApiKey } from "./agent-keys";
 import { createAgentModel } from "./agent-model";
-import { setupAgentConfigTools } from "./agentConfigTools";
-import { MODEL_NAME , validateWorkspaceAndAgent } from "./agentUtils";
+import type { AgentRecordForConfig } from "./agentConfigTools";
+import { MODEL_NAME, validateWorkspaceAndAgent } from "./agentUtils";
 import { validateAndReserveCredits } from "./generationCreditManagement";
 import { validateSubscriptionAndLimits } from "./generationRequestTracking";
 import { createLlmObserver, type LlmObserver } from "./llmObserver";
@@ -27,7 +27,6 @@ import { streamRequestSchema } from "./schemas/requestSchemas";
 import type { EndpointType } from "./streamEndpointDetection";
 import { WORKSPACE_AGENT_ID } from "./streamEndpointDetection";
 import type { PathParameters } from "./streamPathExtraction";
-import { setupWorkspaceAgentAndTools } from "./workspaceAgentTools";
 
 /**
  * Request context for processing the stream
@@ -782,6 +781,9 @@ export async function buildStreamRequestContext(
   let usesByok: boolean;
 
   if (agentId === WORKSPACE_AGENT_ID) {
+    const { setupWorkspaceAgentAndTools } = await import(
+      "./workspaceAgentTools"
+    );
     const workspaceSetup = await setupWorkspaceAgentAndTools(workspaceId, {
       modelReferer,
       userId: authResult.userId,
@@ -810,10 +812,11 @@ export async function buildStreamRequestContext(
     );
     const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
     usesByok = workspaceApiKey !== null;
+    const { setupAgentConfigTools } = await import("./agentConfigTools");
     const configSetup = setupAgentConfigTools(
       workspaceId,
       agentId,
-      loadedAgent as Parameters<typeof setupAgentConfigTools>[2],
+      loadedAgent as AgentRecordForConfig,
       { llmObserver, userId: authResult.userId }
     );
     const modelName =
