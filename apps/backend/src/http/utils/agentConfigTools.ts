@@ -27,7 +27,16 @@ import {
 } from "../../utils/subscriptionUtils";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
+
 import { createGetDatetimeTool } from "./agentUtils";
+import {
+  getInternalDocsPromptSection,
+  READ_INTERNAL_DOC_TOOL_DESCRIPTION,
+} from "./internalDocsPrompt";
+import {
+  executeReadInternalDoc,
+  type ReadInternalDocState,
+} from "./internalDocTool";
 import type { LlmObserver } from "./llmObserver";
 import { wrapToolsWithObserver } from "./llmObserver";
 import {
@@ -86,7 +95,9 @@ ${META_AGENT_PRODUCT_AND_CONFIG}
 
 ## Rules
 - Always use get_my_config (or the relevant list/get tool) before updating so you do not suggest what is already set or overwrite blindly.
-- If create_my_schedule or create_my_eval_judge returns an error about limits, the workspace subscription caps the number of schedules or eval judges per agent; inform the user and suggest upgrading if they need more.`;
+- If create_my_schedule or create_my_eval_judge returns an error about limits, the workspace subscription caps the number of schedules or eval judges per agent; inform the user and suggest upgrading if they need more.
+${getInternalDocsPromptSection()}
+`;
 
 /** Sanitize agent name for use in system prompt to avoid breaking quote structure or injecting newlines. */
 function sanitizeAgentNameForPrompt(agentName: string): string {
@@ -115,6 +126,17 @@ function createAgentConfigTools(
   const userId = options?.userId;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool types
   const tools: Record<string, any> = {};
+  const readInternalDocState: ReadInternalDocState = { callCount: 0 };
+
+  tools.read_internal_doc = tool({
+    description: READ_INTERNAL_DOC_TOOL_DESCRIPTION,
+    parameters: z.object({ docId: z.string().min(1) }).strict(),
+    // @ts-expect-error - AI SDK execute signature
+    execute: async (args: unknown) => {
+      const { docId } = z.object({ docId: z.string().min(1) }).parse(args);
+      return await executeReadInternalDoc(readInternalDocState, docId);
+    },
+  });
 
   tools.get_datetime = createGetDatetimeTool();
 
