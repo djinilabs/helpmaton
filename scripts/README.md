@@ -49,6 +49,10 @@ Builds and pushes Lambda container images to ECR for deployment.
 - `cleanup-pr-log-groups.sh` - Delete CloudWatch logs for closed PRs
 - `undeploy-pr.sh` - Undeploy a specific PR environment
 
+### Tweet on new PR (X API)
+
+- `x-oauth-get-user-tokens.mjs` - One-time OAuth 1.0a PIN flow to obtain Access Token and Access Token Secret for the Helpmaton X account. The portal only provides Consumer Key, Secret, and Bearer Token; posting tweets requires user tokens from this script. See [docs/tweet-on-pr-setup.md](../docs/tweet-on-pr-setup.md).
+
 ### Production Operations
 
 - `cleanup-production-log-groups.mjs` - Remove unused production CloudWatch log groups

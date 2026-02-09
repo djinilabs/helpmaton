@@ -1,0 +1,63 @@
+# Posts a tweet from the Helpmaton X account when a new PR is opened or reopened.
+#
+# The X Developer Portal only shows Consumer Key, Secret Key, and Bearer Token.
+# The Bearer Token cannot post tweets (app-only). You need OAuth 1.0a user tokens:
+#   X_API_KEY             - Consumer Key (from portal Keys and tokens)
+#   X_API_SECRET          - Consumer Secret (from portal Keys and tokens)
+#   X_ACCESS_TOKEN        - Access Token (from one-time OAuth flow)
+#   X_ACCESS_TOKEN_SECRET - Access Token Secret (from one-time OAuth flow)
+#
+# To get the Access Token and Secret, run the 3-legged OAuth flow once:
+#   node scripts/x-oauth-get-user-tokens.mjs
+# See docs/tweet-on-pr-setup.md for full setup.
+#
+# Skip tweet: use a draft PR or add the label "no-tweet" to the PR.
+name: Tweet on new PR
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  tweet:
+    name: Post tweet for new PR
+    if: |
+      github.event.pull_request.draft == false &&
+      !contains(join(' ', github.event.pull_request.labels.*.name), 'no-tweet')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build tweet text
+        id: build-tweet
+        run: |
+          PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
+          PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+          PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
+          # Sanitize title: replace newlines with space, trim
+          PR_TITLE=$(echo "$PR_TITLE" | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          PREFIX="New PR: "
+          SUFFIX=" #${PR_NUMBER} ${PR_URL}"
+          MAX_LEN=280
+          PREFIX_LEN=${#PREFIX}
+          SUFFIX_LEN=${#SUFFIX}
+          MAX_TITLE_LEN=$((MAX_LEN - PREFIX_LEN - SUFFIX_LEN))
+          if [ "${#PR_TITLE}" -gt "$MAX_TITLE_LEN" ]; then
+            PR_TITLE="${PR_TITLE:0:$((MAX_TITLE_LEN - 1))}…"
+          fi
+          TWEET="${PREFIX}${PR_TITLE}${SUFFIX}"
+          echo "tweet<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$TWEET" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Send tweet
+        uses: ethomson/send-tweet-action@v1
+        with:
+          status: ${{ steps.build-tweet.outputs.tweet }}
+          consumer-key: ${{ secrets.X_API_KEY }}
+          consumer-secret: ${{ secrets.X_API_SECRET }}
+          access-token: ${{ secrets.X_ACCESS_TOKEN }}
+          access-token-secret: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
