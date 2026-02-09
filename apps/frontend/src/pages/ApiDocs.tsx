@@ -74,38 +74,38 @@ const ApiDocs = () => {
           .scalar-api-reference > div:first-child {
             background-color: inherit !important;
           }
-          /* Reset Helpmaton base styles inside API reference so Scalar controls layout */
+          /* Neutralize Helpmaton base typography inside Scalar so Scalar's styles apply (avoid revert to preserve Scalar theming) */
           .scalar-api-reference h1,
           .scalar-api-reference h2,
           .scalar-api-reference h3,
           .scalar-api-reference h4,
           .scalar-api-reference h5,
           .scalar-api-reference h6 {
-            font-size: revert;
-            font-weight: revert;
-            letter-spacing: revert;
-            margin: revert;
-            line-height: revert;
+            font-size: inherit;
+            font-weight: inherit;
+            letter-spacing: inherit;
+            margin: initial;
+            line-height: inherit;
           }
           .scalar-api-reference p {
-            margin: revert;
-            font-size: revert;
-            font-weight: revert;
-            line-height: revert;
+            margin: initial;
+            font-size: inherit;
+            font-weight: inherit;
+            line-height: inherit;
           }
           .scalar-api-reference a {
-            color: revert;
-            text-decoration: revert;
+            color: inherit;
+            text-decoration: inherit;
           }
           .scalar-api-reference ul,
           .scalar-api-reference ol {
-            margin: revert;
-            padding: revert;
-            list-style: revert;
+            margin: initial;
+            padding: initial;
+            list-style: inherit;
           }
           .scalar-api-reference li {
-            margin: revert;
-            list-style: revert;
+            margin: initial;
+            list-style: inherit;
           }
         `}
       </style>

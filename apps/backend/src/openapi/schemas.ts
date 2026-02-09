@@ -33,6 +33,10 @@ export const openApiSchemas = {
         type: "string",
         description: "Suggestion text",
       },
+      actionType: {
+        type: "string",
+        description: "Optional action type associated with this suggestion",
+      },
     },
   },
   SuggestionsCache: {

@@ -203,6 +203,10 @@
           "text": {
             "type": "string",
             "description": "Suggestion text"
+          },
+          "actionType": {
+            "type": "string",
+            "description": "Optional action type associated with this suggestion"
           }
         }
       },
@@ -4726,29 +4730,54 @@
                 ],
                 "properties": {
                   "onboardingContext": {
-                    "type": "object",
                     "description": "Discriminated by step; \"intent\" may include intent; \"refine\" requires template and chatMessage",
-                    "properties": {
-                      "step": {
-                        "type": "string",
-                        "enum": [
-                          "intent",
-                          "refine"
+                    "discriminator": {
+                      "propertyName": "step"
+                    },
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "step": {
+                            "type": "string",
+                            "enum": [
+                              "intent"
+                            ]
+                          },
+                          "intent": {
+                            "type": "object",
+                            "description": "For step intent; goals, businessType, tasksOrRoles, freeText"
+                          }
+                        },
+                        "required": [
+                          "step"
                         ]
                       },
-                      "intent": {
+                      {
                         "type": "object",
-                        "description": "For step intent; goals, businessType, tasksOrRoles, freeText"
-                      },
-                      "template": {
-                        "type": "object",
-                        "description": "For step refine; workspace export schema"
-                      },
-                      "chatMessage": {
-                        "type": "string",
-                        "description": "For step refine; user message"
+                        "properties": {
+                          "step": {
+                            "type": "string",
+                            "enum": [
+                              "refine"
+                            ]
+                          },
+                          "template": {
+                            "type": "object",
+                            "description": "For step refine; workspace export schema"
+                          },
+                          "chatMessage": {
+                            "type": "string",
+                            "description": "For step refine; user message"
+                          }
+                        },
+                        "required": [
+                          "step",
+                          "template",
+                          "chatMessage"
+                        ]
                       }
-                    }
+                    ]
                   }
                 }
               }

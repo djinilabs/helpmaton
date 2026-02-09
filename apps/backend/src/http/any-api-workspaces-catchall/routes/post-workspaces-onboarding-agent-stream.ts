@@ -43,21 +43,35 @@ const ONBOARDING_AGENT_VALIDATION_FAILED = "onboarding_agent_validation_failed";
  *               - onboardingContext
  *             properties:
  *               onboardingContext:
- *                 type: object
  *                 description: Discriminated by step; "intent" may include intent; "refine" requires template and chatMessage
- *                 properties:
- *                   step:
- *                     type: string
- *                     enum: [intent, refine]
- *                   intent:
- *                     type: object
- *                     description: For step intent; goals, businessType, tasksOrRoles, freeText
- *                   template:
- *                     type: object
- *                     description: For step refine; workspace export schema
- *                   chatMessage:
- *                     type: string
- *                     description: For step refine; user message
+ *                 discriminator:
+ *                   propertyName: step
+ *                 oneOf:
+ *                   - type: object
+ *                     properties:
+ *                       step:
+ *                         type: string
+ *                         enum: [intent]
+ *                       intent:
+ *                         type: object
+ *                         description: For step intent; goals, businessType, tasksOrRoles, freeText
+ *                     required:
+ *                       - step
+ *                   - type: object
+ *                     properties:
+ *                       step:
+ *                         type: string
+ *                         enum: [refine]
+ *                       template:
+ *                         type: object
+ *                         description: For step refine; workspace export schema
+ *                       chatMessage:
+ *                         type: string
+ *                         description: For step refine; user message
+ *                     required:
+ *                       - step
+ *                       - template
+ *                       - chatMessage
  *     responses:
  *       200:
  *         description: Streamed or final result with assistantText and finalEvent

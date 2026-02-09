@@ -95,12 +95,12 @@ All stream paths use `POST` and the same request body (AI SDK message array). Au
 
 | Path | Auth | Use |
 |------|------|-----|
-| `POST /api/streams/{workspaceId}/{agentId}/{secret}` | Secret (path segment) | Production streaming; secret from agent stream server config |
-| `POST /api/streams/{workspaceId}/{agentId}/test` | Session/JWT | Test a specific agent in the UI |
-| `POST /api/streams/{workspaceId}/_workspace/test` | Session/JWT | Workspace assistant (virtual workspace agent) |
-| `POST /api/streams/{workspaceId}/{agentId}/config/test` | Session/JWT | Meta-agent "Configure with AI" chat for that agent |
+| `POST /api/streams/:workspaceId/:agentId/:secret` | Secret (path segment) | Production streaming; secret from agent stream server config |
+| `POST /api/streams/:workspaceId/:agentId/test` | Session/JWT | Test a specific agent in the UI |
+| `POST /api/streams/:workspaceId/_workspace/test` | Session/JWT | Workspace assistant (virtual workspace agent) |
+| `POST /api/streams/:workspaceId/:agentId/config/test` | Session/JWT | Meta-agent "Configure with AI" chat for that agent |
 
-- **Secret path**: `{secret}` is the stream server secret; no cookies/headers required.
+- **Secret path**: `:secret` is the stream server secret; no cookies/headers required.
 - **Test paths**: Require authenticated session (cookie or `Authorization: Bearer`). Use the same base URL as the app (e.g. `https://app.helpmaton.com` or the Lambda stream URL from `GET /api/stream-url`).
 
 ## Getting the Streaming URL
