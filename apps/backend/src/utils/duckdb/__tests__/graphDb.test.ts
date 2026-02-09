@@ -20,6 +20,12 @@ const {
 
   const mockConnection = {
     run: vi.fn(async (sql: string) => {
+      // When save() runs, it does COPY facts TO '<tmpPath>' – create the file so readFile() succeeds
+      const copyMatch = sql.match(/^COPY facts TO '([^']+)' \(FORMAT PARQUET/);
+      if (copyMatch) {
+        const { writeFile } = await import("node:fs/promises");
+        await writeFile(copyMatch[1], Buffer.from([]));
+      }
       runStatements.push(sql);
       return undefined;
     }),
@@ -60,8 +66,22 @@ vi.mock("@aws-sdk/client-s3", () => {
     }
   }
 
+  class PutObjectCommand {
+    input: { Bucket: string; Key: string; Body?: unknown };
+    constructor(input: { Bucket: string; Key: string; Body?: unknown }) {
+      this.input = input;
+    }
+  }
+
+  class DeleteObjectCommand {
+    input: { Bucket: string; Key: string };
+    constructor(input: { Bucket: string; Key: string }) {
+      this.input = input;
+    }
+  }
+
   class S3Client {
-    send = vi.fn(async (command: HeadObjectCommand) => {
+    send = vi.fn(async (command: HeadObjectCommand | PutObjectCommand) => {
       sendCalls.push(command);
       if (sendError.value) {
         throw sendError.value;
@@ -70,7 +90,7 @@ vi.mock("@aws-sdk/client-s3", () => {
     });
   }
 
-  return { S3Client, HeadObjectCommand };
+  return { S3Client, HeadObjectCommand, PutObjectCommand, DeleteObjectCommand };
 });
 
 vi.mock("../../vectordb/config", () => ({
@@ -173,9 +193,12 @@ describe("createGraphDb", () => {
       "UPDATE facts SET label = 'likes' WHERE id = 'fact-1';",
     );
     expect(runStatements).toContain("DELETE FROM facts WHERE id = 'fact-1';");
-    expect(runStatements).toContain(
-      "COPY facts TO 's3://vectordb.bucket/graphs/workspace-3/agent-3/facts.parquet' (FORMAT PARQUET, OVERWRITE 1);",
-    );
+    expect(runStatements.some((s) => /COPY facts TO '.*helpmaton-graph-.*\.parquet' \(FORMAT PARQUET, OVERWRITE 1\)/.test(s))).toBe(true);
+    const putCall = sendCalls.find(
+      (c: unknown) => (c as { constructor?: { name?: string } }).constructor?.name === "PutObjectCommand",
+    ) as { input: { Bucket: string; Key: string } } | undefined;
+    expect(putCall).toBeDefined();
+    expect(putCall?.input).toMatchObject({ Bucket: "vectordb.bucket", Key: "graphs/workspace-3/agent-3/facts.parquet" });
     expect(mockConnection.closeSync).toHaveBeenCalledTimes(1);
     expect(mockInstance.closeSync).toHaveBeenCalledTimes(1);
   });

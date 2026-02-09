@@ -1,9 +1,11 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
   DeleteObjectCommand,
   HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { DuckDBInstance } from "@duckdb/node-api";
@@ -427,6 +429,67 @@ async function closeDuckDb(
   instance.closeSync();
 }
 
+/**
+ * Exports the DuckDB facts table to S3 by writing to a temp file then uploading
+ * via the AWS SDK. We avoid DuckDB's httpfs COPY TO S3 because it can yield
+ * HTTP 400 Bad Request in production; the SDK PutObject path is reliable.
+ */
+async function saveFactsToS3(
+  connection: DuckDbConnection,
+  location: S3Location,
+): Promise<void> {
+  const tmpDir = tmpdir();
+  await mkdir(tmpDir, { recursive: true });
+  const tmpPath = path.join(
+    tmpDir,
+    `helpmaton-graph-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.parquet`,
+  );
+  const escapedTmpPath = escapeSingleQuotes(tmpPath);
+  try {
+    await runStatement(
+      connection,
+      `COPY facts TO '${escapedTmpPath}' (FORMAT PARQUET, OVERWRITE 1);`,
+    );
+    const body = await readFile(tmpPath);
+    const client = createS3Client();
+    await client.send(
+      new PutObjectCommand({
+        Bucket: location.bucket,
+        Key: location.key,
+        Body: body,
+        ContentType: "application/vnd.apache.parquet",
+      }),
+    );
+    logS3Config("Graph facts uploaded via SDK (temp file)", {
+      bucket: location.bucket,
+      key: location.key,
+    });
+  } catch (error) {
+    const message =
+      error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message)
+        : String(error);
+    logS3Config("Graph DB save failed", {
+      bucket: location.bucket,
+      key: location.key,
+      uri: location.uri,
+      errorMessage: message,
+    });
+    const cause =
+      error instanceof Error ? error : new Error(String(error));
+    throw new Error(
+      `Graph DB save failed: ${message} | s3Uri=${location.uri} | bucket=${location.bucket} key=${location.key}`,
+      { cause },
+    );
+  } finally {
+    try {
+      await unlink(tmpPath);
+    } catch {
+      // Best-effort cleanup; ignore if file did not exist or already removed
+    }
+  }
+}
+
 export async function createGraphDb(
   workspaceId: string,
   agentId: string,
@@ -483,32 +546,7 @@ export async function createGraphDb(
     },
     queryGraph: async <T = unknown>(sql: string) =>
       runQuery<T>(connection, sql),
-    save: async () => {
-      const escapedUri = escapeSingleQuotes(location.uri);
-      try {
-        await runStatement(
-          connection,
-          `COPY facts TO '${escapedUri}' (FORMAT PARQUET, OVERWRITE 1);`,
-        );
-      } catch (error) {
-        const message =
-          error && typeof error === "object" && "message" in error
-            ? String((error as { message?: unknown }).message)
-            : String(error);
-        logS3Config("COPY TO S3 failed (graph facts write)", {
-          bucket: location.bucket,
-          key: location.key,
-          uri: location.uri,
-          errorMessage: message,
-        });
-        const cause =
-          error instanceof Error ? error : new Error(String(error));
-        throw new Error(
-          `Graph DB save failed (COPY TO S3): ${message} | s3Uri=${location.uri} | bucket=${location.bucket} key=${location.key}`,
-          { cause },
-        );
-      }
-    },
+    save: () => saveFactsToS3(connection, location),
     close: async () => closeDuckDb(connection, instance),
   };
 }

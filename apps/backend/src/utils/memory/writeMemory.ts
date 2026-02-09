@@ -189,9 +189,8 @@ export async function writeToWorkingMemory(
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        const isGraphWrite = /S3|graph|COPY TO|HeadObject|Knowledge graph/i.test(
-          err.message,
-        );
+        const isGraphWrite =
+          /S3|graph|COPY TO|HeadObject|Knowledge graph/i.test(err.message);
         const stage = isGraphWrite ? "graph_write" : "memory_extraction";
         console.error(
           `[Memory Write] Memory extraction failed for conversation ${conversationId}, falling back to raw text:`,
