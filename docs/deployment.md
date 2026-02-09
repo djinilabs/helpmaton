@@ -281,6 +281,10 @@ This approach is more efficient than error pages because:
 - It rewrites the URI before querying the origin (no need to wait for a 404/403 response)
 - Static assets are never affected
 
+### Security headers (anti-embedding)
+
+To prevent the app from being embedded in an iframe and to add security headers (e.g. `X-Frame-Options: DENY`), attach a CloudFront response headers policy using the script described in [Security headers](security-headers.md). Current headers and verification steps are documented there.
+
 ## Deployment Process
 
 1. **Push to main**: When code is pushed to the main branch, the "Tests" workflow runs

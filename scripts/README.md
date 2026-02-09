@@ -59,6 +59,7 @@ Builds and pushes Lambda container images to ECR for deployment.
 - `build-backend.ts` - Build backend Lambda functions
 - `deploy-api-gateway.sh` - Deploy API Gateway changes
 - `configure-cloudfront-cache-behavior.sh` - Configure CloudFront caching
+- `configure-cloudfront-security-headers.sh` - Attach security headers policy (X-Frame-Options: DENY, etc.) so the app is not embeddable in a frame; see [docs/security-headers.md](../docs/security-headers.md)
 
 ### Database and Memory
 
