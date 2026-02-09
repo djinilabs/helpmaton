@@ -351,6 +351,7 @@ The platform is designed for reliability, scalability, and performance, handling
 ### Development
 
 - [Development Setup](./docs/development-setup.md) - Local development environment setup
+- [Internal docs (workspace / meta-agent)](./docs/README.md#internal-docs-workspace--meta-agent) - How the workspace assistant and Configure with AI get their doc index and how to add docs
 - [OpenAPI Generation](./docs/openapi-generation.md) - How to generate and maintain OpenAPI documentation
 - [Testing Aggregation](./docs/testing-aggregation.md) - Testing strategies and aggregation patterns
 

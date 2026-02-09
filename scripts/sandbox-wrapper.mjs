@@ -5,7 +5,8 @@
  * and ensures quick shutdown when Control-C is pressed.
  */
 
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
+import { readdirSync, statSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { exec } from 'child_process';
@@ -19,6 +20,40 @@ const backendDir = join(projectRoot, 'apps', 'backend');
 
 const isWindows = process.platform === 'win32';
 const SHUTDOWN_WAIT_MS = 1000; // Wait 1 second before force killing
+
+// Ensure internal docs are generated so workspace/meta-agent have up-to-date index.
+// Skip generation when output is already newer than the script and all docs (fast startup).
+function shouldGenerateInternalDocs() {
+  const outputPath = join(projectRoot, 'apps', 'backend', 'src', 'utils', 'internalDocs.ts');
+  const scriptPath = join(projectRoot, 'scripts', 'generate-internal-docs.mjs');
+  const docsDir = join(projectRoot, 'docs');
+  try {
+    const outStat = statSync(outputPath, { throwIfNoEntry: false });
+    if (!outStat) return true;
+    const outMtime = outStat.mtimeMs;
+    const scriptStat = statSync(scriptPath, { throwIfNoEntry: false });
+    if (scriptStat && scriptStat.mtimeMs > outMtime) return true;
+    const entries = readdirSync(docsDir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isFile() && e.name.endsWith('.md')) {
+        const st = statSync(join(docsDir, e.name), { throwIfNoEntry: false });
+        if (st && st.mtimeMs > outMtime) return true;
+      }
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+if (shouldGenerateInternalDocs()) {
+  try {
+    execSync('node scripts/generate-internal-docs.mjs', { cwd: projectRoot, stdio: 'inherit' });
+  } catch (err) {
+    console.error('Internal docs generator failed; sandbox may have stale or missing docs.');
+    process.exit(1);
+  }
+}
 
 // Spawn the sandbox process
 const sandboxProcess = spawn('pnpm', ['arc', 'sandbox'], {

@@ -38,8 +38,17 @@ import {
   sendInviteEmail,
 } from "../../utils/workspaceInvites";
 
+
 import { getWorkspaceApiKey } from "./agent-keys";
 import { createAgentModel } from "./agent-model";
+import {
+  getInternalDocsPromptSection,
+  READ_INTERNAL_DOC_TOOL_DESCRIPTION,
+} from "./internalDocsPrompt";
+import {
+  executeReadInternalDoc,
+  type ReadInternalDocState,
+} from "./internalDocTool";
 import type { LlmObserver } from "./llmObserver";
 import { wrapToolsWithObserver } from "./llmObserver";
 import { HELPMATON_PRODUCT_DESCRIPTION } from "./metaAgentProductContext";
@@ -85,7 +94,9 @@ For get_agent, delete_agent, and configure_agent you must use an agent ID from l
 ## Rules
 - Use the provided tools to perform actions. Do not make up or assume data.
 - For agent configuration changes, always use configure_agent(agentId, message) with a clear description of what to change. Pass an agent ID from list_agents, not _workspace or workspace.
-- Confirm destructive actions (e.g. delete agent) with the user when appropriate.`;
+- Confirm destructive actions (e.g. delete agent) with the user when appropriate.
+${getInternalDocsPromptSection()}
+`;
 
 export function createWorkspaceAgentDescriptor(
   workspaceId: string
@@ -190,6 +201,17 @@ function createWorkspaceAgentTools(
 ): Record<string, any> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool types
   const tools: Record<string, any> = {};
+  const readInternalDocState: ReadInternalDocState = { callCount: 0 };
+
+  tools.read_internal_doc = tool({
+    description: READ_INTERNAL_DOC_TOOL_DESCRIPTION,
+    parameters: z.object({ docId: z.string().min(1) }).strict(),
+    // @ts-expect-error - AI SDK execute signature
+    execute: async (args: unknown) => {
+      const { docId } = z.object({ docId: z.string().min(1) }).parse(args);
+      return await executeReadInternalDoc(readInternalDocState, docId);
+    },
+  });
 
   tools.get_workspace = tool({
     description:
