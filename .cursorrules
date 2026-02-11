@@ -95,7 +95,7 @@ After completing a task (or significant step), you must:
 
 ## Reduce UI code size
 
-13. Instead of having big components, opt to have more small components instead. Make generic stateless prop-driven commponents for UI bits.
+13. Instead of having big components, opt to have more small components instead. Make generic stateless prop-driven components for UI bits.
 
 ## Review and improve
 

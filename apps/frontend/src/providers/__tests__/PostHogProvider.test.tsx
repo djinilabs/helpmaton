@@ -16,8 +16,18 @@ describe("posthogIdentity", () => {
       expect(shouldAliasBeforeIdentify(null, "uid-1")).toBe(false);
     });
 
-    it("returns true when current id is different user", () => {
-      expect(shouldAliasBeforeIdentify("user/uid-other", "uid-1")).toBe(true);
+    it("returns false when current id is empty string", () => {
+      expect(shouldAliasBeforeIdentify("", "uid-1")).toBe(false);
+    });
+
+    it("returns true when current id is uuid-like anonymous (typical PostHog anonymous id)", () => {
+      expect(
+        shouldAliasBeforeIdentify("018e4590-2a3b-7000-8000-1a2b3c4d5e6f", "uid-1")
+      ).toBe(true);
+    });
+
+    it("returns false when current id is different identified user (no alias between user/* ids)", () => {
+      expect(shouldAliasBeforeIdentify("user/uid-other", "uid-1")).toBe(false);
     });
   });
 });

@@ -1,5 +1,7 @@
 import { PostHog } from "posthog-node";
 
+import type { SubscriptionPlan } from "./subscriptionPlans";
+
 let phClient: PostHog | null = null;
 
 /**
@@ -124,11 +126,11 @@ export function identifyUser(
 
 /**
  * Update the subscription plan person property in PostHog for a user.
- * Call this whenever the subscription plan changes (webhooks, change-plan API, sync, grace-period downgrade).
+ * Call this whenever the subscription plan changes (webhooks, change-plan API, grace-period downgrade).
  */
 export function updatePostHogUserSubscriptionPlan(
   userId: string,
-  plan: "free" | "starter" | "pro"
+  plan: SubscriptionPlan
 ): void {
   identifyUser(userId, { subscription_plan: plan });
 }

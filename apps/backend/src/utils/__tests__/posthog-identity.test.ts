@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockIdentify = vi.hoisted(() => vi.fn());
 vi.mock("posthog-node", () => ({
@@ -10,10 +10,21 @@ vi.mock("posthog-node", () => ({
 import * as posthog from "../posthog";
 
 describe("updatePostHogUserSubscriptionPlan", () => {
+  let previousPostHogApiKey: string | undefined;
+
   beforeEach(() => {
     mockIdentify.mockClear();
+    previousPostHogApiKey = process.env.POSTHOG_API_KEY;
     process.env.POSTHOG_API_KEY = "test-key";
     posthog.initPostHog();
+  });
+
+  afterEach(() => {
+    if (previousPostHogApiKey !== undefined) {
+      process.env.POSTHOG_API_KEY = previousPostHogApiKey;
+    } else {
+      delete process.env.POSTHOG_API_KEY;
+    }
   });
 
   it("calls identify with subscription_plan for starter", () => {
