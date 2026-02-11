@@ -55,7 +55,7 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Send tweet
-        uses: smapiot/send-tweet-v2-action@v2
+        uses: smapiot/send-tweet-v2-action@v1
         with:
           status: ${{ steps.build-tweet.outputs.tweet }}
           consumer-key: ${{ secrets.X_API_KEY }}
