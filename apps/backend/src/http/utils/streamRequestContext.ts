@@ -64,7 +64,7 @@ async function setupAgentContext(
   modelReferer: string,
   context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
   conversationId?: string,
-  llmObserver?: LlmObserver
+  llmObserver?: LlmObserver,
 ): Promise<{
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -94,13 +94,13 @@ async function setupAgentContext(
                 `[${index + 1}] Document: ${result.documentName}${
                   result.folderPath ? ` (${result.folderPath})` : ""
                 }\nSimilarity: ${(result.similarity * 100).toFixed(
-                  1
-                )}%\nContent:\n${result.snippet}\n`
+                  1,
+                )}%\nContent:\n${result.snippet}\n`,
             )
             .join("\n---\n\n");
         },
       },
-    }
+    },
   );
 
   return {
@@ -115,7 +115,7 @@ async function setupAgentContext(
  * Extracts and decodes the request body
  */
 function extractRequestBody(
-  event: LambdaUrlEvent | APIGatewayProxyEventV2
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
 ): string {
   if (!event.body) {
     return "";
@@ -178,8 +178,8 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
               .refine(
                 (data) =>
                   data.content !== undefined || data.parts !== undefined,
-                { message: "Message must have either 'content' or 'parts'" }
-              )
+                { message: "Message must have either 'content' or 'parts'" },
+              ),
           )
           .min(1);
         // Use parse (not strict) for ai-sdk compatibility, but validate structure
@@ -187,7 +187,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
         messages = validated as UIMessage[];
       } else {
         throw badRequest(
-          "Invalid message array format: each message must have a 'role' property"
+          "Invalid message array format: each message must have a 'role' property",
         );
       }
     }
@@ -208,13 +208,13 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
             ? `Validation failed: ${error.issues
                 .map((e) => `${e.path.join(".")}: ${e.message}`)
                 .join("; ")}`
-            : "Invalid request body format"
+            : "Invalid request body format",
         );
       }
     } else {
       // Invalid JSON structure - throw validation error
       throw badRequest(
-        "Request body must be either plain text, an array of messages, or an object with a 'messages' property"
+        "Request body must be either plain text, an array of messages, or an object with a 'messages' property",
       );
     }
   }
@@ -232,7 +232,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
         typeof msg === "object" &&
         "parts" in msg &&
         Array.isArray(msg.parts) &&
-        msg.parts.length > 0
+        msg.parts.length > 0,
     );
 
     // Log for debugging file attachment issues
@@ -276,8 +276,8 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
               part &&
               typeof part === "object" &&
               "type" in part &&
-              part.type === "file"
-          )
+              part.type === "file",
+          ),
       );
       if (convertedMessagesWithFiles.length > 0) {
         console.log("[Stream Handler] Converted messages with file parts:", {
@@ -290,7 +290,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                     part &&
                     typeof part === "object" &&
                     "type" in part &&
-                    part.type === "file"
+                    part.type === "file",
                 )
               : [],
           })),
@@ -315,7 +315,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                   fileUrl.startsWith("data;")
                 ) {
                   throw badRequest(
-                    "Inline file data (base64/data URLs) is not allowed. Files must be uploaded to S3 first."
+                    "Inline file data (base64/data URLs) is not allowed. Files must be uploaded to S3 first.",
                   );
                 }
                 // Ensure it's a valid URL
@@ -337,7 +337,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                 imageUrl.startsWith("data;")
               ) {
                 throw badRequest(
-                  "Inline image data (base64/data URLs) is not allowed. Images must be uploaded to S3 first."
+                  "Inline image data (base64/data URLs) is not allowed. Images must be uploaded to S3 first.",
                 );
               }
               // Ensure it's a valid URL
@@ -382,8 +382,8 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
               part &&
               typeof part === "object" &&
               "type" in part &&
-              (part.type === "image" || part.type === "file")
-          )
+              (part.type === "image" || part.type === "file"),
+          ),
       );
       if (modelMessagesWithFiles.length > 0) {
         console.log("[Stream Handler] Model messages with file parts:", {
@@ -400,7 +400,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                     part &&
                     typeof part === "object" &&
                     "type" in part &&
-                    (part.type === "image" || part.type === "file")
+                    (part.type === "image" || part.type === "file"),
                 ),
             }))
             .filter((m) => m.hasFiles),
@@ -419,12 +419,12 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                     part &&
                     typeof part === "object" &&
                     "type" in part &&
-                    part.type === "file"
-                )
+                    part.type === "file",
+                ),
             ).length,
             modelMessageCount: modelMessages.length,
             convertedMessageCount: convertedMessages.length,
-          }
+          },
         );
       }
     } catch (error) {
@@ -475,7 +475,7 @@ async function validateCreditsAndReserveBeforeLLM(
   usesByok: boolean,
   endpointType: EndpointType,
   context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
-  conversationId?: string
+  conversationId?: string,
 ): Promise<string | undefined> {
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -493,7 +493,7 @@ async function validateCreditsAndReserveBeforeLLM(
     usesByok,
     endpointType,
     context,
-    conversationId
+    conversationId,
   );
 }
 
@@ -502,13 +502,13 @@ async function validateCreditsAndReserveBeforeLLM(
  */
 async function validateSubscriptionAndLimitsStream(
   workspaceId: string,
-  endpointType: EndpointType
+  endpointType: EndpointType,
 ): Promise<string | undefined> {
   return await validateSubscriptionAndLimits(workspaceId, endpointType);
 }
 
 const requireConversationId = (
-  event: LambdaUrlEvent | APIGatewayProxyEventV2
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
 ): string => {
   const conversationId =
     event.headers["x-conversation-id"] || event.headers["X-Conversation-Id"];
@@ -522,16 +522,18 @@ const resolveCorsOrigins = async (
   workspaceId: string,
   agentId: string,
   endpointType: EndpointType,
-  event: LambdaUrlEvent | APIGatewayProxyEventV2
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
 ): Promise<{ allowedOrigins: string[] | null; origin: string | undefined }> => {
   const allowedOrigins =
-    endpointType === "stream" ? await getAllowedOrigins(workspaceId, agentId) : null;
+    endpointType === "stream"
+      ? await getAllowedOrigins(workspaceId, agentId)
+      : null;
   const origin = event.headers["origin"] || event.headers["Origin"];
   return { allowedOrigins, origin };
 };
 
 const requireLambdaContext = (
-  event: LambdaUrlEvent | APIGatewayProxyEventV2
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
 ) => {
   const awsRequestId = event.requestContext?.requestId;
 
@@ -541,10 +543,10 @@ const requireLambdaContext = (
       {
         hasRequestContext: !!event.requestContext,
         requestIdInEvent: event.requestContext?.requestId,
-      }
+      },
     );
     throw new Error(
-      "Request ID is missing from event. Context setup should have set this before calling buildStreamRequestContext."
+      "Request ID is missing from event. Context setup should have set this before calling buildStreamRequestContext.",
     );
   }
 
@@ -556,10 +558,10 @@ const requireLambdaContext = (
         awsRequestId,
         hasRequestContext: !!event.requestContext,
         requestIdInEvent: event.requestContext?.requestId,
-      }
+      },
     );
     throw new Error(
-      `Context not available for workspace credit transactions. RequestId: ${awsRequestId}`
+      `Context not available for workspace credit transactions. RequestId: ${awsRequestId}`,
     );
   }
 
@@ -578,7 +580,7 @@ const logBodyPartsPreview = (bodyText: string) => {
             typeof msg === "object" &&
             "parts" in msg &&
             Array.isArray(msg.parts) &&
-            msg.parts.length > 0
+            msg.parts.length > 0,
         )
       : parsedBody &&
         typeof parsedBody === "object" &&
@@ -590,7 +592,7 @@ const logBodyPartsPreview = (bodyText: string) => {
             typeof msg === "object" &&
             "parts" in msg &&
             Array.isArray(msg.parts) &&
-            msg.parts.length > 0
+            msg.parts.length > 0,
         );
 
     if (hasPartsInBody) {
@@ -612,23 +614,25 @@ const addMessageTimestamps = (params: {
   convertedMessages: UIMessage[];
 }) => {
   const now = new Date().toISOString();
-  const convertedMessagesWithTimestamps = params.convertedMessages.map((msg) => {
-    if (msg.role === "user" && !msg.generationStartedAt) {
-      return {
-        ...msg,
-        generationStartedAt: now,
-        generationEndedAt: now,
-      };
-    }
-    if (msg.role === "system" && !msg.generationStartedAt) {
-      return {
-        ...msg,
-        generationStartedAt: now,
-        generationEndedAt: now,
-      };
-    }
-    return msg;
-  });
+  const convertedMessagesWithTimestamps = params.convertedMessages.map(
+    (msg) => {
+      if (msg.role === "user" && !msg.generationStartedAt) {
+        return {
+          ...msg,
+          generationStartedAt: now,
+          generationEndedAt: now,
+        };
+      }
+      if (msg.role === "system" && !msg.generationStartedAt) {
+        return {
+          ...msg,
+          generationStartedAt: now,
+          generationEndedAt: now,
+        };
+      }
+      return msg;
+    },
+  );
 
   const uiMessageWithTimestamps =
     params.uiMessage.role === "user" && !params.uiMessage.generationStartedAt
@@ -640,29 +644,6 @@ const addMessageTimestamps = (params: {
       : params.uiMessage;
 
   return { convertedMessagesWithTimestamps, uiMessageWithTimestamps };
-};
-
-const fetchExistingConversationMessages = async (params: {
-  db: Awaited<ReturnType<typeof database>>;
-  workspaceId: string;
-  agentId: string;
-  conversationId: string;
-}): Promise<UIMessage[] | undefined> => {
-  try {
-    const conversationPk = `conversations/${params.workspaceId}/${params.agentId}/${params.conversationId}`;
-    const existingConversation = await params.db["agent-conversations"].get(
-      conversationPk
-    );
-    if (existingConversation && existingConversation.messages) {
-      return existingConversation.messages as UIMessage[];
-    }
-  } catch (error) {
-    console.log(
-      "[buildStreamRequestContext] Could not fetch existing conversation messages:",
-      error instanceof Error ? error.message : String(error)
-    );
-  }
-  return undefined;
 };
 
 const buildInsertionMessages = (params: {
@@ -683,27 +664,27 @@ const buildInsertionMessages = (params: {
   return messagesToInsert;
 };
 
-const insertMessagesBeforeFirstUser = (
+const insertMessagesBeforeLastUser = (
   convertedMessages: UIMessage[],
-  messagesToInsert: UIMessage[]
+  messagesToInsert: UIMessage[],
 ): UIMessage[] => {
   if (messagesToInsert.length === 0) {
     return convertedMessages;
   }
-  const userMessageIndex = convertedMessages.findIndex(
-    (msg) => msg.role === "user"
+  const lastUserIndex = convertedMessages.findLastIndex(
+    (msg) => msg.role === "user",
   );
-  if (userMessageIndex === -1) {
+  if (lastUserIndex === -1) {
     return [...messagesToInsert, ...convertedMessages];
   }
   const updatedConvertedMessages = [...convertedMessages];
-  updatedConvertedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
+  updatedConvertedMessages.splice(lastUserIndex, 0, ...messagesToInsert);
   return updatedConvertedMessages;
 };
 
 const logClientToolResults = (
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"],
-  modelMessages: ModelMessage[]
+  modelMessages: ModelMessage[],
 ) => {
   const clientToolNames = new Set<string>();
   if (
@@ -748,7 +729,7 @@ const logClientToolResults = (
 export async function buildStreamRequestContext(
   event: LambdaUrlEvent | APIGatewayProxyEventV2,
   pathParams: PathParameters,
-  authResult: { authenticated: boolean; userId?: string }
+  authResult: { authenticated: boolean; userId?: string },
 ): Promise<StreamRequestContext> {
   const { workspaceId, agentId, secret, endpointType } = pathParams;
 
@@ -757,13 +738,13 @@ export async function buildStreamRequestContext(
     workspaceId,
     agentId,
     endpointType,
-    event
+    event,
   );
 
   // Validate subscription and limits
   const subscriptionId = await validateSubscriptionAndLimitsStream(
     workspaceId,
-    endpointType
+    endpointType,
   );
 
   // Setup database connection
@@ -781,9 +762,8 @@ export async function buildStreamRequestContext(
   let usesByok: boolean;
 
   if (agentId === WORKSPACE_AGENT_ID) {
-    const { setupWorkspaceAgentAndTools } = await import(
-      "./workspaceAgentTools"
-    );
+    const { setupWorkspaceAgentAndTools } =
+      await import("./workspaceAgentTools");
     const workspaceSetup = await setupWorkspaceAgentAndTools(workspaceId, {
       modelReferer,
       userId: authResult.userId,
@@ -803,12 +783,12 @@ export async function buildStreamRequestContext(
       reservedAgentIds.includes(agentId as (typeof reservedAgentIds)[number])
     ) {
       throw badRequest(
-        "Reserved agent ID cannot be used for config-test. Use a specific agent ID."
+        "Reserved agent ID cannot be used for config-test. Use a specific agent ID.",
       );
     }
     const { agent: loadedAgent } = await validateWorkspaceAndAgent(
       workspaceId,
-      agentId
+      agentId,
     );
     const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
     usesByok = workspaceApiKey !== null;
@@ -817,7 +797,7 @@ export async function buildStreamRequestContext(
       workspaceId,
       agentId,
       loadedAgent as AgentRecordForConfig,
-      { llmObserver, userId: authResult.userId }
+      { llmObserver, userId: authResult.userId },
     );
     const modelName =
       typeof loadedAgent.modelName === "string"
@@ -840,7 +820,7 @@ export async function buildStreamRequestContext(
         maxOutputTokens: loadedAgent.maxOutputTokens,
         stopSequences: loadedAgent.stopSequences,
       },
-      llmObserver
+      llmObserver,
     );
     tools = configSetup.tools;
     agent = {
@@ -856,7 +836,7 @@ export async function buildStreamRequestContext(
       modelReferer,
       lambdaContext,
       conversationId,
-      llmObserver
+      llmObserver,
     );
     agent = normalSetup.agent;
     model = normalSetup.model;
@@ -879,18 +859,9 @@ export async function buildStreamRequestContext(
   const { convertedMessagesWithTimestamps, uiMessageWithTimestamps } =
     addMessageTimestamps({ uiMessage, convertedMessages });
 
-  // Fetch existing conversation messages to check for existing knowledge injection
-  const existingConversationMessages = await fetchExistingConversationMessages({
-    db,
-    workspaceId,
-    agentId,
-    conversationId,
-  });
-
   // Inject knowledge from workspace documents if enabled
-  const { injectKnowledgeIntoMessages } = await import(
-    "../../utils/knowledgeInjection"
-  );
+  const { injectKnowledgeIntoMessages } =
+    await import("../../utils/knowledgeInjection");
   const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
     workspaceId,
     agent,
@@ -900,7 +871,6 @@ export async function buildStreamRequestContext(
     agentId,
     conversationId,
     usesByok,
-    existingConversationMessages
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
@@ -916,9 +886,9 @@ export async function buildStreamRequestContext(
     rerankingResultMessage,
     knowledgeInjectionMessage,
   });
-  const updatedConvertedMessages = insertMessagesBeforeFirstUser(
+  const updatedConvertedMessages = insertMessagesBeforeLastUser(
     convertedMessagesWithTimestamps,
-    messagesToInsert
+    messagesToInsert,
   );
 
   llmObserver.recordInputMessages(updatedConvertedMessages);
@@ -940,7 +910,7 @@ export async function buildStreamRequestContext(
     usesByok,
     endpointType,
     lambdaContext,
-    conversationId
+    conversationId,
   );
 
   return {

@@ -216,6 +216,72 @@ describe("knowledgeInjection", () => {
       ).toEqual(expect.arrayContaining(["memory", "graph"]));
     });
 
+    it("should run memory search and entity extraction in parallel when both are enabled", async () => {
+      vi.useFakeTimers();
+      const agent = {
+        enableKnowledgeInjection: true,
+        enableKnowledgeInjectionFromMemories: true,
+        enableKnowledgeInjectionFromDocuments: false,
+      };
+
+      const memoryDelayMs = 100;
+      const entityDelayMs = 50;
+      mockSearchMemory.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve([
+                  {
+                    content: "User prefers TypeScript",
+                    date: "2026-01-01",
+                    timestamp: "2026-01-01T12:00:00.000Z",
+                    similarity: 0.9,
+                  },
+                ]),
+              memoryDelayMs,
+            );
+          }),
+      );
+      mockExtractEntitiesFromPrompt.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(["User"]), entityDelayMs);
+          }),
+      );
+      mockSearchGraphByEntities.mockResolvedValue([
+        {
+          snippet: "Subject: User\nPredicate: likes\nObject: React",
+          similarity: 1,
+          subject: "User",
+          predicate: "likes",
+          object: "React",
+        },
+      ]);
+
+      const messages: ModelMessage[] = [
+        { role: "user", content: "What tools does the user like?" },
+      ];
+
+      const resultPromise = injectKnowledgeIntoMessages(
+        "workspace-1",
+        agent,
+        messages,
+        undefined,
+        undefined,
+        "agent-1",
+      );
+      // Advance past entity delay (50ms); both memory and entity should already be invoked (parallel).
+      await vi.advanceTimersByTimeAsync(entityDelayMs);
+      expect(mockSearchMemory).toHaveBeenCalled();
+      expect(mockExtractEntitiesFromPrompt).toHaveBeenCalled();
+      // Advance remaining time so memory promise resolves and graph runs.
+      await vi.advanceTimersByTimeAsync(memoryDelayMs - entityDelayMs);
+      await resultPromise;
+      expect(mockSearchGraphByEntities).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
     it("should return original messages when no search results found", async () => {
       const agent = {
         enableKnowledgeInjection: true,
@@ -846,7 +912,7 @@ describe("knowledgeInjection", () => {
       expect(mockSearchDocuments).not.toHaveBeenCalled();
     });
 
-    it("should handle multiple user messages correctly", async () => {
+    it("should handle multiple user messages correctly (query from last user, insert before last)", async () => {
       const agent = {
         enableKnowledgeInjection: true,
       };
@@ -866,11 +932,25 @@ describe("knowledgeInjection", () => {
         messages,
       );
 
-      // Knowledge should be injected before the FIRST user message
+      // Query should be the last (current) user message
+      expect(mockSearchDocuments).toHaveBeenCalledWith(
+        "workspace-1",
+        "Second query",
+        expect.any(Number),
+        expect.anything(),
+      );
+
+      // Knowledge should be injected before the LAST user message: [system, user1, assistant, knowledge, user2]
+      expect(result.modelMessages[0].role).toBe("system");
+      expect(result.modelMessages[0].content).toBe("System");
       expect(result.modelMessages[1].role).toBe("user");
-      expect(result.modelMessages[1].content).toContain("Knowledge from");
-      expect(result.modelMessages[2].role).toBe("user");
-      expect(result.modelMessages[2].content).toBe("First query");
+      expect(result.modelMessages[1].content).toBe("First query");
+      expect(result.modelMessages[2].role).toBe("assistant");
+      expect(result.modelMessages[2].content).toBe("Response");
+      expect(result.modelMessages[3].role).toBe("user");
+      expect(result.modelMessages[3].content).toContain("Knowledge from");
+      expect(result.modelMessages[4].role).toBe("user");
+      expect(result.modelMessages[4].content).toBe("Second query");
     });
 
     describe("credit management integration", () => {

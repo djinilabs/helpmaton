@@ -1,7 +1,5 @@
 import { PostHog } from "posthog-node";
 
-import type { SubscriptionPlan } from "./subscriptionPlans";
-
 let phClient: PostHog | null = null;
 
 /**
@@ -44,7 +42,7 @@ export function initPostHog(): PostHog | null {
   // Only initialize if API key is provided
   if (!apiKey) {
     console.warn(
-      "[PostHog] POSTHOG_API_KEY not provided, PostHog will not be initialized"
+      "[PostHog] POSTHOG_API_KEY not provided, PostHog will not be initialized",
     );
     return null;
   }
@@ -54,10 +52,10 @@ export function initPostHog(): PostHog | null {
     process.env.ARC_ENV === "production"
       ? "production"
       : process.env.ARC_ENV === "staging"
-      ? "staging"
-      : process.env.NODE_ENV === "production"
-      ? "production"
-      : "development";
+        ? "staging"
+        : process.env.NODE_ENV === "production"
+          ? "production"
+          : "development";
 
   phClient = new PostHog(apiKey, {
     host: apiHost,
@@ -106,7 +104,7 @@ export async function flushPostHog(timeoutMs = 2000): Promise<void> {
  */
 export function identifyUser(
   userId: string,
-  properties?: Record<string, unknown>
+  properties?: Record<string, unknown>,
 ): void {
   if (!phClient) {
     return;
@@ -125,12 +123,14 @@ export function identifyUser(
 }
 
 /**
- * Update the subscription plan person property in PostHog for a user.
- * Call this whenever the subscription plan changes (webhooks, change-plan API, grace-period downgrade).
+ * Update PostHog person with current subscription plan (for analytics segmentation).
+ * Call after subscription create/update/sync so plan is reflected in PostHog.
+ * @param userId - User ID (without prefix)
+ * @param plan - Plan name (e.g. "starter", "pro", "free")
  */
 export function updatePostHogUserSubscriptionPlan(
   userId: string,
-  plan: SubscriptionPlan
+  plan: string,
 ): void {
   identifyUser(userId, { subscription_plan: plan });
 }
@@ -142,7 +142,7 @@ export function updatePostHogUserSubscriptionPlan(
  */
 export function identifyWorkspaceGroup(
   workspaceId: string,
-  properties?: Record<string, unknown>
+  properties?: Record<string, unknown>,
 ): void {
   if (!phClient) {
     return;

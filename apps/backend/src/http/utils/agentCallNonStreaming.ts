@@ -6,7 +6,6 @@ import type {
   TokenUsage,
 } from "../../utils/conversationLogger";
 import type { UIMessage } from "../../utils/messageTypes";
-import { Sentry, ensureError } from "../../utils/sentry";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import { setupAgentAndTools, type AgentSetupOptions } from "./agentSetup";
@@ -70,7 +69,7 @@ type NonStreamingExecutionResult = {
 export const buildNonStreamingSetupOptions = (
   agentId: string,
   options: AgentCallNonStreamingOptions | undefined,
-  llmObserver: ReturnType<typeof createLlmObserver>
+  llmObserver: ReturnType<typeof createLlmObserver>,
 ): AgentSetupOptions => ({
   modelReferer: options?.modelReferer || "http://localhost:3000/api/bridge",
   callDepth: 0,
@@ -92,8 +91,8 @@ export const buildNonStreamingSetupOptions = (
             `[${index + 1}] Document: ${result.documentName}${
               result.folderPath ? ` (${result.folderPath})` : ""
             }\nSimilarity: ${(result.similarity * 100).toFixed(
-              1
-            )}%\nContent:\n${result.snippet}\n`
+              1,
+            )}%\nContent:\n${result.snippet}\n`,
         )
         .join("\n---\n\n");
     },
@@ -102,51 +101,11 @@ export const buildNonStreamingSetupOptions = (
 
 const buildNonStreamingMessages = (
   message: string,
-  conversationHistory: UIMessage[] | undefined
+  conversationHistory: UIMessage[] | undefined,
 ): { uiMessage: UIMessage; allMessages: UIMessage[] } => {
   const uiMessage = convertTextToUIMessage(message);
   const allMessages = [...(conversationHistory || []), uiMessage];
   return { uiMessage, allMessages };
-};
-
-const fetchExistingConversationMessages = async (params: {
-  db: Awaited<ReturnType<typeof import("../../tables").database>>;
-  workspaceId: string;
-  agentId: string;
-  conversationId?: string;
-}): Promise<UIMessage[] | undefined> => {
-  if (!params.conversationId) {
-    return undefined;
-  }
-
-  try {
-    const conversationPk = `conversations/${params.workspaceId}/${params.agentId}/${params.conversationId}`;
-    const existingConversation = await params.db["agent-conversations"].get(
-      conversationPk
-    );
-    if (existingConversation && existingConversation.messages) {
-      return existingConversation.messages as UIMessage[];
-    }
-  } catch (error) {
-    console.log(
-      "[callAgentNonStreaming] Could not fetch existing conversation messages:",
-      error instanceof Error ? error.message : String(error)
-    );
-    Sentry.captureException(ensureError(error), {
-      tags: {
-        context: "agent-non-streaming",
-        operation: "fetch-conversation",
-      },
-      extra: {
-        workspaceId: params.workspaceId,
-        agentId: params.agentId,
-        conversationId: params.conversationId,
-      },
-      level: "warning",
-    });
-  }
-
-  return undefined;
 };
 
 const executeNonStreamingLLMCall = async (params: {
@@ -168,15 +127,17 @@ const executeNonStreamingLLMCall = async (params: {
   let llmCallAttempted = false;
   let result: Awaited<ReturnType<typeof generateText>> | undefined;
   let tokenUsage: TokenUsage | undefined;
-  let extractionResult: ReturnType<typeof extractTokenUsageAndCosts> | undefined;
+  let extractionResult:
+    | ReturnType<typeof extractTokenUsageAndCosts>
+    | undefined;
 
   const modelCapabilities = resolveModelCapabilities(
     "openrouter",
-    params.finalModelName
+    params.finalModelName,
   );
   const effectiveTools = resolveToolsForCapabilities(
     params.tools,
-    modelCapabilities
+    modelCapabilities,
   );
 
   try {
@@ -192,7 +153,7 @@ const executeNonStreamingLLMCall = async (params: {
       params.usesByok,
       params.endpointType,
       params.context,
-      params.conversationId
+      params.conversationId,
     );
 
     const generateOptions = prepareLLMCall(
@@ -201,7 +162,7 @@ const executeNonStreamingLLMCall = async (params: {
       params.modelMessagesWithKnowledge,
       params.endpointType,
       params.workspaceId,
-      params.agentId
+      params.agentId,
     );
 
     console.log("[Non-Streaming Handler] generateText arguments:", {
@@ -217,7 +178,9 @@ const executeNonStreamingLLMCall = async (params: {
 
     llmCallAttempted = true;
     result = await generateText({
-      model: params.model as unknown as Parameters<typeof generateText>[0]["model"],
+      model: params.model as unknown as Parameters<
+        typeof generateText
+      >[0]["model"],
       system: params.agent.systemPrompt,
       messages: params.modelMessagesWithKnowledge,
       ...(effectiveTools ? { tools: effectiveTools } : {}),
@@ -229,7 +192,7 @@ const executeNonStreamingLLMCall = async (params: {
       result as unknown as GenerateTextResultWithTotalUsage,
       undefined,
       params.finalModelName,
-      params.endpointType
+      params.endpointType,
     );
     tokenUsage = extractionResult.tokenUsage;
 
@@ -247,7 +210,7 @@ const executeNonStreamingLLMCall = async (params: {
         extractionResult.openrouterGenerationIds,
         params.endpointType,
         params.context,
-        params.conversationId
+        params.conversationId,
       );
     } else {
       console.warn("[Bridge] No context available for credit adjustment", {
@@ -268,15 +231,14 @@ const executeNonStreamingLLMCall = async (params: {
         (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
       !hasGenerationIds
     ) {
-      const { cleanupReservationWithoutTokenUsage } = await import(
-        "./generationCreditManagement"
-      );
+      const { cleanupReservationWithoutTokenUsage } =
+        await import("./generationCreditManagement");
       await cleanupReservationWithoutTokenUsage(
         params.db,
         reservationId,
         params.workspaceId,
         params.agentId,
-        params.endpointType
+        params.endpointType,
       );
     } else if (
       reservationId &&
@@ -291,7 +253,7 @@ const executeNonStreamingLLMCall = async (params: {
           workspaceId: params.workspaceId,
           agentId: params.agentId,
           reservationId,
-        }
+        },
       );
     }
 
@@ -306,7 +268,7 @@ const executeNonStreamingLLMCall = async (params: {
       reservationId,
       params.conversationId,
       params.agentId,
-      params.endpointType
+      params.endpointType,
     );
 
     return {
@@ -328,7 +290,7 @@ const executeNonStreamingLLMCall = async (params: {
         llmCallAttempted,
         params.usesByok,
         params.endpointType,
-        params.context
+        params.context,
       );
     }
     throw error;
@@ -343,7 +305,7 @@ export async function callAgentNonStreaming(
   workspaceId: string,
   agentId: string,
   message: string,
-  options?: AgentCallNonStreamingOptions
+  options?: AgentCallNonStreamingOptions,
 ): Promise<AgentCallNonStreamingResult> {
   const { database } = await import("../../tables");
   const db = await database();
@@ -354,39 +316,29 @@ export async function callAgentNonStreaming(
   const setupOptions = buildNonStreamingSetupOptions(
     agentId,
     options,
-    llmObserver
+    llmObserver,
   );
 
   // Build conversation history: previous messages + current message
   const { allMessages } = buildNonStreamingMessages(
     message,
-    options?.conversationHistory
+    options?.conversationHistory,
   );
-
-  // Fetch existing conversation messages to check for existing knowledge injection
-  const existingConversationMessages = await fetchExistingConversationMessages({
-    db,
-    workspaceId,
-    agentId,
-    conversationId: options?.conversationId,
-  });
 
   const { agent, model, tools, usesByok } = await setupAgentAndTools(
     workspaceId,
     agentId,
     allMessages, // Pass conversation history including current message
-    setupOptions
+    setupOptions,
   );
 
   // Convert messages to ModelMessage format
-  const modelMessages: ModelMessage[] = convertUIMessagesToModelMessages(
-    allMessages
-  );
+  const modelMessages: ModelMessage[] =
+    convertUIMessagesToModelMessages(allMessages);
 
   // Inject knowledge from workspace documents if enabled
-  const { injectKnowledgeIntoMessages } = await import(
-    "../../utils/knowledgeInjection"
-  );
+  const { injectKnowledgeIntoMessages } =
+    await import("../../utils/knowledgeInjection");
   const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
     workspaceId,
     agent,
@@ -396,7 +348,6 @@ export async function callAgentNonStreaming(
     agentId,
     options?.conversationId,
     usesByok,
-    existingConversationMessages
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
@@ -413,7 +364,7 @@ export async function callAgentNonStreaming(
       rerankingRequestMessage: rerankingRequestMessage ?? undefined,
       rerankingResultMessage: rerankingResultMessage ?? undefined,
       knowledgeInjectionMessage: knowledgeInjectionMessage ?? undefined,
-    })
+    }),
   );
 
   // Derive the model name from the agent's modelName if set, otherwise use default
@@ -446,7 +397,7 @@ export async function callAgentNonStreaming(
       model,
       modelMessages,
       tools,
-      options?.abortSignal
+      options?.abortSignal,
     );
     console.log("[Non-Streaming Handler] LLM response received:", {
       workspaceId,
@@ -466,7 +417,8 @@ export async function callAgentNonStreaming(
       tokenUsage: finalTokenUsage,
       rawResult: execution.result,
       openrouterGenerationId: execution.extractionResult.openrouterGenerationId,
-      openrouterGenerationIds: execution.extractionResult.openrouterGenerationIds,
+      openrouterGenerationIds:
+        execution.extractionResult.openrouterGenerationIds,
       provisionalCostUsd: execution.extractionResult.provisionalCostUsd,
       observerEvents: llmObserver.getEvents(),
       usesByok,
