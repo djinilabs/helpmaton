@@ -14,7 +14,10 @@ import {
   getSubscription as getLemonSqueezySubscription,
   getOrder as getLemonSqueezyOrder,
 } from "../../utils/lemonSqueezy";
-import { resetPostHogRequestContext } from "../../utils/posthog";
+import {
+  resetPostHogRequestContext,
+  updatePostHogUserSubscriptionPlan,
+} from "../../utils/posthog";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import {
   sendPaymentFailedEmail,
@@ -260,6 +263,8 @@ async function handleSubscriptionCreated(
     // Don't throw - subscription is updated, usage plan association can be retried
   }
 
+  updatePostHogUserSubscriptionPlan(updatedSubscription.userId, plan);
+
   console.log(
     `[Webhook subscription_created] Successfully updated subscription ${subscriptionId} from ${subscription.plan} to ${plan} plan`
   );
@@ -383,6 +388,8 @@ async function handleSubscriptionUpdated(
     });
     // Don't throw - subscription is updated, usage plan association can be retried
   }
+
+  updatePostHogUserSubscriptionPlan(subscription.userId, plan);
 
   console.log(
     `[Webhook] Updated subscription ${subscription.pk} with new status: ${attributes.status}`
@@ -733,6 +740,8 @@ async function handleSubscriptionExpired(
     endsAt: undefined,
     lastSyncedAt: new Date().toISOString(),
   });
+
+  updatePostHogUserSubscriptionPlan(subscription.userId, "free");
 
   console.log(
     `[Webhook] Expired subscription ${subscription.pk}, downgraded to free`

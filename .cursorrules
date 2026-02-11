@@ -95,4 +95,13 @@ After completing a task (or significant step), you must:
 
 ## Reduce UI code size
 
-12. Instead of having big components, opt to have more small components instead. Make generic stateless prop-driven commponents for UI bits.
+13. Instead of having big components, opt to have more small components instead. Make generic stateless prop-driven commponents for UI bits.
+
+## Review and improve
+
+14. When the user asks to "review and improve", you should do the following:
+- Think about the changes you just did.
+- Review them critically.
+- Think of fixes and improvements that should be done.
+- Create a plan for such improvements.
+- Implement the plan

@@ -6,6 +6,7 @@
 import { database } from "../tables";
 import type { SubscriptionRecord } from "../tables/schema";
 
+import { updatePostHogUserSubscriptionPlan } from "./posthog";
 import { Sentry, ensureError } from "./sentry";
 import { sendSubscriptionDowngradedEmail } from "./subscriptionEmails";
 import type { SubscriptionPlan } from "./subscriptionPlans";
@@ -139,6 +140,8 @@ export async function checkGracePeriod(
       renewsAt: undefined,
       endsAt: undefined,
     });
+
+    updatePostHogUserSubscriptionPlan(subscription.userId, "free");
 
     // Send downgrade email
     try {

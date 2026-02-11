@@ -123,6 +123,17 @@ export function identifyUser(
 }
 
 /**
+ * Update the subscription plan person property in PostHog for a user.
+ * Call this whenever the subscription plan changes (webhooks, change-plan API, sync, grace-period downgrade).
+ */
+export function updatePostHogUserSubscriptionPlan(
+  userId: string,
+  plan: "free" | "starter" | "pro"
+): void {
+  identifyUser(userId, { subscription_plan: plan });
+}
+
+/**
  * Identify a workspace as a group in PostHog
  * @param workspaceId - Workspace ID
  * @param properties - Workspace properties (member_count, agent_count, subscription_tier, etc.)

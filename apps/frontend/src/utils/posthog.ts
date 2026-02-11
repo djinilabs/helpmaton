@@ -52,6 +52,9 @@ export function initPostHog(): void {
     disable_session_recording: false,
     // Enable autocapture for user interactions
     autocapture: true,
+    // Mask all element text in autocapture (avoids PII e.g. email in forms before identify).
+    // Tradeoff: no text from any element is sent (labels, links, etc.), not just inputs.
+    mask_all_text: true,
     // Persist user across sessions
     persistence: "localStorage+cookie",
   });
