@@ -7,7 +7,7 @@ import { estimateInputTokens } from "../tokenEstimation";
 describe("estimateImageGenerationCost", () => {
   it("uses request pricing when available", () => {
     const provider = "openrouter";
-    const modelName = "perplexity/sonar-pro-search";
+    const modelName = "cohere/rerank-v3";
     const shortPrompt = "A small prompt.";
     const longPrompt =
       "A much longer prompt that should not change the request pricing output.";
