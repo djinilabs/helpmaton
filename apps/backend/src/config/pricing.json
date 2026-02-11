@@ -6987,9 +6987,9 @@
         },
         "qwen/qwen3-235b-a22b": {
           "usd": {
-            "input": 0.19999999999999998,
-            "output": 0.6,
-            "cachedInput": 0.02
+            "input": 0.22,
+            "output": 0.88,
+            "cachedInput": 0.022000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -12557,5 +12557,5 @@
       }
     }
   },
-  "lastUpdated": "2026-02-10T00:24:06.039Z"
+  "lastUpdated": "2026-02-11T00:24:16.981Z"
 }
