@@ -3,6 +3,28 @@ import { PostHog } from "posthog-node";
 let phClient: PostHog | null = null;
 
 /**
+ * Request-scoped user id for PostHog (used to avoid leaking identity across requests in a reused process).
+ * Reset at the start of every HTTP handler so events are never attributed to a previous request's user.
+ */
+let currentRequestDistinctId: string | null = null;
+
+/**
+ * Reset user identification at the start of every HTTP request.
+ * Call this first in request middleware so events in this request are never attributed to a previous request's user.
+ */
+export function resetPostHogRequestContext(): void {
+  currentRequestDistinctId = null;
+}
+
+/**
+ * Distinct ID for the current request (set when user is identified in this request).
+ * Used by trackEvent when req is not passed so endpoints don't need to pass req for attribution.
+ */
+export function getCurrentRequestDistinctId(): string | null {
+  return currentRequestDistinctId;
+}
+
+/**
  * Initialize PostHog for analytics tracking in Lambda environment
  * Should be called once at application startup
  * Uses a guard to prevent multiple initializations
@@ -73,10 +95,11 @@ export async function flushPostHog(timeoutMs = 2000): Promise<void> {
 }
 
 /**
- * Identify a user in PostHog
- * Uses consistent `user/${userId}` format to match frontend identification
+ * Identify a user in PostHog (official approach for attribution)
+ * Uses consistent `user/${userId}` as distinct_id so all capture() calls with
+ * the same id are attributed to this person. Must match frontend identify().
  * @param userId - User ID (without prefix)
- * @param properties - Optional user properties (include email for correlation)
+ * @param properties - Optional person properties (include email for correlation)
  */
 export function identifyUser(
   userId: string,
@@ -88,6 +111,7 @@ export function identifyUser(
 
   try {
     const distinctId = `user/${userId}`;
+    currentRequestDistinctId = distinctId;
     phClient.identify({
       distinctId,
       properties: properties || {},

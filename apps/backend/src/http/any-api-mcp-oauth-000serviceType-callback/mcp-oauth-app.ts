@@ -5,6 +5,7 @@ import { isUserAuthorized } from "../../tables/permissions";
 import type { McpServerRecord } from "../../tables/schema";
 import { PERMISSION_LEVELS } from "../../tables/schema";
 import { expressErrorHandler } from "../utils/errorHandler";
+import { posthogResetMiddleware } from "../utils/posthogMiddleware";
 import { requireSessionFromRequest, userRef } from "../utils/session";
 
 type McpOAuthTokenInfo = {
@@ -555,6 +556,8 @@ export const createApp: () => express.Application = () => {
   const app = express();
   app.set("etag", false);
   app.set("trust proxy", true);
+
+  app.use(posthogResetMiddleware);
 
   // GET /api/mcp/oauth/:serviceType/callback - OAuth callback handler for MCP servers
   app.get("/api/mcp/oauth/:serviceType/callback", handleMcpOauthCallback);

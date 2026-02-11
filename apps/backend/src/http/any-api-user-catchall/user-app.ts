@@ -1,6 +1,7 @@
 import express from "express";
 
 import { expressErrorHandler } from "../utils/errorHandler";
+import { posthogResetMiddleware } from "../utils/posthogMiddleware";
 
 // Import user API key route handlers
 import { registerDeleteUserApiKeys } from "./routes/delete-user-api-keys";
@@ -20,6 +21,8 @@ export const createApp = (): express.Application => {
   app.set("etag", false);
   app.set("trust proxy", true);
   app.use(express.json());
+
+  app.use(posthogResetMiddleware);
 
   // Add request logging middleware
   app.use((req, res, next) => {

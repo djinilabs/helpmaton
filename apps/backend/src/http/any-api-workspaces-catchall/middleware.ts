@@ -9,6 +9,7 @@ import {
 } from "../../utils/creditErrors";
 import { ensureError } from "../../utils/sentry";
 import { verifyAccessToken } from "../../utils/tokenUtils";
+import { ensurePostHogIdentityFromRequest } from "../../utils/tracking";
 import { requireSessionFromRequest, userRef } from "../utils/session";
 
 /**
@@ -209,15 +210,14 @@ export const requireAuth = async (
     // Verify JWT access token (throws unauthorized if invalid)
     const tokenPayload = await verifyAccessToken(bearerToken);
 
-    // Debug logging to diagnose authentication issues
-    console.log(
-      `[requireAuth] JWT token validated - userId: ${tokenPayload.userId}, email: ${tokenPayload.email}`
-    );
+    if (process.env.ARC_ENV !== "production") {
+      console.log(
+        `[requireAuth] JWT token validated - userId: ${tokenPayload.userId}, email: ${tokenPayload.email}`
+      );
+    }
 
     // Set user information on request for compatibility with existing code
     req.userRef = userRef(tokenPayload.userId);
-
-    console.log(`[requireAuth] Set req.userRef to: ${req.userRef}`);
     // Create a session-like object for compatibility
     req.session = {
       user: {
@@ -227,6 +227,7 @@ export const requireAuth = async (
       expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
     };
 
+    ensurePostHogIdentityFromRequest(req);
     next();
   } catch (error) {
     handleError(error, next, "requireAuth");
@@ -261,6 +262,7 @@ export const requireAuthOrSession = async (
           expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
         };
 
+        ensurePostHogIdentityFromRequest(req);
         return next();
       } catch {
         // JWT validation failed, fall through to cookie-based auth
@@ -274,6 +276,7 @@ export const requireAuthOrSession = async (
     }
     req.session = session;
     req.userRef = userRef(session.user.id);
+    ensurePostHogIdentityFromRequest(req);
     next();
   } catch (error) {
     handleError(error, next, "requireAuthOrSession");

@@ -27,6 +27,7 @@ import {
   buildConversationErrorInfo,
 } from "../../utils/conversationLogger";
 import type { UIMessage } from "../../utils/messageTypes";
+import { resetPostHogRequestContext } from "../../utils/posthog";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { getTransactionBuffer, type AugmentedContext } from "../../utils/workspaceCreditContext";
@@ -537,6 +538,8 @@ export async function processWebhookTask(options: {
   context: AugmentedContext;
   awsRequestId?: string;
 }): Promise<void> {
+  resetPostHogRequestContext();
+
   const {
     workspaceId,
     agentId,

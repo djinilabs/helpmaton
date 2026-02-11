@@ -1,6 +1,7 @@
 import express from "express";
 
 import { expressErrorHandler } from "../utils/errorHandler";
+import { posthogResetMiddleware } from "../utils/posthogMiddleware";
 
 // Import all route handlers (sorted alphabetically)
 import { registerDeleteAgentEvalJudge } from "./routes/delete-agent-eval-judge";
@@ -122,6 +123,8 @@ export const createApp: () => express.Application = () => {
   app.set("etag", false);
   app.set("trust proxy", true);
   app.use(express.json());
+
+  app.use(posthogResetMiddleware);
 
   // Add request logging middleware
   app.use((req, res, next) => {

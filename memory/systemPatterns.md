@@ -94,6 +94,7 @@
 - **SQS Queue Processing**: No retries on error via `handlingSQSErrors`
   - Handler failures are logged and reported to Sentry
   - Wrapper always returns empty `batchItemFailures` to avoid redelivery
+- **PostHog user identification (backend)**: Centralized in auth middleware. `ensurePostHogIdentityFromRequest(req)` is called from `requireAuth` / `requireAuthOrSession` (workspaces and subscription apps) after setting `req.userRef` and `req.session`. In authenticated routes use `trackEvent(name, properties)` or `trackBusinessEvent(feature, action, properties)` without passing `req`; user is taken from request context. Pass `req` only when the handler did not go through that middleware, or pass `properties.user_id` in non-request flows (e.g. webhooks, queues).
 
 ### Naming Conventions
 

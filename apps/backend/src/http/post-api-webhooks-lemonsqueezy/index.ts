@@ -14,12 +14,16 @@ import {
   getSubscription as getLemonSqueezySubscription,
   getOrder as getLemonSqueezyOrder,
 } from "../../utils/lemonSqueezy";
+import { resetPostHogRequestContext } from "../../utils/posthog";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import {
   sendPaymentFailedEmail,
   sendSubscriptionCancelledEmail,
 } from "../../utils/subscriptionEmails";
-import { getUserSubscription } from "../../utils/subscriptionUtils";
+import {
+  getUserEmailById,
+  getUserSubscription,
+} from "../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 
@@ -819,7 +823,11 @@ async function handleOrderCreated(
     lemonSqueezyOrderId: orderData.id,
   });
 
-  // Track credit purchase completion
+  // Track credit purchase completion (include user when present in custom data from checkout)
+  const purchaseUserId = customData?.userId as string | undefined;
+  const purchaseUserEmail = purchaseUserId
+    ? await getUserEmailById(purchaseUserId)
+    : undefined;
   trackBusinessEvent(
     "credits",
     "purchased",
@@ -827,6 +835,12 @@ async function handleOrderCreated(
       workspace_id: workspaceId,
       amount_nano_usd: creditAmount,
       order_id: orderData.id,
+      ...(purchaseUserId
+        ? {
+            user_id: purchaseUserId,
+            user_email: purchaseUserEmail,
+          }
+        : {}),
     },
     undefined // Webhook doesn't have user request context
   );
@@ -1024,6 +1038,8 @@ async function findUserIdByEmail(email: string): Promise<string | undefined> {
 export const handler = adaptHttpHandler(
   handlingErrors(
     async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+      resetPostHogRequestContext();
+
       // Extract request ID for context access
       const awsRequestId = event.requestContext?.requestId;
       const context = getContextFromRequestId(awsRequestId);

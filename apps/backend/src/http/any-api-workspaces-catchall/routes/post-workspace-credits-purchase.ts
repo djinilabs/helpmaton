@@ -13,6 +13,7 @@ import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { purchaseCreditsSchema } from "../../utils/schemas/workspaceSchemas";
+import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 export function registerPostWorkspaceCreditsPurchase(
@@ -108,6 +109,7 @@ export function registerPostWorkspaceCreditsPurchase(
         }
       );
 
+      const userId = extractUserId(req);
       const checkout = await createCheckout({
         storeId,
         variantId: creditVariantId,
@@ -115,6 +117,7 @@ export function registerPostWorkspaceCreditsPurchase(
         checkoutData: {
           custom: {
             workspaceId,
+            ...(userId ? { userId } : {}),
           },
         },
         productOptions: {

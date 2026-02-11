@@ -23,6 +23,7 @@ import {
   updateConversation,
 } from "../../utils/conversationLogger";
 import type { UIMessage } from "../../utils/messageTypes";
+import { resetPostHogRequestContext } from "../../utils/posthog";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { trackEvent } from "../../utils/tracking";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
@@ -737,6 +738,8 @@ export async function processSlackTask(
   message: BotWebhookTaskMessage,
   context: SlackTaskContext
 ): Promise<void> {
+  resetPostHogRequestContext();
+
   const {
     workspaceId,
     agentId,

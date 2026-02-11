@@ -4,12 +4,15 @@ import { database } from "../../tables";
 import { isUserAuthorized } from "../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../tables/schema";
 import { expressErrorHandler } from "../utils/errorHandler";
+import { posthogResetMiddleware } from "../utils/posthogMiddleware";
 import { requireSessionFromRequest, userRef } from "../utils/session";
 
 export const createApp: () => express.Application = () => {
   const app = express();
   app.set("etag", false);
   app.set("trust proxy", true);
+
+  app.use(posthogResetMiddleware);
 
   // GET /api/email/oauth/:provider/callback - Fixed OAuth callback handler (workspaceId from state)
   app.get("/api/email/oauth/:provider/callback", async (req, res, next) => {

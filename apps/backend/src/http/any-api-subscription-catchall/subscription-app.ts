@@ -42,8 +42,10 @@ import {
   getSubscriptionMcpServers,
 } from "../../utils/subscriptionUtils";
 import { verifyAccessToken } from "../../utils/tokenUtils";
+import { ensurePostHogIdentityFromRequest } from "../../utils/tracking";
 import { validateBody } from "../utils/bodyValidation";
 import { expressErrorHandler } from "../utils/errorHandler";
+import { posthogResetMiddleware } from "../utils/posthogMiddleware";
 import { modifySubscriptionSchema } from "../utils/schemas/subscriptionSchemas";
 import { userRef } from "../utils/session";
 
@@ -97,6 +99,8 @@ export const createApp: () => express.Application = () => {
   app.set("trust proxy", true);
   app.use(express.json());
 
+  app.use(posthogResetMiddleware);
+
   // Add request logging middleware
   app.use((req, res, next) => {
     console.log(`[${req.method}] ${req.path}`);
@@ -135,6 +139,7 @@ export const createApp: () => express.Application = () => {
         expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
       };
 
+      ensurePostHogIdentityFromRequest(req);
       next();
     } catch (error) {
       handleError(error, next, "requireAuth");

@@ -2,7 +2,7 @@ import { boomify } from "@hapi/boom";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 
 import { isCreditUserError } from "../../utils/creditErrors";
-import { flushPostHog } from "../../utils/posthog";
+import { flushPostHog, resetPostHogRequestContext } from "../../utils/posthog";
 import { Sentry, flushSentry, ensureError } from "../../utils/sentry";
 import { getAllowedOrigins } from "../../utils/streamServerUtils";
 import { trackBusinessEvent } from "../../utils/tracking";
@@ -345,6 +345,8 @@ export const internalHandler = async (
   event: APIGatewayProxyEventV2,
   responseStream: HttpResponseStream
 ): Promise<void> => {
+  resetPostHogRequestContext();
+
   console.log("[Stream Handler] Internal handler called", {
     event,
     responseStream,

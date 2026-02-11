@@ -9,7 +9,7 @@ import {
   InsufficientCreditsError,
   SpendingLimitExceededError,
 } from "../../utils/creditErrors";
-import { flushPostHog } from "../../utils/posthog";
+import { flushPostHog, resetPostHogRequestContext } from "../../utils/posthog";
 import { Sentry, ensureError, flushSentry } from "../../utils/sentry";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
@@ -373,6 +373,8 @@ export const internalHandler = async (
   event: APIGatewayProxyEventV2,
   responseStream: HttpResponseStream
 ): Promise<void> => {
+  resetPostHogRequestContext();
+
   console.log("[Widget Handler] Internal handler called", {
     event,
   });

@@ -1,6 +1,11 @@
 import { extractUserId } from "../http/utils/session";
 
-import { getPostHogClient, identifyUser, identifyWorkspaceGroup } from "./posthog";
+import {
+  getCurrentRequestDistinctId,
+  getPostHogClient,
+  identifyUser,
+  identifyWorkspaceGroup,
+} from "./posthog";
 
 /**
  * Type-safe event properties
@@ -15,29 +20,34 @@ export interface TrackingProperties {
   [key: string]: unknown;
 }
 
-/**
- * Extract user ID from request and identify in PostHog
- * @param req - Request object with userRef or session
- * @returns User ID or undefined
- */
-function identifyUserFromRequest(req: {
+export type RequestWithUser = {
   userRef?: string;
   session?: { user?: { id?: string; email?: string | null } };
-}): { userId?: string; userEmail?: string } {
+};
+
+/**
+ * Single place for request-based PostHog user identification.
+ * Call this from auth middleware after setting req.userRef/session so all tracking in that request
+ * is attributed to the user without each endpoint passing req to trackEvent/trackBusinessEvent.
+ */
+export function ensurePostHogIdentityFromRequest(req: RequestWithUser): void {
   const userId = extractUserId(req);
   const userEmail = req.session?.user?.email || undefined;
   if (userId) {
     identifyUser(userId, userEmail ? { email: userEmail } : undefined);
   }
-  return { userId, userEmail };
 }
 
 /**
  * Track a custom event in PostHog (backend)
- * Automatically identifies user and includes context
+ * User identification is centralized: auth middleware calls ensurePostHogIdentityFromRequest(req),
+ * so in authenticated routes you usually only need trackEvent(name, properties) and the user is
+ * attributed from request context. Pass req only when the handler has req and didn't go through
+ * that middleware, or pass properties.user_id for non-request flows (e.g. webhooks).
+ *
  * @param eventName - Name of the event (snake_case format: feature_action)
  * @param properties - Event properties (workspace_id, agent_id, etc.)
- * @param req - Optional request object for user identification
+ * @param req - Optional; omit when auth middleware already ran (user taken from request context)
  *
  * Event checklist:
  * - Always include `workspace_id` for workspace-scoped actions
@@ -49,10 +59,7 @@ function identifyUserFromRequest(req: {
 export function trackEvent(
   eventName: string,
   properties?: TrackingProperties,
-  req?: {
-    userRef?: string;
-    session?: { user?: { id?: string; email?: string | null } };
-  }
+  req?: RequestWithUser
 ): void {
   const phClient = getPostHogClient();
   if (!phClient) {
@@ -61,19 +68,28 @@ export function trackEvent(
   }
 
   try {
-    // Identify user if request is provided
+    // Identify user: from req, from properties.user_id, or from request context (set by auth middleware)
     let userId: string | undefined;
     let userEmail: string | undefined;
     if (req) {
-      ({ userId, userEmail } = identifyUserFromRequest(req));
+      userId = extractUserId(req);
+      userEmail = req.session?.user?.email || undefined;
+      const alreadySet = getCurrentRequestDistinctId();
+      if (userId && alreadySet !== `user/${userId}`) {
+        identifyUser(userId, userEmail ? { email: userEmail } : undefined);
+      }
     } else if (properties?.user_id) {
-      // If user_id is in properties, identify user
       userEmail = properties.user_email;
       identifyUser(
         properties.user_id,
         userEmail ? { email: userEmail } : undefined
       );
       userId = properties.user_id;
+    } else {
+      const requestDistinctId = getCurrentRequestDistinctId();
+      if (requestDistinctId?.startsWith("user/")) {
+        userId = requestDistinctId.slice(5);
+      }
     }
 
     // Determine environment
@@ -94,8 +110,10 @@ export function trackEvent(
       });
     }
 
-    // Capture event with distinct ID
-    const distinctId = userId ? `user/${userId}` : "system";
+    // Capture event with distinct ID (user from req, properties, or request context)
+    const distinctId = userId
+      ? `user/${userId}`
+      : getCurrentRequestDistinctId() ?? "system";
 
     phClient.capture({
       distinctId,
@@ -118,19 +136,13 @@ export function trackEvent(
 
 /**
  * Track business event with standardized properties
- * @param feature - Feature name (e.g., "agent", "document")
- * @param action - Action performed (e.g., "created", "updated")
- * @param properties - Additional properties
- * @param req - Optional request object for user identification
+ * User is attributed from request context when auth middleware ran; pass req only when needed.
  */
 export function trackBusinessEvent(
   feature: string,
   action: string,
   properties?: TrackingProperties,
-  req?: {
-    userRef?: string;
-    session?: { user?: { id?: string; email?: string | null } };
-  }
+  req?: RequestWithUser
 ): void {
   const eventName = `${feature}_${action}`;
   trackEvent(eventName, properties, req);
@@ -138,17 +150,11 @@ export function trackBusinessEvent(
 
 /**
  * Track errors with context
- * @param error - Error object or message
- * @param context - Additional context (feature, workspace, etc.)
- * @param req - Optional request object for user identification
  */
 export function trackError(
   error: Error | string,
   context?: TrackingProperties,
-  req?: {
-    userRef?: string;
-    session?: { user?: { id?: string; email?: string | null } };
-  }
+  req?: RequestWithUser
 ): void {
   const errorMessage = error instanceof Error ? error.message : error;
   const errorType = error instanceof Error ? error.constructor.name : "Unknown";
