@@ -5,7 +5,6 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { queryUsageStats } from "../../../utils/aggregation";
 import { trackBusinessEvent } from "../../../utils/tracking";
-import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -147,17 +146,13 @@ export const registerGetAgentUsage = (app: express.Application) => {
         endDate,
       });
 
-      // Track agent usage viewing
-      const userId = extractUserId(req);
-      if (userId) {
-        trackBusinessEvent("agent", "usage_viewed", {
-          workspace_id: workspaceId,
-          agent_id: agentId,
-          start_date: startDate.toISOString().split("T")[0],
-          end_date: endDate.toISOString().split("T")[0],
-          user_id: userId,
-        });
-      }
+      // User attributed from auth middleware (ensurePostHogIdentityFromRequest)
+      trackBusinessEvent("agent", "usage_viewed", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        start_date: startDate.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+      });
 
       const totalCost = Object.values(stats.costByType || {}).reduce(
         (sum, value) => sum + value,

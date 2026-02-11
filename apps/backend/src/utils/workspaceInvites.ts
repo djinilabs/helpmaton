@@ -16,6 +16,7 @@ import {
   getUserByEmail,
   createFreeSubscription,
 } from "./subscriptionUtils";
+import { trackEvent } from "./tracking";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -69,6 +70,11 @@ export async function createUserFromInvite(email: string): Promise<string> {
 
   // Create free subscription for the user
   await createFreeSubscription(userId);
+
+  trackEvent("user_signed_up", {
+    user_id: userId,
+    user_email: normalizedEmail,
+  });
 
   return userId;
 }

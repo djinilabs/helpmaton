@@ -37,6 +37,7 @@ import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { validateBody } from "../utils/bodyValidation";
 import { expressErrorHandler } from "../utils/errorHandler";
 import { extractWorkspaceContextFromToken } from "../utils/jwtUtils";
+import { posthogResetMiddleware } from "../utils/posthogMiddleware";
 import { scrapeRequestSchema } from "../utils/schemas/requestSchemas";
 
 import {
@@ -111,6 +112,8 @@ export function createApp(): express.Application {
   app.set("etag", false);
   app.set("trust proxy", true);
   app.use(express.json());
+
+  app.use(posthogResetMiddleware);
 
   app.post("/api/scrape", async (req, res, next) => {
     let browser: Browser | null = null;
@@ -293,7 +296,7 @@ export function createApp(): express.Application {
             workspace_id: workspaceId,
             agent_id: agentId,
           },
-          undefined,
+          req
         );
 
         res.setHeader("Content-Type", "application/xml");

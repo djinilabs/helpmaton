@@ -17,18 +17,16 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
   }>();
   const { data: session, status } = useSession();
 
-  // Identify user when authenticated
+  // Identify user when authenticated (PostHog official approach: identify as soon as we have session
+  // so all subsequent capture() calls are attributed to this distinct_id; matches backend user/${id})
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id) {
-      // Check if PostHog is initialized and loaded
       if (posthog && typeof posthog.identify === "function") {
-        // Prefix user ID to distinguish from workspace/system IDs
         posthog.identify(`user/${session.user.id}`, {
           email: session.user.email || undefined,
         });
       }
     } else if (status === "unauthenticated") {
-      // Reset user association on logout
       if (posthog && typeof posthog.reset === "function") {
         posthog.reset();
       }

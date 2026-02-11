@@ -26,6 +26,7 @@ import type {
 } from "../../tables/schema";
 import {
   getSubscriptionAgentKeys,
+  getSubscriptionByUserIdIfExists,
   getSubscriptionChannels,
   getSubscriptionMcpServers,
   checkSubscriptionLimits,
@@ -48,11 +49,51 @@ describe("subscriptionUtils - Resource Counting", () => {
     "mcp-server": {
       query: vi.fn(),
     },
+    subscription: {
+      query: vi.fn(),
+    },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockDatabase.mockResolvedValue(mockDb);
+  });
+
+  describe("getSubscriptionByUserIdIfExists", () => {
+    it("returns undefined when user has no subscription", async () => {
+      mockDb.subscription.query.mockResolvedValue({ items: [] });
+
+      const result = await getSubscriptionByUserIdIfExists("user-123");
+
+      expect(result).toBeUndefined();
+      expect(mockDb.subscription.query).toHaveBeenCalledWith({
+        IndexName: "byUserId",
+        KeyConditionExpression: "userId = :userId",
+        ExpressionAttributeValues: { ":userId": "user-123" },
+      });
+    });
+
+    it("returns subscription when user has one", async () => {
+      const subscription: SubscriptionRecord = {
+        pk: "subscriptions/sub-123",
+        sk: "subscription",
+        userId: "user-123",
+        plan: "free",
+        status: "active",
+        version: 1,
+        createdAt: "2024-01-01T00:00:00.000Z",
+      };
+      mockDb.subscription.query.mockResolvedValue({ items: [subscription] });
+
+      const result = await getSubscriptionByUserIdIfExists("user-123");
+
+      expect(result).toEqual(subscription);
+      expect(mockDb.subscription.query).toHaveBeenCalledWith({
+        IndexName: "byUserId",
+        KeyConditionExpression: "userId = :userId",
+        ExpressionAttributeValues: { ":userId": "user-123" },
+      });
+    });
   });
 
   describe("getSubscriptionAgentKeys", () => {

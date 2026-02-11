@@ -4,13 +4,16 @@ import { ExpressAuthConfig } from "@auth/express";
 import { getDefined, once } from "./utils";
 import { ensureSubscriptionApiKeyActive } from "./utils/apiGatewayUsagePlans";
 import { getDynamoDBAdapter } from "./utils/authUtils";
+import { identifyUser } from "./utils/posthog";
 import { Sentry, ensureError, initSentry } from "./utils/sentry";
 import {
+  getSubscriptionByUserIdIfExists,
   getUserSubscription,
   getUserByEmail,
   getUserById,
 } from "./utils/subscriptionUtils";
 import { verifyPasskeyLoginToken } from "./utils/tokenUtils";
+import { trackEvent } from "./utils/tracking";
 
 // Initialize Sentry when this module is loaded
 initSentry();
@@ -162,6 +165,9 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               subscriptionId,
               subscription.plan
             );
+            identifyUser(userId, {
+              email: user.email ?? undefined,
+            });
             return true;
           } catch (error) {
             console.error(
@@ -250,6 +256,10 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
 
             return true;
           }
+
+          // Check if user already had a subscription (so we only track "user signed up" when newly created)
+          const hadExistingSubscription =
+            (await getSubscriptionByUserIdIfExists(userId)) != null;
 
           // Create subscription with retries
           let subscription: Awaited<
@@ -348,6 +358,19 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
             // Block login if subscription creation failed
             return false;
           }
+
+          // Track "user signed up" when this was the first time we created a subscription for this user
+          if (!hadExistingSubscription) {
+            trackEvent("user_signed_up", {
+              user_id: userId,
+              user_email: user.email ?? undefined,
+            });
+          }
+
+          // Identify user in PostHog on every successful sign-in (sign-up and login)
+          identifyUser(userId, {
+            email: user.email ?? undefined,
+          });
 
           // Extract subscriptionId from pk (format: "subscriptions/{subscriptionId}")
           const subscriptionId = subscription.pk.replace("subscriptions/", "");

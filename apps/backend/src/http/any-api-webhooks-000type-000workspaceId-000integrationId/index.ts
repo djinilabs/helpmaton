@@ -9,6 +9,7 @@ import type { BotIntegrationRecord } from "../../tables/schema";
 import { enqueueBotWebhookTask } from "../../utils/botWebhookQueue";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { resetPostHogRequestContext } from "../../utils/posthog";
 import { initSentry } from "../../utils/sentry";
 import { trackEvent } from "../../utils/tracking";
 
@@ -80,6 +81,8 @@ interface DiscordInteraction {
 export const handler = adaptHttpHandler(
   handlingErrors(
     async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+      resetPostHogRequestContext();
+
       // Extract type, workspaceId and integrationId from path parameters
       const type = event.pathParameters?.type;
       const workspaceId = event.pathParameters?.workspaceId;

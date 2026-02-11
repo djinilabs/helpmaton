@@ -85,6 +85,7 @@ vi.mock("../../../utils/sentry", () => ({
 vi.mock("../../../utils/posthog", () => ({
   initPostHog: vi.fn(),
   flushPostHog: vi.fn().mockResolvedValue(undefined),
+  resetPostHogRequestContext: vi.fn(),
 }));
 
 vi.mock("../../../utils/tracking", () => ({

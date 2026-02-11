@@ -84,6 +84,9 @@ export const createApp: () => Promise<express.Application> = async () => {
   app.set("trust proxy", true);
   const frontendUrl = resolveFrontendUrl();
 
+  const { posthogResetMiddleware } = await import("../utils/posthogMiddleware");
+  app.use(posthogResetMiddleware);
+
   app.use("/api/auth/callback/email", buildAuthGateMiddleware(frontendUrl));
   app.use("/api/auth", ExpressAuth(await authConfig()));
   // Error handler must be last

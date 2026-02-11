@@ -59,6 +59,25 @@ export async function getUserSubscription(
 }
 
 /**
+ * Get existing subscription for a user without creating one
+ * @param userId - User ID
+ * @returns Subscription record or undefined if none exists
+ */
+export async function getSubscriptionByUserIdIfExists(
+  userId: string
+): Promise<SubscriptionRecord | undefined> {
+  const db = await database();
+  const result = await db.subscription.query({
+    IndexName: "byUserId",
+    KeyConditionExpression: "userId = :userId",
+    ExpressionAttributeValues: {
+      ":userId": userId,
+    },
+  });
+  return result.items[0];
+}
+
+/**
  * Get subscription by subscription ID
  * @param subscriptionId - Subscription ID (without "subscriptions/" prefix)
  * @returns Subscription record or undefined if not found

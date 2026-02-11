@@ -75,6 +75,7 @@ vi.mock("../../utils/generationErrorHandling", () => ({
 
 vi.mock("../../../utils/posthog", () => ({
   flushPostHog: vi.fn().mockResolvedValue(undefined),
+  resetPostHogRequestContext: vi.fn(),
 }));
 
 vi.mock("../../../utils/sentry", () => ({
