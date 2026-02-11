@@ -100,16 +100,24 @@ describe("continuation tool-round message (MissingToolResultsError fix)", () => 
     expect(assistantMessages).toHaveLength(1);
     const content = (assistantMessages[0] as { content: unknown[] }).content;
     const calls = content.filter(
-      (p: { type?: string }) => p && typeof p === "object" && p.type === "tool-call"
+      (p: unknown) =>
+        p && typeof p === "object" && "type" in p && p.type === "tool-call"
     );
     const results = content.filter(
-      (p: { type?: string }) =>
-        p && typeof p === "object" && p.type === "tool-result"
+      (p: unknown) =>
+        p &&
+        typeof p === "object" &&
+        "type" in p &&
+        p.type === "tool-result"
     );
     expect(calls).toHaveLength(2);
     expect(results).toHaveLength(2);
     const resultIds = new Set(
-      results.map((r: { toolCallId?: string }) => r.toolCallId)
+      results.map((r: unknown) =>
+        r && typeof r === "object" && "toolCallId" in r
+          ? (r as { toolCallId?: string }).toolCallId
+          : undefined
+      )
     );
     for (const c of calls as { toolCallId?: string }[]) {
       expect(resultIds.has(c.toolCallId)).toBe(true);

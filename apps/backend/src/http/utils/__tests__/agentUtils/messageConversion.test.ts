@@ -191,6 +191,7 @@ describe("convertUIMessagesToModelMessages", () => {
       | AssistantModelMessage
       | undefined;
     expect(assistantMsg).toBeDefined();
+    if (!assistantMsg) return;
     expect(Array.isArray(assistantMsg.content)).toBe(true);
     const content = assistantMsg.content as Array<
       { type: string; toolCallId?: string } & Record<string, unknown>
