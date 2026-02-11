@@ -2,13 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockCapture = vi.fn();
 const mockIdentify = vi.fn();
-const mockGroupIdentify = vi.fn();
 const mockGetCurrentRequestDistinctId = vi.fn();
 
 vi.mock("../posthog", () => ({
   getPostHogClient: () => ({
     capture: mockCapture,
-    groupIdentify: mockGroupIdentify,
+    groupIdentify: vi.fn(),
   }),
   identifyUser: (...args: unknown[]) => mockIdentify(...args),
   identifyWorkspaceGroup: vi.fn(),

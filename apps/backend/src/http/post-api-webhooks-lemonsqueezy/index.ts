@@ -824,7 +824,13 @@ async function handleOrderCreated(
   });
 
   // Track credit purchase completion (include user when present in custom data from checkout)
-  const purchaseUserId = customData?.userId as string | undefined;
+  const rawUserId = customData?.userId;
+  const purchaseUserId =
+    typeof rawUserId === "string" &&
+    rawUserId.length > 0 &&
+    rawUserId.length <= 256
+      ? rawUserId
+      : undefined;
   const purchaseUserEmail = purchaseUserId
     ? await getUserEmailById(purchaseUserId)
     : undefined;

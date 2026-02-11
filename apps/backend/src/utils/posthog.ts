@@ -5,6 +5,7 @@ let phClient: PostHog | null = null;
 /**
  * Request-scoped user id for PostHog (used to avoid leaking identity across requests in a reused process).
  * Reset at the start of every HTTP handler so events are never attributed to a previous request's user.
+ * Stored at module level; safe because Lambda runs one request per invocation (no concurrent requests in the same process).
  */
 let currentRequestDistinctId: string | null = null;
 
