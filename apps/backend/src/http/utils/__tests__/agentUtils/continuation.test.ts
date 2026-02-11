@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 import { buildContinuationInstructions } from "../../continuation";
+import { convertUIMessagesToModelMessages } from "../../messageConversion";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "../../toolFormatting";
 
 describe("buildContinuationInstructions", () => {
   it("should return empty string when no tool results", () => {
@@ -47,6 +52,68 @@ describe("buildContinuationInstructions", () => {
     const result = buildContinuationInstructions(toolResults);
     expect(result).toContain("notification");
     expect(result).not.toContain("other_tool");
+  });
+});
+
+describe("continuation tool-round message (MissingToolResultsError fix)", () => {
+  it("single assistant message with multiple tool calls and results converts so every tool call has a result", () => {
+    // Simulate the structure handleToolContinuation now builds: one assistant
+    // message with all tool-call parts then all tool-result parts.
+    const toolCalls = [
+      {
+        toolCallId: "tool_call_agent_async_LC4Khiq8Gi3O0ZShw0X1",
+        toolName: "call_agent_async",
+        args: { agentId: "agent1", message: "Do X" },
+      },
+      {
+        toolCallId: "tool_call_agent_async_DeKiDsEhVdOh01my2GoP",
+        toolName: "call_agent_async",
+        args: { agentId: "agent2", message: "Do Y" },
+      },
+    ];
+    const toolResults = [
+      {
+        toolCallId: "tool_call_agent_async_LC4Khiq8Gi3O0ZShw0X1",
+        toolName: "call_agent_async",
+        result: "Task created: t1",
+      },
+      {
+        toolCallId: "tool_call_agent_async_DeKiDsEhVdOh01my2GoP",
+        toolName: "call_agent_async",
+        result: "Task created: t2",
+      },
+    ];
+    const toolCallUIMessages = toolCalls.map(formatToolCallMessage);
+    const toolResultUIMessages = toolResults.map(formatToolResultMessage);
+    const toolRoundContent = [
+      ...toolCallUIMessages.flatMap((m) => m.content),
+      ...toolResultUIMessages.flatMap((m) => m.content),
+    ];
+    const messages = [
+      { role: "user" as const, content: "Run both" },
+      { role: "assistant" as const, content: toolRoundContent },
+    ];
+
+    const modelMessages = convertUIMessagesToModelMessages(messages);
+
+    const assistantMessages = modelMessages.filter((m) => m.role === "assistant");
+    expect(assistantMessages).toHaveLength(1);
+    const content = (assistantMessages[0] as { content: unknown[] }).content;
+    const calls = content.filter(
+      (p: { type?: string }) => p && typeof p === "object" && p.type === "tool-call"
+    );
+    const results = content.filter(
+      (p: { type?: string }) =>
+        p && typeof p === "object" && p.type === "tool-result"
+    );
+    expect(calls).toHaveLength(2);
+    expect(results).toHaveLength(2);
+    const resultIds = new Set(
+      results.map((r: { toolCallId?: string }) => r.toolCallId)
+    );
+    for (const c of calls as { toolCallId?: string }[]) {
+      expect(resultIds.has(c.toolCallId)).toBe(true);
+    }
   });
 });
 

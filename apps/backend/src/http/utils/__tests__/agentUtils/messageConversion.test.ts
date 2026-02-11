@@ -146,6 +146,65 @@ describe("convertUIMessagesToModelMessages", () => {
     } as AssistantModelMessage);
   });
 
+  it("should convert single assistant with multiple tool calls and results (continuation format, avoids MissingToolResultsError)", () => {
+    // Structure built by handleToolContinuation: one assistant message containing
+    // all tool-call parts then all tool-result parts, so every tool call has a result.
+    const messages: UIMessage[] = [
+      {
+        role: "user",
+        content: "Run both tools",
+      },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool_call_agent_async_ABC",
+            toolName: "call_agent_async",
+            args: { agentId: "a1", message: "Task 1" },
+          },
+          {
+            type: "tool-call",
+            toolCallId: "tool_call_agent_async_XYZ",
+            toolName: "call_agent_async",
+            args: { agentId: "a2", message: "Task 2" },
+          },
+          {
+            type: "tool-result",
+            toolCallId: "tool_call_agent_async_ABC",
+            toolName: "call_agent_async",
+            result: "Task ID: t1",
+          },
+          {
+            type: "tool-result",
+            toolCallId: "tool_call_agent_async_XYZ",
+            toolName: "call_agent_async",
+            result: "Task ID: t2",
+          },
+        ],
+      },
+    ];
+
+    const result = convertUIMessagesToModelMessages(messages);
+    expect(result).toHaveLength(2); // user + assistant
+    const assistantMsg = result.find((m) => m.role === "assistant") as
+      | AssistantModelMessage
+      | undefined;
+    expect(assistantMsg).toBeDefined();
+    expect(Array.isArray(assistantMsg.content)).toBe(true);
+    const content = assistantMsg.content as Array<
+      { type: string; toolCallId?: string } & Record<string, unknown>
+    >;
+    const toolCalls = content.filter((p) => p.type === "tool-call");
+    const toolResults = content.filter((p) => p.type === "tool-result");
+    expect(toolCalls).toHaveLength(2);
+    expect(toolResults).toHaveLength(2);
+    const resultIds = new Set(toolResults.map((r) => r.toolCallId));
+    for (const tc of toolCalls) {
+      expect(resultIds.has(tc.toolCallId)).toBe(true);
+    }
+  });
+
   it("should convert tool message with tool results", () => {
     const messages: UIMessage[] = [
       {

@@ -86,6 +86,20 @@ export async function handleToolContinuation(
     .filter((tr): tr is NonNullable<typeof tr> => tr != null)
     .map(formatToolResultMessage);
 
+  // Merge all tool calls and tool results into a single assistant message.
+  // convertUIMessagesToModelMessages uses appendToolResultsToFirstAssistant, which
+  // only appends results to the first assistant message. If we pass multiple
+  // assistant messages (one per tool call/result), only the first tool call would
+  // get results, causing AI_MissingToolResultsError for the rest.
+  const toolRoundContent = [
+    ...toolCallUIMessages.flatMap((m) => m.content),
+    ...toolResultUIMessages.flatMap((m) => m.content),
+  ];
+  const singleToolRoundMessage: UIMessage = {
+    role: "assistant",
+    content: toolRoundContent,
+  };
+
   // Combine messages, filtering out existing tool messages and system messages
   // (system prompt is passed separately via the system parameter to streamText)
   const allMessagesForContinuation: UIMessage[] = [
@@ -118,8 +132,7 @@ export async function handleToolContinuation(
 
       return true;
     }),
-    ...toolCallUIMessages,
-    ...toolResultUIMessages,
+    singleToolRoundMessage,
   ];
 
   console.log(
