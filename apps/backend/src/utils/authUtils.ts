@@ -1,4 +1,5 @@
 import { tables } from "@architect/functions";
+import type { AdapterUser } from "@auth/core/adapters";
 import { DynamoDBAdapter } from "@auth/dynamodb-adapter";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
@@ -79,10 +80,32 @@ export const getDynamoDBAdapter = once(async () => {
   // This change enables email-based user lookups via the GSI1 index
   // (see getUserByEmail in subscriptionUtils.ts)
   // The adapter will use these keys when querying by email or account provider
-  return DynamoDBAdapter(clientDoc, {
+  const baseAdapter = DynamoDBAdapter(clientDoc, {
     tableName,
     indexPartitionKey: "gsi1pk",
     indexSortKey: "gsi1sk",
     indexName: "GSI2",
   });
+
+  // Wrap adapter to track user_signed_up when the user record is created (not at login).
+  // Tracking is best-effort: if trackEvent throws, we log and still return the created user so sign-up never fails.
+  return {
+    ...baseAdapter,
+    createUser: async (user: AdapterUser) => {
+      const createdUser = await baseAdapter.createUser!(user);
+      try {
+        const { trackEvent } = await import("./tracking");
+        trackEvent("user_signed_up", {
+          user_id: createdUser.id,
+          user_email: createdUser.email ?? undefined,
+        });
+      } catch (error) {
+        console.warn(
+          "[authUtils] Failed to track user_signed_up:",
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+      return createdUser;
+    },
+  };
 });
