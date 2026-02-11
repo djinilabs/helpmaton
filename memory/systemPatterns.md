@@ -106,7 +106,7 @@
 ### Deployment Patterns
 
 - **PR Deployments**: Each PR creates CloudFormation stack
-- **Tweet on new PR**: GitHub Actions workflow `.github/workflows/tweet-on-pr.yml` runs on PR opened/reopened (targeting main) and posts from the Helpmaton X account via `ethomson/send-tweet-action`. X API credentials (OAuth 1.0a): `X_API_KEY` and `X_API_SECRET` from the portal (Consumer Key/Secret); `X_ACCESS_TOKEN` and `X_ACCESS_TOKEN_SECRET` from a one-time 3-legged OAuth flow (run `node scripts/x-oauth-get-user-tokens.mjs`). Portal Bearer Token cannot post tweets. See docs/tweet-on-pr-setup.md. Draft PRs and PRs with label `no-tweet` are skipped.
+- **Tweet on new PR**: GitHub Actions workflow `.github/workflows/tweet-on-pr.yml` runs on PR opened/reopened (targeting main) and posts from the Helpmaton X account via `smapiot/send-tweet-v2-action` (X API v2 so Free tier works; v1.1 returns 453). X API credentials (OAuth 1.0a): `X_API_KEY` and `X_API_SECRET` from the portal (Consumer Key/Secret); `X_ACCESS_TOKEN` and `X_ACCESS_TOKEN_SECRET` from a one-time 3-legged OAuth flow (run `node scripts/x-oauth-get-user-tokens.mjs`). Portal Bearer Token cannot post tweets. See docs/tweet-on-pr-setup.md. Draft PRs and PRs with label `no-tweet` are skipped.
 - **Infrastructure Changes**: Only via app.arc or Architect plugins
 - **No Direct AWS Changes**: All infrastructure changes through code
 - **Reserved Concurrency**: Use per-Lambda `config.arc` with `@aws concurrency <n>` when isolating handlers
