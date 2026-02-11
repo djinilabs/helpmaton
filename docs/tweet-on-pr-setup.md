@@ -1,6 +1,6 @@
 # Tweet on new PR – X API setup
 
-The GitHub workflow that tweets when a PR is opened uses **OAuth 1.0a user context**. The X Developer Portal only shows:
+The GitHub workflow that tweets when a PR is opened uses **X API v2** (`POST /2/tweets`) with **OAuth 1.0a user context**, so it works on the **Free tier**. (The v1.1 `statuses/update` endpoint returns error 453 on Free tier.) The X Developer Portal only shows:
 
 - **Consumer Key** (API Key)
 - **Consumer Secret** (Secret Key)

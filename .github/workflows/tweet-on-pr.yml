@@ -1,7 +1,8 @@
 # Posts a tweet from the Helpmaton X account when a new PR is opened or reopened.
+# Uses X API v2 (POST /2/tweets) via smapiot/send-tweet-v2-action so it works on
+# the Free tier. The v1.1 statuses/update endpoint returns 453 on Free tier.
 #
-# The X Developer Portal only shows Consumer Key, Secret Key, and Bearer Token.
-# The Bearer Token cannot post tweets (app-only). You need OAuth 1.0a user tokens:
+# OAuth 1.0a user tokens (same as before):
 #   X_API_KEY             - Consumer Key (from portal Keys and tokens)
 #   X_API_SECRET          - Consumer Secret (from portal Keys and tokens)
 #   X_ACCESS_TOKEN        - Access Token (from one-time OAuth flow)
@@ -54,7 +55,7 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Send tweet
-        uses: ethomson/send-tweet-action@v1
+        uses: smapiot/send-tweet-v2-action@v2
         with:
           status: ${{ steps.build-tweet.outputs.tweet }}
           consumer-key: ${{ secrets.X_API_KEY }}
