@@ -9,6 +9,7 @@ import { database } from "../../tables";
 import type { SubscriptionRecord } from "../../tables/schema";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { getSubscription as getLemonSqueezySubscription } from "../../utils/lemonSqueezy";
+import { updatePostHogUserSubscriptionPlan } from "../../utils/posthog";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { sendGracePeriodExpiringEmail } from "../../utils/subscriptionEmails";
 import {
@@ -78,6 +79,8 @@ async function syncSubscription(
       lemonSqueezySyncKey: "ACTIVE", // Maintain GSI key for sync
       lastSyncedAt: new Date().toISOString(),
     });
+
+    updatePostHogUserSubscriptionPlan(updatedSubscription.userId, plan);
 
     // Check grace period
     await checkGracePeriod(updatedSubscription);

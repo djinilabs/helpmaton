@@ -251,44 +251,6 @@ const buildDelegationTools = async (params: {
   return tools;
 };
 
-const fetchExistingConversationMessages = async (params: {
-  workspaceId: string;
-  targetAgentId: string;
-  conversationId?: string;
-}): Promise<UIMessage[] | undefined> => {
-  const { workspaceId, targetAgentId, conversationId } = params;
-  if (!conversationId) return undefined;
-
-  const db = await database();
-  try {
-    const conversationPk = `conversations/${workspaceId}/${targetAgentId}/${conversationId}`;
-    const existingConversation =
-      await db["agent-conversations"].get(conversationPk);
-    if (existingConversation && existingConversation.messages) {
-      return existingConversation.messages as UIMessage[];
-    }
-  } catch (error) {
-    console.log(
-      "[callAgentInternal] Could not fetch existing conversation messages:",
-      error instanceof Error ? error.message : String(error),
-    );
-    Sentry.captureException(ensureError(error), {
-      tags: {
-        context: "agent-delegation",
-        operation: "fetch-conversation",
-      },
-      extra: {
-        workspaceId,
-        targetAgentId,
-        conversationId,
-      },
-      level: "warning",
-    });
-  }
-
-  return undefined;
-};
-
 /** Max time for a single delegation call when parent has long timeout (e.g. webhook/queue 900s). 5 min. */
 export const DELEGATION_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -960,15 +922,6 @@ export async function callAgentInternal(
     },
   ];
 
-  // In configuration mode, skip conversation history and knowledge injection so the meta-agent only has the current request.
-  const existingConversationMessages = configurationMode
-    ? []
-    : await fetchExistingConversationMessages({
-        workspaceId,
-        targetAgentId,
-        conversationId,
-      });
-
   let modelMessagesWithKnowledge: ModelMessage[];
   let knowledgeInjectionMessage: UIMessage | undefined;
   let rerankingRequestMessage: UIMessage | undefined;
@@ -988,7 +941,6 @@ export async function callAgentInternal(
       targetAgentId,
       conversationId,
       usesByok,
-      existingConversationMessages,
     );
     modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
     knowledgeInjectionMessage =
