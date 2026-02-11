@@ -9,7 +9,6 @@ import { database } from "../../tables";
 import type { SubscriptionRecord } from "../../tables/schema";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { getSubscription as getLemonSqueezySubscription } from "../../utils/lemonSqueezy";
-import { updatePostHogUserSubscriptionPlan } from "../../utils/posthog";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { sendGracePeriodExpiringEmail } from "../../utils/subscriptionEmails";
 import {
@@ -42,7 +41,7 @@ function variantIdToPlan(variantId: string): "starter" | "pro" {
  * Sync a single subscription from Lemon Squeezy
  */
 async function syncSubscription(
-  subscription: SubscriptionRecord
+  subscription: SubscriptionRecord,
 ): Promise<void> {
   if (!subscription.lemonSqueezySubscriptionId) {
     // Skip subscriptions without Lemon Squeezy ID
@@ -54,7 +53,7 @@ async function syncSubscription(
   try {
     // Fetch latest data from Lemon Squeezy
     const lemonSqueezySub = await getLemonSqueezySubscription(
-      subscription.lemonSqueezySubscriptionId!
+      subscription.lemonSqueezySubscriptionId!,
     );
     const attributes = lemonSqueezySub.attributes;
 
@@ -80,8 +79,6 @@ async function syncSubscription(
       lastSyncedAt: new Date().toISOString(),
     });
 
-    updatePostHogUserSubscriptionPlan(updatedSubscription.userId, plan);
-
     // Check grace period
     await checkGracePeriod(updatedSubscription);
 
@@ -90,7 +87,7 @@ async function syncSubscription(
       const gracePeriodEnd = new Date(updatedSubscription.gracePeriodEndsAt!);
       const now = new Date();
       const daysRemaining = Math.ceil(
-        (gracePeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        (gracePeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       // Only send if we haven't sent recently (avoid duplicate emails)
@@ -109,7 +106,7 @@ async function syncSubscription(
             await sendGracePeriodExpiringEmail(
               updatedSubscription,
               userEmail,
-              daysRemaining
+              daysRemaining,
             );
             await db.subscription.update({
               ...updatedSubscription,
@@ -119,7 +116,7 @@ async function syncSubscription(
         } catch (error) {
           console.error(
             `[Sync] Failed to send grace period warning email for subscription ${subscription.pk}:`,
-            error
+            error,
           );
           Sentry.captureException(ensureError(error), {
             tags: {
@@ -133,12 +130,12 @@ async function syncSubscription(
     }
 
     console.log(
-      `[Sync] Synced subscription ${subscription.pk} from Lemon Squeezy`
+      `[Sync] Synced subscription ${subscription.pk} from Lemon Squeezy`,
     );
   } catch (error) {
     console.error(
       `[Sync] Error syncing subscription ${subscription.pk}:`,
-      error
+      error,
     );
     // Don't throw - continue with other subscriptions
   }
@@ -178,7 +175,7 @@ async function syncAllSubscriptions(): Promise<void> {
     }
 
     console.log(
-      `[Sync] Processed ${subscriptionCount} subscriptions with Lemon Squeezy IDs`
+      `[Sync] Processed ${subscriptionCount} subscriptions with Lemon Squeezy IDs`,
     );
   } catch (error) {
     console.error("[Sync] Error querying subscriptions:", error);
@@ -196,5 +193,5 @@ export const handler = handlingScheduledErrors(
   async (event: ScheduledEvent): Promise<void> => {
     console.log("[Sync] Scheduled event received:", event);
     await syncAllSubscriptions();
-  }
+  },
 );
