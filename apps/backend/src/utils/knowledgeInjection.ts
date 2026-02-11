@@ -47,40 +47,6 @@ const resolveSnippetCount = (agent: {
   return Math.max(1, Math.min(50, snippetCount));
 };
 
-const getExistingResults = (
-  existingConversationMessages?: UIMessage[],
-): KnowledgeSnippet[] | undefined => {
-  if (
-    !existingConversationMessages ||
-    existingConversationMessages.length === 0
-  ) {
-    return undefined;
-  }
-
-  const existingKnowledgeMessage = findExistingKnowledgeInjectionMessage(
-    existingConversationMessages,
-  );
-  if (
-    existingKnowledgeMessage &&
-    existingKnowledgeMessage.role === "user" &&
-    existingKnowledgeMessage.knowledgeInjection === true &&
-    existingKnowledgeMessage.knowledgeSnippets &&
-    Array.isArray(existingKnowledgeMessage.knowledgeSnippets)
-  ) {
-    console.log(
-      "[knowledgeInjection] Reusing existing knowledge injection message with",
-      existingKnowledgeMessage.knowledgeSnippets.length,
-      "snippets",
-    );
-    return existingKnowledgeMessage.knowledgeSnippets.map((snippet) => ({
-      ...snippet,
-      source: snippet.source ?? "document",
-    }));
-  }
-
-  return undefined;
-};
-
 const buildRerankingRequestMessage = (params: {
   query: string;
   model: string;
@@ -584,13 +550,13 @@ const insertKnowledgeMessage = (
   messages: ModelMessage[],
   knowledgeMessage: ModelMessage,
 ): ModelMessage[] => {
-  const firstUserIndex = messages.findIndex((msg) => msg.role === "user");
-  if (firstUserIndex === -1) {
+  const lastUserIndex = messages.findLastIndex((msg) => msg.role === "user");
+  if (lastUserIndex === -1) {
     return [knowledgeMessage, ...messages];
   }
 
   const updatedMessages = [...messages];
-  updatedMessages.splice(firstUserIndex, 0, knowledgeMessage);
+  updatedMessages.splice(lastUserIndex, 0, knowledgeMessage);
   return updatedMessages;
 };
 
@@ -681,51 +647,35 @@ ${snippetsText}`);
 }
 
 /**
- * Find existing knowledge injection message in conversation
- * @param messages - Array of UI messages from conversation
- * @returns Knowledge injection message if found, null otherwise
+ * Extract text content from a single user message (string or content array)
  */
-function findExistingKnowledgeInjectionMessage(
-  messages: UIMessage[],
-): UIMessage | null {
-  return (
-    messages.find(
-      (msg) =>
-        msg.role === "user" &&
-        "knowledgeInjection" in msg &&
-        msg.knowledgeInjection === true,
-    ) || null
-  );
-}
-
-/**
- * Extract query text from the first user message in the conversation
- * @param messages - Array of model messages
- * @returns Query text extracted from the first user message, or empty string if not found
- */
-function extractQueryFromMessages(messages: ModelMessage[]): string {
-  // Find the first user message (skip knowledge injection messages)
-  const firstUserMessage = messages.find((msg) => msg.role === "user");
-
-  if (!firstUserMessage) {
-    return "";
+function extractTextFromUserMessage(content: ModelMessage["content"]): string {
+  if (typeof content === "string") {
+    return content.trim();
   }
-
-  // Extract text content from user message
-  if (typeof firstUserMessage.content === "string") {
-    return firstUserMessage.content.trim();
-  }
-
-  if (Array.isArray(firstUserMessage.content)) {
-    // Extract text from content array
-    const textParts = firstUserMessage.content
+  if (Array.isArray(content)) {
+    const textParts = content
       .filter((part) => part.type === "text")
       .map((part) => (typeof part === "string" ? part : part.text))
       .join("");
     return textParts.trim();
   }
-
   return "";
+}
+
+/**
+ * Extract query text from the last user message in the conversation.
+ * Used so each turn gets knowledge relevant to the current (latest) user message.
+ * @param messages - Array of model messages
+ * @returns Query text extracted from the last user message, or empty string if not found
+ */
+function extractQueryFromLastUserMessage(messages: ModelMessage[]): string {
+  const lastUserIndex = messages.findLastIndex((msg) => msg.role === "user");
+  if (lastUserIndex === -1) {
+    return "";
+  }
+  const lastUserMessage = messages[lastUserIndex];
+  return extractTextFromUserMessage(lastUserMessage.content);
 }
 
 /**
@@ -739,8 +689,9 @@ export interface KnowledgeInjectionResult {
 }
 
 /**
- * Inject knowledge from workspace documents into the conversation messages
- * Knowledge is injected as a new user message before the first user message
+ * Inject knowledge from workspace documents into the conversation messages.
+ * Runs on every turn: query is taken from the last (current) user message, and
+ * knowledge is inserted as a new user message immediately before that message.
  * @param workspaceId - Workspace ID for document search
  * @param agent - Agent configuration
  * @param messages - Array of model messages to inject knowledge into
@@ -749,7 +700,7 @@ export interface KnowledgeInjectionResult {
  * @param agentId - Agent ID (optional, for credit tracking)
  * @param conversationId - Conversation ID (optional, for credit tracking)
  * @param usesByok - Whether workspace is using their own API key (optional)
- * @param existingConversationMessages - Existing UI messages from conversation (optional, for reuse)
+ * @param _existingConversationMessages - Existing UI messages (optional, kept for API compatibility; not used)
  * @returns Updated array of model messages with knowledge injected, and knowledge injection UI message
  */
 export async function injectKnowledgeIntoMessages(
@@ -762,7 +713,8 @@ export async function injectKnowledgeIntoMessages(
   agentId?: string,
   conversationId?: string,
   usesByok?: boolean,
-  existingConversationMessages?: UIMessage[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Kept for API compatibility; callers may pass existing conversation messages
+  _existingConversationMessages?: UIMessage[],
 ): Promise<KnowledgeInjectionResult> {
   // Check if knowledge injection is enabled
   if (!agent.enableKnowledgeInjection) {
@@ -792,42 +744,42 @@ export async function injectKnowledgeIntoMessages(
     return buildEmptyInjectionResult(messages);
   }
 
-  // Check for existing knowledge injection message in conversation
-  let finalResults = getExistingResults(existingConversationMessages);
+  // Always run search (no reuse); knowledge is injected before every user message
+  let finalResults: KnowledgeSnippet[] | undefined;
   let rerankingRequestMessage: UIMessage | undefined;
   let rerankingResultMessage: UIMessage | undefined;
 
-  // Extract query from first user message
-  const query = extractQueryFromMessages(messages);
+  // Extract query from last (current) user message so each turn gets relevant context
+  const query = extractQueryFromLastUserMessage(messages);
   if (!query || query.length === 0) {
     // No query to search for, skip injection
     return buildEmptyInjectionResult(messages);
   }
 
-  // If we don't have existing results, perform search
-  if (!finalResults) {
-    try {
-      const validSnippetCount = resolveSnippetCount(agent);
-      const fetchLimit = Math.min(50, validSnippetCount * 2);
+  try {
+    const validSnippetCount = resolveSnippetCount(agent);
+    const fetchLimit = Math.min(50, validSnippetCount * 2);
 
-      const documentSnippets = enableKnowledgeInjectionFromDocuments
-        ? (
-            await searchDocuments(workspaceId, query, fetchLimit, {
-              db,
-              context,
-              agentId,
-              conversationId,
-            })
-          ).map((result) => ({
-            ...result,
-            source: "document" as const,
-          }))
-        : [];
+    const documentSnippets = enableKnowledgeInjectionFromDocuments
+      ? (
+          await searchDocuments(workspaceId, query, fetchLimit, {
+            db,
+            context,
+            agentId,
+            conversationId,
+          })
+        ).map((result) => ({
+          ...result,
+          source: "document" as const,
+        }))
+      : [];
 
-      let memorySnippets: KnowledgeSnippet[] = [];
-      let graphSnippets: KnowledgeSnippet[] = [];
-      if (canInjectFromMemories) {
-        const memoryResults = await searchMemory({
+    let memorySnippets: KnowledgeSnippet[] = [];
+    let graphSnippets: KnowledgeSnippet[] = [];
+    if (canInjectFromMemories) {
+      // Memory search and entity extraction are independent; run in parallel. Graph search depends on entities, so it runs after.
+      const [memoryResults, entities] = await Promise.all([
+        searchMemory({
           agentId,
           workspaceId,
           grain: "working",
@@ -836,97 +788,97 @@ export async function injectKnowledgeIntoMessages(
           db,
           context,
           conversationId,
-        });
-        memorySnippets = memoryResults.map((result) => ({
-          snippet: result.content,
-          similarity: result.similarity ?? 1,
-          source: "memory",
-          timestamp: result.timestamp,
-          date: result.date,
-        }));
-
-        const entities = await extractEntitiesFromPrompt({
+        }),
+        extractEntitiesFromPrompt({
           workspaceId,
           agentId,
           prompt: query,
           modelName: agent.knowledgeInjectionEntityExtractorModel,
           context,
           conversationId,
-        });
-        const graphResults = await searchGraphByEntities({
-          workspaceId,
-          agentId,
-          entities,
-        });
-        graphSnippets = graphResults.map((result) => ({
-          snippet: result.snippet,
-          similarity: result.similarity,
-          source: "graph",
-          subject: result.subject,
-          predicate: result.predicate,
-          object: result.object,
-        }));
-      }
+        }),
+      ]);
+      memorySnippets = memoryResults.map((result) => ({
+        snippet: result.content,
+        similarity: result.similarity ?? 1,
+        source: "memory",
+        timestamp: result.timestamp,
+        date: result.date,
+      }));
 
-      const searchResults = [
-        ...documentSnippets,
-        ...memorySnippets,
-        ...graphSnippets,
-      ];
-
-      if (searchResults.length === 0) {
-        return buildEmptyInjectionResult(messages);
-      }
-
-      const rerankingOutcome = await performReranking({
+      const graphResults = await searchGraphByEntities({
         workspaceId,
-        agent,
-        query,
-        searchResults,
-        db,
-        context,
         agentId,
-        conversationId,
-        usesByok,
+        entities,
       });
+      graphSnippets = graphResults.map((result) => ({
+        snippet: result.snippet,
+        similarity: result.similarity,
+        source: "graph",
+        subject: result.subject,
+        predicate: result.predicate,
+        object: result.object,
+      }));
+    }
 
-      finalResults = rerankingOutcome.results.slice(0, validSnippetCount);
-      rerankingRequestMessage = rerankingOutcome.rerankingRequestMessage;
-      rerankingResultMessage = rerankingOutcome.rerankingResultMessage;
-    } catch (error) {
-      const errorObj = ensureError(error);
-      if (isCreditUserError(errorObj)) {
-        console.info(
-          "[knowledgeInjection] Credit limits prevented knowledge injection, returning original messages:",
-          {
-            error: errorObj.message,
-            errorType: errorObj.name,
-            workspaceId,
-            agentId,
-            conversationId,
-          },
-        );
-        return buildEmptyInjectionResult(messages);
-      }
+    const searchResults = [
+      ...documentSnippets,
+      ...memorySnippets,
+      ...graphSnippets,
+    ];
 
-      console.error("[knowledgeInjection] Error during knowledge search:", {
-        message: errorObj.message,
-      });
-      Sentry.captureException(errorObj, {
-        tags: {
-          context: "knowledge-injection",
-          operation: "search-knowledge",
-        },
-        extra: {
+    if (searchResults.length === 0) {
+      return buildEmptyInjectionResult(messages);
+    }
+
+    const rerankingOutcome = await performReranking({
+      workspaceId,
+      agent,
+      query,
+      searchResults,
+      db,
+      context,
+      agentId,
+      conversationId,
+      usesByok,
+    });
+
+    finalResults = rerankingOutcome.results.slice(0, validSnippetCount);
+    rerankingRequestMessage = rerankingOutcome.rerankingRequestMessage;
+    rerankingResultMessage = rerankingOutcome.rerankingResultMessage;
+  } catch (error) {
+    const errorObj = ensureError(error);
+    if (isCreditUserError(errorObj)) {
+      console.info(
+        "[knowledgeInjection] Credit limits prevented knowledge injection, returning original messages:",
+        {
+          error: errorObj.message,
+          errorType: errorObj.name,
           workspaceId,
           agentId,
           conversationId,
-          query,
         },
-      });
-      // Return original messages if search fails
+      );
       return buildEmptyInjectionResult(messages);
     }
+
+    console.error("[knowledgeInjection] Error during knowledge search:", {
+      message: errorObj.message,
+    });
+    Sentry.captureException(errorObj, {
+      tags: {
+        context: "knowledge-injection",
+        operation: "search-knowledge",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+        conversationId,
+        query,
+      },
+    });
+    // Return original messages if search fails
+    return buildEmptyInjectionResult(messages);
   }
 
   // At this point, finalResults should be set
