@@ -8,9 +8,9 @@ Security updates are provided for the current production deployment (the `main` 
 
 **Please do not open public issues for security vulnerabilities.**
 
-Report security issues through one of these private channels:
+Report security issues by email to:
 
-- **Contact:** [TBD – email or GitHub Security Advisories]
+- **security@helpmaton.com**
 - When reporting, please include: a short description of the issue, steps to reproduce, and the impact you believe it has.
 
 We will acknowledge your report within 48–72 hours and aim to send a more detailed response within 7 days.
