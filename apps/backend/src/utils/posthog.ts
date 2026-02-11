@@ -123,6 +123,19 @@ export function identifyUser(
 }
 
 /**
+ * Update PostHog person with current subscription plan (for analytics segmentation).
+ * Call after subscription create/update/sync so plan is reflected in PostHog.
+ * @param userId - User ID (without prefix)
+ * @param plan - Plan name (e.g. "starter", "pro", "free")
+ */
+export function updatePostHogUserSubscriptionPlan(
+  userId: string,
+  plan: string,
+): void {
+  identifyUser(userId, { subscription_plan: plan });
+}
+
+/**
  * Identify a workspace as a group in PostHog
  * @param workspaceId - Workspace ID
  * @param properties - Workspace properties (member_count, agent_count, subscription_tier, etc.)

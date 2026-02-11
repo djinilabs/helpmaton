@@ -217,6 +217,7 @@ describe("knowledgeInjection", () => {
     });
 
     it("should run memory search and entity extraction in parallel when both are enabled", async () => {
+      vi.useFakeTimers();
       const agent = {
         enableKnowledgeInjection: true,
         enableKnowledgeInjectionFromMemories: true,
@@ -262,8 +263,7 @@ describe("knowledgeInjection", () => {
         { role: "user", content: "What tools does the user like?" },
       ];
 
-      const start = Date.now();
-      await injectKnowledgeIntoMessages(
+      const resultPromise = injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
         messages,
@@ -271,15 +271,15 @@ describe("knowledgeInjection", () => {
         undefined,
         "agent-1",
       );
-      const elapsed = Date.now() - start;
-
-      // If run in parallel, total time ≈ max(100ms, 50ms) + graph; if run in series it would be ≥ 150ms.
-      // Require elapsed < 150ms so the test fails if the implementation were to run them in series.
-      const seriesMinimumMs = memoryDelayMs + entityDelayMs;
-      expect(elapsed).toBeLessThan(seriesMinimumMs);
+      // Advance past entity delay (50ms); both memory and entity should already be invoked (parallel).
+      await vi.advanceTimersByTimeAsync(entityDelayMs);
       expect(mockSearchMemory).toHaveBeenCalled();
       expect(mockExtractEntitiesFromPrompt).toHaveBeenCalled();
+      // Advance remaining time so memory promise resolves and graph runs.
+      await vi.advanceTimersByTimeAsync(memoryDelayMs - entityDelayMs);
+      await resultPromise;
       expect(mockSearchGraphByEntities).toHaveBeenCalled();
+      vi.useRealTimers();
     });
 
     it("should return original messages when no search results found", async () => {

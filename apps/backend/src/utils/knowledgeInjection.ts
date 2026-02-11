@@ -713,6 +713,8 @@ export async function injectKnowledgeIntoMessages(
   agentId?: string,
   conversationId?: string,
   usesByok?: boolean,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Kept for API compatibility; callers may pass existing conversation messages
+  _existingConversationMessages?: UIMessage[],
 ): Promise<KnowledgeInjectionResult> {
   // Check if knowledge injection is enabled
   if (!agent.enableKnowledgeInjection) {
