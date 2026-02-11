@@ -13,14 +13,17 @@ const {
   mockDatabase,
   mockGetUserEmailById,
   mockSendSubscriptionDowngradedEmail,
+  mockUpdatePostHogUserSubscriptionPlan,
 } = vi.hoisted(() => {
   const database = vi.fn();
   const getUserEmailById = vi.fn();
   const sendSubscriptionDowngradedEmail = vi.fn();
+  const updatePostHogUserSubscriptionPlan = vi.fn();
   return {
     mockDatabase: database,
     mockGetUserEmailById: getUserEmailById,
     mockSendSubscriptionDowngradedEmail: sendSubscriptionDowngradedEmail,
+    mockUpdatePostHogUserSubscriptionPlan: updatePostHogUserSubscriptionPlan,
   };
 });
 
@@ -34,6 +37,10 @@ vi.mock("../subscriptionUtils", () => ({
 
 vi.mock("../subscriptionEmails", () => ({
   sendSubscriptionDowngradedEmail: mockSendSubscriptionDowngradedEmail,
+}));
+
+vi.mock("../posthog", () => ({
+  updatePostHogUserSubscriptionPlan: mockUpdatePostHogUserSubscriptionPlan,
 }));
 
 describe("subscriptionStatus", () => {
@@ -377,6 +384,11 @@ describe("subscriptionStatus", () => {
         subscription,
         "user@example.com"
       );
+      expect(mockUpdatePostHogUserSubscriptionPlan).toHaveBeenCalledTimes(1);
+      expect(mockUpdatePostHogUserSubscriptionPlan).toHaveBeenCalledWith(
+        subscription.userId,
+        "free"
+      );
     });
 
     it("should not throw if email sending fails", async () => {
@@ -409,6 +421,10 @@ describe("subscriptionStatus", () => {
       await expect(checkGracePeriod(subscription)).resolves.not.toThrow();
 
       expect(mockDb.subscription.update).toHaveBeenCalled();
+      expect(mockUpdatePostHogUserSubscriptionPlan).toHaveBeenCalledWith(
+        subscription.userId,
+        "free"
+      );
     });
   });
 });

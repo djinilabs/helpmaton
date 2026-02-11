@@ -17,6 +17,7 @@ import {
   listSubscriptionsByCustomer,
   updateSubscriptionVariant,
 } from "../../utils/lemonSqueezy";
+import { updatePostHogUserSubscriptionPlan } from "../../utils/posthog";
 import { ensureError } from "../../utils/sentry";
 import { getPlanLimits } from "../../utils/subscriptionPlans";
 import {
@@ -1042,6 +1043,8 @@ export const createApp: () => express.Application = () => {
           const { associateSubscriptionWithPlan } =
             await import("../../utils/apiGatewayUsagePlans");
           await associateSubscriptionWithPlan(subscriptionId, newPlan);
+
+          updatePostHogUserSubscriptionPlan(subscription.userId, newPlan);
 
           console.log(
             `[POST /api/subscription/change-plan] Successfully changed plan to ${newPlan}`,

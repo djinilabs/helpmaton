@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
 import { posthog } from "../utils/posthog";
+import { shouldAliasBeforeIdentify } from "../utils/posthogIdentity";
 import { identifyWorkspaceGroup } from "../utils/tracking";
 
 /**
@@ -16,14 +17,31 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     workspaceId?: string;
   }>();
   const { data: session, status } = useSession();
+  const userId = session?.user?.id;
+  const userEmail = session?.user?.email;
 
-  // Identify user when authenticated (PostHog official approach: identify as soon as we have session
-  // so all subsequent capture() calls are attributed to this distinct_id; matches backend user/${id})
+  // Identify user when authenticated. Alias first when coming from anonymous so PostHog
+  // merges the pre-sign-in profile into the identified user (single profile per user).
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.id) {
+    if (status === "authenticated" && userId) {
       if (posthog && typeof posthog.identify === "function") {
-        posthog.identify(`user/${session.user.id}`, {
-          email: session.user.email || undefined,
+        const newId = `user/${userId}`;
+        let currentId: string | null = null;
+        if (typeof posthog.get_distinct_id === "function") {
+          try {
+            currentId = posthog.get_distinct_id();
+          } catch {
+            // ignore; we will identify without aliasing
+          }
+        }
+        if (
+          shouldAliasBeforeIdentify(currentId, userId) &&
+          typeof posthog.alias === "function"
+        ) {
+          posthog.alias(newId);
+        }
+        posthog.identify(newId, {
+          email: userEmail || undefined,
         });
       }
     } else if (status === "unauthenticated") {
@@ -31,7 +49,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
         posthog.reset();
       }
     }
-  }, [status, session]);
+  }, [status, userId, userEmail]);
 
   // Track page views on route changes
   // PostHog's built-in capture_pageview only tracks initial page load,
