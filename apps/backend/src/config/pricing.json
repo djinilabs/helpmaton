@@ -11335,9 +11335,9 @@
         },
         "microsoft/wizardlm-2-8x22b": {
           "usd": {
-            "input": 0.48,
-            "output": 0.48,
-            "cachedInput": 0.048
+            "input": 0.62,
+            "output": 0.62,
+            "cachedInput": 0.062
           },
           "capabilities": {
             "input_modalities": [
@@ -12553,9 +12553,80 @@
             "structured_output": true,
             "image": false
           }
+        },
+        "z-ai/glm-5": {
+          "usd": {
+            "input": 1,
+            "output": 3.1999999999999997,
+            "cachedInput": 0.1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
+        },
+        "stepfun/step-3.5-flash": {
+          "usd": {
+            "input": 0.09999999999999999,
+            "output": 0.3,
+            "cachedInput": 0.01
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "stop",
+              "temperature",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          }
         }
       }
     }
   },
-  "lastUpdated": "2026-02-11T00:24:16.981Z"
+  "lastUpdated": "2026-02-12T00:19:05.988Z"
 }
