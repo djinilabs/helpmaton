@@ -3,6 +3,7 @@ import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { PERMISSION_LEVELS } from "../../../../tables/schema";
+import { toNanoDollars } from "../../../../utils/creditConversions";
 import {
   createMockRequest,
   createMockResponse,
@@ -14,14 +15,14 @@ import {
 const {
   mockDatabase,
   mockGetUserSubscription,
-  mockCheckSubscriptionLimits,
+  mockCheckWorkspaceLimitAndGetCurrentCount,
   mockEnsureAuthorization,
   mockRandomUUID,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
     mockGetUserSubscription: vi.fn(),
-    mockCheckSubscriptionLimits: vi.fn(),
+    mockCheckWorkspaceLimitAndGetCurrentCount: vi.fn(),
     mockEnsureAuthorization: vi.fn(),
     mockRandomUUID: vi.fn(),
   };
@@ -43,7 +44,7 @@ vi.mock("../../../../tables/permissions", () => ({
 
 vi.mock("../../../../utils/subscriptionUtils", () => ({
   getUserSubscription: mockGetUserSubscription,
-  checkSubscriptionLimits: mockCheckSubscriptionLimits,
+  checkWorkspaceLimitAndGetCurrentCount: mockCheckWorkspaceLimitAndGetCurrentCount,
 }));
 
 vi.mock("crypto", () => ({
@@ -54,6 +55,7 @@ vi.mock("crypto", () => ({
 describe("POST /api/workspaces", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCheckWorkspaceLimitAndGetCurrentCount.mockResolvedValue(0);
   });
 
   async function callRouteHandler(
@@ -87,8 +89,13 @@ describe("POST /api/workspaces", () => {
         const subscription = await mockGetUserSubscription(userId);
         const subscriptionId = subscription.pk.replace("subscriptions/", "");
 
-        // Check workspace count limit before creating
-        await mockCheckSubscriptionLimits(subscriptionId, "workspace", 1);
+        const currentWorkspaceCount =
+          await mockCheckWorkspaceLimitAndGetCurrentCount(subscriptionId, 1);
+        const isFirstWorkspace = currentWorkspaceCount === 0;
+        const initialCredits =
+          subscription.plan === "free" && isFirstWorkspace
+            ? toNanoDollars(2)
+            : 0;
 
         const workspaceId = mockRandomUUID();
         const workspacePk = `workspaces/${workspaceId}`;
@@ -103,7 +110,7 @@ describe("POST /api/workspaces", () => {
           createdBy: userRef,
           subscriptionId,
           currency: selectedCurrency,
-          creditBalance: 0,
+          creditBalance: initialCredits,
         });
 
         // Grant creator OWNER permission
@@ -141,9 +148,9 @@ describe("POST /api/workspaces", () => {
 
     const mockSubscription = {
       pk: "subscriptions/sub-123",
+      plan: "starter",
     };
     mockGetUserSubscription.mockResolvedValue(mockSubscription);
-    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
 
     const mockWorkspace = {
       pk: `workspaces/${workspaceId}`,
@@ -177,9 +184,8 @@ describe("POST /api/workspaces", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockGetUserSubscription).toHaveBeenCalledWith("user-123");
-    expect(mockCheckSubscriptionLimits).toHaveBeenCalledWith(
+    expect(mockCheckWorkspaceLimitAndGetCurrentCount).toHaveBeenCalledWith(
       "sub-123",
-      "workspace",
       1
     );
     expect(mockWorkspaceCreate).toHaveBeenCalledWith({
@@ -211,6 +217,125 @@ describe("POST /api/workspaces", () => {
     });
   });
 
+  it("should create workspace with 2 USD credits when user is on free plan", async () => {
+    const workspaceId = "workspace-free-plan";
+    mockRandomUUID.mockReturnValue(workspaceId);
+
+    const freePlanInitialCredits = 2_000_000_000; // 2 USD in nano-dollars
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-free",
+      plan: "free",
+    };
+    mockGetUserSubscription.mockResolvedValue(mockSubscription);
+
+    const mockWorkspace = {
+      pk: `workspaces/${workspaceId}`,
+      sk: "workspace",
+      name: "Free User Workspace",
+      description: undefined,
+      createdBy: "users/user-free",
+      subscriptionId: "sub-free",
+      currency: "usd",
+      creditBalance: freePlanInitialCredits,
+      spendingLimits: [],
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
+    mockDb.workspace.create = mockWorkspaceCreate;
+
+    mockEnsureAuthorization.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      userRef: "users/user-free",
+      body: {
+        name: "Free User Workspace",
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockCheckWorkspaceLimitAndGetCurrentCount).toHaveBeenCalledWith(
+      "sub-free",
+      1
+    );
+    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creditBalance: freePlanInitialCredits,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creditBalance: freePlanInitialCredits,
+      })
+    );
+  });
+
+  it("should create workspace with 0 credits when free plan user already has a workspace", async () => {
+    const workspaceId = "workspace-free-second";
+    mockRandomUUID.mockReturnValue(workspaceId);
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-free",
+      plan: "free",
+    };
+    mockGetUserSubscription.mockResolvedValue(mockSubscription);
+    mockCheckWorkspaceLimitAndGetCurrentCount.mockResolvedValue(1);
+
+    const mockWorkspace = {
+      pk: `workspaces/${workspaceId}`,
+      sk: "workspace",
+      name: "Second Workspace",
+      description: undefined,
+      createdBy: "users/user-free",
+      subscriptionId: "sub-free",
+      currency: "usd",
+      creditBalance: 0,
+      spendingLimits: [],
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
+    mockDb.workspace.create = mockWorkspaceCreate;
+
+    mockEnsureAuthorization.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      userRef: "users/user-free",
+      body: {
+        name: "Second Workspace",
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockCheckWorkspaceLimitAndGetCurrentCount).toHaveBeenCalledWith(
+      "sub-free",
+      1
+    );
+    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creditBalance: 0,
+      })
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creditBalance: 0,
+      })
+    );
+  });
+
   it("should create workspace with default currency when currency not provided", async () => {
     const workspaceId = "workspace-456";
     mockRandomUUID.mockReturnValue(workspaceId);
@@ -220,9 +345,9 @@ describe("POST /api/workspaces", () => {
 
     const mockSubscription = {
       pk: "subscriptions/sub-123",
+      plan: "starter",
     };
     mockGetUserSubscription.mockResolvedValue(mockSubscription);
-    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
 
     const mockWorkspace = {
       pk: `workspaces/${workspaceId}`,
@@ -270,9 +395,9 @@ describe("POST /api/workspaces", () => {
 
     const mockSubscription = {
       pk: "subscriptions/sub-123",
+      plan: "starter",
     };
     mockGetUserSubscription.mockResolvedValue(mockSubscription);
-    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
 
     const mockWorkspace = {
       pk: `workspaces/${workspaceId}`,
@@ -388,9 +513,9 @@ describe("POST /api/workspaces", () => {
 
     const mockSubscription = {
       pk: "subscriptions/sub-123",
+      plan: "starter",
     };
     mockGetUserSubscription.mockResolvedValue(mockSubscription);
-    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
 
     const mockWorkspace = {
       pk: `workspaces/${workspaceId}`,
@@ -439,11 +564,12 @@ describe("POST /api/workspaces", () => {
 
     const mockSubscription = {
       pk: "subscriptions/sub-123",
+      plan: "starter",
     };
     mockGetUserSubscription.mockResolvedValue(mockSubscription);
 
     const limitError = new Error("Workspace limit exceeded");
-    mockCheckSubscriptionLimits.mockRejectedValue(limitError);
+    mockCheckWorkspaceLimitAndGetCurrentCount.mockRejectedValue(limitError);
 
     const req = createMockRequest({
       userRef: "users/user-123",
@@ -456,11 +582,13 @@ describe("POST /api/workspaces", () => {
 
     await callRouteHandler(req, res, next);
 
+    expect(mockCheckWorkspaceLimitAndGetCurrentCount).toHaveBeenCalledWith(
+      "sub-123",
+      1
+    );
     expect(next).toHaveBeenCalled();
     const error = next.mock.calls[0][0];
     expect(error).toBe(limitError);
-    // Workspace should not be created when limit check fails
-    // We verify this by checking that ensureAuthorization was not called
     expect(mockEnsureAuthorization).not.toHaveBeenCalled();
   });
 });

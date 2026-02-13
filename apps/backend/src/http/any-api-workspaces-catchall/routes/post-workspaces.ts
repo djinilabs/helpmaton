@@ -6,14 +6,18 @@ import express from "express";
 import { database } from "../../../tables";
 import { ensureAuthorization } from "../../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { toNanoDollars } from "../../../utils/creditConversions";
 import {
-  checkSubscriptionLimits,
+  checkWorkspaceLimitAndGetCurrentCount,
   getUserSubscription,
 } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { createWorkspaceSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth } from "../middleware";
+
+/** Credits in USD granted to free-plan users when creating their first workspace. */
+const FREE_PLAN_FIRST_WORKSPACE_CREDITS_USD = 2;
 
 /**
  * @openapi
@@ -62,8 +66,16 @@ export const registerPostWorkspaces = (app: express.Application) => {
       const subscription = await getUserSubscription(userId);
       const subscriptionId = subscription.pk.replace("subscriptions/", "");
 
-      // Check workspace count limit before creating
-      await checkSubscriptionLimits(subscriptionId, "workspace", 1);
+      // Check workspace limit and get current count in one query (avoids duplicate fetch)
+      const currentWorkspaceCount = await checkWorkspaceLimitAndGetCurrentCount(
+        subscriptionId,
+        1
+      );
+      const isFirstWorkspace = currentWorkspaceCount === 0;
+      const initialCredits =
+        subscription.plan === "free" && isFirstWorkspace
+          ? toNanoDollars(FREE_PLAN_FIRST_WORKSPACE_CREDITS_USD)
+          : 0;
 
       const workspaceId = randomUUID();
       const workspacePk = `workspaces/${workspaceId}`;
@@ -78,7 +90,7 @@ export const registerPostWorkspaces = (app: express.Application) => {
         createdBy: userRef,
         subscriptionId,
         currency: "usd",
-        creditBalance: 0, // Default credit balance
+        creditBalance: initialCredits,
       });
 
       // Grant creator OWNER permission

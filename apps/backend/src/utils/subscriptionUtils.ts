@@ -358,6 +358,37 @@ export async function getSubscriptionMcpServers(
 }
 
 /**
+ * Check workspace limit and return current workspace count in one query.
+ * Use this when creating a workspace and you need the count for other logic (e.g. initial credits).
+ *
+ * @param subscriptionId - Subscription ID (without "subscriptions/" prefix)
+ * @param additionalCount - Count to add (e.g. 1 when creating one workspace)
+ * @returns Current number of workspaces for the subscription
+ * @throws badRequest if adding additionalCount would exceed plan limit
+ */
+export async function checkWorkspaceLimitAndGetCurrentCount(
+  subscriptionId: string,
+  additionalCount: number
+): Promise<number> {
+  const subscription = await getSubscriptionById(subscriptionId);
+  if (!subscription) {
+    throw badRequest("Subscription not found");
+  }
+  const limits = getPlanLimits(subscription.plan);
+  if (!limits) {
+    throw badRequest(`Invalid subscription plan: ${subscription.plan}`);
+  }
+  const workspaces = await getSubscriptionWorkspaces(subscriptionId);
+  const currentCount = workspaces.length;
+  if (currentCount + additionalCount > limits.maxWorkspaces) {
+    throw badRequest(
+      `Workspace limit exceeded. Maximum ${limits.maxWorkspaces} workspace(s) allowed for ${subscription.plan} plan.`
+    );
+  }
+  return currentCount;
+}
+
+/**
  * Check subscription limits before performing an action
  * @param subscriptionId - Subscription ID (without "subscriptions/" prefix)
  * @param checkType - Type of limit to check
