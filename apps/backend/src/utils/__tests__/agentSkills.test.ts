@@ -14,7 +14,10 @@ import {
 } from "../agentSkills";
 
 function skill(
-  overrides: Partial<AgentSkill> & { id: string; requiredTools: AgentSkill["requiredTools"] },
+  overrides: Partial<AgentSkill> & {
+    id: string;
+    requiredTools: AgentSkill["requiredTools"];
+  },
 ): AgentSkill {
   return {
     name: overrides.name ?? overrides.id,
@@ -57,7 +60,6 @@ describe("agentSkills", () => {
       ]);
       expect(skills[0].content).toContain("Use document search");
     });
-
   });
 
   describe("getAvailableSkills", () => {
@@ -204,7 +206,7 @@ describe("agentSkills", () => {
             requiredTools: [{ type: "builtin", tool: "search_documents" }],
             content: "Content B",
           }),
-        ])
+        ]),
       );
     });
 
@@ -214,15 +216,19 @@ describe("agentSkills", () => {
     });
 
     it("returns base prompt unchanged when skillIds is undefined", async () => {
-      const result = await buildSystemPromptWithSkills("Base prompt", undefined);
+      const result = await buildSystemPromptWithSkills(
+        "Base prompt",
+        undefined,
+      );
       expect(result).toBe("Base prompt");
     });
 
     it("appends skill content in order and dedupes", async () => {
-      const result = await buildSystemPromptWithSkills(
-        "Base",
-        ["skill-a", "skill-b", "skill-a"]
-      );
+      const result = await buildSystemPromptWithSkills("Base", [
+        "skill-a",
+        "skill-b",
+        "skill-a",
+      ]);
       expect(result).toContain("Base");
       expect(result).toContain("## Enabled Skills");
       expect(result).toContain("Content A");

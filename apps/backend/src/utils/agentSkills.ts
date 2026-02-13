@@ -91,7 +91,8 @@ function satisfiesBuiltin(
       return agent.enableMemorySearch === true;
     case "search_web":
       return (
-        agent.searchWebProvider === "tavily" || agent.searchWebProvider === "jina"
+        agent.searchWebProvider === "tavily" ||
+        agent.searchWebProvider === "jina"
       );
     case "fetch_web":
       return (
@@ -102,9 +103,7 @@ function satisfiesBuiltin(
     case "exa_search":
       return agent.enableExaSearch === true;
     case "send_email":
-      return (
-        agent.enableSendEmail === true && hasEmailConnection === true
-      );
+      return agent.enableSendEmail === true && hasEmailConnection === true;
     case "image_generation":
       return agent.enableImageGeneration === true;
     default:
