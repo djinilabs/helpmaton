@@ -20,6 +20,7 @@ export const WORKSPACE_SECTION_IDS = {
 } as const;
 
 export const AGENT_SECTION_IDS = {
+  agent: "agent",
   delegation: "delegation",
   documentSearch: "document-search",
   evaluations: "evaluations",

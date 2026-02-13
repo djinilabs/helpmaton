@@ -25,6 +25,7 @@ import {
   PhotoIcon,
   ShareIcon,
   Cog6ToothIcon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -2741,7 +2742,10 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
   setShowScrollIndicator,
   setModelName,
 }) => (
-  <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50">
+  <div
+    id="agent"
+    className="mb-8 scroll-mt-[7.5rem] rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-surface-50"
+  >
     <div className="mb-4 flex items-center justify-between">
       <button
         onClick={onBack}
@@ -3244,6 +3248,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
 
   const navGroups = useMemo((): DetailPageNavGroup[] => {
     const groups: DetailPageNavGroup[] = [
+      {
+        title: "Agent",
+        icon: <UserCircleIcon className="size-5" />,
+        children: [{ id: "agent", label: "Agent" }],
+      },
       {
         title: "Test",
         icon: <BeakerIcon className="size-5" />,
