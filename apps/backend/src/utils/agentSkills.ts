@@ -66,12 +66,15 @@ async function loadSkillsAsync(
     return loadPromise;
   }
   loadPromise = (async () => {
-    const skills = testSkillLoader
-      ? await testSkillLoader()
-      : await loadAllSkills();
-    skillsCache = skills;
-    loadPromise = null;
-    return skills;
+    try {
+      const skills = testSkillLoader
+        ? await testSkillLoader()
+        : await loadAllSkills();
+      skillsCache = skills;
+      return skills;
+    } finally {
+      loadPromise = null;
+    }
   })();
   return loadPromise;
 }

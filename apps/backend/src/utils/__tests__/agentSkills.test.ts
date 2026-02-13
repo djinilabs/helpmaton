@@ -106,7 +106,7 @@ describe("agentSkills", () => {
       expect(skills).toHaveLength(0);
     });
 
-    it("includes skill when mcpService is enabled and OAuth connected", async () => {
+    it("includes skill when mcpService is enabled (non-OAuth e.g. PostHog does not require connection)", async () => {
       const posthogSkill = skill({
         id: "posthog-marketing",
         name: "PostHog Marketing",
