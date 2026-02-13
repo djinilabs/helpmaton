@@ -146,9 +146,6 @@ export const ChannelModal: FC<ChannelModalProps> = ({
           channel_id: newChannel.id,
           channel_type: type,
         });
-        setCreatedChannelId(newChannel.id);
-        // Don't close immediately - allow user to test
-        return;
       }
       handleClose();
     } catch {

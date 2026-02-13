@@ -1,9 +1,8 @@
 import { ChartBarIcon, PaperClipIcon } from "@heroicons/react/24/outline";
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
-import { markdownComponents } from "./ChatMarkdownComponents";
+import { markdownComponents, REMARK_PLUGINS } from "./ChatMarkdownComponents";
 
 interface TextPartProps {
   text: string;
@@ -18,7 +17,7 @@ export const TextPart = memo<TextPartProps>(({ text, isUser }) => {
     return null;
   }
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={markdownComponents}>
       {text}
     </ReactMarkdown>
   );
@@ -60,7 +59,7 @@ export const ReasoningPart = memo<ReasoningPartProps>(({ text, isWidget }) => {
         <div className="mt-2">
           <div className="overflow-x-auto rounded bg-indigo-100 p-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={REMARK_PLUGINS}
               components={markdownComponents}
             >
               {cleanedText}
@@ -201,7 +200,7 @@ export const ToolPart = memo<ToolPartProps>(
                 {typeof output === "string" ? (
                   <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
                     <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
+                      remarkPlugins={REMARK_PLUGINS}
                       components={markdownComponents}
                     >
                       {output}

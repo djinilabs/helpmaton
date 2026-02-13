@@ -1,13 +1,12 @@
 import { memo, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
 
-import { markdownComponents } from "./ChatMarkdownComponents";
+import { markdownComponents, REMARK_PLUGINS } from "./ChatMarkdownComponents";
 import { getRoleLabel, getRoleStyling } from "./ChatMessageHelpers";
 import {
   DataPart,
@@ -30,6 +29,23 @@ export interface ChatMessageProps {
   agent?: { name?: string; avatar?: string };
   isWidget?: boolean;
   isStreaming?: boolean; // If true, always re-render to show streaming updates
+}
+
+/** Normalize message content to a comparable parts array; used by memo comparator. */
+function getNormalizedPartsForCompare(msg: ChatMessageProps["message"]): unknown[] {
+  if (Array.isArray(msg.parts)) {
+    return msg.parts.filter((p) => p != null);
+  }
+  if ("content" in msg) {
+    const content = msg.content;
+    if (typeof content === "string") {
+      return content.trim() ? [{ type: "text", text: content }] : [];
+    }
+    if (Array.isArray(content)) {
+      return content.filter((c) => c != null);
+    }
+  }
+  return [];
 }
 
 /**
@@ -627,7 +643,7 @@ export const ChatMessage = memo<ChatMessageProps>(
                         <div className="border-t border-purple-300 p-3 dark:border-purple-700">
                           <div className="text-sm text-purple-900 dark:text-purple-100">
                             <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
+                              remarkPlugins={REMARK_PLUGINS}
                               components={markdownComponents}
                             >
                               {snippet.snippet}
@@ -1033,60 +1049,83 @@ export const ChatMessage = memo<ChatMessageProps>(
     if (prevProps.agent?.avatar !== nextProps.agent?.avatar) {
       return false; // Re-render
     }
+    if (prevProps.agent?.name !== nextProps.agent?.name) {
+      return false; // Re-render
+    }
     if (prevProps.isWidget !== nextProps.isWidget) {
       return false; // Re-render
     }
 
-    // For non-streaming messages, do a content-based comparison
-    // Normalize parts for comparison
-    const getNormalizedParts = (msg: ChatMessageProps["message"]) => {
-      if (Array.isArray(msg.parts)) {
-        return msg.parts.filter((p) => p != null);
-      }
-      if ("content" in msg) {
-        const content = msg.content;
-        if (typeof content === "string") {
-          return content.trim() ? [{ type: "text", text: content }] : [];
-        }
-        if (Array.isArray(content)) {
-          return content.filter((c) => c != null);
-        }
-      }
-      return [];
-    };
+    // Same message reference and no other prop changes: skip re-render
+    if (prevProps.message === nextProps.message) {
+      return true;
+    }
 
-    const prevParts = getNormalizedParts(prevProps.message);
-    const nextParts = getNormalizedParts(nextProps.message);
+    // Knowledge injection messages: re-render when injection flag or snippets change
+    type KnowledgeMsg = { knowledgeInjection?: boolean; knowledgeSnippets?: unknown[] };
+    const prevKm = prevProps.message as KnowledgeMsg;
+    const nextKm = nextProps.message as KnowledgeMsg;
+    if (prevKm.knowledgeInjection !== nextKm.knowledgeInjection) {
+      return false; // Re-render when switching to/from knowledge injection
+    }
+    if (prevKm.knowledgeInjection && nextKm.knowledgeInjection) {
+      const prevSnips = prevKm.knowledgeSnippets;
+      const nextSnips = nextKm.knowledgeSnippets;
+      if (prevSnips !== nextSnips || (prevSnips?.length ?? 0) !== (nextSnips?.length ?? 0)) {
+        return false; // Re-render
+      }
+    }
 
-    // If parts length changed, re-render
+    // Lightweight parts comparison (avoid JSON.stringify of full content)
+    const prevParts = getNormalizedPartsForCompare(prevProps.message);
+    const nextParts = getNormalizedPartsForCompare(nextProps.message);
+
     if (prevParts.length !== nextParts.length) {
       return false; // Re-render
     }
 
-    // Compare parts using JSON serialization for deep equality
-    // This catches content changes even if object references are the same
-    const prevPartsStr = JSON.stringify(prevParts);
-    const nextPartsStr = JSON.stringify(nextParts);
-    if (prevPartsStr !== nextPartsStr) {
-      return false; // Re-render - content changed
+    // Same parts array reference => content unchanged
+    if (prevProps.message.parts === nextProps.message.parts) {
+      // Still need to check metadata
+    } else {
+      // Cheap content fingerprint: compare part types and text lengths
+      for (let i = 0; i < prevParts.length; i++) {
+        const p = prevParts[i];
+        const n = nextParts[i];
+        if (p == null || n == null) {
+          if (p !== n) return false;
+          continue;
+        }
+        const pType =
+          p && typeof p === "object" && "type" in p ? (p as { type: string }).type : "";
+        const nType =
+          n && typeof n === "object" && "type" in n ? (n as { type: string }).type : "";
+        if (pType !== nType) return false;
+        if (
+          pType === "text" &&
+          typeof p === "object" &&
+          p !== null &&
+          "text" in p &&
+          typeof n === "object" &&
+          n !== null &&
+          "text" in n
+        ) {
+          const pText = (p as { text: string }).text;
+          const nText = (n as { text: string }).text;
+          if (pText.length !== nText.length || pText !== nText) return false;
+        }
+        // For other part types, reference equality is sufficient (tool calls etc. are not mutated in place)
+        if (p !== n && pType !== "text") return false;
+      }
     }
 
-    // Compare other message properties (tokenUsage, modelName, etc.)
-    const prevStr = JSON.stringify({
-      tokenUsage: prevProps.message.tokenUsage,
-      modelName: prevProps.message.modelName,
-      provider: prevProps.message.provider,
-    });
-    const nextStr = JSON.stringify({
-      tokenUsage: nextProps.message.tokenUsage,
-      modelName: nextProps.message.modelName,
-      provider: nextProps.message.provider,
-    });
-    if (prevStr !== nextStr) {
-      return false; // Re-render - metadata changed
-    }
+    // Shallow compare metadata
+    const prevMsg = prevProps.message;
+    const nextMsg = nextProps.message;
+    if (prevMsg.tokenUsage !== nextMsg.tokenUsage) return false;
+    if (prevMsg.modelName !== nextMsg.modelName) return false;
+    if (prevMsg.provider !== nextMsg.provider) return false;
 
-    // Everything is the same, skip re-render
     return true;
   }
 );
