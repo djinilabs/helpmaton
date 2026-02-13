@@ -1,0 +1,17 @@
+import type { AgentSkill } from "./skill";
+
+const skill: AgentSkill = {
+  id: "github-issue-pr-workflow",
+  name: "GitHub Issue and PR Workflow",
+  description: "List and search issues, PRs, commits; summarize status and reviews",
+  role: "engineering",
+  requiredTools: [
+    {
+      "type": "mcpService",
+      "serviceType": "github"
+    }
+  ],
+  content: "## GitHub Issue and PR Workflow\n\nWhen working with GitHub issues and pull requests:\n\n- Use **github_list_repos** (tool name may have a suffix if multiple GitHub servers exist) when owner/repo is unknown; then **github_list_issues** or **github_list_prs** with owner, repo, and state (open/closed/all).\n- Use **github_get_issue** or **github_get_pr** for full details, review status, and merge state before summarizing.\n- Use **github_list_commits** and **github_get_commit** for commit history and change stats.\n- Always specify owner and repo; use state and sort/direction for focused lists.\n- Summarize counts, titles, and key metadata; avoid dumping full bodies unless the user asks.\n\n## Step-by-step instructions\n\n1. Resolve owner and repo: use **github_list_repos** if needed, or take from the user's question.\n2. For \"open issues\" or \"PRs in repo X\": call **github_list_issues** or **github_list_prs** with owner, repo, state (e.g. open), and optional sort/direction.\n3. For a specific issue or PR: call **github_get_issue** or **github_get_pr** with owner, repo, and issueNumber; summarize title, state, assignee, labels, and (for PRs) merge status and review state.\n4. For commit history: use **github_list_commits** with owner, repo, and optional author/path/since/until; use **github_get_commit** for a single commit's details and stats.\n5. When summarizing: report counts, key titles, and status; cite repo and filters used.\n\n## Examples of inputs and outputs\n\n- **Input**: \"What open PRs are in acme/api-server?\"  \n  **Output**: Short list of PR numbers, titles, and state from **github_list_prs** (owner=acme, repo=api-server, state=open); optionally merge status per PR.\n\n- **Input**: \"Summarize PR #42 in acme/api-server.\"  \n  **Output**: Title, state, merge status, review state, and key changes (additions/deletions) from **github_get_pr**; mention assignee and labels if relevant.\n\n## Common edge cases\n\n- **Repo not found**: Say \"Repository [owner/repo] not found\" and suggest checking name or permissions.\n- **Issue/PR not found**: Say \"Issue/PR [number] not found\" and suggest checking the number or repo.\n- **Large list**: Summarize count and a sample (e.g. first 5-10) with key fields; do not dump every item unless asked.\n- **API/OAuth error**: Report that GitHub returned an error and suggest reconnecting or retrying.\n\n## Tool usage for specific purposes\n\n- **github_list_repos**: Use when owner/repo is unknown; then use list_issues/list_prs with the chosen repo.\n- **github_list_issues**: Use for \"open issues\", \"backlog\", or by state; filter by state, sort, direction.\n- **github_get_issue**: Use for full issue details before summarizing or when the user asks for one issue.\n- **github_list_prs**: Use for \"open PRs\", \"merged this week\", or by state; filter by state, sort, direction.\n- **github_get_pr**: Use for full PR details, merge status, and review state.\n- **github_list_commits** / **github_get_commit**: Use for commit history and change stats.",
+};
+
+export default skill;

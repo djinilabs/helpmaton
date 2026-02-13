@@ -10,6 +10,8 @@ requiredTools:
 
 ## Slack Channel Engagement
 
+Use this skill for support-style channel engagement: customer-facing or support channels where you read history and post replies or updates. (For internal team/project channels and announcements, prefer the Slack Internal Comms skill.)
+
 When engaging in Slack channels:
 
 - List channels to find the right channel by name or topic.
@@ -42,6 +44,6 @@ When engaging in Slack channels:
 
 ## Tool usage for specific purposes
 
-- **List channels**: Use to find the right channel by name or topic before reading history or posting.
+- **List channels**: Use to find the right channel by name or topic before reading history or posting (support/customer channels).
 - **Get channel history**: Use to read recent messages for “what’s happening” or to gather context before replying.
 - **Post message**: Use to send a new message; specify channel; use thread or mentions only when appropriate.

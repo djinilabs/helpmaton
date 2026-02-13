@@ -12,20 +12,20 @@ requiredTools:
 
 When analyzing marketing data:
 
-- Use events and persons to trace user journeys and conversion funnels.
-- Prefer insights over raw events when answering funnel or retention questions.
-- When comparing campaigns, use distinct_id and event properties for attribution.
-- Always specify projectId; list projects first if unknown.
+- Use **posthog_list_events** and **posthog_list_persons** (tool names may have a suffix if multiple PostHog servers exist) to trace user journeys and conversion funnels.
+- Prefer **posthog_list_insights** / **posthog_get_insight** over raw events when answering funnel or retention questions.
+- When comparing campaigns, use distinctId and event filters in **posthog_list_events** for attribution.
+- Always specify projectId; call **posthog_list_projects** first if unknown.
 - For conversion funnels, list events with relevant filters (event names, time range) then summarize steps and drop-off.
 - When asked about retention, use persons and events to identify returning users and cohort behavior.
 
 ## Step-by-step instructions
 
-1. If projectId is unknown, use PostHog tools to list projects and pick the relevant one.
-2. For funnel questions: identify the event sequence (e.g. signup → trial_start → paid), query events with filters and time range, then summarize steps and drop-off rates.
-3. For attribution or campaigns: use distinct_id and event properties to relate events to campaigns; summarize by campaign or source.
-4. For retention: use persons and events to count returning users and cohort behavior over time.
-5. Prefer high-level insights (counts, rates, trends) over raw event dumps; cite filters and time range used.
+1. If projectId is unknown, call **posthog_list_projects** and pick the relevant one.
+2. For funnel questions: identify the event sequence (e.g. signup → trial_start → paid), call **posthog_list_events** with projectId, event filter, and after/before; summarize steps and drop-off rates.
+3. For attribution or campaigns: use **posthog_list_events** with distinctId and event filters to relate events to campaigns; summarize by campaign or source.
+4. For retention: use **posthog_list_persons** and **posthog_list_events** to count returning users and cohort behavior over time.
+5. Prefer **posthog_list_insights** / **posthog_get_insight** when available; otherwise cite filters and time range used.
 
 ## Examples of inputs and outputs
 
@@ -37,12 +37,13 @@ When analyzing marketing data:
 
 ## Common edge cases
 
-- **No projectId**: List projects first and ask the user which one, or use the default if only one.
+- **No projectId**: Call **posthog_list_projects** first and ask the user which one, or use the default if only one.
 - **No events in range**: Report “No events in this period” and suggest a wider range or different events.
 - **Ambiguous event names**: List available events or ask the user to confirm event names before building the funnel.
 - **Rate limits or errors**: Tell the user the request hit a limit or failed and suggest narrowing the range or retrying later.
 
 ## Tool usage for specific purposes
 
-- **PostHog MCP (events)**: Use to query events with filters (event names, properties, time range) for funnels, counts, and attribution. Always include projectId and a sensible time range.
-- **PostHog MCP (persons/insights)**: Use for retention and cohort-style questions; relate persons to events via distinct_id. Use insights when the tool supports them for funnel or retention answers.
+- **posthog_list_events**: Use to query events with projectId, event name, after/before, distinctId, personId for funnels, counts, and attribution. Always include a sensible time range.
+- **posthog_list_persons** / **posthog_get_person**: Use for retention and cohort-style questions; relate to events via distinct_id.
+- **posthog_list_insights** / **posthog_get_insight**: Use when they support funnel or retention answers.

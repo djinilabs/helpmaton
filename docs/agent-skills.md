@@ -40,6 +40,8 @@ These sections should reference the actual tools the skill requires (built-in or
 | `send_email`         | Send email enabled **and** workspace has email connection |
 | `image_generation`   | Image generation enabled |
 
+**Note:** The built-in ID (e.g. `image_generation`) may differ from the actual tool name exposed to the model (e.g. `generate_image`). Skills reference the built-in ID in `requiredTools`; skill content can mention the actual tool name for clarity.
+
 ## Skill catalog (by tool)
 
 Skills are grouped by role in the UI (marketing, product, support, sales, engineering, other). Below is a summary by required tool.
@@ -50,9 +52,19 @@ Skills are grouped by role in the UI (marketing, product, support, sales, engine
 - **HubSpot** (`mcpService: hubspot`): Sales CRM, marketing contacts.
 - **Zendesk** (`mcpService: zendesk`): Support tickets, customer context.
 - **Slack** (`mcpService: slack`): Channel engagement, internal comms.
+- **Intercom** (`mcpService: intercom`): Customer conversations.
+- **GitHub** (`mcpService: github`): Issue and PR workflow.
+- **Stripe** (`mcpService: stripe`): Billing overview.
+- **Shopify** (`mcpService: shopify`): E-commerce ops.
+- **Salesforce** (`mcpService: salesforce`): CRM query.
+- **Todoist** (`mcpService: todoist`): Task management.
 - **Document search** (`search_documents`): Document FAQ assistant, document research.
 - **Web search** (`search_web`): Web research assistant, competitive intelligence.
+- **Web fetch** (`fetch_web`): Web content fetch.
+- **Exa search** (`exa_search`): Exa semantic research.
 - **Email** (`send_email`): Email follow-up, email support reply.
+- **Memory search** (`search_memory`): Memory context recall.
+- **Image generation** (`image_generation`): Image generation assistant.
 
 ## API
 

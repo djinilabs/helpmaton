@@ -17,6 +17,7 @@ When researching competitors or market context:
 - Summarize comparisons clearly (e.g. features, pricing, positioning).
 - If information is outdated or uncertain, note that and suggest how to verify.
 - Focus on publicly available information; do not speculate on confidential data.
+- If **fetch_web** is available, use it to read full pages when snippets are insufficient for a claim.
 
 ## Step-by-step instructions
 

@@ -10,6 +10,8 @@ requiredTools:
 
 ## Slack Internal Comms
 
+Use this skill for internal team and project channels: announcements, team updates, and summarizing recent discussions. (For support-style or customer-facing channel engagement, prefer the Slack Channel Engagement skill.)
+
 When handling internal Slack communications:
 
 - List channels to locate team or project channels.
@@ -42,6 +44,6 @@ When handling internal Slack communications:
 
 ## Tool usage for specific purposes
 
-- **List channels**: Use to find team or project channels before reading or posting.
+- **List channels**: Use to find team or project channels (internal) before reading or posting.
 - **Get channel history**: Use to gather context and summarize recent discussions or decisions.
-- **Post message**: Use for announcements; always target the correct channel and keep content concise and actionable.
+- **Post message**: Use for announcements to internal channels; always target the correct channel and keep content concise and actionable.

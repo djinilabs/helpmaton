@@ -17,6 +17,7 @@ When researching on the web:
 - Summarize findings clearly; distinguish between verified facts and inference.
 - If results are unclear or conflicting, say so and outline the main views.
 - Prefer concise answers with key links over long copy-paste.
+- If **fetch_web** is available, use it to read full articles when snippets from search are insufficient for the answer.
 
 ## Step-by-step instructions
 
