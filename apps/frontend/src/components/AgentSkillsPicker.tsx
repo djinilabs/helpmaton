@@ -42,11 +42,11 @@ export const AgentSkillsPicker: FC<AgentSkillsPickerProps> = ({
   const [expandedSkillId, setExpandedSkillId] = useState<string | null>(null);
 
   const roleOrder = ["marketing", "product", "support", "sales", "engineering", "other"];
-  const orderedRoles = roleOrder.filter((r) => (groupedByRole[r]?.length ?? 0) > 0);
-  const hasOther = Object.keys(groupedByRole).some((r) => !roleOrder.includes(r));
-  if (hasOther) {
-    orderedRoles.push("other");
-  }
+  const keys = Object.keys(groupedByRole);
+  const orderedRoles = [
+    ...roleOrder.filter((r) => keys.includes(r)),
+    ...keys.filter((k) => !roleOrder.includes(k)).sort(),
+  ];
 
   return (
     <div className="space-y-4">
@@ -103,6 +103,14 @@ export const AgentSkillsPicker: FC<AgentSkillsPickerProps> = ({
                       <div className="border-t border-neutral-200 dark:border-neutral-700">
                         <button
                           type="button"
+                          aria-expanded={isExpanded}
+                          aria-controls={`skill-content-${skill.id}`}
+                          aria-label={
+                            isExpanded
+                              ? `Hide content for ${skill.name}`
+                              : `Show content for ${skill.name}`
+                          }
+                          id={`skill-toggle-${skill.id}`}
                           onClick={() =>
                             setExpandedSkillId(isExpanded ? null : skill.id)
                           }
@@ -116,7 +124,12 @@ export const AgentSkillsPicker: FC<AgentSkillsPickerProps> = ({
                           {isExpanded ? "Hide content" : "Show content"}
                         </button>
                         {isExpanded && (
-                          <pre className="max-h-48 overflow-auto whitespace-pre-wrap border-t border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                          <pre
+                            id={`skill-content-${skill.id}`}
+                            role="region"
+                            aria-labelledby={`skill-toggle-${skill.id}`}
+                            className="max-h-48 overflow-auto whitespace-pre-wrap border-t border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                          >
                             {skill.content}
                           </pre>
                         )}

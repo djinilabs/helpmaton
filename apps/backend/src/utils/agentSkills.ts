@@ -1,26 +1,12 @@
 /**
- * Agent skills: load skill definitions from the skills folder, filter by
- * tool requirements, and merge skill content into the agent system prompt.
- * Skills are loaded lazily on first use and cached.
+ * Agent skills: filter by tool requirements and merge skill content into the agent system prompt.
+ * Skills are loaded via hard-coded dynamic imports (registry), not the filesystem. Lazy on first use, then cached.
  */
 
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
+import { loadAllSkills } from "../skills/registry";
+import type { AgentSkill } from "../skills/skill";
 
-import matter from "gray-matter";
-
-export type RequiredTool =
-  | { type: "mcpService"; serviceType: string }
-  | { type: "builtin"; tool: string };
-
-export interface AgentSkill {
-  id: string;
-  name: string;
-  description: string;
-  role?: string;
-  requiredTools: RequiredTool[];
-  content: string;
-}
+export type { AgentSkill, RequiredTool } from "../skills/skill";
 
 /** Agent shape used to determine which builtin tools are enabled */
 export interface AgentForSkills {
@@ -39,16 +25,6 @@ export interface McpServerForSkills {
   serviceType?: string;
   oauthConnected?: boolean;
 }
-
-const BUILTIN_IDS = [
-  "search_documents",
-  "search_memory",
-  "search_web",
-  "fetch_web",
-  "exa_search",
-  "send_email",
-  "image_generation",
-] as const;
 
 /** OAuth-based MCP services: must be connected for the tool to count as enabled */
 const OAUTH_SERVICE_TYPES = new Set([
@@ -69,124 +45,30 @@ const OAUTH_SERVICE_TYPES = new Set([
 ]);
 
 let skillsCache: AgentSkill[] | null = null;
-
-/** Paths to try in order: Lambda (skills copied next to handler), then dev (src/skills). */
-function getDefaultSkillsDirCandidates(): string[] {
-  return [
-    path.join(__dirname, "skills"),
-    path.join(__dirname, "..", "skills"),
-  ];
-}
-
-function parseRequiredTools(raw: unknown): RequiredTool[] {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return [];
-  }
-  const result: RequiredTool[] = [];
-  for (const item of raw) {
-    if (item && typeof item === "object" && "type" in item) {
-      const t = (item as { type: string }).type;
-      if (t === "mcpService" && "serviceType" in item) {
-        const st = (item as { serviceType: unknown }).serviceType;
-        if (typeof st === "string" && st.length > 0) {
-          result.push({ type: "mcpService", serviceType: st });
-        }
-      } else if (t === "builtin" && "tool" in item) {
-        const tool = (item as { tool: unknown }).tool;
-        if (typeof tool === "string" && BUILTIN_IDS.includes(tool as (typeof BUILTIN_IDS)[number])) {
-          result.push({ type: "builtin", tool });
-        }
-      }
-    }
-  }
-  return result;
-}
-
-function parseSkillFromFrontmatter(
-  id: string,
-  content: string,
-  frontmatter: Record<string, unknown>
-): AgentSkill | null {
-  const name = frontmatter.name;
-  const description = frontmatter.description;
-  const requiredTools = parseRequiredTools(frontmatter.requiredTools);
-  if (
-    typeof name !== "string" ||
-    name.trim() === "" ||
-    typeof description !== "string" ||
-    description.trim() === "" ||
-    requiredTools.length === 0
-  ) {
-    return null;
-  }
-  const role =
-    typeof frontmatter.role === "string" && frontmatter.role.trim() !== ""
-      ? frontmatter.role.trim()
-      : undefined;
-  return {
-    id,
-    name: name.trim(),
-    description: description.trim(),
-    role,
-    requiredTools,
-    content: content.trim(),
-  };
-}
-
 let loadPromise: Promise<AgentSkill[]> | null = null;
 
-/**
- * Load all skills from the skills folder. Lazy: loads on first call and caches.
- * Validates requiredTools non-empty; skips malformed skills.
- */
-async function loadSkillsFromFolderAsync(skillsDir?: string): Promise<AgentSkill[]> {
+/** For tests only: inject a custom loader. Call clearSkillsCache() after test. */
+let testSkillLoader: (() => Promise<AgentSkill[]>) | null = null;
+export function setSkillLoaderForTests(
+  loader: () => Promise<AgentSkill[]>,
+): void {
+  testSkillLoader = loader;
+}
+
+// skillsDir kept for API compatibility but unused (skills loaded via registry)
+async function loadSkillsAsync(
+  _skillsDir?: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+): Promise<AgentSkill[]> {
   if (skillsCache !== null) {
     return skillsCache;
   }
   if (loadPromise !== null) {
     return loadPromise;
   }
-  const dirsToTry = skillsDir
-    ? [skillsDir]
-    : getDefaultSkillsDirCandidates();
   loadPromise = (async () => {
-    const skills: AgentSkill[] = [];
-    let dir: string | null = null;
-    let entries: { name: string; isDirectory: () => boolean }[] = [];
-    for (const d of dirsToTry) {
-      try {
-        entries = await readdir(d, { withFileTypes: true });
-        dir = d;
-        break;
-      } catch {
-        continue;
-      }
-    }
-    if (dir === null) {
-      loadPromise = null;
-      return skills;
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const id = entry.name;
-      if (!/^[a-z0-9-]+$/.test(id)) continue;
-      const skillPath = path.join(dir, id, "SKILL.md");
-      let raw: string;
-      try {
-        raw = await readFile(skillPath, "utf-8");
-      } catch {
-        continue;
-      }
-      const parsed = matter(raw);
-      const skill = parseSkillFromFrontmatter(
-        id,
-        parsed.content,
-        parsed.data as Record<string, unknown>
-      );
-      if (skill) {
-        skills.push(skill);
-      }
-    }
+    const skills = testSkillLoader
+      ? await testSkillLoader()
+      : await loadAllSkills();
     skillsCache = skills;
     loadPromise = null;
     return skills;
@@ -197,7 +79,7 @@ async function loadSkillsFromFolderAsync(skillsDir?: string): Promise<AgentSkill
 function satisfiesBuiltin(
   tool: string,
   agent: AgentForSkills,
-  hasEmailConnection?: boolean
+  hasEmailConnection?: boolean,
 ): boolean {
   switch (tool) {
     case "search_documents":
@@ -229,7 +111,7 @@ function satisfiesBuiltin(
 
 function satisfiesMcpService(
   serviceType: string,
-  enabledMcpServers: McpServerForSkills[]
+  enabledMcpServers: McpServerForSkills[],
 ): boolean {
   for (const server of enabledMcpServers) {
     if (server.serviceType !== serviceType) continue;
@@ -245,7 +127,7 @@ function skillRequirementsSatisfied(
   skill: AgentSkill,
   agent: AgentForSkills,
   enabledMcpServers: McpServerForSkills[],
-  hasEmailConnection?: boolean
+  hasEmailConnection?: boolean,
 ): boolean {
   for (const req of skill.requiredTools) {
     if (req.type === "mcpService") {
@@ -263,22 +145,22 @@ function skillRequirementsSatisfied(
 
 /**
  * Return skills available for the agent (all required tools enabled).
- * Lazy-loads skills on first call.
+ * Lazy-loads skills on first call (via registry imports).
  */
 export async function getAvailableSkills(
   agent: AgentForSkills,
   enabledMcpServers: McpServerForSkills[],
-  options?: { hasEmailConnection?: boolean; skillsDir?: string }
+  options?: { hasEmailConnection?: boolean; skillsDir?: string },
 ): Promise<AgentSkill[]> {
-  const skills = await loadSkillsFromFolderAsync(options?.skillsDir);
+  const skills = await loadSkillsAsync(options?.skillsDir);
   const hasEmailConnection = options?.hasEmailConnection;
   return skills.filter((skill) =>
     skillRequirementsSatisfied(
       skill,
       agent,
       enabledMcpServers,
-      hasEmailConnection
-    )
+      hasEmailConnection,
+    ),
   );
 }
 
@@ -289,12 +171,12 @@ export async function getAvailableSkills(
 export async function buildSystemPromptWithSkills(
   basePrompt: string,
   skillIds: string[] | undefined,
-  options?: { skillsDir?: string }
+  options?: { skillsDir?: string },
 ): Promise<string> {
   if (!skillIds || skillIds.length === 0) {
     return basePrompt;
   }
-  const all = await loadSkillsFromFolderAsync(options?.skillsDir);
+  const all = await loadSkillsAsync(options?.skillsDir);
   const byId = new Map(all.map((s) => [s.id, s]));
   const seen = new Set<string>();
   const ordered: AgentSkill[] = [];
@@ -317,27 +199,33 @@ export async function buildSystemPromptWithSkills(
 }
 
 /**
- * Load all skills from the skills folder. Lazy-loads on first call and caches.
- * Exported for tests and explicit load.
+ * Load all skills. Lazy-loads on first call and caches. Exported for tests.
+ * skillsDir is ignored (skills are loaded via registry).
  */
-export async function loadSkillsFromFolder(skillsDir?: string): Promise<AgentSkill[]> {
-  return loadSkillsFromFolderAsync(skillsDir);
+export async function loadSkillsFromFolder(
+  skillsDir?: string,
+): Promise<AgentSkill[]> {
+  return loadSkillsAsync(skillsDir);
 }
 
 /**
  * Get all loaded skills (for available-skills API). Lazy-loads on first call.
  */
 export async function getAllSkills(skillsDir?: string): Promise<AgentSkill[]> {
-  return loadSkillsFromFolderAsync(skillsDir);
+  return loadSkillsAsync(skillsDir);
 }
 
 /**
- * Group skills by role for UI. Skills with no role go under "other".
+ * Group skills by role for UI. Skills with no role or unknown role go under "other".
+ * Normalizes role to lowercase for stable API response.
  */
-export function groupSkillsByRole(skills: AgentSkill[]): Record<string, AgentSkill[]> {
+export function groupSkillsByRole(
+  skills: AgentSkill[],
+): Record<string, AgentSkill[]> {
   const grouped: Record<string, AgentSkill[]> = {};
   for (const skill of skills) {
-    const role = skill.role?.trim() && skill.role !== "other" ? skill.role : "other";
+    const raw = skill.role?.trim().toLowerCase();
+    const role = raw && raw !== "other" ? raw : "other";
     if (!grouped[role]) {
       grouped[role] = [];
     }
@@ -350,4 +238,5 @@ export function groupSkillsByRole(skills: AgentSkill[]): Record<string, AgentSki
 export function clearSkillsCache(): void {
   skillsCache = null;
   loadPromise = null;
+  testSkillLoader = null;
 }

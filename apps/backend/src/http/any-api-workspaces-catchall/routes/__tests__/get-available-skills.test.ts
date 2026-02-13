@@ -3,6 +3,11 @@ import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
+  clearSkillsCache,
+  getAvailableSkills,
+  groupSkillsByRole,
+} from "../../../../utils/agentSkills";
+import {
   createMockRequest,
   createMockResponse,
   createMockNext,
@@ -15,14 +20,10 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
-import {
-  getAvailableSkills,
-  groupSkillsByRole,
-} from "../../../../utils/agentSkills";
-
 describe("GET /api/workspaces/:workspaceId/agents/:agentId/available-skills", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearSkillsCache();
   });
 
   async function callRouteHandler(

@@ -2,6 +2,7 @@ import { badRequest } from "@hapi/boom";
 import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { getAvailableSkills } from "../../../../utils/agentSkills";
 import { isValidAvatar } from "../../../../utils/avatarUtils";
 import * as summarizeMemory from "../../../../utils/memory/summarizeMemory";
 import {
@@ -10,7 +11,6 @@ import {
   createMockNext,
   createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
-import { getAvailableSkills } from "../../../../utils/agentSkills";
 import {
   buildAgentResponse,
   buildAgentUpdateParams,

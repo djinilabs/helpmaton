@@ -2,6 +2,17 @@
 
 Agent skills are optional instruction blocks that are appended to an agent’s system prompt. Each skill is tied to specific **tools** (MCP servers or built-in tools). A skill can only be enabled when **all** of its required tools are enabled for the agent.
 
+## Skill content structure
+
+Each skill’s markdown content (below the frontmatter) **must** include the following sections so the agent can use the skill reliably:
+
+- **Step-by-step instructions**: Clear, ordered steps for using the skill (including when and how to call tools).
+- **Examples of inputs and outputs**: Sample user requests and expected agent behavior or response shape (including example tool calls and results where relevant).
+- **Common edge cases**: What to do when data is missing, results are empty, the user is vague, or errors occur (e.g. rate limits, timeouts).
+- **Tool usage**: How to use each available tool for specific purposes (e.g. “use search_documents for FAQ-style questions”, “use PostHog events for funnel steps”).
+
+These sections should reference the actual tools the skill requires (built-in or MCP) and give concrete guidance so the model can follow the skill consistently.
+
 ## Overview
 
 - **Location**: Agent detail page → **External tools** → **Skills**.
