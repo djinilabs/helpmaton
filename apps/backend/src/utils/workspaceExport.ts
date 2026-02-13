@@ -313,6 +313,7 @@ export async function exportWorkspace(
         delegatableAgentIds: delegatableAgentRefNames,
         enabledMcpServerIds: enabledMcpServerRefNames,
         enabledMcpServerToolNames,
+        enabledSkillIds: agent.enabledSkillIds,
         enableMemorySearch: agent.enableMemorySearch,
         enableSearchDocuments: agent.enableSearchDocuments,
         enableKnowledgeInjection: agent.enableKnowledgeInjection,

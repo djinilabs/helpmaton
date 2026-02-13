@@ -2,6 +2,7 @@ import type { ModelMessage } from "ai";
 import { streamText } from "ai";
 
 import type { setupAgentAndTools } from "../../http/utils/agentSetup";
+import { buildSystemPromptWithSkills } from "../../utils/agentSkills";
 import { uploadConversationFile } from "../../utils/s3";
 import { Sentry, ensureError } from "../../utils/sentry";
 
@@ -435,6 +436,11 @@ export async function pipeAIStreamToResponse(
   );
   const effectiveTools = resolveToolsForCapabilities(tools, modelCapabilities);
 
+  const effectiveSystemPrompt = await buildSystemPromptWithSkills(
+    agent.systemPrompt,
+    agent.enabledSkillIds
+  );
+
   // Prepare LLM call (logging and generate options)
   const generateOptions = prepareLLMCall(
     agent,
@@ -451,7 +457,7 @@ export async function pipeAIStreamToResponse(
 
   console.log("[Stream Handler] streamText arguments:", {
     model: resolvedModelName || "default",
-    systemPromptLength: agent.systemPrompt.length,
+    systemPromptLength: effectiveSystemPrompt.length,
     messagesCount: modelMessages.length,
     toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
     hasAbortSignal: Boolean(abortSignal),
@@ -461,7 +467,7 @@ export async function pipeAIStreamToResponse(
 
   const streamResult = streamText({
     model: model as unknown as Parameters<typeof streamText>[0]["model"],
-    system: agent.systemPrompt,
+    system: effectiveSystemPrompt,
     messages: modelMessages,
     ...(effectiveTools ? { tools: effectiveTools } : {}),
     ...generateOptions,

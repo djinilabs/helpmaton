@@ -6,6 +6,10 @@ This document explains how to configure and use MCP (Model Context Protocol) ser
 
 MCP (Model Context Protocol) servers allow agents to call external services and tools. Helpmaton integrates with MCP servers by creating tools dynamically from server configurations, enabling agents to interact with external APIs and services.
 
+## Skills
+
+Enabling MCP servers (and other tools) on an agent unlocks **agent skills**: optional instruction blocks that are appended to the agent’s system prompt. Skills are tied to specific tools (e.g. PostHog, Notion, Linear); a skill can only be enabled when all of its required tools are enabled. See [Agent Skills](./agent-skills.md) for the catalog and tool requirements.
+
 ## What are MCP Servers?
 
 MCP servers are external services that expose tools and capabilities via the MCP protocol (JSON-RPC 2.0). Agents can call these tools to:

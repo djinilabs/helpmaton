@@ -10,6 +10,7 @@ import {
   createMockNext,
   createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
+import { getAvailableSkills } from "../../../../utils/agentSkills";
 import {
   buildAgentResponse,
   buildAgentUpdateParams,
@@ -31,14 +32,19 @@ import {
 } from "../agentUpdate";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockDatabase, mockGetModelPricing, mockIsImageCapableModel } =
-  vi.hoisted(() => {
-    return {
-      mockDatabase: vi.fn(),
-      mockGetModelPricing: vi.fn(),
-      mockIsImageCapableModel: vi.fn(),
-    };
-  });
+const {
+  mockDatabase,
+  mockGetModelPricing,
+  mockIsImageCapableModel,
+  mockGetAvailableSkills,
+} = vi.hoisted(() => {
+  return {
+    mockDatabase: vi.fn(),
+    mockGetModelPricing: vi.fn(),
+    mockIsImageCapableModel: vi.fn(),
+    mockGetAvailableSkills: vi.fn(),
+  };
+});
 
 // Mock the modules
 vi.mock("../../../../tables", () => ({
@@ -50,9 +56,15 @@ vi.mock("../../../../utils/pricing", () => ({
   isImageCapableModel: mockIsImageCapableModel,
 }));
 
+vi.mock("../../../../utils/agentSkills", () => ({
+  getAvailableSkills: (...args: unknown[]) =>
+    (mockGetAvailableSkills as (...a: unknown[]) => unknown)(...args),
+}));
+
 describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAvailableSkills.mockResolvedValue([]);
   });
 
   async function callRouteHandler(
@@ -144,6 +156,66 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
           enableTavilyFetch: body.enableTavilyFetch,
           currentProvider: agent.fetchWebProvider,
         });
+
+        const effectiveMcpServerIds =
+          cleanedEnabledMcpServerIds ?? agent.enabledMcpServerIds ?? [];
+        const emailConnectionPk = `email-connections/${workspaceId}`;
+        const emailConnection = await db["email-connection"].get(
+          emailConnectionPk,
+          "connection",
+        );
+        const hasEmailConnection = !!emailConnection;
+        const enabledMcpServers: { id: string; serviceType?: string; oauthConnected?: boolean }[] = [];
+        for (const serverId of effectiveMcpServerIds) {
+          const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
+          const server = await db["mcp-server"].get(serverPk, "server");
+          if (server) {
+            const config = server.config as { accessToken?: string };
+            enabledMcpServers.push({
+              id: serverId,
+              serviceType: server.serviceType,
+              oauthConnected: !!config?.accessToken,
+            });
+          }
+        }
+        const effectiveAgent = {
+          enableSearchDocuments:
+            body.enableSearchDocuments !== undefined
+              ? body.enableSearchDocuments
+              : (agent.enableSearchDocuments ?? false),
+          enableMemorySearch:
+            body.enableMemorySearch !== undefined
+              ? body.enableMemorySearch
+              : (agent.enableMemorySearch ?? false),
+          searchWebProvider: resolvedSearchWebProvider ?? null,
+          fetchWebProvider: resolvedFetchWebProvider ?? null,
+          enableExaSearch:
+            body.enableExaSearch !== undefined
+              ? body.enableExaSearch
+              : (agent.enableExaSearch ?? false),
+          enableSendEmail:
+            body.enableSendEmail !== undefined
+              ? body.enableSendEmail
+              : (agent.enableSendEmail ?? false),
+          enableImageGeneration:
+            body.enableImageGeneration !== undefined
+              ? body.enableImageGeneration
+              : (agent.enableImageGeneration ?? false),
+        };
+        const availableSkills = await getAvailableSkills(
+          effectiveAgent,
+          enabledMcpServers,
+          { hasEmailConnection },
+        );
+        const requestedEnabledSkillIds =
+          body.enabledSkillIds !== undefined
+            ? body.enabledSkillIds
+            : (agent.enabledSkillIds ?? []);
+        const availableSkillIds = new Set(availableSkills.map((s: { id: string }) => s.id));
+        const cleanedEnabledSkillIds = requestedEnabledSkillIds.filter((id: string) =>
+          availableSkillIds.has(id),
+        );
+
         const resolvedKnowledgeInjectionEntityExtractorModel = undefined;
 
         const normalizedSummarizationPrompts =
@@ -160,6 +232,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
             normalizedSummarizationPrompts,
             cleanedEnabledMcpServerIds,
             cleanedEnabledMcpServerToolNames: undefined,
+            cleanedEnabledSkillIds,
             resolvedSearchWebProvider,
             resolvedFetchWebProvider,
             resolvedModelName,
@@ -239,6 +312,70 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
         id: "agent-456",
         name: "New Name",
         systemPrompt: "New Prompt",
+      }),
+    );
+  });
+
+  it("strips invalid enabledSkillIds and persists only valid ones", async () => {
+    mockGetAvailableSkills.mockResolvedValue([
+      {
+        id: "valid-skill",
+        name: "Valid Skill",
+        description: "A valid skill",
+        requiredTools: [],
+        content: "Content",
+      },
+    ]);
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "Prompt",
+      provider: "openrouter",
+      createdAt: "2024-01-01T00:00:00Z",
+      enabledMcpServerIds: [],
+      enabledSkillIds: [],
+    };
+
+    const mockUpdatedAgent = {
+      ...mockAgent,
+      enabledSkillIds: ["valid-skill"],
+      updatedBy: "users/user-123",
+      updatedAt: "2024-01-02T00:00:00Z",
+    };
+
+    mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
+    const mockAgentUpdate = vi.fn().mockResolvedValue(mockUpdatedAgent);
+    mockDb.agent.update = mockAgentUpdate;
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: { workspaceId: "workspace-123", agentId: "agent-456" },
+      body: {
+        enabledSkillIds: ["valid-skill", "invalid-skill", "another-bad"],
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockGetAvailableSkills).toHaveBeenCalled();
+    expect(mockAgentUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabledSkillIds: ["valid-skill"],
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "agent-456",
+        enabledSkillIds: ["valid-skill"],
       }),
     );
   });

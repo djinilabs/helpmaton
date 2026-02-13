@@ -111,6 +111,7 @@ export const updateAgentSchema = z
     enabledMcpServerToolNames: z
       .record(z.string(), z.array(z.string()))
       .optional(),
+    enabledSkillIds: z.array(z.string()).optional(),
     enableMemorySearch: z.boolean().optional(),
     enableSearchDocuments: z.boolean().optional(),
     enableKnowledgeInjection: z.boolean().optional(),

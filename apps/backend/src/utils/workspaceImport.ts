@@ -560,6 +560,7 @@ async function createAgentsAndNestedEntities(
       delegatableAgentIds,
       enabledMcpServerIds,
       enabledMcpServerToolNames,
+      enabledSkillIds: agentData.enabledSkillIds,
       enableMemorySearch: agentData.enableMemorySearch ?? false,
       enableSearchDocuments: agentData.enableSearchDocuments ?? false,
       enableKnowledgeInjection: agentData.enableKnowledgeInjection ?? false,

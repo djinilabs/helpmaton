@@ -3,6 +3,8 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { getAvailableSkills } from "../../../utils/agentSkills";
+import type { McpServerForSkills } from "../../../utils/agentSkills";
 import { isValidAvatar } from "../../../utils/avatarUtils";
 import { normalizeSummarizationPrompts } from "../../../utils/memory/summarizeMemory";
 import { trackBusinessEvent } from "../../../utils/tracking";
@@ -211,6 +213,65 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           currentProvider: agent.fetchWebProvider,
         });
 
+        const effectiveMcpServerIds =
+          cleanedEnabledMcpServerIds ?? agent.enabledMcpServerIds ?? [];
+        const emailConnectionPk = `email-connections/${workspaceId}`;
+        const emailConnection = await db["email-connection"].get(
+          emailConnectionPk,
+          "connection",
+        );
+        const hasEmailConnection = !!emailConnection;
+        const enabledMcpServers: McpServerForSkills[] = [];
+        for (const serverId of effectiveMcpServerIds) {
+          const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
+          const server = await db["mcp-server"].get(serverPk, "server");
+          if (server) {
+            const config = server.config as { accessToken?: string };
+            enabledMcpServers.push({
+              id: serverId,
+              serviceType: server.serviceType,
+              oauthConnected: !!config?.accessToken,
+            });
+          }
+        }
+        const effectiveAgent = {
+          enableSearchDocuments:
+            body.enableSearchDocuments !== undefined
+              ? body.enableSearchDocuments
+              : (agent.enableSearchDocuments ?? false),
+          enableMemorySearch:
+            body.enableMemorySearch !== undefined
+              ? body.enableMemorySearch
+              : (agent.enableMemorySearch ?? false),
+          searchWebProvider: resolvedSearchWebProvider ?? null,
+          fetchWebProvider: resolvedFetchWebProvider ?? null,
+          enableExaSearch:
+            body.enableExaSearch !== undefined
+              ? body.enableExaSearch
+              : (agent.enableExaSearch ?? false),
+          enableSendEmail:
+            body.enableSendEmail !== undefined
+              ? body.enableSendEmail
+              : (agent.enableSendEmail ?? false),
+          enableImageGeneration:
+            body.enableImageGeneration !== undefined
+              ? body.enableImageGeneration
+              : (agent.enableImageGeneration ?? false),
+        };
+        const availableSkills = await getAvailableSkills(
+          effectiveAgent,
+          enabledMcpServers,
+          { hasEmailConnection },
+        );
+        const requestedEnabledSkillIds =
+          body.enabledSkillIds !== undefined
+            ? body.enabledSkillIds
+            : (agent.enabledSkillIds ?? []);
+        const availableSkillIds = new Set(availableSkills.map((s) => s.id));
+        const cleanedEnabledSkillIds = requestedEnabledSkillIds.filter((id) =>
+          availableSkillIds.has(id),
+        );
+
         // Update agent
         // Convert null to undefined for optional fields to match schema
         const updated = await db.agent.update(
@@ -222,6 +283,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             normalizedSummarizationPrompts,
             cleanedEnabledMcpServerIds,
             cleanedEnabledMcpServerToolNames,
+            cleanedEnabledSkillIds,
             resolvedSearchWebProvider,
             resolvedFetchWebProvider,
             resolvedModelName,

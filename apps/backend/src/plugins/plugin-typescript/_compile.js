@@ -5,7 +5,7 @@
  */
 
 const { join, dirname } = require('path');
-const { existsSync } = require('fs');
+const { existsSync, cpSync } = require('fs');
 const { rm } = require('fs/promises');
 const { build: esbuild } = require('esbuild');
 
@@ -92,6 +92,13 @@ async function compileHandler(params) {
   else if (globalTsConfig) options.tsconfig = globalTsConfig;
 
   await esbuild(options);
+
+  // Copy skills folder so agent skills are available at runtime (path.join(__dirname, 'skills'))
+  const skillsSrc = join(cwd, 'src', 'skills');
+  if (existsSync(skillsSrc)) {
+    const skillsDest = join(handlerOutDir, 'skills');
+    cpSync(skillsSrc, skillsDest, { recursive: true });
+  }
 
   const handlerElapsed = ((Date.now() - handlerStart) / 1000).toFixed(2);
   console.log(`[plugin-typescript] Built @${pragma} ${name} in ${handlerElapsed}s`);
