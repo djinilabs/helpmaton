@@ -2333,9 +2333,9 @@
         },
         "qwen/qwen3-vl-32b-instruct": {
           "usd": {
-            "input": 0.5,
-            "output": 1.5,
-            "cachedInput": 0.05
+            "input": 0.10400000000000001,
+            "output": 0.41600000000000004,
+            "cachedInput": 0.010400000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -2580,9 +2580,9 @@
         },
         "qwen/qwen3-vl-8b-thinking": {
           "usd": {
-            "input": 0.18,
-            "output": 2.0999999999999996,
-            "cachedInput": 0.018
+            "input": 0.117,
+            "output": 1.365,
+            "cachedInput": 0.011700000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -2881,9 +2881,9 @@
         },
         "qwen/qwen3-vl-30b-a3b-thinking": {
           "usd": {
-            "input": 0.19999999999999998,
-            "output": 1,
-            "cachedInput": 0.02
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
           },
           "capabilities": {
             "input_modalities": [
@@ -2920,9 +2920,9 @@
         },
         "qwen/qwen3-vl-30b-a3b-instruct": {
           "usd": {
-            "input": 0.15,
-            "output": 0.6,
-            "cachedInput": 0.015
+            "input": 0.13,
+            "output": 0.52,
+            "cachedInput": 0.013000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -3286,9 +3286,9 @@
         },
         "qwen/qwen3-vl-235b-a22b-thinking": {
           "usd": {
-            "input": 0.44999999999999996,
-            "output": 3.5,
-            "cachedInput": 0.045
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
           },
           "capabilities": {
             "input_modalities": [
@@ -6987,9 +6987,9 @@
         },
         "qwen/qwen3-235b-a22b": {
           "usd": {
-            "input": 0.22,
-            "output": 0.88,
-            "cachedInput": 0.022000000000000002
+            "input": 0.3,
+            "output": 1.2,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -12556,9 +12556,9 @@
         },
         "z-ai/glm-5": {
           "usd": {
-            "input": 1,
-            "output": 3.1999999999999997,
-            "cachedInput": 0.1
+            "input": 0.7999999999999999,
+            "output": 2.56,
+            "cachedInput": 0.08
           },
           "capabilities": {
             "input_modalities": [
@@ -12624,9 +12624,46 @@
             "structured_output": false,
             "image": false
           }
+        },
+        "minimax/minimax-m2.5": {
+          "usd": {
+            "input": 0.3,
+            "output": 1.2,
+            "cachedInput": 0.03
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          }
         }
       }
     }
   },
-  "lastUpdated": "2026-02-12T00:19:05.988Z"
+  "lastUpdated": "2026-02-13T00:21:26.269Z"
 }
