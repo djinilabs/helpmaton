@@ -57,3 +57,29 @@ In the repo: **Settings** → **Secrets and variables** → **Actions** → **Ne
 | `X_ACCESS_TOKEN_SECRET` | Access Token Secret      |
 
 After that, the **Tweet on new PR** workflow will be able to post when a non-draft PR targeting `main` is opened or reopened (unless the PR has a `no-tweet` label).
+
+## Troubleshooting
+
+### 401 Unauthorized
+
+The X API is rejecting the credentials. Check:
+
+1. **All four secrets from the same app**  
+   `X_API_KEY` / `X_API_SECRET` and `X_ACCESS_TOKEN` / `X_ACCESS_TOKEN_SECRET` must all belong to the **same** app (and the Helpmaton user). If you recreated the app or regenerated any key, update all four values in GitHub together.
+
+2. **No extra whitespace or newlines**  
+   When pasting into GitHub Secrets, avoid leading/trailing spaces or a newline at the end. Copy only the value.
+
+3. **Regenerate and re-add**  
+   In the X Developer Portal → **Keys and tokens**, regenerate **Access Token and Secret**. Update **X_ACCESS_TOKEN** and **X_ACCESS_TOKEN_SECRET** in GitHub with the new values. Or run `node scripts/x-oauth-get-user-tokens.mjs` again and update those two secrets.
+
+4. **App permissions**  
+   The app must be **Read and write**. Tokens issued when the app was Read only will keep returning 401/403 until you get new tokens after switching to Read and write.
+
+### 403 Forbidden
+
+Usually means the app is read-only or the tokens were issued when it was read-only:
+
+1. In the portal, set the app to **Read and write** and save.
+2. Regenerate **Access Token and Secret** (or run the OAuth script again), then update **X_ACCESS_TOKEN** and **X_ACCESS_TOKEN_SECRET** in GitHub.
+3. Re-run the workflow or open a new PR to test.

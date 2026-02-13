@@ -13,6 +13,7 @@
 # See docs/tweet-on-pr-setup.md for full setup.
 #
 # Skip tweet: use a draft PR or add the label "no-tweet" to the PR.
+# 401/403: see docs/tweet-on-pr-setup.md (credentials, whitespace, regenerate tokens).
 name: Tweet on new PR
 
 on:
@@ -53,6 +54,14 @@ jobs:
           echo "tweet<<EOF" >> "$GITHUB_OUTPUT"
           echo "$TWEET" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Debug tweet
+        run: |
+          TWEET="${{ steps.build-tweet.outputs.tweet }}"
+          echo "Tweet length: ${#TWEET} characters"
+          if [ "${#TWEET}" -gt 280 ]; then
+            echo "::warning::Tweet exceeds 280 characters; X API may reject it"
+          fi
 
       - name: Send tweet
         uses: smapiot/send-tweet-v2-action@v1

@@ -1,8 +1,9 @@
 import { ChartBarIcon, PaperClipIcon } from "@heroicons/react/24/outline";
-import { memo } from "react";
+import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 import { markdownComponents, REMARK_PLUGINS } from "./ChatMarkdownComponents";
+import { TruncatedPayloadDisplay } from "./TruncatedPayloadDisplay";
 
 interface TextPartProps {
   text: string;
@@ -155,6 +156,8 @@ export const ToolPart = memo<ToolPartProps>(
     messageId,
     isWidget,
   }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
     if (isWidget) {
       return null;
     }
@@ -179,52 +182,48 @@ export const ToolPart = memo<ToolPartProps>(
             </span>
           )}
         </div>
-        <details className="text-xs">
-          <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-            View {hasOutput ? "output" : hasError ? "error" : "arguments"}
-          </summary>
-          <div className="mt-2 space-y-2">
-            <div>
-              <div className="mb-1 font-medium text-blue-700 dark:text-blue-300">
-                Arguments:
-              </div>
-              <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs dark:bg-blue-900 dark:text-blue-50">
-                {JSON.stringify(input, null, 2)}
-              </pre>
-            </div>
-            {hasOutput && (
+        <div className="text-xs">
+          {!isExpanded ? (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(true)}
+              className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              View {hasOutput ? "output" : hasError ? "error" : "arguments"}
+            </button>
+          ) : (
+            <div className="mt-2 space-y-2">
               <div>
-                <div className="mb-1 font-medium text-green-700 dark:text-green-300">
-                  Output:
+                <TruncatedPayloadDisplay
+                  value={input}
+                  label="Arguments"
+                  format="json"
+                  variant="blue"
+                />
+              </div>
+              {hasOutput && (
+                <div>
+                  <TruncatedPayloadDisplay
+                    value={output}
+                    label="Output"
+                    format={typeof output === "string" ? "markdown" : "json"}
+                    variant="green"
+                  />
                 </div>
-                {typeof output === "string" ? (
-                  <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                    <ReactMarkdown
-                      remarkPlugins={REMARK_PLUGINS}
-                      components={markdownComponents}
-                    >
-                      {output}
-                    </ReactMarkdown>
+              )}
+              {hasError && (
+                <div>
+                  <div className="mb-1 font-medium text-red-700 dark:text-red-300">
+                    Error:
                   </div>
-                ) : (
-                  <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                    {JSON.stringify(output, null, 2)}
-                  </pre>
-                )}
-              </div>
-            )}
-            {hasError && (
-              <div>
-                <div className="mb-1 font-medium text-red-700 dark:text-red-300">
-                  Error:
+                  <div className="rounded bg-red-100 p-2 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
+                    {errorText}
+                  </div>
                 </div>
-                <div className="rounded bg-red-100 p-2 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
-                  {errorText}
-                </div>
-              </div>
-            )}
-          </div>
-        </details>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -318,14 +317,14 @@ export const DataPart = memo<DataPartProps>(
           <ChartBarIcon className="size-3" />
           Data: {dataName}
         </div>
-        <details className="text-xs">
-          <summary className="cursor-pointer font-medium text-slate-600 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
-            View data
-          </summary>
-          <pre className="mt-2 overflow-x-auto rounded bg-slate-100 p-2 text-xs dark:bg-slate-900 dark:text-slate-50">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-        </details>
+        <div className="text-xs">
+          <TruncatedPayloadDisplay
+            value={data}
+            label="data"
+            format="json"
+            variant="slate"
+          />
+        </div>
       </div>
     );
   }
@@ -372,9 +371,14 @@ export const UnknownPart = memo<UnknownPartProps>(
         <div className="mb-1 text-xs font-medium text-yellow-700 dark:text-yellow-300">
           Unknown part type: {partType}
         </div>
-        <pre className="overflow-x-auto text-xs text-yellow-900 dark:text-yellow-100">
-          {JSON.stringify(part, null, 2)}
-        </pre>
+        <div className="text-xs">
+          <TruncatedPayloadDisplay
+            value={part}
+            label="content"
+            format="json"
+            variant="yellow"
+          />
+        </div>
       </div>
     );
   }
