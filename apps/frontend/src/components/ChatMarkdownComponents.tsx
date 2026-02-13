@@ -1,4 +1,8 @@
 import type { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+/** Stable plugins array so ReactMarkdown does not re-parse on every render. */
+export const REMARK_PLUGINS = [remarkGfm];
 
 /**
  * Stable markdown components object that doesn't change between renders.

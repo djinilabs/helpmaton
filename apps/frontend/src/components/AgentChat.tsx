@@ -20,6 +20,7 @@ import { getDefaultAvatar } from "../utils/avatarUtils";
 import { lastAssistantMessageHasText } from "../utils/chatMessageParts";
 
 import { ChatMessage, type ChatMessageProps } from "./ChatMessage";
+import { VirtualList } from "./VirtualList";
 
 interface AgentChatProps {
   workspaceId: string;
@@ -79,7 +80,16 @@ export const AgentChat: FC<AgentChatProps> = ({
     agentId,
     !!agentProp // Skip query if agentProp is provided (widget context)
   );
-  const agent = agentProp || agentFromHook;
+  const agent = useMemo(
+    () => {
+      const a = agentProp ?? agentFromHook;
+      if (a == null) return undefined;
+      return { name: a.name, avatar: a.avatar };
+    },
+    // Depend only on name/avatar so memo is stable when query refetches with same data
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [agentProp?.name, agentProp?.avatar, agentFromHook?.name, agentFromHook?.avatar]
+  );
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -381,6 +391,29 @@ export const AgentChat: FC<AgentChatProps> = ({
     [messages]
   );
   const showTypingIndicator = isLoading && !lastAssistantMessageHasTextPart;
+
+  const getMessageKey = useCallback((_: number, m: (typeof messages)[number]) => m.id, []);
+  const estimateMessageSize = useCallback(() => 150, []);
+
+  const renderMessageRow = useCallback(
+    (message: (typeof messages)[number], index: number) => {
+      const isStreamingMessage =
+        index === messages.length - 1 &&
+        (status === "streaming" || status === "submitted") &&
+        message.role === "assistant";
+      return (
+        <div className="mb-4">
+          <ChatMessage
+            message={message as unknown as ChatMessageProps["message"]}
+            agent={agent}
+            isWidget={isWidget}
+            isStreaming={isStreamingMessage}
+          />
+        </div>
+      );
+    },
+    [messages.length, status, agent, isWidget]
+  );
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -715,27 +748,13 @@ export const AgentChat: FC<AgentChatProps> = ({
             No messages yet. Start a conversation.
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Render all messages using optimized ChatMessage component */}
-            {messages.map((message, index) => {
-              // The last message is streaming if status is "streaming" or "submitted"
-              // and it's an assistant message
-              const isLastMessage = index === messages.length - 1;
-              const isStreamingMessage =
-                isLastMessage &&
-                (status === "streaming" || status === "submitted") &&
-                message.role === "assistant";
-              return (
-                <ChatMessage
-                  key={message.id}
-                  message={message as unknown as ChatMessageProps["message"]}
-                  agent={agent}
-                  isWidget={isWidget}
-                  isStreaming={isStreamingMessage}
-                />
-              );
-            })}
-          </div>
+          <VirtualList<(typeof messages)[number]>
+            scrollRef={messagesContainerRef}
+            items={messages}
+            estimateSize={estimateMessageSize}
+            getItemKey={getMessageKey}
+            renderRow={renderMessageRow}
+          />
         )}
         {showTypingIndicator && (
           <div className="mt-4 flex items-center gap-2">
