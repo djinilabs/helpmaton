@@ -142,6 +142,20 @@ All Google Workspace integrations use secure OAuth 2.0 authentication, ensuring 
 
 See the [MCP Servers](./docs/mcp-servers.md) guide for setup and full tool coverage.
 
+### Agent Skills
+
+Enhance your agents with **skills**—optional instruction blocks that teach agents how to use their tools effectively. Skills are appended to the agent's system prompt and provide step-by-step guidance, examples, and edge-case handling for specific workflows.
+
+**How it works**: Enable tools (MCP servers or built-in tools like document search, web search, email) for your agent, then pick from available skills that match those tools. Each skill is only available when all its required tools are enabled and connected. Skills cover analytics (PostHog, HubSpot), support (Zendesk, Intercom), project management (Linear, Notion, Todoist), e-commerce (Shopify), CRM (Salesforce), and more.
+
+**Benefits**:
+- **Better tool usage**: Agents follow structured instructions instead of guessing how to use tools
+- **Domain expertise**: Skills include examples, edge cases, and tool-specific guidance
+- **Easy configuration**: Enable skills per-agent from the Agent detail page → External tools → Skills
+- **Export/import**: Skills are included in workspace export for reproducible setups
+
+See [Agent Skills](./docs/agent-skills.md) for the full catalog and tool requirements.
+
 ### Cost Management & Billing
 
 **Credit System**: Purchase credits and pay only for what you use with transparent, usage-based billing. Credits are automatically reserved before LLM calls and adjusted after based on actual token usage, with atomic operations preventing race conditions.
@@ -319,6 +333,7 @@ The platform is designed for reliability, scalability, and performance, handling
 ### Core Features
 
 - [Agent Configuration](./docs/agent-configuration.md) - Learn how to create, configure, and manage AI agents
+- [Agent Skills](./docs/agent-skills.md) - Enhance agents with instruction blocks for effective tool usage
 - [Document Management](./docs/document-management.md) - Guide to uploading, organizing, and managing documents
 - [Workspace Permissions](./docs/workspace-permissions.md) - Understanding the permission system and access control
 

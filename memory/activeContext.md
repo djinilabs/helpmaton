@@ -2,6 +2,8 @@
 
 ## Current Status
 
+- **README Agent Skills documentation (2026-02-13)**: Documented Agent Skills in README as a Key Feature. Added "Agent Skills" section under Key Features (how it works, benefits, link to agent-skills.md) and Core Features doc link. Typecheck and lint pass.
+
 - **Free plan first-workspace credits (2026-02-13)**: When a user on the free plan creates their first workspace via POST /api/workspaces, the workspace is created with 2 USD of credits. Initial credits only when plan === "free" and current workspace count === 0. **Review improvements**: (1) subscriptionUtils: added `checkWorkspaceLimitAndGetCurrentCount(subscriptionId, additionalCount)` so the route does one workspace fetch instead of checkSubscriptionLimits + getSubscriptionWorkspaces. (2) Route uses the helper and constant `FREE_PLAN_FIRST_WORKSPACE_CREDITS_USD`. (3) Tests use mockCheckWorkspaceLimitAndGetCurrentCount, assert it is called with (subscriptionId, 1) in relevant tests; "free plan already has workspace" mocks return value 1. Typecheck, lint, and post-workspaces tests pass.
 
 - **set-credits-pr script (2026-02-13)**: Created `scripts/set-credits-pr.ts` that accepts PR number, workspace ID, and amount (USD), finds the workspace table in the PR CloudFormation stack (HelpmatonStagingPR&lt;pr&gt;), and sets the workspace creditBalance to the given amount. Added `pnpm set-credits-pr` and `pnpm add-credits-pr` to package.json; updated scripts/README.md. Typecheck and lint pass.
