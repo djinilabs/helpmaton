@@ -6,7 +6,7 @@ import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
 
-import { markdownComponents , REMARK_PLUGINS } from "./ChatMarkdownComponents";
+import { markdownComponents, REMARK_PLUGINS } from "./ChatMarkdownComponents";
 import { getRoleLabel, getRoleStyling } from "./ChatMessageHelpers";
 import {
   DataPart,
@@ -29,6 +29,23 @@ export interface ChatMessageProps {
   agent?: { name?: string; avatar?: string };
   isWidget?: boolean;
   isStreaming?: boolean; // If true, always re-render to show streaming updates
+}
+
+/** Normalize message content to a comparable parts array; used by memo comparator. */
+function getNormalizedPartsForCompare(msg: ChatMessageProps["message"]): unknown[] {
+  if (Array.isArray(msg.parts)) {
+    return msg.parts.filter((p) => p != null);
+  }
+  if ("content" in msg) {
+    const content = msg.content;
+    if (typeof content === "string") {
+      return content.trim() ? [{ type: "text", text: content }] : [];
+    }
+    if (Array.isArray(content)) {
+      return content.filter((c) => c != null);
+    }
+  }
+  return [];
 }
 
 /**
@@ -1023,11 +1040,6 @@ export const ChatMessage = memo<ChatMessageProps>(
       return false; // Re-render
     }
 
-    // Same message reference and not streaming: skip re-render
-    if (prevProps.message === nextProps.message) {
-      return true;
-    }
-
     // If message ID changed, it's a different message - re-render
     if (prevProps.message.id !== nextProps.message.id) {
       return false; // Re-render
@@ -1044,41 +1056,29 @@ export const ChatMessage = memo<ChatMessageProps>(
       return false; // Re-render
     }
 
+    // Same message reference and no other prop changes: skip re-render
+    if (prevProps.message === nextProps.message) {
+      return true;
+    }
+
     // Knowledge injection messages: re-render when injection flag or snippets change
-    const prevKi = (prevProps.message as { knowledgeInjection?: boolean; knowledgeSnippets?: unknown[] })
-      .knowledgeInjection;
-    const nextKi = (nextProps.message as { knowledgeInjection?: boolean; knowledgeSnippets?: unknown[] })
-      .knowledgeInjection;
-    if (prevKi !== nextKi) {
+    type KnowledgeMsg = { knowledgeInjection?: boolean; knowledgeSnippets?: unknown[] };
+    const prevKm = prevProps.message as KnowledgeMsg;
+    const nextKm = nextProps.message as KnowledgeMsg;
+    if (prevKm.knowledgeInjection !== nextKm.knowledgeInjection) {
       return false; // Re-render when switching to/from knowledge injection
     }
-    if (prevKi && nextKi) {
-      const prevSnips = (prevProps.message as { knowledgeSnippets?: unknown[] }).knowledgeSnippets;
-      const nextSnips = (nextProps.message as { knowledgeSnippets?: unknown[] }).knowledgeSnippets;
+    if (prevKm.knowledgeInjection && nextKm.knowledgeInjection) {
+      const prevSnips = prevKm.knowledgeSnippets;
+      const nextSnips = nextKm.knowledgeSnippets;
       if (prevSnips !== nextSnips || (prevSnips?.length ?? 0) !== (nextSnips?.length ?? 0)) {
         return false; // Re-render
       }
     }
 
     // Lightweight parts comparison (avoid JSON.stringify of full content)
-    const getNormalizedParts = (msg: ChatMessageProps["message"]) => {
-      if (Array.isArray(msg.parts)) {
-        return msg.parts.filter((p) => p != null);
-      }
-      if ("content" in msg) {
-        const content = msg.content;
-        if (typeof content === "string") {
-          return content.trim() ? [{ type: "text", text: content }] : [];
-        }
-        if (Array.isArray(content)) {
-          return content.filter((c) => c != null);
-        }
-      }
-      return [];
-    };
-
-    const prevParts = getNormalizedParts(prevProps.message);
-    const nextParts = getNormalizedParts(nextProps.message);
+    const prevParts = getNormalizedPartsForCompare(prevProps.message);
+    const nextParts = getNormalizedPartsForCompare(nextProps.message);
 
     if (prevParts.length !== nextParts.length) {
       return false; // Re-render
@@ -1096,10 +1096,20 @@ export const ChatMessage = memo<ChatMessageProps>(
           if (p !== n) return false;
           continue;
         }
-        const pType = typeof p === "object" && p !== null && "type" in p ? (p as { type: string }).type : "";
-        const nType = typeof n === "object" && n !== null && "type" in n ? (n as { type: string }).type : "";
+        const pType =
+          p && typeof p === "object" && "type" in p ? (p as { type: string }).type : "";
+        const nType =
+          n && typeof n === "object" && "type" in n ? (n as { type: string }).type : "";
         if (pType !== nType) return false;
-        if (pType === "text" && "text" in p && "text" in n) {
+        if (
+          pType === "text" &&
+          typeof p === "object" &&
+          p !== null &&
+          "text" in p &&
+          typeof n === "object" &&
+          n !== null &&
+          "text" in n
+        ) {
           const pText = (p as { text: string }).text;
           const nText = (n as { text: string }).text;
           if (pText.length !== nText.length || pText !== nText) return false;

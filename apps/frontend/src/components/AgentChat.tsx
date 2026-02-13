@@ -393,6 +393,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   const showTypingIndicator = isLoading && !lastAssistantMessageHasTextPart;
 
   const getMessageKey = useCallback((_: number, m: (typeof messages)[number]) => m.id, []);
+  // Fixed estimate; VirtualList uses measureElement so actual heights are applied after first paint
   const estimateMessageSize = useCallback(() => 150, []);
 
   const renderMessageRow = useCallback(
