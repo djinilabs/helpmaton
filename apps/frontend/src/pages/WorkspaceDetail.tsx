@@ -123,6 +123,7 @@ import { useTrialStatus } from "../hooks/useTrialCredits";
 import { useWorkspaceUsage, useWorkspaceDailyUsage } from "../hooks/useUsage";
 import {
   useWorkspace,
+  useWorkspaces,
   useUpdateWorkspace,
   useDeleteWorkspace,
   useExportWorkspace,
@@ -137,6 +138,8 @@ import { getBalanceColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import { trackEvent } from "../utils/tracking";
+
+import { shouldShowTrialCreditHint } from "./workspaceDetailUtils";
 
 const PERMISSION_LEVELS = {
   READ: 1,
@@ -344,6 +347,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   );
 
   const { expandedSection, toggleSection } = useAccordion("workspace-detail");
+  const { data: workspaces } = useWorkspaces();
   const { data: trialStatus } = useTrialStatus(id!);
   const { data: userLimit } = useWorkspaceUserLimit(id!);
   const { data: subscription } = useSubscription();
@@ -662,8 +666,14 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           }}
         />
 
-        {/* Trial Credit Request Button - Show when balance is 0 */}
-        {workspace.creditBalance === 0 && canEdit && (
+        {/* Trial Credit Request Button - Show when balance is 0, free plan, single workspace, not already requested */}
+        {shouldShowTrialCreditHint(
+          workspace.creditBalance ?? 0,
+          !!canEdit,
+          !!isFreePlan,
+          workspaces?.length ?? 0
+        ) &&
+          !trialStatus?.hasRequestedCredits && (
           <div className="bg-gradient-accent/5 mb-8 rounded-2xl border border-accent-200/50 p-8 shadow-medium dark:border-accent-800/50 dark:bg-accent-950/50">
             <h3 className="mb-3 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
               Try with free credits
