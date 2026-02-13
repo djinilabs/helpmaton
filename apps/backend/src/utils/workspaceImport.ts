@@ -9,6 +9,8 @@ import { database } from "../tables";
 import { ensureAuthorization } from "../tables/permissions";
 import { PERMISSION_LEVELS } from "../tables/schema";
 
+import { getAvailableSkills } from "./agentSkills";
+import type { McpServerForSkills } from "./agentSkills";
 import {
   checkPromptGenerationLimit,
   incrementPromptGenerationBucketSafe,
@@ -544,6 +546,56 @@ async function createAgentsAndNestedEntities(
       mcpServerIdMap,
     );
 
+    let enabledSkillIds: string[];
+    const requestedSkillIds = agentData.enabledSkillIds ?? [];
+    if (requestedSkillIds.length === 0) {
+      enabledSkillIds = [];
+    } else {
+      const effectiveMcpServerIds = enabledMcpServerIds ?? [];
+      const [emailConnection, ...serverResults] = await Promise.all([
+        ctx.db["email-connection"].get(
+          `email-connections/${workspaceId}`,
+          "connection",
+        ),
+        ...effectiveMcpServerIds.map((serverId) =>
+          ctx.db["mcp-server"]
+            .get(`mcp-servers/${workspaceId}/${serverId}`, "server")
+            .then((server) => ({ serverId, server })),
+        ),
+      ]);
+      const hasEmailConnection = !!emailConnection;
+      const enabledMcpServers: McpServerForSkills[] = [];
+      for (let i = 0; i < effectiveMcpServerIds.length; i++) {
+        const entry = serverResults[i];
+        if (entry?.server) {
+          const config = entry.server.config as { accessToken?: string };
+          enabledMcpServers.push({
+            id: entry.serverId,
+            serviceType: entry.server.serviceType,
+            oauthConnected: !!config?.accessToken,
+          });
+        }
+      }
+      const effectiveAgent = {
+        enableSearchDocuments: agentData.enableSearchDocuments ?? false,
+        enableMemorySearch: agentData.enableMemorySearch ?? false,
+        searchWebProvider: agentData.searchWebProvider ?? null,
+        fetchWebProvider: agentData.fetchWebProvider ?? null,
+        enableExaSearch: agentData.enableExaSearch ?? false,
+        enableSendEmail: agentData.enableSendEmail ?? false,
+        enableImageGeneration: agentData.enableImageGeneration ?? false,
+      };
+      const availableSkills = await getAvailableSkills(
+        effectiveAgent,
+        enabledMcpServers,
+        { hasEmailConnection },
+      );
+      const availableSkillIds = new Set(availableSkills.map((s) => s.id));
+      enabledSkillIds = requestedSkillIds.filter((id) =>
+        availableSkillIds.has(id),
+      );
+    }
+
     await ctx.db.agent.create({
       pk: agentPk,
       sk: "agent",
@@ -560,6 +612,7 @@ async function createAgentsAndNestedEntities(
       delegatableAgentIds,
       enabledMcpServerIds,
       enabledMcpServerToolNames,
+      enabledSkillIds,
       enableMemorySearch: agentData.enableMemorySearch ?? false,
       enableSearchDocuments: agentData.enableSearchDocuments ?? false,
       enableKnowledgeInjection: agentData.enableKnowledgeInjection ?? false,

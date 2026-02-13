@@ -48,6 +48,7 @@ import { useParams, useNavigate } from "react-router-dom";
 
 
 import { AccordionSection } from "../components/AccordionSection";
+import { AgentSkillsPicker } from "../components/AgentSkillsPicker";
 import { AgentSuggestions } from "../components/AgentSuggestions";
 import { ClientToolEditor } from "../components/ClientToolEditor";
 import {
@@ -175,6 +176,7 @@ import type {
   ToolMetadata,
 } from "../utils/api";
 import {
+  getAvailableSkills,
   getMcpServerTools,
   listIntegrations,
   deleteIntegration,
@@ -471,6 +473,24 @@ function useSyncEnabledMcpServerToolNames(
   }, [agent?.id, agent?.enabledMcpServerToolNames, setEnabledMcpServerToolNames]);
 }
 
+function useSyncEnabledSkillIds(
+  agent: ReturnType<typeof useAgent>["data"],
+  setEnabledSkillIds: (value: string[]) => void
+) {
+  const prevRef = useRef<string[] | undefined>(agent?.enabledSkillIds);
+  useEffect(() => {
+    const currentValue = agent?.enabledSkillIds ?? [];
+    const prevValue = prevRef.current ?? [];
+    if (
+      currentValue.length !== prevValue.length ||
+      !currentValue.every((id, index) => id === prevValue[index])
+    ) {
+      prevRef.current = currentValue;
+      setEnabledSkillIds(currentValue);
+    }
+  }, [agent?.id, agent?.enabledSkillIds, setEnabledSkillIds]);
+}
+
 function useSyncEnableMemorySearch(
   agent: ReturnType<typeof useAgent>["data"],
   setEnableMemorySearch: (value: boolean) => void
@@ -671,6 +691,15 @@ function useAgentDetailState({
     staleTime: 30 * 1000,
   });
   const { data: emailConnection } = useEmailConnection(workspaceId);
+  const {
+    data: availableSkillsData,
+    isLoading: isLoadingAvailableSkills,
+  } = useQuery({
+    queryKey: ["available-skills", workspaceId, agentId],
+    queryFn: () => getAvailableSkills(workspaceId, agentId),
+    enabled: !!workspaceId && !!agentId,
+    staleTime: 60 * 1000,
+  });
   const { data: streamServerConfig } = useStreamServer(workspaceId, agentId);
   const createStreamServer = useCreateStreamServer(workspaceId, agentId);
   const updateStreamServer = useUpdateStreamServer(workspaceId, agentId);
@@ -863,6 +892,10 @@ function useAgentDetailState({
   const [enabledMcpServerToolNames, setEnabledMcpServerToolNames] = useState<
     Record<string, string[]>
   >(() => agent?.enabledMcpServerToolNames || {});
+
+  const [enabledSkillIds, setEnabledSkillIds] = useState<string[]>(
+    () => agent?.enabledSkillIds || []
+  );
 
   const [isMcpWarningDismissed, setIsMcpWarningDismissed] =
     useLocalPreference<boolean>(
@@ -1193,6 +1226,7 @@ function useAgentDetailState({
   useSyncDelegatableAgentIds(agent, setDelegatableAgentIds);
   useSyncEnabledMcpServerIds(agent, setEnabledMcpServerIds);
   useSyncEnabledMcpServerToolNames(agent, setEnabledMcpServerToolNames);
+  useSyncEnabledSkillIds(agent, setEnabledSkillIds);
   useSyncEnableMemorySearch(agent, setEnableMemorySearch);
 
   const prevSummarizationPromptsRef = useRef(agent?.summarizationPrompts);
@@ -1675,6 +1709,25 @@ function useAgentDetailState({
       });
       setEnabledMcpServerIds(updated.enabledMcpServerIds || []);
       setEnabledMcpServerToolNames(updated.enabledMcpServerToolNames || {});
+    } catch {
+      // Error is handled by toast in the hook
+    }
+  };
+
+  const handleSkillToggle = (skillId: string) => {
+    setEnabledSkillIds((prev) =>
+      prev.includes(skillId)
+        ? prev.filter((id) => id !== skillId)
+        : [...prev, skillId]
+    );
+  };
+
+  const handleSaveSkills = async () => {
+    try {
+      const updated = await updateAgent.mutateAsync({
+        enabledSkillIds,
+      });
+      setEnabledSkillIds(updated.enabledSkillIds || []);
     } catch {
       // Error is handled by toast in the hook
     }
@@ -2263,6 +2316,11 @@ function useAgentDetailState({
     handleMcpServerToolToggle,
     handleSaveMcpServers,
     getMcpServerToolsForServer,
+    availableSkillsData,
+    isLoadingAvailableSkills,
+    enabledSkillIds,
+    handleSkillToggle,
+    handleSaveSkills,
     handleSaveMemorySearch,
     handleSaveMemoryExtraction,
     handleSummarizationPromptChange,
@@ -3222,6 +3280,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
     handleMcpServerToolToggle,
     handleSaveMcpServers,
     getMcpServerToolsForServer,
+    availableSkillsData,
+    isLoadingAvailableSkills,
+    enabledSkillIds,
+    handleSkillToggle,
+    handleSaveSkills,
     handleSaveMemorySearch,
     handleSaveMemoryExtraction,
     handleSummarizationPromptChange,
@@ -5113,6 +5176,68 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
                     agents.
                   </p>
                 )}
+              </AgentAccordionSection>
+            </div>
+          )}
+
+          {/* Skills Section */}
+          {canEdit && (
+            <div id="agent-skills-section" className="scroll-mt-8">
+              <AgentAccordionSection
+                id="skills"
+                title={
+                  <>
+                    <BoltIcon className="mr-2 inline-block size-5" />
+                    SKILLS
+                  </>
+                }
+                expandedSection={expandedSection}
+                onToggle={toggleSection}
+              >
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                  Attach skill instructions to this agent based on the tools you
+                  have enabled. Skills add focused guidance (e.g. PostHog
+                  analytics, Notion docs) to the agent&apos;s system prompt.
+                </p>
+                {(() => {
+                  const hasAnyTool =
+                    enabledMcpServerIds.length > 0 ||
+                    enableSearchDocuments ||
+                    enableMemorySearch ||
+                    searchWebProvider != null ||
+                    fetchWebProvider != null ||
+                    enableExaSearch ||
+                    (enableSendEmail && !!emailConnection) ||
+                    enableImageGeneration;
+                  if (!hasAnyTool) {
+                    return (
+                      <p className="text-sm opacity-75 dark:text-neutral-300">
+                        Enable tools above to unlock skills.
+                      </p>
+                    );
+                  }
+                  if (isLoadingAvailableSkills) {
+                    return (
+                      <p className="text-sm opacity-75 dark:text-neutral-300">
+                        Loading skills...
+                      </p>
+                    );
+                  }
+                  const skills = availableSkillsData?.skills ?? [];
+                  const groupedByRole =
+                    availableSkillsData?.groupedByRole ?? {};
+                  return (
+                    <AgentSkillsPicker
+                      skills={skills}
+                      groupedByRole={groupedByRole}
+                      enabledSkillIds={enabledSkillIds}
+                      onToggle={handleSkillToggle}
+                      onSave={handleSaveSkills}
+                      isSaving={updateAgent.isPending}
+                      canEdit={canEdit}
+                    />
+                  );
+                })()}
               </AgentAccordionSection>
             </div>
           )}

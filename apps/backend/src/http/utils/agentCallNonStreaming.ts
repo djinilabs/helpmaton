@@ -1,6 +1,7 @@
 import type { ModelMessage } from "ai";
 import { generateText } from "ai";
 
+import { buildSystemPromptWithSkills } from "../../utils/agentSkills";
 import type {
   GenerateTextResultWithTotalUsage,
   TokenUsage,
@@ -141,6 +142,11 @@ const executeNonStreamingLLMCall = async (params: {
   );
 
   try {
+    const effectiveSystemPrompt = await buildSystemPromptWithSkills(
+      params.agent.systemPrompt,
+      params.agent.enabledSkillIds
+    );
+
     reservationId = await validateAndReserveCredits(
       params.db,
       params.workspaceId,
@@ -148,7 +154,7 @@ const executeNonStreamingLLMCall = async (params: {
       "openrouter",
       params.finalModelName,
       params.modelMessagesWithKnowledge,
-      params.agent.systemPrompt,
+      effectiveSystemPrompt,
       effectiveTools,
       params.usesByok,
       params.endpointType,
@@ -169,7 +175,7 @@ const executeNonStreamingLLMCall = async (params: {
       workspaceId: params.workspaceId,
       agentId: params.agentId,
       model: params.finalModelName,
-      systemPromptLength: params.agent.systemPrompt.length,
+      systemPromptLength: effectiveSystemPrompt.length,
       messagesCount: params.modelMessagesWithKnowledge.length,
       toolsCount: effectiveTools ? Object.keys(effectiveTools).length : 0,
       hasAbortSignal: Boolean(params.abortSignal),
@@ -181,7 +187,7 @@ const executeNonStreamingLLMCall = async (params: {
       model: params.model as unknown as Parameters<
         typeof generateText
       >[0]["model"],
-      system: params.agent.systemPrompt,
+      system: effectiveSystemPrompt,
       messages: params.modelMessagesWithKnowledge,
       ...(effectiveTools ? { tools: effectiveTools } : {}),
       ...generateOptions,

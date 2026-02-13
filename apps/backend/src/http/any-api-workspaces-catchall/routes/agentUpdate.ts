@@ -720,6 +720,7 @@ export function buildAgentUpdateParams(params: {
   normalizedSummarizationPrompts: UpdateAgentBody["summarizationPrompts"];
   cleanedEnabledMcpServerIds: string[] | undefined;
   cleanedEnabledMcpServerToolNames: Record<string, string[]> | undefined;
+  cleanedEnabledSkillIds: string[];
   resolvedSearchWebProvider: "tavily" | "jina" | undefined;
   resolvedFetchWebProvider: "tavily" | "jina" | "scrape" | undefined;
   resolvedModelName: string | undefined;
@@ -752,6 +753,7 @@ export function buildAgentUpdateParams(params: {
       params.cleanedEnabledMcpServerToolNames !== undefined
         ? params.cleanedEnabledMcpServerToolNames
         : agent.enabledMcpServerToolNames,
+    enabledSkillIds: params.cleanedEnabledSkillIds,
     enableMemorySearch:
       body.enableMemorySearch !== undefined
         ? body.enableMemorySearch
@@ -888,6 +890,7 @@ export function buildAgentResponse(params: {
     delegatableAgentIds: updated.delegatableAgentIds ?? [],
     enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
     enabledMcpServerToolNames: updated.enabledMcpServerToolNames ?? undefined,
+    enabledSkillIds: updated.enabledSkillIds ?? [],
     enableMemorySearch: updated.enableMemorySearch ?? false,
     enableSearchDocuments: updated.enableSearchDocuments ?? false,
     enableKnowledgeInjection: updated.enableKnowledgeInjection ?? false,

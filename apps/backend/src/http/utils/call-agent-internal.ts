@@ -4,6 +4,7 @@ import type { ModelMessage } from "ai";
 import { generateText } from "ai";
 
 import { database } from "../../tables";
+import { buildSystemPromptWithSkills } from "../../utils/agentSkills";
 import {
   extractTokenUsage,
   updateConversation,
@@ -904,7 +905,10 @@ export async function callAgentInternal(
           maxDepth,
         })
       : undefined;
-    effectiveSystemPrompt = targetAgent.systemPrompt;
+    effectiveSystemPrompt = await buildSystemPromptWithSkills(
+      targetAgent.systemPrompt,
+      targetAgent.enabledSkillIds
+    );
   }
 
   const wrappedTools = tools

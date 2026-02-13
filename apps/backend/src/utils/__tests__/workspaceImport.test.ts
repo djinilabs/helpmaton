@@ -58,6 +58,7 @@ describe("importWorkspace", () => {
       },
       "mcp-server": {
         create: vi.fn(),
+        get: vi.fn().mockResolvedValue(null),
       },
       "bot-integration": {
         create: vi.fn(),

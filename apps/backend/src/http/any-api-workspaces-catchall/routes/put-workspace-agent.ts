@@ -3,6 +3,8 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { getAvailableSkills } from "../../../utils/agentSkills";
+import type { McpServerForSkills } from "../../../utils/agentSkills";
 import { isValidAvatar } from "../../../utils/avatarUtils";
 import { normalizeSummarizationPrompts } from "../../../utils/memory/summarizeMemory";
 import { trackBusinessEvent } from "../../../utils/tracking";
@@ -211,6 +213,79 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           currentProvider: agent.fetchWebProvider,
         });
 
+        const requestedEnabledSkillIds =
+          body.enabledSkillIds !== undefined
+            ? body.enabledSkillIds
+            : (agent.enabledSkillIds ?? []);
+        const needsSkillResolution =
+          body.enabledSkillIds !== undefined ||
+          (agent.enabledSkillIds?.length ?? 0) > 0;
+
+        let cleanedEnabledSkillIds: string[];
+        if (!needsSkillResolution) {
+          cleanedEnabledSkillIds = [];
+        } else {
+          const effectiveMcpServerIds =
+            cleanedEnabledMcpServerIds ?? agent.enabledMcpServerIds ?? [];
+          const [emailConnection, ...serverResults] = await Promise.all([
+            db["email-connection"].get(
+              `email-connections/${workspaceId}`,
+              "connection",
+            ),
+            ...effectiveMcpServerIds.map((serverId) =>
+              db["mcp-server"]
+                .get(`mcp-servers/${workspaceId}/${serverId}`, "server")
+                .then((server) => ({ serverId, server })),
+            ),
+          ]);
+          const hasEmailConnection = !!emailConnection;
+          const enabledMcpServers: McpServerForSkills[] = [];
+          for (let i = 0; i < effectiveMcpServerIds.length; i++) {
+            const entry = serverResults[i];
+            if (entry?.server) {
+              const config = entry.server.config as { accessToken?: string };
+              enabledMcpServers.push({
+                id: entry.serverId,
+                serviceType: entry.server.serviceType,
+                oauthConnected: !!config?.accessToken,
+              });
+            }
+          }
+          const effectiveAgent = {
+            enableSearchDocuments:
+              body.enableSearchDocuments !== undefined
+                ? body.enableSearchDocuments
+                : (agent.enableSearchDocuments ?? false),
+            enableMemorySearch:
+              body.enableMemorySearch !== undefined
+                ? body.enableMemorySearch
+                : (agent.enableMemorySearch ?? false),
+            searchWebProvider: resolvedSearchWebProvider ?? null,
+            fetchWebProvider: resolvedFetchWebProvider ?? null,
+            enableExaSearch:
+              body.enableExaSearch !== undefined
+                ? body.enableExaSearch
+                : (agent.enableExaSearch ?? false),
+            enableSendEmail:
+              body.enableSendEmail !== undefined
+                ? body.enableSendEmail
+                : (agent.enableSendEmail ?? false),
+            enableImageGeneration:
+              body.enableImageGeneration !== undefined
+                ? body.enableImageGeneration
+                : (agent.enableImageGeneration ?? false),
+          };
+          const availableSkills = await getAvailableSkills(
+            effectiveAgent,
+            enabledMcpServers,
+            { hasEmailConnection },
+          );
+          const availableSkillIds = new Set(availableSkills.map((s) => s.id));
+          cleanedEnabledSkillIds = requestedEnabledSkillIds.filter((id) =>
+            availableSkillIds.has(id),
+          );
+        }
+
         // Update agent
         // Convert null to undefined for optional fields to match schema
         const updated = await db.agent.update(
@@ -222,6 +297,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             normalizedSummarizationPrompts,
             cleanedEnabledMcpServerIds,
             cleanedEnabledMcpServerToolNames,
+            cleanedEnabledSkillIds,
             resolvedSearchWebProvider,
             resolvedFetchWebProvider,
             resolvedModelName,

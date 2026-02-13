@@ -133,6 +133,7 @@ export interface Agent {
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
   enabledMcpServerToolNames?: Record<string, string[]>;
+  enabledSkillIds?: string[];
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;
@@ -194,6 +195,7 @@ export interface UpdateAgentInput {
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
   enabledMcpServerToolNames?: Record<string, string[]>;
+  enabledSkillIds?: string[];
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;
@@ -1107,6 +1109,34 @@ export interface ToolMetadata {
 export interface GroupedToolMetadata {
   category: string;
   tools: ToolMetadata[];
+}
+
+export type AgentSkillRequiredTool =
+  | { type: "mcpService"; serviceType: string }
+  | { type: "builtin"; tool: string };
+
+export interface AgentSkill {
+  id: string;
+  name: string;
+  description: string;
+  role?: string;
+  requiredTools: AgentSkillRequiredTool[];
+  content: string;
+}
+
+export interface AvailableSkillsResponse {
+  skills: AgentSkill[];
+  groupedByRole: Record<string, AgentSkill[]>;
+}
+
+export async function getAvailableSkills(
+  workspaceId: string,
+  agentId: string,
+): Promise<AvailableSkillsResponse> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/available-skills`,
+  );
+  return response.json();
 }
 
 export async function getAgentTools(

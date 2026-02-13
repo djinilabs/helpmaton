@@ -176,6 +176,17 @@ See [Tavily Integration](./tavily-integration.md) for detailed documentation.
 
 Enable MCP (Model Context Protocol) servers to expose their tools to agents. Each enabled MCP server provides tools based on its configuration.
 
+### Skills
+
+Skills are optional instruction blocks attached to an agent based on the tools you have enabled. Each skill has **strict tool requirements**: the skill only appears and can be enabled when all of its required tools are available (e.g. a PostHog skill requires the PostHog MCP server; a document FAQ skill requires document search).
+
+- **Where**: Agent detail page → **External tools** → **Skills** (below Connected Tools).
+- **Behavior**: When you enable one or more skills, their content is appended to the agent’s system prompt. Order follows your selection.
+- **Empty state**: If no tools are enabled, the UI shows “Enable tools above to unlock skills.”
+- **Validation**: On save, invalid or ineligible skill IDs are stripped; only skills whose tool requirements are satisfied are persisted.
+
+For the full list of skills, tool requirements, and roles, see [Agent Skills](./agent-skills.md).
+
 ### Agent Delegation
 
 Configure `delegatableAgentIds` to allow agents to delegate tasks to other agents in the workspace.
