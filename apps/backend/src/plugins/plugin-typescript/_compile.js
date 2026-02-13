@@ -5,7 +5,7 @@
  */
 
 const { join, dirname } = require('path');
-const { existsSync } = require('fs');
+const { existsSync, readdirSync } = require('fs');
 const { rm } = require('fs/promises');
 const { build: esbuild } = require('esbuild');
 
@@ -92,6 +92,26 @@ async function compileHandler(params) {
   else if (globalTsConfig) options.tsconfig = globalTsConfig;
 
   await esbuild(options);
+
+  // Compile skill modules into handler output so registry dynamic imports resolve at runtime
+  const skillsSrc = join(cwd, 'src', 'skills');
+  if (existsSync(skillsSrc)) {
+    const skillTsFiles = readdirSync(skillsSrc).filter(
+      (f) => f.endsWith('.ts') && f !== 'registry.ts'
+    );
+    if (skillTsFiles.length > 0) {
+      const skillEntryPoints = skillTsFiles.map((f) => join(skillsSrc, f));
+      await esbuild({
+        entryPoints: skillEntryPoints,
+        bundle: false,
+        platform: 'node',
+        format: 'cjs',
+        outdir: handlerOutDir,
+        outbase: skillsSrc,
+        tsconfig: globalTsConfig || getTsConfig(cwd),
+      });
+    }
+  }
 
   const handlerElapsed = ((Date.now() - handlerStart) / 1000).toFixed(2);
   console.log(`[plugin-typescript] Built @${pragma} ${name} in ${handlerElapsed}s`);

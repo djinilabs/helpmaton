@@ -131,6 +131,7 @@ export const tableSchemas = {
     enabledMcpServerToolNames: z
       .record(z.string(), z.array(z.string()))
       .optional(), // per-server tool allowlist for this agent
+    enabledSkillIds: z.array(z.string()).optional(), // skill IDs to inject into system prompt (must satisfy tool requirements)
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
     enableKnowledgeInjection: z.boolean().optional(), // enable knowledge injection from workspace documents (default: false)

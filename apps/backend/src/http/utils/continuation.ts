@@ -1,6 +1,7 @@
 import type { ModelMessage } from "ai";
 import { generateText } from "ai";
 
+import { buildSystemPromptWithSkills } from "../../utils/agentSkills";
 import {
   extractTokenUsage,
   type GenerateTextResultWithTotalUsage,
@@ -156,7 +157,11 @@ export async function handleToolContinuation(
     throw error;
   }
 
-  const continuationSystemPrompt = `${agent.systemPrompt}\n\n${continuationInstructions}`;
+  const baseSystemPrompt = await buildSystemPromptWithSkills(
+    agent.systemPrompt,
+    agent.enabledSkillIds
+  );
+  const continuationSystemPrompt = `${baseSystemPrompt}\n\n${continuationInstructions}`;
 
   let continuationResult;
 

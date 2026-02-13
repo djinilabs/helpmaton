@@ -337,6 +337,12 @@ const agentSchema = z
       .record(z.string(), z.array(z.string()))
       .optional()
       .describe("Per-server tool allowlist for MCP servers"),
+    enabledSkillIds: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "Skill IDs to inject into system prompt (stripped on import if required tools not satisfied)",
+      ),
     enableMemorySearch: z
       .boolean()
       .optional()

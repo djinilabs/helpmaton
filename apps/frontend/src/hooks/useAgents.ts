@@ -144,6 +144,9 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
           );
         },
       });
+      queryClient.invalidateQueries({
+        queryKey: ["available-skills", workspaceId, agentId],
+      });
       toast.success("Agent updated successfully");
     },
     onError: (error: Error) => {

@@ -39,6 +39,7 @@ import { registerGetAgentTools } from "./routes/get-agent-tools";
 import { registerGetAgentTransactions } from "./routes/get-agent-transactions";
 import { registerGetAgentUsage } from "./routes/get-agent-usage";
 import { registerGetAgentUsageDaily } from "./routes/get-agent-usage-daily";
+import { registerGetAvailableSkills } from "./routes/get-available-skills";
 import { registerGetEmailConnection } from "./routes/get-email-connection";
 import { registerGetEmailOauthAuthorize } from "./routes/get-email-oauth-authorize";
 import { registerGetEmailOauthCallback } from "./routes/get-email-oauth-callback";
@@ -196,6 +197,7 @@ export const createApp: () => express.Application = () => {
   registerGetAgentSuggestions(app);
   registerGetWorkspaceAgent(app);
   registerGetAgentTools(app);
+  registerGetAvailableSkills(app);
   registerPutWorkspaceAgent(app);
   registerDeleteWorkspaceAgent(app);
   registerPostAgentSpendingLimits(app);

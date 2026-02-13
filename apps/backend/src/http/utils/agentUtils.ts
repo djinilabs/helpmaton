@@ -135,6 +135,7 @@ export interface WorkspaceAndAgent {
     notificationChannelId?: string;
     enabledMcpServerIds?: string[];
     enabledMcpServerToolNames?: Record<string, string[]>;
+    enabledSkillIds?: string[];
     temperature?: number;
     topP?: number;
     topK?: number;

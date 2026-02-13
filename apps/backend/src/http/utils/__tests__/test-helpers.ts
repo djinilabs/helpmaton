@@ -275,6 +275,14 @@ export function createMockDatabase() {
       delete: async () => ({}),
       query: async () => ({ items: [] }),
     },
+    "email-connection": {
+      get: async () => null,
+      put: async () => ({}),
+      create: async () => ({}),
+      update: async () => ({}),
+      delete: async () => ({}),
+      query: async () => ({ items: [] }),
+    },
     "workspace-api-key": {
       get: async () => null,
       put: async () => ({}),

@@ -10,6 +10,7 @@ import {
   convertUIMessagesToModelMessages,
 } from "../../http/utils/messageConversion";
 import { database } from "../../tables";
+import { buildSystemPromptWithSkills } from "../../utils/agentSkills";
 import type { LambdaUrlEvent } from "../../utils/httpEventAdapter";
 import type { UIMessage } from "../../utils/messageTypes";
 import { getAllowedOrigins } from "../../utils/streamServerUtils";
@@ -481,6 +482,11 @@ async function validateCreditsAndReserveBeforeLLM(
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
 
+  const effectiveSystemPrompt = await buildSystemPromptWithSkills(
+    agent.systemPrompt,
+    agent.enabledSkillIds
+  );
+
   return await validateAndReserveCredits(
     db,
     workspaceId,
@@ -488,7 +494,7 @@ async function validateCreditsAndReserveBeforeLLM(
     "openrouter", // provider
     finalModelName,
     modelMessages,
-    agent.systemPrompt,
+    effectiveSystemPrompt,
     tools,
     usesByok,
     endpointType,
