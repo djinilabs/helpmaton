@@ -18,6 +18,7 @@ import { getMessageCost } from "../utils/messageCost";
 
 import { AgentNameLink } from "./AgentNameLink";
 import { NestedConversationDelegation } from "./NestedConversationDelegation";
+import { TruncatedPayloadDisplay } from "./TruncatedPayloadDisplay";
 
 interface NestedConversationProps {
   workspaceId: string;
@@ -123,16 +124,14 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                     <div className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-300">
                       🔧 Tool Call: {toolName}
                     </div>
-                    <details className="text-xs">
-                      <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                        View arguments
-                      </summary>
-                      <div className="mt-2">
-                        <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs dark:bg-blue-900 dark:text-blue-50">
-                          {JSON.stringify(args, null, 2)}
-                        </pre>
-                      </div>
-                    </details>
+                    <div className="mt-2">
+                      <TruncatedPayloadDisplay
+                        value={args}
+                        label="Arguments"
+                        format="json"
+                        variant="blue"
+                      />
+                    </div>
                   </div>
                 );
               }
@@ -158,27 +157,16 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                       Tool Result: {toolName}
                     </div>
                     {hasResult && (
-                      <details className="text-xs">
-                        <summary className="cursor-pointer font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">
-                          View result
-                        </summary>
-                        <div className="mt-2">
-                          {typeof result === "string" ? (
-                            <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={markdownComponents}
-                              >
-                                {result}
-                              </ReactMarkdown>
-                            </div>
-                          ) : (
-                            <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                              {JSON.stringify(result, null, 2)}
-                            </pre>
-                          )}
-                        </div>
-                      </details>
+                      <div className="mt-2">
+                        <TruncatedPayloadDisplay
+                          value={result}
+                          label="Result"
+                          format={
+                            typeof result === "string" ? "markdown" : "json"
+                          }
+                          variant="green"
+                        />
+                      </div>
                     )}
                   </div>
                 );

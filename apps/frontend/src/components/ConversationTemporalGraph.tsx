@@ -7,6 +7,8 @@ import remarkGfm from "remark-gfm";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
 
+import { TruncatedPayloadDisplay } from "./TruncatedPayloadDisplay";
+
 interface MessageWithTimestamps {
   role: "user" | "assistant" | "system" | "tool";
   generationStartedAt?: string;
@@ -392,19 +394,14 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                         </span>
                       )}
                     </div>
-                    <details className="text-xs">
-                      <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                        View arguments
-                      </summary>
-                      <div className="mt-2">
-                        <div className="mb-1 font-medium text-blue-700 dark:text-blue-300">
-                          Arguments:
-                        </div>
-                        <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs dark:bg-blue-900 dark:text-blue-50">
-                          {JSON.stringify(args, null, 2)}
-                        </pre>
-                      </div>
-                    </details>
+                    <div className="mt-2">
+                      <TruncatedPayloadDisplay
+                        value={args}
+                        label="Arguments"
+                        format="json"
+                        variant="blue"
+                      />
+                    </div>
                   </div>
                 );
               }
@@ -446,30 +443,16 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                       )}
                     </div>
                     {hasResult && (
-                      <details className="text-xs">
-                        <summary className="cursor-pointer font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">
-                          View result
-                        </summary>
-                        <div className="mt-2">
-                          <div className="mb-1 font-medium text-green-700 dark:text-green-300">
-                            Result:
-                          </div>
-                          {typeof result === "string" ? (
-                            <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={markdownComponents}
-                              >
-                                {result}
-                              </ReactMarkdown>
-                            </div>
-                          ) : (
-                            <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                              {JSON.stringify(result, null, 2)}
-                            </pre>
-                          )}
-                        </div>
-                      </details>
+                      <div className="mt-2">
+                        <TruncatedPayloadDisplay
+                          value={result}
+                          label="Result"
+                          format={
+                            typeof result === "string" ? "markdown" : "json"
+                          }
+                          variant="green"
+                        />
+                      </div>
                     )}
                   </div>
                 );
