@@ -6,6 +6,10 @@ import {
 
 import { type WorkspaceAndAgent } from "./agentUtils";
 import { handleToolContinuation } from "./continuation";
+import {
+  extractToolCallsAndResults,
+  ensureToolCallsHaveMatchingResults,
+} from "./extractToolCallsAndResults";
 import { createModel } from "./modelFactory";
 
 
@@ -27,19 +31,26 @@ export async function processNonStreamingResponse(
   abortSignal?: AbortSignal
 ): Promise<ProcessResponseResult> {
   // Extract text, tool calls, and tool results from generateText result
-  // result from generateText has totalUsage property
   const typedResult = result as GenerateTextResultWithTotalUsage;
   let finalText: string;
   let toolCalls: unknown[];
   let toolResults: unknown[];
   try {
-    [finalText, toolCalls, toolResults] = await Promise.all([
-      Promise.resolve((typedResult as { text: string }).text),
-      Promise.resolve((typedResult as { toolCalls?: unknown[] }).toolCalls || []),
-      Promise.resolve((typedResult as { toolResults?: unknown[] }).toolResults || []),
-    ]);
+    finalText = (typedResult as { text: string }).text ?? "";
+
+    // Use step-based extraction when available for proper 1:1 tool call/result matching.
+    // Top-level toolCalls/toolResults can be mismatched with multi-step generation.
+    const { toolCalls: extractedCalls, toolResults: extractedResults } =
+      extractToolCallsAndResults(result);
+
+    // Ensure every tool call has a matching result to prevent AI_MissingToolResultsError
+    toolResults = ensureToolCallsHaveMatchingResults(
+      extractedCalls,
+      extractedResults
+    );
+    toolCalls = extractedCalls;
   } catch (error) {
-    console.error("[Agent Test Handler] Error extracting result data:", {
+    console.error("[processNonStreamingResponse] Error extracting result data:", {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
