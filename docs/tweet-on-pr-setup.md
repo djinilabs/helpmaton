@@ -56,7 +56,7 @@ In the repo: **Settings** → **Secrets and variables** → **Actions** → **Ne
 | `X_ACCESS_TOKEN`        | Access Token from script |
 | `X_ACCESS_TOKEN_SECRET` | Access Token Secret      |
 
-After that, the **Tweet on new PR** workflow will be able to post when a non-draft PR targeting `main` is opened or reopened (unless the PR has a `no-tweet` label).
+After that, the **Tweet on new PR** workflow will be able to post when a non-draft PR targeting `main` is opened or reopened (unless the PR has a `no-tweet` label). The same secrets are used by the **Release** workflow to post a tweet when a new release is created (with truncated commit summaries and a link to the release notes).
 
 ## Troubleshooting
 

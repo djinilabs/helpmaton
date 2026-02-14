@@ -1,3 +1,5 @@
+# Bumps version, creates tag and GitHub release with auto-generated notes, then posts a tweet.
+# Tweet uses the same X API v2 setup as tweet-on-pr (same secrets). See docs/tweet-on-pr-setup.md.
 name: Release
 
 on:
@@ -65,3 +67,61 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
           gh release create "$TAG" --generate-notes
+
+      - name: Build tweet text
+        id: build-tweet
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.bump.outputs.version }}"
+          URL="https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+          PREFIX="${TAG} released! "
+          SUFFIX=" Full notes: ${URL}"
+          MAX_LEN=280
+          MAX_CONTENT=$((MAX_LEN - ${#PREFIX} - ${#SUFFIX}))
+          BODY=$(gh release view "$TAG" --json body --jq '.body // ""')
+          COMMITS=$(echo "$BODY" | grep -E '^\s*[\*\-]' | sed 's/ by @[^ ]* in #[0-9]*//g' | sed 's/^\s*[\*\-]\s*//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '\n' '\n')
+          CONTENT=""
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            line=$(echo "$line" | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [ -z "$line" ] && continue
+            if [ -z "$CONTENT" ]; then
+              CONTENT="$line"
+            else
+              CANDIDATE="${CONTENT} • ${line}"
+              if [ ${#CANDIDATE} -gt "$MAX_CONTENT" ]; then
+                CONTENT="${CONTENT}…"
+                break
+              fi
+              CONTENT="$CANDIDATE"
+            fi
+          done <<< "$COMMITS"
+          if [ -z "$CONTENT" ]; then
+            TWEET="${TAG} released! Full notes: ${URL}"
+          else
+            TWEET="${PREFIX}${CONTENT}${SUFFIX}"
+          fi
+          if [ ${#TWEET} -gt "$MAX_LEN" ]; then
+            TWEET="${TWEET:0:$((MAX_LEN - 1))}…"
+          fi
+          echo "tweet<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$TWEET" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Debug tweet
+        run: |
+          TWEET="${{ steps.build-tweet.outputs.tweet }}"
+          echo "Tweet length: ${#TWEET} characters"
+          if [ "${#TWEET}" -gt 280 ]; then
+            echo "::warning::Tweet exceeds 280 characters; X API may reject it"
+          fi
+
+      - name: Send tweet
+        uses: smapiot/send-tweet-v2-action@v1
+        with:
+          status: ${{ steps.build-tweet.outputs.tweet }}
+          consumer-key: ${{ secrets.X_API_KEY }}
+          consumer-secret: ${{ secrets.X_API_SECRET }}
+          access-token: ${{ secrets.X_ACCESS_TOKEN }}
+          access-token-secret: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
