@@ -15,6 +15,7 @@ export type SuggestionActionType =
   | "agent_model"
   | "agent_memory"
   | "agent_tools"
+  | "agent_skills"
   | "agent_eval_judges"
   | "agent_schedules"
   | "agent_document_search"

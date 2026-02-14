@@ -4,6 +4,7 @@ import type { SuggestionsCache } from "../suggestions";
 import {
   resolveWorkspaceSuggestions,
   buildWorkspaceSuggestionContext,
+  buildAgentSuggestionContext,
   dismissSuggestion,
 } from "../suggestions";
 
@@ -253,5 +254,100 @@ describe("suggestions utils", () => {
     const second = dismissSuggestion(first, "s2");
     expect(second?.items).toEqual([]);
     expect(second?.dismissedIds).toEqual(["s1", "s2"]);
+  });
+
+  it("buildAgentSuggestionContext sets hasEnabledTools when agent has tools", () => {
+    const workspaceContext = {
+      workspace: {
+        name: "Test",
+        description: null,
+        creditBalance: 0,
+        spendingLimits: [],
+        apiKeys: undefined,
+      },
+      connections: {
+        hasConnectedTools: true,
+        hasEmailConnection: false,
+      },
+      resources: {
+        hasAgents: true,
+        hasDocuments: false,
+        hasOutputChannels: false,
+      },
+    };
+    const context = buildAgentSuggestionContext({
+      workspaceContext,
+      agent: {
+        name: "Agent",
+        systemPrompt: "Help users",
+        enableSearchDocuments: true,
+        enabledSkillIds: [],
+      },
+    });
+    expect(context.agent.hasEnabledTools).toBe(true);
+    expect(context.agent.enabledSkillIds).toEqual([]);
+  });
+
+  it("buildAgentSuggestionContext sets hasEnabledTools false when agent has no tools", () => {
+    const workspaceContext = {
+      workspace: {
+        name: "Test",
+        description: null,
+        creditBalance: 0,
+        spendingLimits: [],
+        apiKeys: undefined,
+      },
+      connections: {
+        hasConnectedTools: false,
+        hasEmailConnection: false,
+      },
+      resources: {
+        hasAgents: true,
+        hasDocuments: false,
+        hasOutputChannels: false,
+      },
+    };
+    const context = buildAgentSuggestionContext({
+      workspaceContext,
+      agent: {
+        name: "Agent",
+        systemPrompt: "Help users",
+        enabledMcpServerIds: [],
+        enabledSkillIds: [],
+      },
+    });
+    expect(context.agent.hasEnabledTools).toBe(false);
+  });
+
+  it("buildAgentSuggestionContext includes enabledSkillIds", () => {
+    const workspaceContext = {
+      workspace: {
+        name: "Test",
+        description: null,
+        creditBalance: 0,
+        spendingLimits: [],
+        apiKeys: undefined,
+      },
+      connections: {
+        hasConnectedTools: true,
+        hasEmailConnection: false,
+      },
+      resources: {
+        hasAgents: true,
+        hasDocuments: false,
+        hasOutputChannels: false,
+      },
+    };
+    const context = buildAgentSuggestionContext({
+      workspaceContext,
+      agent: {
+        name: "Agent",
+        systemPrompt: "Help users",
+        enabledMcpServerIds: ["mcp-1"],
+        enabledSkillIds: ["posthog-analytics"],
+      },
+    });
+    expect(context.agent.hasEnabledTools).toBe(true);
+    expect(context.agent.enabledSkillIds).toEqual(["posthog-analytics"]);
   });
 });

@@ -66,6 +66,13 @@ export function getSuggestionAction(
             sectionId: AGENT_SECTION_IDS.mcpServers,
           }
         : null,
+    agent_skills:
+      agentId != null
+        ? {
+            label: "Skills",
+            sectionId: AGENT_SECTION_IDS.skills,
+          }
+        : null,
     agent_eval_judges:
       agentId != null
         ? {

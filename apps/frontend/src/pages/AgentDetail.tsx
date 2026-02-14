@@ -3361,7 +3361,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = (props) => {
       {
         title: "External tools",
         icon: <BoltIcon className="size-5" />,
-        children: canEdit ? [{ id: "mcp-servers", label: "Connected tools" }] : [],
+        children: canEdit
+          ? [
+              { id: "mcp-servers", label: "Connected tools" },
+              { id: "skills", label: "Skills" },
+            ]
+          : [],
       },
       {
         title: "Collaborate",

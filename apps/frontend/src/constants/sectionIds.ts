@@ -28,4 +28,5 @@ export const AGENT_SECTION_IDS = {
   memory: "memory",
   mcpServers: "mcp-servers",
   schedules: "schedules",
+  skills: "skills",
 } as const;

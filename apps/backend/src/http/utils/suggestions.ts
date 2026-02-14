@@ -30,6 +30,7 @@ export const SUGGESTION_ACTION_TYPES = [
   "agent_model",
   "agent_memory",
   "agent_tools",
+  "agent_skills",
   "agent_eval_judges",
   "agent_schedules",
   "agent_document_search",
@@ -113,6 +114,9 @@ type AgentSuggestionContext = {
     enableExaSearch?: boolean;
     enabledMcpServerIds?: string[];
     enabledMcpServerToolNames?: Record<string, string[]>;
+    enabledSkillIds?: string[];
+    /** True when agent has any enabled tools (builtin or MCP) that skills can guide. */
+    hasEnabledTools?: boolean;
     clientTools?: Array<{ name: string; description: string }>;
     evalJudgeCount?: number;
     scheduleCount?: number;
@@ -128,7 +132,7 @@ ${HELPMATON_PRODUCT_DESCRIPTION}
 ## Subject and scope
 You will receive a subject: either "workspace" or "agent". Your suggestions must match the subject exactly:
 - When subject is **workspace**: suggest only workspace-level next steps. Use only actionTypes that start with workspace_ (workspace_api_keys, workspace_spending_limits, workspace_team, workspace_documents, workspace_agents, workspace_integrations, workspace_credits). Never suggest agent_* action types.
-- When subject is **agent**: suggest only agent-level next steps for a single agent. Use only actionTypes that start with agent_ (agent_model, agent_memory, agent_tools, agent_eval_judges, agent_schedules, agent_document_search, agent_knowledge_injection, agent_delegation). Never suggest workspace_* action types.
+- When subject is **agent**: suggest only agent-level next steps for a single agent. Use only actionTypes that start with agent_ (agent_model, agent_memory, agent_tools, agent_skills, agent_eval_judges, agent_schedules, agent_document_search, agent_knowledge_injection, agent_delegation). Never suggest workspace_* action types.
 
 ## Workspace capabilities (suggest only when subject is "workspace")
 - **API keys**: Add an OpenRouter API key for bring-your-own-key (BYOK): the workspace pays OpenRouter directly instead of using workspace credits. ${HELPMATON_BYOK_RULE}
@@ -145,6 +149,7 @@ You will receive a subject: either "workspace" or "agent". Your suggestions must
 - **Document search**: Let the agent search workspace documents when answering.
 - **Knowledge injection**: Combine memory and documents for richer context.
 - **Tools**: Enable MCP tools (from connected servers), send email, web search (Tavily/Exa), or image generation.
+- **Skills**: Attach skill instructions to guide the agent on using enabled tools (e.g. PostHog analytics, Notion docs). Suggest only when the agent has enabled tools (hasEnabledTools is true) but no skills configured (enabledSkillIds is empty).
 - **Eval judges**: In the agent's **Evaluations** section, add evaluation judges to assess conversations. Each judge uses an LLM and a prompt to score agent runs (e.g. goal completion, tool efficiency, faithfulness). Suggest only when the agent has no evaluation judges configured.
 - **Schedules**: In the agent's **Schedules** section, add cron-style schedules so the agent runs periodically (e.g. daily summaries). Suggest only when the agent has no schedules.
 - **Document search**: In the agent's **Document search** section, enable search over workspace documents so the agent can cite documents when answering. Suggest only when document search is not yet enabled.
@@ -167,7 +172,7 @@ Use the Configuration JSON to tailor suggestions:
 - actionType is optional. When the suggestion clearly maps to one UI section, set actionType so the app can show a "Go to X" link. Use exactly one of the following, and only from the list that matches the subject (workspace vs agent):
 
   If subject is workspace (use only these): workspace_api_keys, workspace_spending_limits, workspace_team, workspace_documents, workspace_agents, workspace_integrations, workspace_credits
-  If subject is agent (use only these): agent_model, agent_memory, agent_tools, agent_eval_judges, agent_schedules, agent_document_search, agent_knowledge_injection, agent_delegation`;
+  If subject is agent (use only these): agent_model, agent_memory, agent_tools, agent_skills, agent_eval_judges, agent_schedules, agent_document_search, agent_knowledge_injection, agent_delegation`;
 
 const truncateText = (value: string, maxChars: number): string => {
   if (value.length <= maxChars) return value;
@@ -243,6 +248,14 @@ function buildProhibitionRules(
     }
     if ((agent?.delegatableAgentIds?.length ?? 0) > 0) {
       lines.push("- Configuring delegation (already configured).");
+    }
+    if (agent?.hasEnabledTools !== true) {
+      lines.push(
+        "- Setting up skills (agent has no enabled tools; enable tools first).",
+      );
+    }
+    if ((agent?.enabledSkillIds?.length ?? 0) > 0) {
+      lines.push("- Setting up skills (already configured).");
     }
   }
   return lines.join("\n");
@@ -412,6 +425,35 @@ export const buildWorkspaceSuggestionContext = async (params: {
   };
 };
 
+function hasEnabledTools(
+  agent: {
+    enableSearchDocuments?: boolean;
+    enableMemorySearch?: boolean;
+    searchWebProvider?: string | null;
+    fetchWebProvider?: string | null;
+    enableExaSearch?: boolean;
+    enableSendEmail?: boolean;
+    enableImageGeneration?: boolean;
+    enabledMcpServerIds?: string[];
+    enabledMcpServerToolNames?: Record<string, string[]>;
+  },
+  hasEmailConnection?: boolean,
+): boolean {
+  return (
+    (agent.enabledMcpServerIds?.length ?? 0) > 0 ||
+    agent.enableSearchDocuments === true ||
+    agent.enableMemorySearch === true ||
+    agent.searchWebProvider != null ||
+    agent.fetchWebProvider != null ||
+    agent.enableExaSearch === true ||
+    (agent.enableSendEmail === true && hasEmailConnection === true) ||
+    agent.enableImageGeneration === true ||
+    Object.keys(agent.enabledMcpServerToolNames ?? {}).some(
+      (serverId) => (agent.enabledMcpServerToolNames![serverId]?.length ?? 0) > 0,
+    )
+  );
+}
+
 export const buildAgentSuggestionContext = (params: {
   workspaceContext: WorkspaceSuggestionContext;
   agent: {
@@ -432,6 +474,7 @@ export const buildAgentSuggestionContext = (params: {
     enableExaSearch?: boolean;
     enabledMcpServerIds?: string[];
     enabledMcpServerToolNames?: Record<string, string[]>;
+    enabledSkillIds?: string[];
     clientTools?: Array<{ name: string; description: string }>;
     evalJudgeCount?: number;
     scheduleCount?: number;
@@ -447,6 +490,10 @@ export const buildAgentSuggestionContext = (params: {
     normalizedPrompt,
     MAX_PROMPT_CHARS,
   );
+  const hasEmailConnection =
+    params.workspaceContext.connections.hasEmailConnection ?? false;
+  const hasTools = hasEnabledTools(params.agent, hasEmailConnection);
+
   return {
     workspace: {
       ...params.workspaceContext.workspace,
@@ -473,6 +520,8 @@ export const buildAgentSuggestionContext = (params: {
       enableExaSearch: params.agent.enableExaSearch ?? false,
       enabledMcpServerIds: params.agent.enabledMcpServerIds ?? [],
       enabledMcpServerToolNames: params.agent.enabledMcpServerToolNames ?? {},
+      enabledSkillIds: params.agent.enabledSkillIds ?? [],
+      hasEnabledTools: hasTools,
       clientTools: params.agent.clientTools ?? [],
       evalJudgeCount: params.agent.evalJudgeCount ?? 0,
       scheduleCount: params.agent.scheduleCount ?? 0,
