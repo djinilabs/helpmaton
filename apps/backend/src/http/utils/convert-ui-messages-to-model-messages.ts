@@ -88,24 +88,40 @@ const parseFilePart = (part: {
   } as unknown as FilePart;
 };
 
-const appendToolResultsToFirstAssistant = (
+/**
+ * Appends tool results to the assistant message that contains the matching tool calls.
+ * Must append to the LAST assistant with tool-call content (the one we just built),
+ * not the first assistant. When there are multiple assistant messages (e.g. from
+ * conversation history), appending to the first would attach results to the wrong
+ * message and cause AI_MissingToolResultsError for the current tool round.
+ */
+const appendToolResultsToAssistantWithToolCalls = (
   modelMessages: ModelMessage[],
   toolResults: ToolResultPart[]
 ): void => {
   if (toolResults.length === 0) return;
 
-  const existingAssistantIndex = modelMessages.findIndex(
-    (msg) => msg.role === "assistant"
-  );
-  if (existingAssistantIndex >= 0) {
-    const existingMsg = modelMessages[existingAssistantIndex];
-    if (Array.isArray(existingMsg.content) && existingMsg.content.length > 0) {
-      (existingMsg.content as Array<unknown>).push(...toolResults);
+  const hasToolCalls = (content: unknown): boolean =>
+    Array.isArray(content) &&
+    content.some(
+      (p: unknown) =>
+        p &&
+        typeof p === "object" &&
+        "type" in p &&
+        (p as { type: string }).type === "tool-call"
+    );
+
+  for (let i = modelMessages.length - 1; i >= 0; i--) {
+    const msg = modelMessages[i];
+    if (msg.role === "assistant" && hasToolCalls(msg.content)) {
+      const existingMsg = msg as AssistantModelMessage;
+      if (Array.isArray(existingMsg.content) && existingMsg.content.length > 0) {
+        (existingMsg.content as Array<unknown>).push(...toolResults);
+      } else {
+        (modelMessages[i] as AssistantModelMessage).content = toolResults;
+      }
       return;
     }
-    (modelMessages[existingAssistantIndex] as AssistantModelMessage).content =
-      toolResults;
-    return;
   }
 
   const assistantMessage: AssistantModelMessage = {
@@ -334,7 +350,7 @@ const buildAssistantMessages = (
     modelMessages.push({ role: "assistant", content: combinedTextPart.text });
   }
 
-  appendToolResultsToFirstAssistant(modelMessages, toolResults);
+  appendToolResultsToAssistantWithToolCalls(modelMessages, toolResults);
 };
 
 const buildToolMessage = (message: UIMessage, modelMessages: ModelMessage[]): void => {

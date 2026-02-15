@@ -88,10 +88,10 @@ export async function handleToolContinuation(
     .map(formatToolResultMessage);
 
   // Merge all tool calls and tool results into a single assistant message.
-  // convertUIMessagesToModelMessages uses appendToolResultsToFirstAssistant, which
-  // only appends results to the first assistant message. If we pass multiple
-  // assistant messages (one per tool call/result), only the first tool call would
-  // get results, causing AI_MissingToolResultsError for the rest.
+  // convertUIMessagesToModelMessages uses appendToolResultsToAssistantWithToolCalls,
+  // which appends results to the last assistant message with tool-call content.
+  // If we passed multiple assistant messages (one per tool call/result), only the
+  // first would get results; merging into one ensures every tool call has a result.
   const toolRoundContent = [
     ...toolCallUIMessages.flatMap((m) => m.content),
     ...toolResultUIMessages.flatMap((m) => m.content),
@@ -136,10 +136,12 @@ export async function handleToolContinuation(
     singleToolRoundMessage,
   ];
 
-  console.log(
-    "allMessagesForContinuation",
-    JSON.stringify(allMessagesForContinuation, null, 2)
-  );
+  if (process.env.ARC_ENV !== "production") {
+    console.log("[Continuation Handler] Messages for continuation:", {
+      messageCount: allMessagesForContinuation.length,
+      toolRoundContentParts: singleToolRoundMessage.content.length,
+    });
+  }
 
   let continuationModelMessages: ModelMessage[];
   try {
@@ -148,7 +150,7 @@ export async function handleToolContinuation(
     );
   } catch (error) {
     console.error(
-      "[Agent Test Handler] Error converting messages for continuation:",
+      "[Continuation Handler] Error converting messages for continuation:",
       {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
@@ -165,10 +167,11 @@ export async function handleToolContinuation(
 
   let continuationResult;
 
-  console.log(
-    "continuationModelMessages",
-    JSON.stringify(continuationModelMessages, null, 2)
-  );
+  if (process.env.ARC_ENV !== "production") {
+    console.log("[Continuation Handler] Model messages:", {
+      messageCount: continuationModelMessages.length,
+    });
+  }
 
   try {
     const resolvedModelName =
@@ -213,7 +216,7 @@ export async function handleToolContinuation(
       ...(abortSignal && { abortSignal }),
     });
   } catch (error) {
-    console.error("[Agent Test Handler] Error in generateText continuation:", {
+    console.error("[Continuation Handler] Error in generateText continuation:", {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
@@ -229,7 +232,7 @@ export async function handleToolContinuation(
   try {
     continuationText = continuationResult.text;
   } catch (error) {
-    console.error("[Agent Test Handler] Error getting continuation text:", {
+    console.error("[Continuation Handler] Error getting continuation text:", {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
@@ -297,26 +300,32 @@ export async function handleToolContinuation(
     }
 
     if (toolResultText && toolResultText.trim().length > 0) {
-      console.log("[Continuation] Using tool result as reply:", toolResultText);
+      if (process.env.ARC_ENV !== "production") {
+        console.log("[Continuation Handler] Using tool result as reply:", {
+          length: toolResultText.length,
+          preview: toolResultText.slice(0, 80) + (toolResultText.length > 80 ? "…" : ""),
+        });
+      }
       return {
         text: toolResultText,
         tokenUsage: continuationTokenUsage,
       };
-    } else {
-      console.log("[Continuation] No tool result text found to use as reply", {
-        latestToolResultMessage,
-        toolResultUIMessages: toolResultUIMessages.length,
+    } else if (process.env.ARC_ENV !== "production") {
+      console.log("[Continuation Handler] No tool result text found to use as reply", {
+        toolResultUIMessagesCount: toolResultUIMessages.length,
       });
     }
   }
 
-  console.log("[Continuation] Final result:", {
+  if (process.env.ARC_ENV !== "production") {
+    console.log("[Continuation Handler] Final result:", {
     hasContinuationText: continuationText?.trim().length > 0,
     continuationTextLength: continuationText?.length || 0,
     hasFinalText,
     hasToolResultFallback: !hasFinalText && toolResultUIMessages.length > 0,
     toolResultUIMessagesCount: toolResultUIMessages.length,
   });
+  }
 
   return hasFinalText
     ? {

@@ -206,6 +206,99 @@ describe("convertUIMessagesToModelMessages", () => {
     }
   });
 
+  it("should append tool results to the assistant with tool calls, not the first assistant (multi-turn continuation)", () => {
+    // Simulates continuation when there's conversation history: user, previous
+    // assistant (text), current assistant (tool calls + results). Tool results
+    // must be appended to the LAST assistant (the one with tool calls), not
+    // the first, to avoid AI_MissingToolResultsError.
+    const messages: UIMessage[] = [
+      { role: "user", content: "First message" },
+      { role: "assistant", content: "Previous response" },
+      { role: "user", content: "Run tools" },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool_send_notification_Abc123",
+            toolName: "send_notification",
+            args: { channelId: "ch1", message: "Hi" },
+          },
+          {
+            type: "tool-result",
+            toolCallId: "tool_send_notification_Abc123",
+            toolName: "send_notification",
+            result: "✅",
+          },
+        ],
+      },
+    ];
+
+    const result = convertUIMessagesToModelMessages(messages);
+    const assistants = result.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(2);
+
+    const firstAssistant = assistants[0] as AssistantModelMessage;
+    const secondAssistant = assistants[1] as AssistantModelMessage;
+
+    expect(firstAssistant.content).toBe("Previous response");
+    expect(Array.isArray(secondAssistant.content)).toBe(true);
+    const content = secondAssistant.content as Array<{
+      type: string;
+      toolCallId?: string;
+    }>;
+    const toolCalls = content.filter((p) => p.type === "tool-call");
+    const toolResults = content.filter((p) => p.type === "tool-result");
+    expect(toolCalls).toHaveLength(1);
+    expect(toolResults).toHaveLength(1);
+    expect(toolCalls[0].toolCallId).toBe("tool_send_notification_Abc123");
+    expect(toolResults[0].toolCallId).toBe("tool_send_notification_Abc123");
+  });
+
+  it("should append tool results to assistant with tool-calls when same message has tool-calls, text, and tool-results", () => {
+    // When one assistant message has tool-calls, text, and tool-results,
+    // buildAssistantMessages pushes: (1) assistant with toolCalls, (2) assistant with text.
+    // Tool results must go to the assistant with tool-calls, not the text-only one.
+    const messages: UIMessage[] = [
+      { role: "user", content: "Run tool and respond" },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool_get_datetime_xyz",
+            toolName: "get_datetime",
+            args: {},
+          },
+          { type: "text", text: "Checking time..." },
+          {
+            type: "tool-result",
+            toolCallId: "tool_get_datetime_xyz",
+            toolName: "get_datetime",
+            result: "2026-02-15T12:00:00Z",
+          },
+        ],
+      },
+    ];
+
+    const result = convertUIMessagesToModelMessages(messages);
+    const assistants = result.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(2);
+
+    const firstAssistant = assistants[0] as AssistantModelMessage;
+    const secondAssistant = assistants[1] as AssistantModelMessage;
+
+    expect(Array.isArray(firstAssistant.content)).toBe(true);
+    const firstContent = firstAssistant.content as Array<{ type: string; toolCallId?: string }>;
+    const toolCalls = firstContent.filter((p) => p.type === "tool-call");
+    const toolResults = firstContent.filter((p) => p.type === "tool-result");
+    expect(toolCalls).toHaveLength(1);
+    expect(toolResults).toHaveLength(1);
+    expect(toolCalls[0].toolCallId).toBe("tool_get_datetime_xyz");
+
+    expect(secondAssistant.content).toBe("Checking time...");
+  });
+
   it("should convert tool message with tool results", () => {
     const messages: UIMessage[] = [
       {
