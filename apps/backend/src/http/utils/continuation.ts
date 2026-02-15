@@ -57,6 +57,57 @@ export function buildContinuationInstructions(
   return instructions;
 }
 
+function isValidMessageForContinuation(
+  msg: unknown
+): msg is UIMessage {
+  if (
+    !(
+      msg != null &&
+      typeof msg === "object" &&
+      "role" in msg &&
+      typeof msg.role === "string" &&
+      (msg.role === "user" ||
+        msg.role === "assistant" ||
+        msg.role === "system" ||
+        msg.role === "tool") &&
+      "content" in msg
+    )
+  ) {
+    return false;
+  }
+  if (msg.role === "system") return false;
+  if (msg.role === "tool") return false;
+  return true;
+}
+
+function extractTextFromToolResultContent(
+  content: Array<{ type?: string; result?: unknown; output?: unknown }>
+): string | undefined {
+  for (const item of content) {
+    if (item?.type !== "tool-result") continue;
+    const result =
+      item.result !== undefined
+        ? item.result
+        : item.output !== undefined
+          ? item.output
+          : undefined;
+    if (result === undefined) continue;
+    if (typeof result === "string") return result;
+    if (
+      result &&
+      typeof result === "object" &&
+      "type" in result &&
+      "value" in result
+    ) {
+      const r = result as { type: string; value: unknown };
+      if (r.type === "text" && typeof r.value === "string") return r.value;
+      if (r.type === "json") return JSON.stringify(r.value);
+    }
+    return result ? String(result) : undefined;
+  }
+  return undefined;
+}
+
 /**
  * Handles continuation when tools are called but no text is generated
  * Returns the continuation text and token usage, or null if no text was generated
@@ -104,35 +155,7 @@ export async function handleToolContinuation(
   // Combine messages, filtering out existing tool messages and system messages
   // (system prompt is passed separately via the system parameter to streamText)
   const allMessagesForContinuation: UIMessage[] = [
-    ...messages.filter((msg): msg is UIMessage => {
-      if (
-        !(
-          msg != null &&
-          typeof msg === "object" &&
-          "role" in msg &&
-          typeof msg.role === "string" &&
-          (msg.role === "user" ||
-            msg.role === "assistant" ||
-            msg.role === "system" ||
-            msg.role === "tool") &&
-          "content" in msg
-        )
-      ) {
-        return false;
-      }
-
-      // Filter out system messages since we pass system separately
-      if (msg.role === "system") {
-        return false;
-      }
-
-      // Filter out tool messages (we'll add tool results separately as assistant messages)
-      if (msg.role === "tool") {
-        return false;
-      }
-
-      return true;
-    }),
+    ...messages.filter(isValidMessageForContinuation),
     singleToolRoundMessage,
   ];
 
@@ -242,62 +265,13 @@ export async function handleToolContinuation(
   // If no continuation text was generated (final text is empty), use the latest tool result as the reply
   const hasFinalText = continuationText && continuationText.trim().length > 0;
   if (!hasFinalText && toolResultUIMessages.length > 0) {
-    // Get the latest tool result message (which is formatted as an assistant message)
     const latestToolResultMessage =
       toolResultUIMessages[toolResultUIMessages.length - 1];
-
-    // Extract text from tool result content
-    // The tool result is in the content array as { type: 'tool-result', result: ... }
-    let toolResultText: string | undefined;
-
-    if (
-      latestToolResultMessage &&
-      latestToolResultMessage.role === "assistant" &&
+    const toolResultText =
+      latestToolResultMessage?.role === "assistant" &&
       Array.isArray(latestToolResultMessage.content)
-    ) {
-      // Find the tool-result in the content array
-      for (const item of latestToolResultMessage.content) {
-        if (
-          typeof item === "object" &&
-          item !== null &&
-          "type" in item &&
-          item.type === "tool-result"
-        ) {
-          // Check for both "result" (from UI messages) and "output" (from converted ModelMessages)
-          const result =
-            "result" in item && item.result !== undefined
-              ? item.result
-              : "output" in item && item.output !== undefined
-              ? item.output
-              : undefined;
-
-          if (result === undefined) {
-            continue;
-          }
-
-          // Handle different result formats
-          if (typeof result === "string") {
-            toolResultText = result;
-          } else if (
-            result &&
-            typeof result === "object" &&
-            "type" in result &&
-            "value" in result
-          ) {
-            // LanguageModelV2ToolResultOutput format: { type: 'text', value: string }
-            if (result.type === "text" && typeof result.value === "string") {
-              toolResultText = result.value;
-            } else if (result.type === "json") {
-              // For JSON outputs, stringify them
-              toolResultText = JSON.stringify(result.value);
-            }
-          } else if (result) {
-            toolResultText = String(result);
-          }
-          break; // Use the first tool-result found
-        }
-      }
-    }
+        ? extractTextFromToolResultContent(latestToolResultMessage.content)
+        : undefined;
 
     if (toolResultText && toolResultText.trim().length > 0) {
       if (process.env.ARC_ENV !== "production") {
