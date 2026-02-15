@@ -64,7 +64,8 @@
     "test:openrouter-rerank": "pnpm exec tsx scripts/test-openrouter-rerank-via-chat.ts",
     "cleanup-ecr": "node scripts/cleanup-ecr-images.mjs",
     "cleanup-ecr:dry-run": "node scripts/cleanup-ecr-images.mjs --dry-run",
-    "cleanup-ecr:execute": "node scripts/cleanup-ecr-images.mjs --execute"
+    "cleanup-ecr:execute": "node scripts/cleanup-ecr-images.mjs --execute",
+    "clean:local": "rm -rf apps/backend/dist apps/backend/public apps/frontend/dist .pnpm-store node_modules && pnpm install"
   },
   "packageManager": "pnpm@10.28.2",
   "pnpm": {

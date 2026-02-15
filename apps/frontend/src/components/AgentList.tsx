@@ -6,6 +6,7 @@ import { useAgentsInfinite } from "../hooks/useAgents";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 
 import { AgentModal } from "./AgentModal";
+import { LoadingScreen } from "./LoadingScreen";
 import { ScrollContainer } from "./ScrollContainer";
 import { VirtualList } from "./VirtualList";
 
@@ -53,12 +54,14 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
           and send notifications. Each agent has its own system prompt, spending
           limits, and usage statistics. Click on an agent to configure it.
         </p>
-        {!isLoading && agents.length === 0 ? (
+        {isLoading ? (
+          <LoadingScreen compact message="Loading agents..." />
+        ) : !agents.length ? (
           <p className="text-lg text-neutral-600 dark:text-neutral-300">
             No agents yet. Create your first agent to get started.
           </p>
         ) : (
-          <ScrollContainer ref={scrollRef} className="mb-4">
+          <ScrollContainer ref={scrollRef} className="mb-4 px-3 py-2">
             <VirtualList
               scrollRef={scrollRef}
               items={agents}
