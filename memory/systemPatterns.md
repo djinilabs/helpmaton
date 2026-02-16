@@ -56,6 +56,7 @@
 
 ### Database Patterns
 
+- **Workspace creation**: Single place—`createWorkspaceRecord` in `utils/workspaceCreate.ts`. All new workspaces (create-from-UI and import) get 2 USD initial credits. The `workspace_created` PostHog event is also sent only from this function (best-effort, does not block creation). Callers pass `pk`, `sk`, `name`, `createdBy`, `subscriptionId`, and optional `description`, `currency`, `spendingLimits`, `creationNotes`.
 - **DynamoDB**: Single-table design with GSIs
 - **Encryption**: Sensitive tables use `encrypt true` in app.arc
 - **TTL**: Expiring records (sessions, logs, reservations)

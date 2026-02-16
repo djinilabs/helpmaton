@@ -95,6 +95,7 @@ export const tableSchemas = {
     // Lemon Squeezy integration fields
     lemonSqueezyOrderId: z.string().optional(), // Lemon Squeezy order ID for credit purchases
     suggestions: suggestionsCacheSchema.nullable().optional(),
+    creationNotes: z.string().optional(), // Import/onboarding summary; stored on workspace, not returned by API
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),

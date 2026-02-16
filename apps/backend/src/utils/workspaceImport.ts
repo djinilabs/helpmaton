@@ -21,6 +21,7 @@ import {
   checkSubscriptionLimits,
   getUserSubscription,
 } from "./subscriptionUtils";
+import { createWorkspaceRecord } from "./workspaceCreate";
 
 /**
  * Helper function to check if a string is a reference (e.g., "{refName}")
@@ -282,7 +283,7 @@ async function createWorkspaceAndOwner(
   const workspacePk = `workspaces/${workspaceId}`;
   const workspaceSk = "workspace";
 
-  const createPayload = {
+  await createWorkspaceRecord(ctx.db, {
     pk: workspacePk,
     sk: workspaceSk,
     name: validatedData.name,
@@ -290,13 +291,12 @@ async function createWorkspaceAndOwner(
     createdBy: ctx.userRef,
     subscriptionId: ctx.subscriptionId,
     currency: validatedData.currency ?? "usd",
-    creditBalance: 0,
     spendingLimits: validatedData.spendingLimits,
-  };
-  if (creationNotes !== undefined && creationNotes !== "") {
-    (createPayload as Record<string, unknown>).creationNotes = creationNotes;
-  }
-  await ctx.db.workspace.create(createPayload);
+    creationNotes:
+      creationNotes !== undefined && creationNotes !== ""
+        ? creationNotes
+        : undefined,
+  });
 
   await ensureAuthorization(
     workspacePk,

@@ -122,7 +122,7 @@ describe("importWorkspace", () => {
       sk: "workspace",
       name: "Imported Workspace",
       currency: "usd",
-      creditBalance: 0,
+      creditBalance: 2_000_000_000, // 2 USD (all new workspaces get initial credits)
       version: 1,
       createdAt: "2024-01-01T00:00:00Z",
     });
@@ -135,7 +135,7 @@ describe("importWorkspace", () => {
       expect.objectContaining({
         name: "Imported Workspace",
         currency: "usd",
-        creditBalance: 0,
+        creditBalance: 2_000_000_000, // 2 USD (all new workspaces get initial credits)
       })
     );
     expect(mockDb.workspace.create).not.toHaveBeenCalledWith(
@@ -158,7 +158,7 @@ describe("importWorkspace", () => {
       sk: "workspace",
       name: "Imported Workspace",
       currency: "usd",
-      creditBalance: 0,
+      creditBalance: 2_000_000_000,
       version: 1,
       createdAt: "2024-01-01T00:00:00Z",
     });

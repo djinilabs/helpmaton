@@ -14,7 +14,6 @@ import {
   type WorkspaceExport,
 } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
-import { trackEvent } from "../utils/tracking";
 
 const GOAL_OPTIONS = [
   { value: "personal", label: "Automate personal tasks" },
@@ -276,7 +275,6 @@ export const OnboardingAgentModal: FC<OnboardingAgentModalProps> = ({
         exportData: template,
         creationNotes,
       });
-      trackEvent("workspace_created", { workspace_id: workspace.id });
       setCreatedWorkspace({ id: workspace.id, name: workspace.name });
       setStep("created");
     } catch {
