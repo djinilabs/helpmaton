@@ -126,6 +126,12 @@ export interface SummarizationPromptsInput {
 export interface ContextStats {
   contextLength: number;
   estimatedSystemPromptTokens: number;
+  /** Instructions only (system prompt, no skills). For segmented gauge. */
+  estimatedInstructionsTokens?: number;
+  /** Skills content only. For segmented gauge. */
+  estimatedSkillsTokens?: number;
+  /** Estimated tokens for injected knowledge (0 when disabled). */
+  estimatedKnowledgeTokens?: number;
   maxSafeInputTokens: number;
   ratio: number;
   modelName: string;

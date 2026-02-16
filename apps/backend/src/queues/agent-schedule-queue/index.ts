@@ -5,14 +5,14 @@ import { z } from "zod";
 
 import { callAgentNonStreaming } from "../../http/utils/agentCallNonStreaming";
 import { setupAgentAndTools } from "../../http/utils/agentSetup";
+import { MODEL_NAME } from "../../http/utils/agentUtils";
 import {
   trackSuccessfulRequest,
   validateSubscriptionAndLimits,
 } from "../../http/utils/generationRequestTracking";
-// eslint-disable-next-line import/order
-import { MODEL_NAME } from "../../http/utils/agentUtils";
 import { buildConversationMessagesFromObserver } from "../../http/utils/llmObserver";
 import { convertTextToUIMessage } from "../../http/utils/messageConversion";
+import { getDefaultModel } from "../../http/utils/modelFactory";
 import {
   createRequestTimeout,
   cleanupRequestTimeout,
@@ -24,6 +24,7 @@ import {
   startConversation,
 } from "../../utils/conversationLogger";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
+import { getMaxCharsForPromptSegment } from "../../utils/pricing";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
@@ -143,22 +144,39 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
     return;
   }
 
-  // Cap schedule prompt to avoid exceeding model context length (1M tokens).
-  // ~4 chars/token → 400k chars ≈ 100k tokens; leaves room for system prompt and knowledge.
-  const MAX_SCHEDULE_PROMPT_CHARS = 400_000;
+  // Cap schedule prompt based on the agent's model context length (reserves room for system prompt and knowledge).
+  const agentPk = `agents/${workspaceId}/${agentId}`;
+  const agent = await db.agent.get(agentPk, "agent");
+  if (!agent) {
+    console.warn("[Schedule Queue] Agent not found, skipping:", {
+      scheduleId,
+      workspaceId,
+      agentId,
+    });
+    return;
+  }
+  const SCHEDULE_PROMPT_TRUNCATION_SUFFIX =
+    "\n\n[Prompt truncated due to length limit. Please use a shorter schedule prompt.]";
+  const effectiveModelName = agent.modelName?.trim()
+    ? agent.modelName
+    : getDefaultModel();
+  const maxSchedulePromptChars = getMaxCharsForPromptSegment(
+    "openrouter",
+    effectiveModelName,
+  );
   const rawPrompt = schedule.prompt;
   const prompt =
-    rawPrompt.length <= MAX_SCHEDULE_PROMPT_CHARS
+    rawPrompt.length <= maxSchedulePromptChars
       ? rawPrompt
-      : rawPrompt.slice(0, MAX_SCHEDULE_PROMPT_CHARS) +
-        "\n\n[Prompt truncated due to length limit. Please use a shorter schedule prompt.]";
-  if (rawPrompt.length > MAX_SCHEDULE_PROMPT_CHARS) {
+      : rawPrompt.slice(0, maxSchedulePromptChars) + SCHEDULE_PROMPT_TRUNCATION_SUFFIX;
+  if (rawPrompt.length > maxSchedulePromptChars) {
     console.warn("[Schedule Queue] Schedule prompt truncated:", {
       scheduleId,
       workspaceId,
       agentId,
       originalLength: rawPrompt.length,
-      maxLength: MAX_SCHEDULE_PROMPT_CHARS,
+      maxLength: maxSchedulePromptChars,
+      modelName: effectiveModelName,
     });
   }
   const conversationId = randomUUID();

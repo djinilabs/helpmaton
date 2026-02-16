@@ -94,7 +94,7 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
         const agentsList = await Promise.all(
           result.items.map(async (agent) => {
             const contextStats = await computeContextStats(agent, {
-              includeSkills: false,
+              includeSkills: true,
             });
             return {
               id: agent.pk.replace(`agents/${workspaceId}/`, ""),

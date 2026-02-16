@@ -117,6 +117,7 @@ vi.mock("../../config/pricing.json", () => ({
 import {
   calculateTokenCost,
   calculateTokenCosts,
+  getMaxCharsForPromptSegment,
   getModelContextLength,
   getMaxSafeInputTokens,
   getModelPricing,
@@ -180,6 +181,41 @@ describe("pricing", () => {
       expect(safe).toBe(
         Math.floor(OPENROUTER_DEFAULT_CONTEXT_LENGTH * 0.9),
       );
+    });
+  });
+
+  describe("getMaxCharsForPromptSegment", () => {
+    it("should return model-based cap for model with context_length (200k → 90k safe, 50% reserved → 90k tokens → 360k chars, capped at 400k)", () => {
+      const max = getMaxCharsForPromptSegment(
+        "openrouter",
+        "test-context-model",
+      );
+      expect(max).toBe(360_000); // 180_000 * 0.5 * 4
+    });
+
+    it("should cap at maxChars option for large-context models", () => {
+      const max = getMaxCharsForPromptSegment("openrouter", "unknown");
+      expect(max).toBe(400_000);
+    });
+
+    it("should respect custom reservedTokens and minChars", () => {
+      const max = getMaxCharsForPromptSegment(
+        "openrouter",
+        "test-context-model",
+        { reservedTokens: 100_000, minChars: 8000 },
+      );
+      // 180k safe - 100k reserved = 80k tokens → 320k chars, min 8k → 320k
+      expect(max).toBe(320_000);
+    });
+
+    it("should return minChars when reservedTokens >= maxSafe (tiny segment budget)", () => {
+      const max = getMaxCharsForPromptSegment(
+        "openrouter",
+        "test-context-model",
+        { reservedTokens: 200_000, minChars: 4000 },
+      );
+      // 180k safe - 200k reserved = 0 tokens → 0 chars, then max(4000, 0) = 4000
+      expect(max).toBe(4000);
     });
   });
 

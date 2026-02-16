@@ -11,10 +11,15 @@ import {
 
 const CHARS_PER_TOKEN_ESTIMATE = 4;
 
+/** Estimated tokens per injected knowledge snippet (used when knowledge injection is enabled). */
+const ESTIMATED_TOKENS_PER_KNOWLEDGE_SNIPPET = 400;
+
 export interface AgentForContextStats {
   systemPrompt: string;
   enabledSkillIds?: string[] | null;
   modelName?: string | null;
+  enableKnowledgeInjection?: boolean;
+  knowledgeInjectionSnippetCount?: number | null;
 }
 
 export interface ComputeContextStatsOptions {
@@ -25,6 +30,12 @@ export interface ComputeContextStatsOptions {
 export interface ContextStats {
   contextLength: number;
   estimatedSystemPromptTokens: number;
+  /** Instructions only (system prompt, no skills). For segmented UI. */
+  estimatedInstructionsTokens: number;
+  /** Skills content only. For segmented UI. */
+  estimatedSkillsTokens: number;
+  /** Estimated tokens for injected knowledge (snippet count × estimate per snippet). 0 when knowledge injection disabled. */
+  estimatedKnowledgeTokens: number;
   maxSafeInputTokens: number;
   ratio: number;
   modelName: string;
@@ -48,6 +59,12 @@ export async function computeContextStats(
     getModelContextLength("openrouter", effectiveModelName) ??
     OPENROUTER_DEFAULT_CONTEXT_LENGTH;
 
+  const instructionsChars = agent.systemPrompt.length;
+  const estimatedInstructionsTokens = Math.ceil(
+    instructionsChars / CHARS_PER_TOKEN_ESTIMATE
+  );
+
+  let estimatedSkillsTokens: number;
   let totalChars: number;
   if (includeSkills && agent.enabledSkillIds?.length) {
     const fullPrompt = await buildSystemPromptWithSkills(
@@ -55,25 +72,43 @@ export async function computeContextStats(
       agent.enabledSkillIds
     );
     totalChars = fullPrompt.length;
+    estimatedSkillsTokens = Math.max(
+      0,
+      Math.ceil(
+        (fullPrompt.length - instructionsChars) / CHARS_PER_TOKEN_ESTIMATE
+      )
+    );
   } else {
-    totalChars = agent.systemPrompt.length;
+    totalChars = instructionsChars;
+    estimatedSkillsTokens = 0;
   }
 
   const estimatedSystemPromptTokens = Math.ceil(
     totalChars / CHARS_PER_TOKEN_ESTIMATE
   );
+
+  const estimatedKnowledgeTokens = agent.enableKnowledgeInjection
+    ? (agent.knowledgeInjectionSnippetCount ?? 5) *
+      ESTIMATED_TOKENS_PER_KNOWLEDGE_SNIPPET
+    : 0;
+
+  const totalEstimatedInputTokens =
+    estimatedSystemPromptTokens + estimatedKnowledgeTokens;
   const maxSafeInputTokens = getMaxSafeInputTokens(
     "openrouter",
     effectiveModelName
   );
   const ratio =
     contextLength > 0
-      ? Math.min(1, estimatedSystemPromptTokens / contextLength)
+      ? Math.min(1, totalEstimatedInputTokens / contextLength)
       : 0;
 
   return {
     contextLength,
     estimatedSystemPromptTokens,
+    estimatedInstructionsTokens,
+    estimatedSkillsTokens,
+    estimatedKnowledgeTokens,
     maxSafeInputTokens,
     ratio,
     modelName: effectiveModelName,

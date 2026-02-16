@@ -109,21 +109,23 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
     mutationFn: (input: UpdateAgentInput) =>
       updateAgent(workspaceId, agentId, input),
     onSuccess: async (data) => {
-      // Update the specific agent query cache with the response data
-      // This ensures the UI immediately reflects the update without waiting for a refetch
+      // Update the specific agent query cache with the response data so form fields reflect immediately
       queryClient.setQueryData(
         ["workspaces", workspaceId, "agents", agentId],
         data,
       );
-      // Invalidate only the list query (not the specific agent query) to ensure it reflects the update
-      // We use a predicate to only match the exact list query key, not the specific agent query
+      // Invalidate the single-agent query so it refetches (GET returns contextStats, modelInfo, etc.)
+      // PUT response does not include backend-computed fields; refetch keeps stats in sync after any setting change
+      queryClient.invalidateQueries({
+        queryKey: ["workspaces", workspaceId, "agents", agentId],
+      });
+      // Invalidate list queries so list view (e.g. context gauge) reflects the update
       queryClient.invalidateQueries({
         predicate: (query) => {
           const queryKey = query.queryKey;
-          // Only invalidate the exact list query: ["workspaces", workspaceId, "agents"]
           return (
             Array.isArray(queryKey) &&
-            queryKey.length === 3 &&
+            queryKey.length >= 3 &&
             queryKey[0] === "workspaces" &&
             queryKey[1] === workspaceId &&
             queryKey[2] === "agents"

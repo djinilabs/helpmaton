@@ -3,12 +3,18 @@ import type { FC } from "react";
 import type { ContextStats } from "../utils/api";
 
 export interface ContextLengthGaugeProps {
-  /** At least estimatedSystemPromptTokens, contextLength, ratio (from backend contextStats). */
+  /** Backend contextStats; segments used for stacked gauge and legend. */
   contextStats: Pick<
     ContextStats,
-    "estimatedSystemPromptTokens" | "contextLength" | "ratio"
+    | "estimatedSystemPromptTokens"
+    | "estimatedInstructionsTokens"
+    | "estimatedSkillsTokens"
+    | "estimatedKnowledgeTokens"
+    | "contextLength"
+    | "ratio"
   >;
   size?: "sm" | "md";
+  /** Label shown above or near gauge; default for size md. */
   label?: string;
 }
 
@@ -17,16 +23,75 @@ const SIZE_CONFIG = {
   md: { strokeWidth: 6, size: 56, fontSize: "0.75rem" },
 } as const;
 
+/** Segment colors: instructions, skills, knowledge (est.) */
+const SEGMENT_COLORS = {
+  instructions: "#3b82f6",
+  skills: "#8b5cf6",
+  knowledge: "#f59e0b",
+} as const;
+
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
 }
 
-function gaugeColor(ratio: number): string {
-  if (ratio < 0.5) return "var(--gauge-green, #22c55e)";
-  if (ratio < 0.85) return "var(--gauge-yellow, #eab308)";
-  return "var(--gauge-red, #ef4444)";
+const DEFAULT_LABEL =
+  "Context usage (instructions + skills + knowledge, estimated)";
+
+interface Segment {
+  id: keyof typeof SEGMENT_COLORS;
+  label: string;
+  tokens: number;
+  ratio: number;
+}
+
+function buildSegments(
+  contextStats: ContextLengthGaugeProps["contextStats"],
+  contextLength: number,
+  totalRatio: number,
+): Segment[] {
+  const instructions =
+    contextStats.estimatedInstructionsTokens ??
+    Math.max(
+      0,
+      (contextStats.estimatedSystemPromptTokens ?? 0) -
+        (contextStats.estimatedSkillsTokens ?? 0),
+    );
+  const skills = contextStats.estimatedSkillsTokens ?? 0;
+  const knowledge = contextStats.estimatedKnowledgeTokens ?? 0;
+  const totalTokens = instructions + skills + knowledge;
+  if (contextLength <= 0 || totalTokens <= 0) {
+    return [
+      {
+        id: "instructions",
+        label: "Instructions",
+        tokens: instructions,
+        ratio: 0,
+      },
+      { id: "skills", label: "Skills", tokens: skills, ratio: 0 },
+      {
+        id: "knowledge",
+        label: "Knowledge (est.)",
+        tokens: knowledge,
+        ratio: 0,
+      },
+    ];
+  }
+  // Scale segment ratios so they sum to totalRatio (fill the gauge up to the total %)
+  const r1 = totalRatio * (instructions / totalTokens);
+  const r2 = totalRatio * (skills / totalTokens);
+  const r3 = totalRatio * (knowledge / totalTokens);
+  return [
+    { id: "instructions", label: "Instructions", tokens: instructions, ratio: r1 },
+    { id: "skills", label: "Skills", tokens: skills, ratio: r2 },
+    {
+      id: "knowledge",
+      label: "Knowledge (est.)",
+      tokens: knowledge,
+      ratio: r3,
+    },
+  ];
 }
 
 export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
@@ -34,23 +99,59 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
   size = "md",
   label,
 }) => {
-  const { estimatedSystemPromptTokens, contextLength, ratio } = contextStats;
+  const { contextLength, ratio } = contextStats;
+  const segments = buildSegments(contextStats, contextLength, Math.min(1, ratio));
+  const totalEstimatedTokens =
+    (contextStats.estimatedSystemPromptTokens ?? 0) +
+    (contextStats.estimatedKnowledgeTokens ?? 0);
+  const displayLabel = label ?? (size === "md" ? DEFAULT_LABEL : undefined);
   const config = SIZE_CONFIG[size];
   const r = (config.size - config.strokeWidth) / 2 - 2;
   const circumference = 2 * Math.PI * r;
-  const strokeDashoffset = Math.max(0, circumference * (1 - ratio));
-  const color = gaugeColor(ratio);
-  const textShort = `${formatTokens(estimatedSystemPromptTokens)} / ${formatTokens(contextLength)}`;
-  const ariaLabel = label
-    ? `${label}: ${textShort} tokens (${Math.round(ratio * 100)}% of context)`
-    : `Context usage: ${textShort} tokens (${Math.round(ratio * 100)}% of context)`;
+  const textShort = `${formatTokens(totalEstimatedTokens)} / ${formatTokens(contextLength)}`;
+  const segmentSummary = segments
+    .map((s) => `${s.label} ${formatTokens(s.tokens)}`)
+    .join(", ");
+  const ariaLabel = displayLabel
+    ? `${displayLabel}: ${textShort} (${Math.round(ratio * 100)}% of context). Breakdown: ${segmentSummary}.`
+    : `Context usage (estimated): ${textShort} (${Math.round(ratio * 100)}% of context). Breakdown: ${segmentSummary}.`;
+
+  const segmentArcs = segments.map((seg, index) => {
+    const rotationDeg =
+      -90 +
+      360 *
+        segments
+          .slice(0, index)
+          .reduce((sum, s) => sum + s.ratio, 0);
+    const dashLength = circumference * Math.min(1, Math.max(0, seg.ratio));
+    return (
+      <circle
+        key={seg.id}
+        cx={config.size / 2}
+        cy={config.size / 2}
+        r={r}
+        fill="none"
+        stroke={SEGMENT_COLORS[seg.id]}
+        strokeWidth={config.strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={`${dashLength} ${circumference}`}
+        strokeDashoffset={0}
+        transform={`rotate(${rotationDeg} ${config.size / 2} ${config.size / 2})`}
+      />
+    );
+  });
 
   return (
     <div
-      className="flex flex-col items-center gap-1"
+      className="flex flex-col items-center gap-2"
       role="img"
       aria-label={ariaLabel}
     >
+      {displayLabel && (
+        <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+          {displayLabel}
+        </span>
+      )}
       <svg
         width={config.size}
         height={config.size}
@@ -66,18 +167,7 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
           strokeWidth={config.strokeWidth}
           className="text-neutral-200 dark:text-neutral-600"
         />
-        <circle
-          cx={config.size / 2}
-          cy={config.size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={config.strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          transform={`rotate(-90 ${config.size / 2} ${config.size / 2})`}
-        />
+        {segmentArcs}
         <text
           x={config.size / 2}
           y={config.size / 2}
@@ -90,10 +180,36 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
           {ratio < 0.01 ? "0" : Math.round(ratio * 100)}%
         </text>
       </svg>
-      {label && (
-        <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-          {label}
-        </span>
+      {size === "sm" ? (
+        <div className="flex items-center justify-center gap-1" aria-hidden>
+          {(Object.keys(SEGMENT_COLORS) as (keyof typeof SEGMENT_COLORS)[]).map(
+            (id) => (
+              <span
+                key={id}
+                className="size-1.5 flex-shrink-0 rounded-full"
+                style={{ backgroundColor: SEGMENT_COLORS[id] }}
+              />
+            )
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1 text-left">
+          {segments.map((seg) => (
+            <div
+              key={seg.id}
+              className="flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400"
+            >
+              <span
+                className="size-2.5 flex-shrink-0 rounded-sm"
+                style={{ backgroundColor: SEGMENT_COLORS[seg.id] }}
+                aria-hidden
+              />
+              <span>
+                {seg.label}: {formatTokens(seg.tokens)}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
       {size !== "sm" && (
         <span

@@ -1,5 +1,6 @@
 import type { ModelMessage } from "ai";
 
+import { getDefaultModel } from "../http/utils/modelFactory";
 import type { DatabaseSchema } from "../tables/schema";
 
 import { fromNanoDollars, toNanoDollars } from "./creditConversions";
@@ -21,7 +22,11 @@ import type {
   RerankingResultContent,
   UIMessage,
 } from "./messageTypes";
-import { getModelPricing } from "./pricing";
+import {
+  getMaxCharsForPromptSegment,
+  getMaxSafeInputTokens,
+  getModelPricing,
+} from "./pricing";
 import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
@@ -39,9 +44,6 @@ const buildEmptyInjectionResult = (
   rerankingRequestMessage: undefined,
   rerankingResultMessage: undefined,
 });
-
-/** Max chars for the injected knowledge block to avoid exceeding model context (≈100k tokens at ~4 chars/token). */
-const MAX_KNOWLEDGE_PROMPT_CHARS = 400_000;
 
 const resolveSnippetCount = (agent: {
   knowledgeInjectionSnippetCount?: number;
@@ -900,20 +902,37 @@ export async function injectKnowledgeIntoMessages(
     return buildEmptyInjectionResult(messages);
   }
 
+  const KNOWLEDGE_TRUNCATION_SUFFIX =
+    "\n\n[Knowledge section truncated due to length limit.]";
   try {
-    // Format knowledge prompt and cap length to avoid exceeding model context
+    // Format knowledge prompt and cap length based on the agent's model context (reserve 60% for system + conversation + tools).
     let knowledgePrompt = formatKnowledgePrompt(filteredResults);
     if (!knowledgePrompt || knowledgePrompt.length === 0) {
       return buildEmptyInjectionResult(messages);
     }
-    if (knowledgePrompt.length > MAX_KNOWLEDGE_PROMPT_CHARS) {
+    const effectiveModelName = agent.modelName?.trim()
+      ? agent.modelName
+      : getDefaultModel();
+    const maxSafe = getMaxSafeInputTokens("openrouter", effectiveModelName);
+    const maxKnowledgePromptChars = getMaxCharsForPromptSegment(
+      "openrouter",
+      effectiveModelName,
+      {
+        reservedTokens: Math.min(
+          200_000,
+          Math.floor(maxSafe * 0.6),
+        ),
+      },
+    );
+    if (knowledgePrompt.length > maxKnowledgePromptChars) {
       const originalLength = knowledgePrompt.length;
       knowledgePrompt =
-        knowledgePrompt.slice(0, MAX_KNOWLEDGE_PROMPT_CHARS) +
-        "\n\n[Knowledge section truncated due to length limit.]";
+        knowledgePrompt.slice(0, maxKnowledgePromptChars) +
+        KNOWLEDGE_TRUNCATION_SUFFIX;
       console.warn("[knowledgeInjection] Knowledge prompt truncated:", {
         originalLength,
-        maxLength: MAX_KNOWLEDGE_PROMPT_CHARS,
+        maxLength: maxKnowledgePromptChars,
+        modelName: effectiveModelName,
         workspaceId,
         agentId,
       });

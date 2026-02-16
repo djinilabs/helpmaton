@@ -61,6 +61,9 @@ describe("agentContextStats", () => {
       const result = await computeContextStats(agent, { includeSkills: false });
       expect(mockBuildSystemPromptWithSkills).not.toHaveBeenCalled();
       expect(result.estimatedSystemPromptTokens).toBe(Math.ceil(11 / 4)); // 3
+      expect(result.estimatedInstructionsTokens).toBe(3);
+      expect(result.estimatedSkillsTokens).toBe(0);
+      expect(result.estimatedKnowledgeTokens).toBe(0);
       expect(result.contextLength).toBe(DEFAULT_CONTEXT);
       expect(result.ratio).toBe(3 / DEFAULT_CONTEXT);
       expect(result.modelName).toBe("openrouter/some-model");
@@ -78,14 +81,19 @@ describe("agentContextStats", () => {
         systemPrompt: "Base",
         enabledSkillIds: ["skill-1"],
       };
-      mockBuildSystemPromptWithSkills.mockResolvedValue("Base\n\nSkill 1 content");
+      const fullPrompt = "Base\n\nSkill 1 content";
+      mockBuildSystemPromptWithSkills.mockResolvedValue(fullPrompt);
       const result = await computeContextStats(agent, { includeSkills: true });
       expect(mockBuildSystemPromptWithSkills).toHaveBeenCalledWith(
         "Base",
         ["skill-1"],
       );
+      expect(result.estimatedInstructionsTokens).toBe(Math.ceil(4 / 4)); // 1
+      expect(result.estimatedSkillsTokens).toBe(
+        Math.ceil((fullPrompt.length - 4) / 4),
+      );
       expect(result.estimatedSystemPromptTokens).toBe(
-        Math.ceil("Base\n\nSkill 1 content".length / 4),
+        Math.ceil(fullPrompt.length / 4),
       );
     });
 
@@ -114,6 +122,24 @@ describe("agentContextStats", () => {
       const result = await computeContextStats(agent, { includeSkills: false });
       expect(result.ratio).toBe(1);
       expect(result.contextLength).toBe(10);
+    });
+
+    it("adds estimated knowledge tokens when enableKnowledgeInjection is true", async () => {
+      const agent = {
+        systemPrompt: "Hi",
+        enableKnowledgeInjection: true,
+        knowledgeInjectionSnippetCount: 5,
+      };
+      const result = await computeContextStats(agent, { includeSkills: false });
+      expect(result.estimatedSystemPromptTokens).toBe(1);
+      expect(result.estimatedKnowledgeTokens).toBe(5 * 400); // 2000
+      expect(result.ratio).toBe((1 + 2000) / DEFAULT_CONTEXT);
+    });
+
+    it("uses default 5 snippets when knowledge injection enabled but count not set", async () => {
+      const agent = { systemPrompt: "x", enableKnowledgeInjection: true };
+      const result = await computeContextStats(agent, { includeSkills: false });
+      expect(result.estimatedKnowledgeTokens).toBe(5 * 400);
     });
   });
 

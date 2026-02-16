@@ -745,16 +745,33 @@ function useAgentDetailState({
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  // On entering this agent: if no section or the card itself was "visited", or the stored section id is invalid, scroll to top so the agent card is fully visible.
   useEffect(() => {
     if (lastScrolledAgentIdRef.current === agentId) {
       return;
     }
 
     lastScrolledAgentIdRef.current = agentId;
-    if (!expandedSection) {
+
+    const isAgentCardOrUndefined =
+      !expandedSection || expandedSection === "agent";
+    if (isAgentCardOrUndefined) {
       window.scrollTo({ top: 0, behavior: "auto" });
+      return;
     }
-  }, [agentId, expandedSection]);
+
+    // Section set: after paint, ensure it exists in the DOM (e.g. not a stale/removed id); otherwise scroll to top and clear invalid preference.
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const sectionEl = document.getElementById(expandedSection);
+        if (!sectionEl) {
+          window.scrollTo({ top: 0, behavior: "auto" });
+          toggleSection(expandedSection);
+        }
+      });
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [agentId, expandedSection, toggleSection]);
 
   // Fetch all integrations for this workspace (paginated) to filter by agent
   const {
@@ -2966,7 +2983,6 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
               <ContextLengthGauge
                 contextStats={agent.contextStats}
                 size="md"
-                label="System prompt vs context"
               />
             )}
             {agent.modelInfo && (
