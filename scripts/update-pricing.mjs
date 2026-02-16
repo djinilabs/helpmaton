@@ -1118,11 +1118,18 @@ function getOpenRouterPricingForModels(rawModels, modelNames, currentPricing) {
       existingCapabilities,
     });
 
+    // context_length: OpenRouter Models API returns max context window in tokens (see docs)
+    const contextLength =
+      typeof model.context_length === "number" && model.context_length > 0
+        ? model.context_length
+        : undefined;
+
     // Check for tiered pricing (OpenRouter may provide this in the future)
     // For now, we use flat pricing structure
     pricing[modelId] = {
       usd: pricingStructure,
       ...(capabilities ? { capabilities } : {}),
+      ...(contextLength !== undefined ? { context_length: contextLength } : {}),
     };
     
     if (isReranking) {
@@ -1412,6 +1419,12 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
           : {}),
       };
 
+      const contextLength =
+        typeof pricingEntry.context_length === "number" &&
+        pricingEntry.context_length > 0
+          ? pricingEntry.context_length
+          : undefined;
+
       if (updatedPricing.providers.openrouter.models[modelName]) {
         // Update existing model pricing (USD only)
         updatedPricing.providers.openrouter.models[modelName].usd = validPricing;
@@ -1423,12 +1436,17 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
           updatedPricing.providers.openrouter.models[modelName].capabilities =
             mergedCapabilities;
         }
+        if (contextLength !== undefined) {
+          updatedPricing.providers.openrouter.models[modelName].context_length =
+            contextLength;
+        }
         console.log(`[Update Pricing] Updated OpenRouter model ${modelName} pricing`);
       } else {
         // Add new model with USD pricing only
         updatedPricing.providers.openrouter.models[modelName] = {
           usd: validPricing,
           ...(capabilities ? { capabilities } : {}),
+          ...(contextLength !== undefined ? { context_length: contextLength } : {}),
         };
         if (capabilities) {
           updatedPricing.providers.openrouter.models[modelName].capabilities =

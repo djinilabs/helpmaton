@@ -51,6 +51,7 @@ import { AccordionSection } from "../components/AccordionSection";
 import { AgentSkillsPicker } from "../components/AgentSkillsPicker";
 import { AgentSuggestions } from "../components/AgentSuggestions";
 import { ClientToolEditor } from "../components/ClientToolEditor";
+import { ContextLengthGauge } from "../components/ContextLengthGauge";
 import {
   DetailPageNav,
   type DetailPageNavGroup,
@@ -740,20 +741,49 @@ function useAgentDetailState({
     `agent-detail-${agentId}`
   );
   const lastScrolledAgentIdRef = useRef<string | null>(null);
+  const innerRafIdRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
   const [chatClearKey, setChatClearKey] = useState(0);
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  // On entering this agent: if no section or the card itself was "visited", or the stored section id is invalid, scroll to top so the agent card is fully visible.
   useEffect(() => {
+    isMountedRef.current = true;
     if (lastScrolledAgentIdRef.current === agentId) {
       return;
     }
 
     lastScrolledAgentIdRef.current = agentId;
-    if (!expandedSection) {
+    innerRafIdRef.current = null;
+
+    const isAgentCardOrUndefined =
+      !expandedSection || expandedSection === "agent";
+    if (isAgentCardOrUndefined) {
       window.scrollTo({ top: 0, behavior: "auto" });
+      return;
     }
-  }, [agentId, expandedSection]);
+
+    // Section set: after paint, ensure it exists in the DOM (e.g. not a stale/removed id); otherwise scroll to top and clear invalid preference.
+    const rafId1 = requestAnimationFrame(() => {
+      const rafId2 = requestAnimationFrame(() => {
+        if (!isMountedRef.current) return;
+        const sectionEl = document.getElementById(expandedSection);
+        if (!sectionEl) {
+          window.scrollTo({ top: 0, behavior: "auto" });
+          toggleSection(expandedSection);
+        }
+      });
+      innerRafIdRef.current = rafId2;
+    });
+    return () => {
+      isMountedRef.current = false;
+      cancelAnimationFrame(rafId1);
+      if (innerRafIdRef.current != null) {
+        cancelAnimationFrame(innerRafIdRef.current);
+      }
+    };
+  }, [agentId, expandedSection, toggleSection]);
 
   // Fetch all integrations for this workspace (paginated) to filter by agent
   const {
@@ -2957,6 +2987,58 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
               This model does not support tool calling. Built-in tools,
               connected tool integrations, and client tools will be disabled.
             </p>
+          </div>
+        )}
+        {(agent.contextStats || agent.modelInfo) && (
+          <div className="mt-4 flex flex-wrap items-start gap-6 border-t border-neutral-200 pt-4 dark:border-neutral-700">
+            {agent.contextStats && (
+              <ContextLengthGauge
+                contextStats={agent.contextStats}
+                size="md"
+              />
+            )}
+            {agent.modelInfo && (
+              <div className="flex flex-col gap-2 text-sm">
+                <p className="font-semibold dark:text-neutral-300">
+                  Context window:{" "}
+                  <span className="font-normal text-neutral-600 dark:text-neutral-400">
+                    {agent.modelInfo.contextLength.toLocaleString()} tokens
+                  </span>
+                </p>
+                {agent.modelInfo.pricing && (
+                  <p className="text-neutral-600 dark:text-neutral-400">
+                    {agent.modelInfo.pricing.input != null && (
+                      <>Input: ${agent.modelInfo.pricing.input.toFixed(2)} / 1M tokens</>
+                    )}
+                    {agent.modelInfo.pricing.input != null &&
+                      agent.modelInfo.pricing.output != null && (
+                        <> · </>
+                      )}
+                    {agent.modelInfo.pricing.output != null && (
+                      <>Output: ${agent.modelInfo.pricing.output.toFixed(2)} / 1M tokens</>
+                    )}
+                  </p>
+                )}
+                {agent.modelInfo.capabilities &&
+                  Object.keys(agent.modelInfo.capabilities).length > 0 && (
+                    <p className="text-neutral-600 dark:text-neutral-400">
+                      Model capabilities:{" "}
+                      {[
+                        agent.modelInfo.capabilities.tool_calling &&
+                          "Tool calling",
+                        agent.modelInfo.capabilities.text_generation &&
+                          "Text generation",
+                        agent.modelInfo.capabilities.image_generation &&
+                          "Image generation",
+                        agent.modelInfo.capabilities.structured_output &&
+                          "Structured output",
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "—"}
+                    </p>
+                  )}
+              </div>
+            )}
           </div>
         )}
       </div>

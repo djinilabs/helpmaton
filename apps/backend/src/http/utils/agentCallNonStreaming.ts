@@ -1,5 +1,7 @@
+import { boomify } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { generateText } from "ai";
+
 
 import { buildSystemPromptWithSkills } from "../../utils/agentSkills";
 import type {
@@ -7,6 +9,8 @@ import type {
   TokenUsage,
 } from "../../utils/conversationLogger";
 import type { UIMessage } from "../../utils/messageTypes";
+import { getMaxSafeInputTokens } from "../../utils/pricing";
+import { estimateInputTokens } from "../../utils/tokenEstimation";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import { setupAgentAndTools, type AgentSetupOptions } from "./agentSetup";
@@ -14,6 +18,7 @@ import { MODEL_NAME } from "./agentUtils";
 import {
   adjustCreditsAfterLLMCall,
   cleanupReservationOnError,
+  convertToolsToDefinitions,
   validateAndReserveCredits,
   enqueueCostVerificationIfNeeded,
 } from "./generationCreditManagement";
@@ -146,6 +151,29 @@ const executeNonStreamingLLMCall = async (params: {
       params.agent.systemPrompt,
       params.agent.enabledSkillIds
     );
+
+    const toolDefinitions = convertToolsToDefinitions(effectiveTools);
+    const estimatedInputTokens = estimateInputTokens(
+      params.modelMessagesWithKnowledge,
+      effectiveSystemPrompt,
+      toolDefinitions,
+    );
+    const maxSafeInputTokens = getMaxSafeInputTokens(
+      "openrouter",
+      params.finalModelName,
+    );
+    if (estimatedInputTokens > maxSafeInputTokens) {
+      const message =
+        `Request would exceed model context limit: estimated ${estimatedInputTokens} input tokens (max ${maxSafeInputTokens}). ` +
+        "Reduce schedule prompt length, conversation history, or knowledge injection snippet count.";
+      const error = new Error(message) as Error & { code?: string };
+      error.code = "CONTEXT_LENGTH_EXCEEDED";
+      const boomErr = boomify(error, { statusCode: 413 });
+      (boomErr.output.payload as Record<string, unknown>).code =
+        "CONTEXT_LENGTH_EXCEEDED";
+      (boomErr as Error & { code?: string }).code = "CONTEXT_LENGTH_EXCEEDED";
+      throw boomErr;
+    }
 
     reservationId = await validateAndReserveCredits(
       params.db,

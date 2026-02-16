@@ -34,10 +34,13 @@ export interface CurrencyPricing {
  * Pricing for a model in USD.
  * All prices are per 1 million tokens.
  * Supports both flat pricing (backward compatible) and tiered pricing.
+ * context_length: max context window in tokens (from OpenRouter Models API when available).
  */
 export interface ModelPricing {
   usd: CurrencyPricing;
   capabilities?: ModelCapabilities;
+  /** Max context window in tokens (e.g. from OpenRouter Models API). Used for input size checks. */
+  context_length?: number;
 }
 
 export interface ModelCapabilities {
@@ -142,6 +145,72 @@ export function getModelPricing(
   }
 
   return undefined;
+}
+
+/** Default OpenRouter context length when not in pricing (tokens). */
+export const OPENROUTER_DEFAULT_CONTEXT_LENGTH = 1_048_576;
+
+/**
+ * Get max context length in tokens for a model (e.g. from OpenRouter Models API via pricing).
+ * Returns undefined if not set; callers should use OPENROUTER_DEFAULT_CONTEXT_LENGTH for OpenRouter when undefined.
+ */
+export function getModelContextLength(
+  provider: string,
+  modelName: string
+): number | undefined {
+  const pricing = getModelPricing(provider, modelName);
+  const len = pricing?.context_length;
+  return typeof len === "number" && len > 0 ? len : undefined;
+}
+
+/**
+ * Max safe input tokens before calling the LLM (90% of model context length).
+ * Use this to fail fast instead of exceeding the provider limit.
+ */
+export function getMaxSafeInputTokens(
+  provider: string,
+  modelName: string
+): number {
+  const contextLength =
+    getModelContextLength(provider, modelName) ??
+    (provider === "openrouter" ? OPENROUTER_DEFAULT_CONTEXT_LENGTH : 128_000);
+  return Math.floor(contextLength * 0.9);
+}
+
+/** Chars-per-token estimate used for prompt segment caps (~4 for typical models). */
+const CHARS_PER_TOKEN_ESTIMATE = 4;
+
+export interface MaxCharsForPromptSegmentOptions {
+  /** Tokens to reserve for system prompt, tools, and other content (default 200k, or 50% of context for small models). */
+  reservedTokens?: number;
+  /** Minimum chars to allow for the segment (default 4000). */
+  minChars?: number;
+  /** Upper bound for the segment in chars (default 400_000). */
+  maxChars?: number;
+  charsPerToken?: number;
+}
+
+/**
+ * Max characters allowed for a single prompt segment (e.g. schedule prompt or knowledge block)
+ * so truncation is based on the model's context length. Reserves space for system prompt, tools, etc.
+ */
+export function getMaxCharsForPromptSegment(
+  provider: string,
+  modelName: string,
+  options: MaxCharsForPromptSegmentOptions = {}
+): number {
+  const {
+    minChars = 4000,
+    maxChars = 400_000,
+    charsPerToken = CHARS_PER_TOKEN_ESTIMATE,
+  } = options;
+  const maxSafe = getMaxSafeInputTokens(provider, modelName);
+  const reservedTokens =
+    options.reservedTokens ??
+    Math.min(200_000, Math.floor(maxSafe * 0.5));
+  const segmentMaxTokens = Math.max(0, maxSafe - reservedTokens);
+  const segmentChars = Math.max(minChars, segmentMaxTokens * charsPerToken);
+  return Math.min(maxChars, segmentChars);
 }
 
 export function supportsReasoningTokens(

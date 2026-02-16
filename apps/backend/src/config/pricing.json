@@ -118,7 +118,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 1040000
         },
         "liquid/lfm-2.5-1.2b-thinking:free": {
           "usd": {
@@ -153,7 +154,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "liquid/lfm-2.5-1.2b-instruct:free": {
           "usd": {
@@ -186,7 +188,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "openai/gpt-audio": {
           "usd": {
@@ -223,7 +226,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-audio-mini": {
           "usd": {
@@ -260,7 +264,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "z-ai/glm-4.7-flash": {
           "usd": {
@@ -299,7 +304,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 202752
         },
         "openai/gpt-5.2-codex": {
           "usd": {
@@ -337,7 +343,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "allenai/molmo-2-8b:free": {
           "usd": {
@@ -410,7 +417,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "bytedance-seed/seed-1.6-flash": {
           "usd": {
@@ -446,7 +454,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "bytedance-seed/seed-1.6": {
           "usd": {
@@ -482,7 +491,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "minimax/minimax-m2.1": {
           "usd": {
@@ -524,7 +534,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 196608
         },
         "z-ai/glm-4.7": {
           "usd": {
@@ -567,7 +578,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 202752
         },
         "google/gemini-3-flash-preview": {
           "usd": {
@@ -605,7 +617,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "mistralai/mistral-small-creative": {
           "usd": {
@@ -630,7 +643,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "allenai/olmo-3.1-32b-think": {
           "usd": {
@@ -667,7 +681,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "xiaomi/mimo-v2-flash:free": {
           "usd": {
@@ -739,7 +754,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "nvidia/nemotron-3-nano-30b-a3b:free": {
           "usd": {
@@ -770,7 +786,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "nvidia/nemotron-3-nano-30b-a3b": {
           "usd": {
@@ -809,7 +826,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "openai/gpt-5.2-chat": {
           "usd": {
@@ -840,7 +858,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-5.2-pro": {
           "usd": {
@@ -873,7 +892,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "openai/gpt-5.2": {
           "usd": {
@@ -906,7 +926,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "mistralai/devstral-2512:free": {
           "usd": {
@@ -976,7 +997,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "relace/relace-search": {
           "usd": {
@@ -1006,7 +1028,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "z-ai/glm-4.6v": {
           "usd": {
@@ -1048,7 +1071,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "nex-agi/deepseek-v3.1-nex-n1": {
           "usd": {
@@ -1079,7 +1103,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "essentialai/rnj-1-instruct": {
           "usd": {
@@ -1114,7 +1139,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "openai/gpt-5.1-codex-max": {
           "usd": {
@@ -1146,7 +1172,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "amazon/nova-2-lite-v1": {
           "usd": {
@@ -1181,7 +1208,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "mistralai/ministral-14b-2512": {
           "usd": {
@@ -1220,7 +1248,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "mistralai/ministral-8b-2512": {
           "usd": {
@@ -1255,7 +1284,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "mistralai/ministral-3b-2512": {
           "usd": {
@@ -1290,7 +1320,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "mistralai/mistral-large-2512": {
           "usd": {
@@ -1325,7 +1356,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "arcee-ai/trinity-mini:free": {
           "usd": {
@@ -1358,7 +1390,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "arcee-ai/trinity-mini": {
           "usd": {
@@ -1397,7 +1430,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "deepseek/deepseek-v3.2-speciale": {
           "usd": {
@@ -1434,7 +1468,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
@@ -1476,7 +1511,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "prime-intellect/intellect-3": {
           "usd": {
@@ -1515,7 +1551,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "tngtech/tng-r1t-chimera:free": {
           "usd": {
@@ -1591,7 +1628,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "anthropic/claude-opus-4.5": {
           "usd": {
@@ -1627,7 +1665,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "allenai/olmo-3-32b-think": {
           "usd": {
@@ -1664,7 +1703,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "allenai/olmo-3-7b-instruct": {
           "usd": {
@@ -1699,7 +1739,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "allenai/olmo-3-7b-think": {
           "usd": {
@@ -1736,7 +1777,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "google/gemini-3-pro-image-preview": {
           "usd": {
@@ -1770,7 +1812,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": true
-          }
+          },
+          "context_length": 65536
         },
         "x-ai/grok-4.1-fast": {
           "usd": {
@@ -1806,7 +1849,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 2000000
         },
         "google/gemini-3-pro-preview": {
           "usd": {
@@ -1844,7 +1888,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "deepcogito/cogito-v2.1-671b": {
           "usd": {
@@ -1881,7 +1926,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-5.1": {
           "usd": {
@@ -1914,7 +1960,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "openai/gpt-5.1-chat": {
           "usd": {
@@ -1945,7 +1992,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-5.1-codex": {
           "usd": {
@@ -1977,7 +2025,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "openai/gpt-5.1-codex-mini": {
           "usd": {
@@ -2009,7 +2058,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "kwaipilot/kat-coder-pro": {
           "usd": {
@@ -2045,7 +2095,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "moonshotai/kimi-k2-thinking": {
           "usd": {
@@ -2087,7 +2138,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "amazon/nova-premier-v1": {
           "usd": {
@@ -2117,7 +2169,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "perplexity/sonar-pro-search": {
           "usd": {
@@ -2151,7 +2204,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "mistralai/voxtral-small-24b-2507": {
           "usd": {
@@ -2186,7 +2240,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32000
         },
         "openai/gpt-oss-safeguard-20b": {
           "usd": {
@@ -2219,7 +2274,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "nvidia/nemotron-nano-12b-v2-vl:free": {
           "usd": {
@@ -2252,7 +2308,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "nvidia/nemotron-nano-12b-v2-vl": {
           "usd": {
@@ -2290,7 +2347,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "minimax/minimax-m2": {
           "usd": {
@@ -2329,7 +2387,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 196608
         },
         "qwen/qwen3-vl-32b-instruct": {
           "usd": {
@@ -2365,7 +2424,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "liquid/lfm2-8b-a1b": {
           "usd": {
@@ -2398,7 +2458,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "liquid/lfm-2.2-6b": {
           "usd": {
@@ -2431,7 +2492,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "ibm-granite/granite-4.0-h-micro": {
           "usd": {
@@ -2462,7 +2524,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131000
         },
         "deepcogito/cogito-v2-preview-llama-405b": {
           "usd": {
@@ -2543,7 +2606,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": true
-          }
+          },
+          "context_length": 400000
         },
         "anthropic/claude-haiku-4.5": {
           "usd": {
@@ -2576,7 +2640,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "qwen/qwen3-vl-8b-thinking": {
           "usd": {
@@ -2611,7 +2676,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen3-vl-8b-instruct": {
           "usd": {
@@ -2650,7 +2716,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/gpt-5-image": {
           "usd": {
@@ -2692,7 +2759,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": true
-          }
+          },
+          "context_length": 400000
         },
         "openai/o3-deep-research": {
           "usd": {
@@ -2733,7 +2801,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "openai/o4-mini-deep-research": {
           "usd": {
@@ -2774,7 +2843,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
           "usd": {
@@ -2812,7 +2882,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "baidu/ernie-4.5-21b-a3b-thinking": {
           "usd": {
@@ -2846,7 +2917,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "google/gemini-2.5-flash-image": {
           "usd": {
@@ -2877,7 +2949,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": true
-          }
+          },
+          "context_length": 32768
         },
         "qwen/qwen3-vl-30b-a3b-thinking": {
           "usd": {
@@ -2916,7 +2989,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen3-vl-30b-a3b-instruct": {
           "usd": {
@@ -2957,7 +3031,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/gpt-5-pro": {
           "usd": {
@@ -2990,7 +3065,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "z-ai/glm-4.6": {
           "usd": {
@@ -3033,7 +3109,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 202752
         },
         "z-ai/glm-4.6:exacto": {
           "usd": {
@@ -3071,7 +3148,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 204800
         },
         "anthropic/claude-sonnet-4.5": {
           "usd": {
@@ -3107,7 +3185,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "deepseek/deepseek-v3.2-exp": {
           "usd": {
@@ -3145,7 +3224,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "thedrummer/cydonia-24b-v4.1": {
           "usd": {
@@ -3180,7 +3260,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "relace/relace-apply-3": {
           "usd": {
@@ -3206,7 +3287,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "google/gemini-2.5-flash-preview-09-2025": {
           "usd": {
@@ -3244,7 +3326,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "google/gemini-2.5-flash-lite-preview-09-2025": {
           "usd": {
@@ -3282,7 +3365,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "qwen/qwen3-vl-235b-a22b-thinking": {
           "usd": {
@@ -3321,7 +3405,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen3-vl-235b-a22b-instruct": {
           "usd": {
@@ -3362,7 +3447,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "qwen/qwen3-max": {
           "usd": {
@@ -3393,7 +3479,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "qwen/qwen3-coder-plus": {
           "usd": {
@@ -3425,7 +3512,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "openai/gpt-5-codex": {
           "usd": {
@@ -3457,7 +3545,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "deepseek/deepseek-v3.1-terminus:exacto": {
           "usd": {
@@ -3496,7 +3585,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "deepseek/deepseek-v3.1-terminus": {
           "usd": {
@@ -3535,7 +3625,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "x-ai/grok-4-fast": {
           "usd": {
@@ -3571,7 +3662,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 2000000
         },
         "alibaba/tongyi-deepresearch-30b-a3b": {
           "usd": {
@@ -3610,7 +3702,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen3-coder-flash": {
           "usd": {
@@ -3641,7 +3734,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "opengvlab/internvl3-78b": {
           "usd": {
@@ -3676,7 +3770,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "qwen/qwen3-next-80b-a3b-thinking": {
           "usd": {
@@ -3716,7 +3811,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "qwen/qwen3-next-80b-a3b-instruct:free": {
           "usd": {
@@ -3750,7 +3846,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "qwen/qwen3-next-80b-a3b-instruct": {
           "usd": {
@@ -3788,7 +3885,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "meituan/longcat-flash-chat": {
           "usd": {
@@ -3814,7 +3912,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen-plus-2025-07-28": {
           "usd": {
@@ -3846,7 +3945,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "qwen/qwen-plus-2025-07-28:thinking": {
           "usd": {
@@ -3880,7 +3980,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "nvidia/nemotron-nano-9b-v2:free": {
           "usd": {
@@ -3913,7 +4014,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "nvidia/nemotron-nano-9b-v2": {
           "usd": {
@@ -3952,13 +4054,14 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "moonshotai/kimi-k2-0905": {
           "usd": {
-            "input": 0.39,
-            "output": 1.9,
-            "cachedInput": 0.03900000000000001
+            "input": 0.39999999999999997,
+            "output": 2,
+            "cachedInput": 0.04
           },
           "capabilities": {
             "input_modalities": [
@@ -3992,7 +4095,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "moonshotai/kimi-k2-0905:exacto": {
           "usd": {
@@ -4026,7 +4130,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "deepcogito/cogito-v2-preview-llama-70b": {
           "usd": {
@@ -4174,7 +4279,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "x-ai/grok-code-fast-1": {
           "usd": {
@@ -4210,7 +4316,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "nousresearch/hermes-4-70b": {
           "usd": {
@@ -4248,7 +4355,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "nousresearch/hermes-4-405b": {
           "usd": {
@@ -4281,7 +4389,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "deepseek/deepseek-chat-v3.1": {
           "usd": {
@@ -4323,7 +4432,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "openai/gpt-4o-audio-preview": {
           "usd": {
@@ -4362,7 +4472,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "mistralai/mistral-medium-3.1": {
           "usd": {
@@ -4397,7 +4508,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "baidu/ernie-4.5-21b-a3b": {
           "usd": {
@@ -4431,7 +4543,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 120000
         },
         "baidu/ernie-4.5-vl-28b-a3b": {
           "usd": {
@@ -4468,7 +4581,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 30000
         },
         "z-ai/glm-4.5v": {
           "usd": {
@@ -4507,7 +4621,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "ai21/jamba-mini-1.7": {
           "usd": {
@@ -4567,7 +4682,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "openai/gpt-5-chat": {
           "usd": {
@@ -4596,7 +4712,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-5": {
           "usd": {
@@ -4629,7 +4746,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "openai/gpt-5-mini": {
           "usd": {
@@ -4662,7 +4780,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "openai/gpt-5-nano": {
           "usd": {
@@ -4695,7 +4814,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 400000
         },
         "openai/gpt-oss-120b:free": {
           "usd": {
@@ -4726,7 +4846,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/gpt-oss-120b": {
           "usd": {
@@ -4769,7 +4890,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/gpt-oss-120b:exacto": {
           "usd": {
@@ -4808,7 +4930,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/gpt-oss-20b:free": {
           "usd": {
@@ -4839,7 +4962,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/gpt-oss-20b": {
           "usd": {
@@ -4880,7 +5004,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "anthropic/claude-opus-4.1": {
           "usd": {
@@ -4916,7 +5041,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "mistralai/codestral-2508": {
           "usd": {
@@ -4950,7 +5076,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "qwen/qwen3-coder-30b-a3b-instruct": {
           "usd": {
@@ -4986,7 +5113,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 160000
         },
         "qwen/qwen3-30b-a3b-instruct-2507": {
           "usd": {
@@ -5022,7 +5150,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "z-ai/glm-4.5": {
           "usd": {
@@ -5060,7 +5189,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "z-ai/glm-4.5-air:free": {
           "usd": {
@@ -5090,7 +5220,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "z-ai/glm-4.5-air": {
           "usd": {
@@ -5128,7 +5259,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
           "usd": {
@@ -5168,7 +5300,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "z-ai/glm-4-32b": {
           "usd": {
@@ -5196,7 +5329,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "qwen/qwen3-coder:free": {
           "usd": {
@@ -5229,7 +5363,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 262000
         },
         "qwen/qwen3-coder": {
           "usd": {
@@ -5270,7 +5405,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "qwen/qwen3-coder:exacto": {
           "usd": {
@@ -5307,7 +5443,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "bytedance/ui-tars-1.5-7b": {
           "usd": {
@@ -5341,7 +5478,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "google/gemini-2.5-flash-lite": {
           "usd": {
@@ -5379,7 +5517,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "qwen/qwen3-235b-a22b-2507": {
           "usd": {
@@ -5422,7 +5561,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "switchpoint/router": {
           "usd": {
@@ -5453,7 +5593,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "moonshotai/kimi-k2:free": {
           "usd": {
@@ -5519,7 +5660,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "mistralai/devstral-medium": {
           "usd": {
@@ -5553,7 +5695,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "mistralai/devstral-small": {
           "usd": {
@@ -5587,7 +5730,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": {
           "usd": {
@@ -5619,7 +5763,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "x-ai/grok-4": {
           "usd": {
@@ -5655,7 +5800,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "google/gemma-3n-e2b-it:free": {
           "usd": {
@@ -5686,7 +5832,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "tencent/hunyuan-a13b-instruct": {
           "usd": {
@@ -5717,7 +5864,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "tngtech/deepseek-r1t2-chimera:free": {
           "usd": {
@@ -5789,7 +5937,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "morph/morph-v3-large": {
           "usd": {
@@ -5815,7 +5964,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "morph/morph-v3-fast": {
           "usd": {
@@ -5841,7 +5991,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 81920
         },
         "baidu/ernie-4.5-vl-424b-a47b": {
           "usd": {
@@ -5876,7 +6027,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 123000
         },
         "baidu/ernie-4.5-300b-a47b": {
           "usd": {
@@ -5910,7 +6062,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 123000
         },
         "inception/mercury": {
           "usd": {
@@ -5944,7 +6097,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "mistralai/mistral-small-3.2-24b-instruct": {
           "usd": {
@@ -5983,7 +6137,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "minimax/minimax-m1": {
           "usd": {
@@ -6019,7 +6174,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "google/gemini-2.5-flash": {
           "usd": {
@@ -6057,7 +6213,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "google/gemini-2.5-pro": {
           "usd": {
@@ -6095,7 +6252,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "moonshotai/kimi-dev-72b": {
           "usd": {
@@ -6159,7 +6317,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "x-ai/grok-3-mini": {
           "usd": {
@@ -6195,7 +6354,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "x-ai/grok-3": {
           "usd": {
@@ -6231,7 +6391,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "google/gemini-2.5-pro-preview": {
           "usd": {
@@ -6268,7 +6429,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "deepseek/deepseek-r1-0528:free": {
           "usd": {
@@ -6298,7 +6460,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "deepseek/deepseek-r1-0528": {
           "usd": {
@@ -6340,7 +6503,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "anthropic/claude-opus-4": {
           "usd": {
@@ -6374,7 +6538,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "anthropic/claude-sonnet-4": {
           "usd": {
@@ -6408,7 +6573,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "google/gemma-3n-e4b-it:free": {
           "usd": {
@@ -6439,7 +6605,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "google/gemma-3n-e4b-it": {
           "usd": {
@@ -6472,7 +6639,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "nousresearch/deephermes-3-mistral-24b-preview": {
           "usd": {
@@ -6510,7 +6678,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "mistralai/mistral-medium-3": {
           "usd": {
@@ -6545,7 +6714,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "google/gemini-2.5-pro-preview-05-06": {
           "usd": {
@@ -6583,7 +6753,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "arcee-ai/spotlight": {
           "usd": {
@@ -6617,7 +6788,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "arcee-ai/maestro-reasoning": {
           "usd": {
@@ -6650,7 +6822,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "arcee-ai/virtuoso-large": {
           "usd": {
@@ -6685,7 +6858,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "arcee-ai/coder-large": {
           "usd": {
@@ -6718,7 +6892,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "inception/mercury-coder": {
           "usd": {
@@ -6752,7 +6927,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "qwen/qwen3-4b:free": {
           "usd": {
@@ -6788,7 +6964,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 40960
         },
         "meta-llama/llama-guard-4-12b": {
           "usd": {
@@ -6824,7 +7001,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "qwen/qwen3-30b-a3b": {
           "usd": {
@@ -6863,7 +7041,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 40960
         },
         "qwen/qwen3-8b": {
           "usd": {
@@ -6903,7 +7082,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32000
         },
         "qwen/qwen3-14b": {
           "usd": {
@@ -6942,7 +7122,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 40960
         },
         "qwen/qwen3-32b": {
           "usd": {
@@ -6983,7 +7164,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 40960
         },
         "qwen/qwen3-235b-a22b": {
           "usd": {
@@ -7025,7 +7207,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 40960
         },
         "tngtech/deepseek-r1t-chimera:free": {
           "usd": {
@@ -7095,7 +7278,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "openai/o4-mini-high": {
           "usd": {
@@ -7128,7 +7312,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "openai/o3": {
           "usd": {
@@ -7161,7 +7346,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "openai/o4-mini": {
           "usd": {
@@ -7194,7 +7380,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "qwen/qwen2.5-coder-7b-instruct": {
           "usd": {
@@ -7226,7 +7413,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "openai/gpt-4.1": {
           "usd": {
@@ -7259,7 +7447,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1047576
         },
         "openai/gpt-4.1-mini": {
           "usd": {
@@ -7292,7 +7481,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1047576
         },
         "openai/gpt-4.1-nano": {
           "usd": {
@@ -7325,7 +7515,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1047576
         },
         "eleutherai/llemma_7b": {
           "usd": {
@@ -7358,7 +7549,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 4096
         },
         "alfredpros/codellama-7b-instruct-solidity": {
           "usd": {
@@ -7391,7 +7583,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 4096
         },
         "x-ai/grok-3-mini-beta": {
           "usd": {
@@ -7426,7 +7619,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "x-ai/grok-3-beta": {
           "usd": {
@@ -7461,7 +7655,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "nvidia/llama-3.1-nemotron-ultra-253b-v1": {
           "usd": {
@@ -7495,7 +7690,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "meta-llama/llama-4-maverick": {
           "usd": {
@@ -7534,7 +7730,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "meta-llama/llama-4-scout": {
           "usd": {
@@ -7573,7 +7770,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 327680
         },
         "qwen/qwen2.5-vl-32b-instruct": {
           "usd": {
@@ -7612,7 +7810,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 16384
         },
         "deepseek/deepseek-chat-v3-0324": {
           "usd": {
@@ -7653,7 +7852,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "openai/o1-pro": {
           "usd": {
@@ -7684,7 +7884,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "mistralai/mistral-small-3.1-24b-instruct:free": {
           "usd": {
@@ -7719,7 +7920,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "mistralai/mistral-small-3.1-24b-instruct": {
           "usd": {
@@ -7756,7 +7958,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "allenai/olmo-2-0325-32b-instruct": {
           "usd": {
@@ -7775,7 +7978,8 @@
             "text_generation": true,
             "image_generation": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "google/gemma-3-4b-it:free": {
           "usd": {
@@ -7805,7 +8009,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "google/gemma-3-4b-it": {
           "usd": {
@@ -7840,7 +8045,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 96000
         },
         "google/gemma-3-12b-it:free": {
           "usd": {
@@ -7869,7 +8075,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "google/gemma-3-12b-it": {
           "usd": {
@@ -7906,7 +8113,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "cohere/command-a": {
           "usd": {
@@ -7939,7 +8147,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "openai/gpt-4o-mini-search-preview": {
           "usd": {
@@ -7966,7 +8175,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-4o-search-preview": {
           "usd": {
@@ -7993,7 +8203,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "google/gemma-3-27b-it:free": {
           "usd": {
@@ -8028,7 +8239,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "google/gemma-3-27b-it": {
           "usd": {
@@ -8067,7 +8279,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "thedrummer/skyfall-36b-v2": {
           "usd": {
@@ -8100,7 +8313,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "perplexity/sonar-reasoning-pro": {
           "usd": {
@@ -8133,7 +8347,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "perplexity/sonar-pro": {
           "usd": {
@@ -8164,7 +8379,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "perplexity/sonar-deep-research": {
           "usd": {
@@ -8196,7 +8412,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "qwen/qwq-32b": {
           "usd": {
@@ -8236,7 +8453,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "google/gemini-2.0-flash-lite-001": {
           "usd": {
@@ -8272,7 +8490,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "anthropic/claude-3.7-sonnet:thinking": {
           "usd": {
@@ -8305,7 +8524,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "anthropic/claude-3.7-sonnet": {
           "usd": {
@@ -8339,7 +8559,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "mistralai/mistral-saba": {
           "usd": {
@@ -8373,7 +8594,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "meta-llama/llama-guard-3-8b": {
           "usd": {
@@ -8404,7 +8626,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/o3-mini-high": {
           "usd": {
@@ -8434,7 +8657,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "google/gemini-2.0-flash-001": {
           "usd": {
@@ -8470,7 +8694,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1048576
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -8500,7 +8725,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "aion-labs/aion-1.0": {
           "usd": {
@@ -8528,7 +8754,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "aion-labs/aion-1.0-mini": {
           "usd": {
@@ -8556,7 +8783,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "aion-labs/aion-rp-llama-3.1-8b": {
           "usd": {
@@ -8582,7 +8810,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "qwen/qwen-vl-max": {
           "usd": {
@@ -8614,7 +8843,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen-turbo": {
           "usd": {
@@ -8645,7 +8875,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen2.5-vl-72b-instruct": {
           "usd": {
@@ -8682,7 +8913,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "qwen/qwen-plus": {
           "usd": {
@@ -8713,7 +8945,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "qwen/qwen-max": {
           "usd": {
@@ -8744,7 +8977,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "openai/o3-mini": {
           "usd": {
@@ -8774,7 +9008,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "mistralai/mistral-small-24b-instruct-2501": {
           "usd": {
@@ -8812,7 +9047,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "deepseek/deepseek-r1-distill-qwen-32b": {
           "usd": {
@@ -8848,7 +9084,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "perplexity/sonar": {
           "usd": {
@@ -8879,7 +9116,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 127072
         },
         "deepseek/deepseek-r1-distill-llama-70b": {
           "usd": {
@@ -8919,7 +9157,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "deepseek/deepseek-r1": {
           "usd": {
@@ -8955,7 +9194,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 64000
         },
         "minimax/minimax-01": {
           "usd": {
@@ -8982,7 +9222,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 1000192
         },
         "microsoft/phi-4": {
           "usd": {
@@ -9017,7 +9258,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 16384
         },
         "sao10k/l3.1-70b-hanami-x1": {
           "usd": {
@@ -9051,7 +9293,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 16000
         },
         "deepseek/deepseek-chat": {
           "usd": {
@@ -9088,7 +9331,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 163840
         },
         "sao10k/l3.3-euryale-70b": {
           "usd": {
@@ -9123,7 +9367,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/o1": {
           "usd": {
@@ -9154,7 +9399,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "cohere/command-r7b-12-2024": {
           "usd": {
@@ -9187,7 +9433,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "google/gemini-2.0-flash-exp:free": {
           "usd": {
@@ -9253,7 +9500,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "meta-llama/llama-3.3-70b-instruct": {
           "usd": {
@@ -9293,7 +9541,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "amazon/nova-lite-v1": {
           "usd": {
@@ -9323,7 +9572,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 300000
         },
         "amazon/nova-micro-v1": {
           "usd": {
@@ -9352,7 +9602,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "amazon/nova-pro-v1": {
           "usd": {
@@ -9382,7 +9633,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 300000
         },
         "openai/gpt-4o-2024-11-20": {
           "usd": {
@@ -9422,7 +9674,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "mistralai/mistral-large-2411": {
           "usd": {
@@ -9456,7 +9709,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "mistralai/mistral-large-2407": {
           "usd": {
@@ -9490,7 +9744,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "mistralai/pixtral-large-2411": {
           "usd": {
@@ -9525,7 +9780,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen-2.5-coder-32b-instruct": {
           "usd": {
@@ -9561,7 +9817,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "raifle/sorcererlm-8x22b": {
           "usd": {
@@ -9595,7 +9852,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 16000
         },
         "thedrummer/unslopnemo-12b": {
           "usd": {
@@ -9628,7 +9886,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "anthropic/claude-3.5-haiku": {
           "usd": {
@@ -9659,7 +9918,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "anthracite-org/magnum-v4-72b": {
           "usd": {
@@ -9697,7 +9957,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 16384
         },
         "anthropic/claude-3.5-sonnet": {
           "usd": {
@@ -9729,7 +9990,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "mistralai/ministral-8b": {
           "usd": {
@@ -9833,7 +10095,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "nvidia/llama-3.1-nemotron-70b-instruct": {
           "usd": {
@@ -9869,7 +10132,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "inflection/inflection-3-pi": {
           "usd": {
@@ -9896,7 +10160,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 8000
         },
         "inflection/inflection-3-productivity": {
           "usd": {
@@ -9923,7 +10188,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 8000
         },
         "thedrummer/rocinante-12b": {
           "usd": {
@@ -9961,7 +10227,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "meta-llama/llama-3.2-3b-instruct:free": {
           "usd": {
@@ -9991,7 +10258,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "meta-llama/llama-3.2-3b-instruct": {
           "usd": {
@@ -10026,7 +10294,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "meta-llama/llama-3.2-1b-instruct": {
           "usd": {
@@ -10057,7 +10326,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 60000
         },
         "meta-llama/llama-3.2-11b-vision-instruct": {
           "usd": {
@@ -10093,7 +10363,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "qwen/qwen-2.5-72b-instruct": {
           "usd": {
@@ -10131,7 +10402,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "neversleep/llama-3.1-lumimaid-8b": {
           "usd": {
@@ -10162,7 +10434,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "mistralai/pixtral-12b": {
           "usd": {
@@ -10236,7 +10509,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "cohere/command-r-plus-08-2024": {
           "usd": {
@@ -10271,7 +10545,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "sao10k/l3.1-euryale-70b": {
           "usd": {
@@ -10308,7 +10583,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "qwen/qwen-2.5-vl-7b-instruct:free": {
           "usd": {
@@ -10372,7 +10648,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "nousresearch/hermes-3-llama-3.1-70b": {
           "usd": {
@@ -10407,7 +10684,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "nousresearch/hermes-3-llama-3.1-405b:free": {
           "usd": {
@@ -10437,7 +10715,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "nousresearch/hermes-3-llama-3.1-405b": {
           "usd": {
@@ -10471,7 +10750,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/chatgpt-4o-latest": {
           "usd": {
@@ -10507,7 +10787,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "sao10k/l3-lunaris-8b": {
           "usd": {
@@ -10542,7 +10823,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "openai/gpt-4o-2024-08-06": {
           "usd": {
@@ -10582,7 +10864,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "meta-llama/llama-3.1-405b": {
           "usd": {
@@ -10616,7 +10899,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "meta-llama/llama-3.1-8b-instruct": {
           "usd": {
@@ -10656,7 +10940,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 16384
         },
         "meta-llama/llama-3.1-405b-instruct:free": {
           "usd": {
@@ -10722,7 +11007,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131000
         },
         "meta-llama/llama-3.1-70b-instruct": {
           "usd": {
@@ -10759,7 +11045,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "mistralai/mistral-nemo": {
           "usd": {
@@ -10796,7 +11083,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
         },
         "openai/gpt-4o-mini-2024-07-18": {
           "usd": {
@@ -10836,7 +11124,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-4o-mini": {
           "usd": {
@@ -10876,7 +11165,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "google/gemma-2-27b-it": {
           "usd": {
@@ -10907,7 +11197,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "google/gemma-2-9b-it": {
           "usd": {
@@ -10937,7 +11228,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "sao10k/l3-euryale-70b": {
           "usd": {
@@ -10971,7 +11263,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "nousresearch/hermes-2-pro-llama-3-8b": {
           "usd": {
@@ -11005,7 +11298,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "mistralai/mistral-7b-instruct": {
           "usd": {
@@ -11038,7 +11332,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "mistralai/mistral-7b-instruct-v0.3": {
           "usd": {
@@ -11071,7 +11366,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "meta-llama/llama-guard-2-8b": {
           "usd": {
@@ -11104,7 +11400,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "openai/gpt-4o-2024-05-13": {
           "usd": {
@@ -11144,7 +11441,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-4o": {
           "usd": {
@@ -11184,7 +11482,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-4o:extended": {
           "usd": {
@@ -11224,7 +11523,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "meta-llama/llama-3-70b-instruct": {
           "usd": {
@@ -11260,7 +11560,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "meta-llama/llama-3-8b-instruct": {
           "usd": {
@@ -11297,7 +11598,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8192
         },
         "mistralai/mixtral-8x22b-instruct": {
           "usd": {
@@ -11331,7 +11633,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "microsoft/wizardlm-2-8x22b": {
           "usd": {
@@ -11365,7 +11668,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 65535
         },
         "openai/gpt-4-turbo": {
           "usd": {
@@ -11403,7 +11707,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "anthropic/claude-3-haiku": {
           "usd": {
@@ -11434,7 +11739,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "mistralai/mistral-large": {
           "usd": {
@@ -11468,7 +11774,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-3.5-turbo-0613": {
           "usd": {
@@ -11505,7 +11812,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 4095
         },
         "openai/gpt-4-turbo-preview": {
           "usd": {
@@ -11542,7 +11850,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "mistralai/mistral-tiny": {
           "usd": {
@@ -11609,7 +11918,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "mistralai/mixtral-8x7b-instruct": {
           "usd": {
@@ -11646,7 +11956,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "neversleep/noromaid-20b": {
           "usd": {
@@ -11685,7 +11996,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 4096
         },
         "alpindale/goliath-120b": {
           "usd": {
@@ -11723,7 +12035,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 6144
         },
         "openai/gpt-4-1106-preview": {
           "usd": {
@@ -11760,7 +12073,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openai/gpt-3.5-turbo-instruct": {
           "usd": {
@@ -11795,7 +12109,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 4095
         },
         "mistralai/mistral-7b-instruct-v0.1": {
           "usd": {
@@ -11826,7 +12141,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 2824
         },
         "openai/gpt-3.5-turbo-16k": {
           "usd": {
@@ -11863,7 +12179,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 16385
         },
         "mancer/weaver": {
           "usd": {
@@ -11901,7 +12218,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8000
         },
         "undi95/remm-slerp-l2-13b": {
           "usd": {
@@ -11940,7 +12258,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 6144
         },
         "gryphe/mythomax-l2-13b": {
           "usd": {
@@ -11979,7 +12298,8 @@
             "tool_calling": false,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 4096
         },
         "openai/gpt-4-0314": {
           "usd": {
@@ -12016,7 +12336,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8191
         },
         "openai/gpt-4": {
           "usd": {
@@ -12053,7 +12374,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 8191
         },
         "openai/gpt-3.5-turbo": {
           "usd": {
@@ -12090,7 +12412,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 16385
         },
         "cohere/rerank-v3": {
           "usd": {
@@ -12171,7 +12494,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 65536
         },
         "arcee-ai/trinity-large-preview:free": {
           "usd": {
@@ -12201,13 +12525,14 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131000
         },
         "moonshotai/kimi-k2.5": {
           "usd": {
-            "input": 0.44999999999999996,
-            "output": 0.44,
-            "cachedInput": 0.045
+            "input": 0.22999999999999998,
+            "output": 3,
+            "cachedInput": 0.023
           },
           "capabilities": {
             "input_modalities": [
@@ -12243,7 +12568,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "upstage/solar-pro-3:free": {
           "usd": {
@@ -12274,7 +12600,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "openrouter/free": {
           "usd": {
@@ -12315,7 +12642,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 200000
         },
         "stepfun/step-3.5-flash:free": {
           "usd": {
@@ -12346,7 +12674,8 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "qwen/qwen3-coder-next": {
           "usd": {
@@ -12384,7 +12713,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "allenai/molmo-2-8b": {
           "usd": {
@@ -12419,7 +12749,8 @@
             "tool_calling": false,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 36864
         },
         "anthropic/claude-opus-4.6": {
           "usd": {
@@ -12455,7 +12786,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 1000000
         },
         "openrouter/pony-alpha": {
           "usd": {
@@ -12520,7 +12852,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 262144
         },
         "openrouter/aurora-alpha": {
           "usd": {
@@ -12552,13 +12885,14 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 128000
         },
         "z-ai/glm-5": {
           "usd": {
-            "input": 0.75,
+            "input": 0.3,
             "output": 2.5500000000000003,
-            "cachedInput": 0.07500000000000001
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -12592,7 +12926,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 204800
         },
         "stepfun/step-3.5-flash": {
           "usd": {
@@ -12623,13 +12958,14 @@
             "tool_calling": true,
             "structured_output": false,
             "image": false
-          }
+          },
+          "context_length": 256000
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.19999999999999998,
-            "output": 1,
-            "cachedInput": 0.02
+            "input": 0.3,
+            "output": 1.2,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -12660,7 +12996,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 196608
         },
         "qwen/qwen3-4b": {
           "usd": {
@@ -12693,10 +13030,84 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 131072
+        },
+        "qwen/qwen3.5-plus-02-15": {
+          "usd": {
+            "input": 0.39999999999999997,
+            "output": 2.4,
+            "cachedInput": 0.04
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "qwen/qwen3.5-397b-a17b": {
+          "usd": {
+            "input": 0.6,
+            "output": 3.5999999999999996,
+            "cachedInput": 0.06
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 256000
         }
       }
     }
   },
-  "lastUpdated": "2026-02-16T00:19:47.952Z"
+  "lastUpdated": "2026-02-16T10:48:23.506Z"
 }

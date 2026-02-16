@@ -19,6 +19,7 @@ import {
   generatePrompt,
   dismissAgentSuggestion,
   improvePromptFromEvals,
+  type Agent,
   type CreateAgentInput,
   type UpdateAgentInput,
   type CreateAgentKeyInput,
@@ -109,24 +110,35 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
     mutationFn: (input: UpdateAgentInput) =>
       updateAgent(workspaceId, agentId, input),
     onSuccess: async (data) => {
-      // Update the specific agent query cache with the response data
-      // This ensures the UI immediately reflects the update without waiting for a refetch
+      // Merge PUT response into cache so form fields update immediately. Always preserve contextStats and
+      // modelInfo from previous cache (PUT does not return them) so the context gauge never disappears.
       queryClient.setQueryData(
         ["workspaces", workspaceId, "agents", agentId],
-        data,
+        (prev: Agent | undefined) => {
+          if (!prev) return data as Agent;
+          return {
+            ...prev,
+            ...data,
+            contextStats: data.contextStats ?? prev.contextStats,
+            modelInfo: data.modelInfo ?? prev.modelInfo,
+          } as Agent;
+        },
       );
-      // Invalidate only the list query (not the specific agent query) to ensure it reflects the update
-      // We use a predicate to only match the exact list query key, not the specific agent query
+      // Refetch single-agent in background so we get fresh contextStats (e.g. knowledge snippet count). Do not await so toast and UI update immediately.
+      void queryClient.refetchQueries({
+        queryKey: ["workspaces", workspaceId, "agents", agentId],
+      });
+      // Invalidate only list queries (not single-agent, keys, or suggestions) so list view reflects the update without extra refetches
       queryClient.invalidateQueries({
         predicate: (query) => {
           const queryKey = query.queryKey;
-          // Only invalidate the exact list query: ["workspaces", workspaceId, "agents"]
           return (
             Array.isArray(queryKey) &&
-            queryKey.length === 3 &&
             queryKey[0] === "workspaces" &&
             queryKey[1] === workspaceId &&
-            queryKey[2] === "agents"
+            queryKey[2] === "agents" &&
+            (queryKey.length === 3 ||
+              (queryKey.length === 4 && queryKey[3] === "infinite"))
           );
         },
       });

@@ -122,6 +122,44 @@ export interface SummarizationPromptsInput {
   yearly?: string | null;
 }
 
+/** Context stats returned by GET agent / list agents (backend-computed). */
+export interface ContextStats {
+  contextLength: number;
+  estimatedSystemPromptTokens: number;
+  /** Instructions only (system prompt, no skills). For segmented gauge. */
+  estimatedInstructionsTokens?: number;
+  /** Skills content only. For segmented gauge. */
+  estimatedSkillsTokens?: number;
+  /** Estimated tokens for injected knowledge (0 when disabled). */
+  estimatedKnowledgeTokens?: number;
+  maxSafeInputTokens: number;
+  ratio: number;
+  modelName: string;
+}
+
+/** Model info for UI (pricing, capabilities, context length). Present on single-agent response. */
+export interface AgentModelInfo {
+  modelName: string;
+  contextLength: number;
+  pricing?: {
+    input?: number;
+    output?: number;
+    cachedInput?: number;
+    reasoning?: number;
+    request?: number;
+    tiers?: PricingTier[];
+  };
+  capabilities?: {
+    tool_calling?: boolean;
+    text_generation?: boolean;
+    image_generation?: boolean;
+    structured_output?: boolean;
+    input_modalities?: string[];
+    output_modalities?: string[];
+    supported_parameters?: string[];
+  };
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -172,6 +210,10 @@ export interface Agent {
   suggestions?: SuggestionsCache | null;
   createdAt: string;
   updatedAt?: string;
+  /** Backend-computed; present when API includes it (GET agent, list agents). */
+  contextStats?: ContextStats;
+  /** Backend-computed; present on single-agent GET. */
+  modelInfo?: AgentModelInfo;
 }
 
 export interface CreateAgentInput {

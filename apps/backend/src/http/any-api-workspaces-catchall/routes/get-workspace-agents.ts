@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { computeContextStats } from "../../../utils/agentContextStats";
 import { parseLimitParam } from "../../utils/paginationParams";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
@@ -90,29 +91,38 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
           cursor: cursor ?? null,
         });
 
-        const agentsList = result.items.map((agent) => ({
-          id: agent.pk.replace(`agents/${workspaceId}/`, ""),
-          name: agent.name,
-          systemPrompt: agent.systemPrompt,
-          summarizationPrompts: agent.summarizationPrompts,
-          memoryExtractionEnabled: agent.memoryExtractionEnabled ?? false,
-          memoryExtractionModel: agent.memoryExtractionModel ?? null,
-          memoryExtractionPrompt: agent.memoryExtractionPrompt ?? null,
-          notificationChannelId: agent.notificationChannelId,
-          delegatableAgentIds: agent.delegatableAgentIds ?? [],
-          enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
-          enabledMcpServerToolNames: agent.enabledMcpServerToolNames ?? undefined,
-          enableMemorySearch: agent.enableMemorySearch ?? false,
-          enableSearchDocuments: agent.enableSearchDocuments ?? false,
-          enableSendEmail: agent.enableSendEmail ?? false,
-          clientTools: agent.clientTools ?? [],
-          spendingLimits: agent.spendingLimits ?? [],
-          provider: agent.provider,
-          modelName: agent.modelName ?? null,
-          avatar: agent.avatar ?? null,
-          createdAt: agent.createdAt,
-          updatedAt: agent.updatedAt,
-        }));
+        const agentsList = await Promise.all(
+          result.items.map(async (agent) => {
+            const contextStats = await computeContextStats(agent, {
+              includeSkills: true,
+            });
+            return {
+              id: agent.pk.replace(`agents/${workspaceId}/`, ""),
+              name: agent.name,
+              systemPrompt: agent.systemPrompt,
+              summarizationPrompts: agent.summarizationPrompts,
+              memoryExtractionEnabled: agent.memoryExtractionEnabled ?? false,
+              memoryExtractionModel: agent.memoryExtractionModel ?? null,
+              memoryExtractionPrompt: agent.memoryExtractionPrompt ?? null,
+              notificationChannelId: agent.notificationChannelId,
+              delegatableAgentIds: agent.delegatableAgentIds ?? [],
+              enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
+              enabledMcpServerToolNames:
+                agent.enabledMcpServerToolNames ?? undefined,
+              enableMemorySearch: agent.enableMemorySearch ?? false,
+              enableSearchDocuments: agent.enableSearchDocuments ?? false,
+              enableSendEmail: agent.enableSendEmail ?? false,
+              clientTools: agent.clientTools ?? [],
+              spendingLimits: agent.spendingLimits ?? [],
+              provider: agent.provider,
+              modelName: agent.modelName ?? null,
+              avatar: agent.avatar ?? null,
+              createdAt: agent.createdAt,
+              updatedAt: agent.updatedAt,
+              contextStats,
+            };
+          })
+        );
 
         res.json({
           agents: agentsList,
