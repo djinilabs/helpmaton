@@ -12206,7 +12206,7 @@
         "moonshotai/kimi-k2.5": {
           "usd": {
             "input": 0.44999999999999996,
-            "output": 2.25,
+            "output": 0.44,
             "cachedInput": 0.045
           },
           "capabilities": {
@@ -12556,9 +12556,9 @@
         },
         "z-ai/glm-5": {
           "usd": {
-            "input": 0.7999999999999999,
-            "output": 2.56,
-            "cachedInput": 0.08
+            "input": 0.75,
+            "output": 2.5500000000000003,
+            "cachedInput": 0.07500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -12627,9 +12627,9 @@
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.19999999999999998,
+            "output": 1,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -12698,5 +12698,5 @@
       }
     }
   },
-  "lastUpdated": "2026-02-14T00:20:20.997Z"
+  "lastUpdated": "2026-02-16T00:19:47.952Z"
 }
