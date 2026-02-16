@@ -46,10 +46,13 @@ interface Segment {
   ratio: number;
 }
 
+/**
+ * Build instructions / skills / knowledge segments so the circle is filled with all three (ratios sum to 1).
+ * Used for the stacked arc gauge and the legend labels.
+ */
 function buildSegments(
   contextStats: ContextLengthGaugeProps["contextStats"],
   contextLength: number,
-  totalRatio: number,
 ): Segment[] {
   const instructions =
     contextStats.estimatedInstructionsTokens ??
@@ -78,10 +81,10 @@ function buildSegments(
       },
     ];
   }
-  // Scale segment ratios so they sum to totalRatio (fill the gauge up to the total %)
-  const r1 = totalRatio * (instructions / totalTokens);
-  const r2 = totalRatio * (skills / totalTokens);
-  const r3 = totalRatio * (knowledge / totalTokens);
+  // Fill the circle with three segments (instructions, skills, knowledge) so the breakdown is always visible
+  const r1 = instructions / totalTokens;
+  const r2 = skills / totalTokens;
+  const r3 = knowledge / totalTokens;
   return [
     { id: "instructions", label: "Instructions", tokens: instructions, ratio: r1 },
     { id: "skills", label: "Skills", tokens: skills, ratio: r2 },
@@ -100,7 +103,7 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
   label,
 }) => {
   const { contextLength, ratio } = contextStats;
-  const segments = buildSegments(contextStats, contextLength, Math.min(1, ratio));
+  const segments = buildSegments(contextStats, contextLength);
   const totalEstimatedTokens =
     (contextStats.estimatedSystemPromptTokens ?? 0) +
     (contextStats.estimatedKnowledgeTokens ?? 0);
@@ -116,30 +119,32 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
     ? `${displayLabel}: ${textShort} (${Math.round(ratio * 100)}% of context). Breakdown: ${segmentSummary}.`
     : `Context usage (estimated): ${textShort} (${Math.round(ratio * 100)}% of context). Breakdown: ${segmentSummary}.`;
 
-  const segmentArcs = segments.map((seg, index) => {
-    const rotationDeg =
-      -90 +
-      360 *
-        segments
-          .slice(0, index)
-          .reduce((sum, s) => sum + s.ratio, 0);
-    const dashLength = circumference * Math.min(1, Math.max(0, seg.ratio));
-    return (
-      <circle
-        key={seg.id}
-        cx={config.size / 2}
-        cy={config.size / 2}
-        r={r}
-        fill="none"
-        stroke={SEGMENT_COLORS[seg.id]}
-        strokeWidth={config.strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={`${dashLength} ${circumference}`}
-        strokeDashoffset={0}
-        transform={`rotate(${rotationDeg} ${config.size / 2} ${config.size / 2})`}
-      />
-    );
-  });
+  const segmentArcs = segments
+    .filter((seg) => seg.ratio > 0)
+    .map((seg) => {
+      const rotationDeg =
+        -90 +
+        360 *
+          segments
+            .slice(0, segments.indexOf(seg))
+            .reduce((sum, s) => sum + s.ratio, 0);
+      const dashLength = circumference * Math.min(1, Math.max(0, seg.ratio));
+      return (
+        <circle
+          key={seg.id}
+          cx={config.size / 2}
+          cy={config.size / 2}
+          r={r}
+          fill="none"
+          stroke={SEGMENT_COLORS[seg.id]}
+          strokeWidth={config.strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${dashLength} ${circumference}`}
+          strokeDashoffset={0}
+          transform={`rotate(${rotationDeg} ${config.size / 2} ${config.size / 2})`}
+        />
+      );
+    });
 
   return (
     <div

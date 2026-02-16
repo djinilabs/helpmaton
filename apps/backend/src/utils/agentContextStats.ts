@@ -11,8 +11,14 @@ import {
 
 const CHARS_PER_TOKEN_ESTIMATE = 4;
 
-/** Estimated tokens per injected knowledge snippet (used when knowledge injection is enabled). */
-const ESTIMATED_TOKENS_PER_KNOWLEDGE_SNIPPET = 400;
+/**
+ * Estimated tokens per injected knowledge snippet (documents + memory).
+ * Matches document splitter default chunk size (documentSearch.ts DEFAULT_CHUNK_SIZE = 1000 chars)
+ * so the context gauge uses the same average snippet size as document indexing.
+ */
+const ESTIMATED_TOKENS_PER_KNOWLEDGE_SNIPPET = Math.ceil(
+  1000 / CHARS_PER_TOKEN_ESTIMATE,
+); // 250
 
 export interface AgentForContextStats {
   systemPrompt: string;

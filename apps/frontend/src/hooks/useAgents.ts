@@ -110,8 +110,8 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
     mutationFn: (input: UpdateAgentInput) =>
       updateAgent(workspaceId, agentId, input),
     onSuccess: async (data) => {
-      // Merge PUT response into cache so form fields update immediately. Preserve contextStats and modelInfo
-      // from previous cache (PUT does not return them); refetch will replace with fresh stats for the new settings.
+      // Merge PUT response into cache so form fields update immediately. Always preserve contextStats and
+      // modelInfo from previous cache (PUT does not return them) so the context gauge never disappears.
       queryClient.setQueryData(
         ["workspaces", workspaceId, "agents", agentId],
         (prev: Agent | undefined) => {
@@ -124,8 +124,8 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
           } as Agent;
         },
       );
-      // Invalidate the single-agent query so it refetches (GET returns contextStats, modelInfo, etc.)
-      queryClient.invalidateQueries({
+      // Refetch single-agent in background so we get fresh contextStats (e.g. knowledge snippet count). Do not await so toast and UI update immediately.
+      void queryClient.refetchQueries({
         queryKey: ["workspaces", workspaceId, "agents", agentId],
       });
       // Invalidate only list queries (not single-agent, keys, or suggestions) so list view reflects the update without extra refetches

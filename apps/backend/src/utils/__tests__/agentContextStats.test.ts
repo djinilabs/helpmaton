@@ -146,14 +146,14 @@ describe("agentContextStats", () => {
       };
       const result = await computeContextStats(agent, { includeSkills: false });
       expect(result.estimatedSystemPromptTokens).toBe(1);
-      expect(result.estimatedKnowledgeTokens).toBe(5 * 400); // 2000
-      expect(result.ratio).toBe((1 + 2000) / DEFAULT_CONTEXT);
+      expect(result.estimatedKnowledgeTokens).toBe(5 * 250); // matches document chunk size (1000/4)
+      expect(result.ratio).toBe((1 + 5 * 250) / DEFAULT_CONTEXT);
     });
 
     it("uses default 5 snippets when knowledge injection enabled but count not set", async () => {
       const agent = { systemPrompt: "x", enableKnowledgeInjection: true };
       const result = await computeContextStats(agent, { includeSkills: false });
-      expect(result.estimatedKnowledgeTokens).toBe(5 * 400);
+      expect(result.estimatedKnowledgeTokens).toBe(5 * 250);
     });
   });
 
