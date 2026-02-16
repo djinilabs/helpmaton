@@ -44,13 +44,17 @@ vi.mock("../agentSetup", () => ({
   setupAgentAndTools: mockSetupAgentAndTools,
 }));
 
-vi.mock("../generationCreditManagement", () => ({
-  validateAndReserveCredits: mockValidateAndReserveCredits,
-  adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
-  cleanupReservationOnError: mockCleanupReservationOnError,
-  cleanupReservationWithoutTokenUsage: mockCleanupReservationWithoutTokenUsage,
-  enqueueCostVerificationIfNeeded: mockEnqueueCostVerificationIfNeeded,
-}));
+vi.mock("../generationCreditManagement", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../generationCreditManagement")>();
+  return {
+    ...actual,
+    validateAndReserveCredits: mockValidateAndReserveCredits,
+    adjustCreditsAfterLLMCall: mockAdjustCreditsAfterLLMCall,
+    cleanupReservationOnError: mockCleanupReservationOnError,
+    cleanupReservationWithoutTokenUsage: mockCleanupReservationWithoutTokenUsage,
+    enqueueCostVerificationIfNeeded: mockEnqueueCostVerificationIfNeeded,
+  };
+});
 
 vi.mock("../generationLLMSetup", () => ({
   prepareLLMCall: mockPrepareLLMCall,
@@ -288,5 +292,35 @@ describe("callAgentNonStreaming", () => {
       "agent-1",
       "bridge"
     );
+  });
+
+  it("throws CONTEXT_LENGTH_EXCEEDED when estimated input tokens exceed safe limit", async () => {
+    // Return huge messages so estimateInputTokens exceeds MAX_SAFE_INPUT_TOKENS (~943k)
+    const hugeContent = "x".repeat(4_000_000);
+    mockSetupAgentAndTools.mockResolvedValueOnce({
+      agent: {
+        systemPrompt: hugeContent,
+        modelName: "test-model",
+      },
+      model: {},
+      tools: {},
+      usesByok: false,
+    });
+    mockInjectKnowledgeIntoMessages.mockResolvedValueOnce({
+      modelMessages: [{ role: "user", content: hugeContent }],
+      knowledgeInjectionMessage: undefined,
+      rerankingRequestMessage: undefined,
+      rerankingResultMessage: undefined,
+    });
+
+    await expect(
+      callAgentNonStreaming("workspace-1", "agent-1", "hello")
+    ).rejects.toMatchObject({
+      message: expect.stringContaining("context limit"),
+      code: "CONTEXT_LENGTH_EXCEEDED",
+    });
+
+    expect(mockValidateAndReserveCredits).not.toHaveBeenCalled();
+    expect(mockGenerateText).not.toHaveBeenCalled();
   });
 });

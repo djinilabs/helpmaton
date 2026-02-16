@@ -3,6 +3,10 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import {
+  computeContextStats,
+  getModelInfoForResponse,
+} from "../../../utils/agentContextStats";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -117,6 +121,11 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           agent.searchWebProvider ??
           (agent.enableTavilySearch === true ? "tavily" : undefined);
 
+        const [contextStats, modelInfo] = await Promise.all([
+          computeContextStats(agent, { includeSkills: true }),
+          Promise.resolve(getModelInfoForResponse(agent.modelName ?? null)),
+        ]);
+
         res.json({
           id: agentId,
           name: agent.name,
@@ -166,6 +175,8 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           widgetConfig: agent.widgetConfig ?? undefined,
           createdAt: agent.createdAt,
           updatedAt: agent.updatedAt,
+          contextStats,
+          modelInfo,
         });
       } catch (error) {
         handleError(

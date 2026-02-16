@@ -143,7 +143,24 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
     return;
   }
 
-  const prompt = schedule.prompt;
+  // Cap schedule prompt to avoid exceeding model context length (1M tokens).
+  // ~4 chars/token → 400k chars ≈ 100k tokens; leaves room for system prompt and knowledge.
+  const MAX_SCHEDULE_PROMPT_CHARS = 400_000;
+  const rawPrompt = schedule.prompt;
+  const prompt =
+    rawPrompt.length <= MAX_SCHEDULE_PROMPT_CHARS
+      ? rawPrompt
+      : rawPrompt.slice(0, MAX_SCHEDULE_PROMPT_CHARS) +
+        "\n\n[Prompt truncated due to length limit. Please use a shorter schedule prompt.]";
+  if (rawPrompt.length > MAX_SCHEDULE_PROMPT_CHARS) {
+    console.warn("[Schedule Queue] Schedule prompt truncated:", {
+      scheduleId,
+      workspaceId,
+      agentId,
+      originalLength: rawPrompt.length,
+      maxLength: MAX_SCHEDULE_PROMPT_CHARS,
+    });
+  }
   const conversationId = randomUUID();
   const requestTimeout = createRequestTimeout();
 

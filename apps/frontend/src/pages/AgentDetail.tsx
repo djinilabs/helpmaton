@@ -51,6 +51,7 @@ import { AccordionSection } from "../components/AccordionSection";
 import { AgentSkillsPicker } from "../components/AgentSkillsPicker";
 import { AgentSuggestions } from "../components/AgentSuggestions";
 import { ClientToolEditor } from "../components/ClientToolEditor";
+import { ContextLengthGauge } from "../components/ContextLengthGauge";
 import {
   DetailPageNav,
   type DetailPageNavGroup,
@@ -2957,6 +2958,59 @@ const AgentOverviewCard: FC<AgentOverviewCardProps> = ({
               This model does not support tool calling. Built-in tools,
               connected tool integrations, and client tools will be disabled.
             </p>
+          </div>
+        )}
+        {(agent.contextStats || agent.modelInfo) && (
+          <div className="mt-4 flex flex-wrap items-start gap-6 border-t border-neutral-200 pt-4 dark:border-neutral-700">
+            {agent.contextStats && (
+              <ContextLengthGauge
+                contextStats={agent.contextStats}
+                size="md"
+                label="System prompt vs context"
+              />
+            )}
+            {agent.modelInfo && (
+              <div className="flex flex-col gap-2 text-sm">
+                <p className="font-semibold dark:text-neutral-300">
+                  Context window:{" "}
+                  <span className="font-normal text-neutral-600 dark:text-neutral-400">
+                    {agent.modelInfo.contextLength.toLocaleString()} tokens
+                  </span>
+                </p>
+                {agent.modelInfo.pricing && (
+                  <p className="text-neutral-600 dark:text-neutral-400">
+                    {agent.modelInfo.pricing.input != null && (
+                      <>Input: ${agent.modelInfo.pricing.input.toFixed(2)} / 1M tokens</>
+                    )}
+                    {agent.modelInfo.pricing.input != null &&
+                      agent.modelInfo.pricing.output != null && (
+                        <> · </>
+                      )}
+                    {agent.modelInfo.pricing.output != null && (
+                      <>Output: ${agent.modelInfo.pricing.output.toFixed(2)} / 1M tokens</>
+                    )}
+                  </p>
+                )}
+                {agent.modelInfo.capabilities &&
+                  Object.keys(agent.modelInfo.capabilities).length > 0 && (
+                    <p className="text-neutral-600 dark:text-neutral-400">
+                      Model capabilities:{" "}
+                      {[
+                        agent.modelInfo.capabilities.tool_calling &&
+                          "Tool calling",
+                        agent.modelInfo.capabilities.text_generation &&
+                          "Text generation",
+                        agent.modelInfo.capabilities.image_generation &&
+                          "Image generation",
+                        agent.modelInfo.capabilities.structured_output &&
+                          "Structured output",
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "—"}
+                    </p>
+                  )}
+              </div>
+            )}
           </div>
         )}
       </div>

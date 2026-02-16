@@ -95,6 +95,14 @@ const { mockPricingConfig } = vi.hoisted(() => {
             },
           },
         },
+        openrouter: {
+          models: {
+            "test-context-model": {
+              usd: { input: 0.5, output: 1.5 },
+              context_length: 200_000,
+            },
+          },
+        },
       },
       lastUpdated: "2025-01-01T00:00:00.000Z",
     },
@@ -109,7 +117,10 @@ vi.mock("../../config/pricing.json", () => ({
 import {
   calculateTokenCost,
   calculateTokenCosts,
+  getModelContextLength,
+  getMaxSafeInputTokens,
   getModelPricing,
+  OPENROUTER_DEFAULT_CONTEXT_LENGTH,
 } from "../pricing";
 
 // Mock the pricing config import
@@ -138,6 +149,37 @@ describe("pricing", () => {
     it("should return undefined for non-existent provider", () => {
       const pricing = getModelPricing("openai", "test-flat-model");
       expect(pricing).toBeUndefined();
+    });
+  });
+
+  describe("getModelContextLength", () => {
+    it("should return context_length when set for model", () => {
+      expect(getModelContextLength("openrouter", "test-context-model")).toBe(
+        200_000,
+      );
+    });
+
+    it("should return undefined when model has no context_length", () => {
+      expect(getModelContextLength("google", "test-flat-model")).toBeUndefined();
+    });
+
+    it("should return undefined for non-existent model", () => {
+      expect(getModelContextLength("openrouter", "unknown")).toBeUndefined();
+    });
+  });
+
+  describe("getMaxSafeInputTokens", () => {
+    it("should return 90% of model context_length when set", () => {
+      expect(getMaxSafeInputTokens("openrouter", "test-context-model")).toBe(
+        180_000,
+      ); // 200_000 * 0.9
+    });
+
+    it("should use OPENROUTER_DEFAULT_CONTEXT_LENGTH for OpenRouter when context_length missing", () => {
+      const safe = getMaxSafeInputTokens("openrouter", "test-flat-model");
+      expect(safe).toBe(
+        Math.floor(OPENROUTER_DEFAULT_CONTEXT_LENGTH * 0.9),
+      );
     });
   });
 

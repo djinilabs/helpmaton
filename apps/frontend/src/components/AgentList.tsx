@@ -6,6 +6,7 @@ import { useAgentsInfinite } from "../hooks/useAgents";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 
 import { AgentModal } from "./AgentModal";
+import { ContextLengthGauge } from "./ContextLengthGauge";
 import { LoadingScreen } from "./LoadingScreen";
 import { ScrollContainer } from "./ScrollContainer";
 import { VirtualList } from "./VirtualList";
@@ -92,6 +93,14 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
                         <span className="text-xl font-bold text-neutral-900 transition-colors hover:text-blue-600 dark:text-neutral-50 dark:hover:text-blue-400">
                           {agent.name}
                         </span>
+                        {agent.contextStats && (
+                          <div className="ml-auto flex-shrink-0">
+                            <ContextLengthGauge
+                              contextStats={agent.contextStats}
+                              size="sm"
+                            />
+                          </div>
+                        )}
                       </Link>
                     </div>
                   </div>

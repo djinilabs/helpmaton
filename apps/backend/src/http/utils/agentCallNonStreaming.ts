@@ -7,6 +7,8 @@ import type {
   TokenUsage,
 } from "../../utils/conversationLogger";
 import type { UIMessage } from "../../utils/messageTypes";
+import { getMaxSafeInputTokens } from "../../utils/pricing";
+import { estimateInputTokens } from "../../utils/tokenEstimation";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import { setupAgentAndTools, type AgentSetupOptions } from "./agentSetup";
@@ -14,6 +16,7 @@ import { MODEL_NAME } from "./agentUtils";
 import {
   adjustCreditsAfterLLMCall,
   cleanupReservationOnError,
+  convertToolsToDefinitions,
   validateAndReserveCredits,
   enqueueCostVerificationIfNeeded,
 } from "./generationCreditManagement";
@@ -146,6 +149,25 @@ const executeNonStreamingLLMCall = async (params: {
       params.agent.systemPrompt,
       params.agent.enabledSkillIds
     );
+
+    const toolDefinitions = convertToolsToDefinitions(effectiveTools);
+    const estimatedInputTokens = estimateInputTokens(
+      params.modelMessagesWithKnowledge,
+      effectiveSystemPrompt,
+      toolDefinitions,
+    );
+    const maxSafeInputTokens = getMaxSafeInputTokens(
+      "openrouter",
+      params.finalModelName,
+    );
+    if (estimatedInputTokens > maxSafeInputTokens) {
+      const error = new Error(
+        `Request would exceed model context limit: estimated ${estimatedInputTokens} input tokens (max ${maxSafeInputTokens}). ` +
+          "Reduce schedule prompt length, conversation history, or knowledge injection snippet count.",
+      );
+      (error as Error & { code?: string }).code = "CONTEXT_LENGTH_EXCEEDED";
+      throw error;
+    }
 
     reservationId = await validateAndReserveCredits(
       params.db,

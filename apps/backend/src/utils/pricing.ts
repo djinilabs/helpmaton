@@ -34,10 +34,13 @@ export interface CurrencyPricing {
  * Pricing for a model in USD.
  * All prices are per 1 million tokens.
  * Supports both flat pricing (backward compatible) and tiered pricing.
+ * context_length: max context window in tokens (from OpenRouter Models API when available).
  */
 export interface ModelPricing {
   usd: CurrencyPricing;
   capabilities?: ModelCapabilities;
+  /** Max context window in tokens (e.g. from OpenRouter Models API). Used for input size checks. */
+  context_length?: number;
 }
 
 export interface ModelCapabilities {
@@ -142,6 +145,36 @@ export function getModelPricing(
   }
 
   return undefined;
+}
+
+/** Default OpenRouter context length when not in pricing (tokens). */
+export const OPENROUTER_DEFAULT_CONTEXT_LENGTH = 1_048_576;
+
+/**
+ * Get max context length in tokens for a model (e.g. from OpenRouter Models API via pricing).
+ * Returns undefined if not set; callers should use OPENROUTER_DEFAULT_CONTEXT_LENGTH for OpenRouter when undefined.
+ */
+export function getModelContextLength(
+  provider: string,
+  modelName: string
+): number | undefined {
+  const pricing = getModelPricing(provider, modelName);
+  const len = pricing?.context_length;
+  return typeof len === "number" && len > 0 ? len : undefined;
+}
+
+/**
+ * Max safe input tokens before calling the LLM (90% of model context length).
+ * Use this to fail fast instead of exceeding the provider limit.
+ */
+export function getMaxSafeInputTokens(
+  provider: string,
+  modelName: string
+): number {
+  const contextLength =
+    getModelContextLength(provider, modelName) ??
+    (provider === "openrouter" ? OPENROUTER_DEFAULT_CONTEXT_LENGTH : 128_000);
+  return Math.floor(contextLength * 0.9);
 }
 
 export function supportsReasoningTokens(

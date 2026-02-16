@@ -40,6 +40,9 @@ const buildEmptyInjectionResult = (
   rerankingResultMessage: undefined,
 });
 
+/** Max chars for the injected knowledge block to avoid exceeding model context (≈100k tokens at ~4 chars/token). */
+const MAX_KNOWLEDGE_PROMPT_CHARS = 400_000;
+
 const resolveSnippetCount = (agent: {
   knowledgeInjectionSnippetCount?: number;
 }): number => {
@@ -898,10 +901,22 @@ export async function injectKnowledgeIntoMessages(
   }
 
   try {
-    // Format knowledge prompt
-    const knowledgePrompt = formatKnowledgePrompt(filteredResults);
+    // Format knowledge prompt and cap length to avoid exceeding model context
+    let knowledgePrompt = formatKnowledgePrompt(filteredResults);
     if (!knowledgePrompt || knowledgePrompt.length === 0) {
       return buildEmptyInjectionResult(messages);
+    }
+    if (knowledgePrompt.length > MAX_KNOWLEDGE_PROMPT_CHARS) {
+      const originalLength = knowledgePrompt.length;
+      knowledgePrompt =
+        knowledgePrompt.slice(0, MAX_KNOWLEDGE_PROMPT_CHARS) +
+        "\n\n[Knowledge section truncated due to length limit.]";
+      console.warn("[knowledgeInjection] Knowledge prompt truncated:", {
+        originalLength,
+        maxLength: MAX_KNOWLEDGE_PROMPT_CHARS,
+        workspaceId,
+        agentId,
+      });
     }
 
     const { knowledgeModelMessage, knowledgeUIMessage } =
