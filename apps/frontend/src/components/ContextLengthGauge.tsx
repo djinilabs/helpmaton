@@ -47,12 +47,14 @@ interface Segment {
 }
 
 /**
- * Build instructions / skills / knowledge segments so the circle is filled with all three (ratios sum to 1).
- * Used for the stacked arc gauge and the legend labels.
+ * Build instructions / skills / knowledge segments. Each segment's arc ratio is proportional to
+ * (tokens / totalTokens) * totalRatio, so the colored arc fills totalRatio of the circle (usage vs
+ * context window) and the rest of the circle shows available space. Used for the stacked arc gauge and legend.
  */
 function buildSegments(
   contextStats: ContextLengthGaugeProps["contextStats"],
   contextLength: number,
+  totalRatio: number,
 ): Segment[] {
   const instructions =
     contextStats.estimatedInstructionsTokens ??
@@ -81,10 +83,10 @@ function buildSegments(
       },
     ];
   }
-  // Fill the circle with three segments (instructions, skills, knowledge) so the breakdown is always visible
-  const r1 = instructions / totalTokens;
-  const r2 = skills / totalTokens;
-  const r3 = knowledge / totalTokens;
+  // Scale segment ratios so they sum to totalRatio (usage / context); rest of circle = available space
+  const r1 = totalRatio * (instructions / totalTokens);
+  const r2 = totalRatio * (skills / totalTokens);
+  const r3 = totalRatio * (knowledge / totalTokens);
   return [
     { id: "instructions", label: "Instructions", tokens: instructions, ratio: r1 },
     { id: "skills", label: "Skills", tokens: skills, ratio: r2 },
@@ -103,7 +105,8 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
   label,
 }) => {
   const { contextLength, ratio } = contextStats;
-  const segments = buildSegments(contextStats, contextLength);
+  const totalRatio = Math.min(1, Math.max(0, ratio));
+  const segments = buildSegments(contextStats, contextLength, totalRatio);
   const totalEstimatedTokens =
     (contextStats.estimatedSystemPromptTokens ?? 0) +
     (contextStats.estimatedKnowledgeTokens ?? 0);
@@ -115,19 +118,23 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
   const segmentSummary = segments
     .map((s) => `${s.label} ${formatTokens(s.tokens)}`)
     .join(", ");
+  const usedPct = Math.round(ratio * 100);
+  const availablePct = 100 - usedPct;
+  const remainingNote =
+    " Remaining context is used by the conversation (user, assistant, tool calls and results).";
   const ariaLabel = displayLabel
-    ? `${displayLabel}: ${textShort} (${Math.round(ratio * 100)}% of context). Breakdown: ${segmentSummary}.`
-    : `Context usage (estimated): ${textShort} (${Math.round(ratio * 100)}% of context). Breakdown: ${segmentSummary}.`;
+    ? `${displayLabel}: ${textShort} (${usedPct}% used${availablePct > 0 ? `, ${availablePct}% available` : ""}). Breakdown: ${segmentSummary}.${remainingNote}`
+    : `Context usage (estimated): ${textShort} (${usedPct}% used${availablePct > 0 ? `, ${availablePct}% available` : ""}). Breakdown: ${segmentSummary}.${remainingNote}`;
 
+  const cumulativeRatios = segments.reduce<number[]>(
+    (acc, seg) => [...acc, acc.at(-1)! + seg.ratio],
+    [0],
+  );
   const segmentArcs = segments
-    .filter((seg) => seg.ratio > 0)
-    .map((seg) => {
-      const rotationDeg =
-        -90 +
-        360 *
-          segments
-            .slice(0, segments.indexOf(seg))
-            .reduce((sum, s) => sum + s.ratio, 0);
+    .map((seg, index) => ({ seg, index }))
+    .filter(({ seg }) => seg.ratio > 0)
+    .map(({ seg, index }) => {
+      const rotationDeg = -90 + 360 * cumulativeRatios[index]!;
       const dashLength = circumference * Math.min(1, Math.max(0, seg.ratio));
       return (
         <circle
@@ -151,6 +158,7 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
       className="flex flex-col items-center gap-2"
       role="img"
       aria-label={ariaLabel}
+      title={ariaLabel}
     >
       {displayLabel && (
         <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -217,12 +225,18 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
         </div>
       )}
       {size !== "sm" && (
-        <span
-          className="text-xs text-neutral-500 dark:text-neutral-500"
-          style={{ fontSize: "0.7rem" }}
-        >
-          {textShort}
-        </span>
+        <div className="flex flex-col items-center gap-0.5 text-center">
+          <span
+            className="text-xs text-neutral-500 dark:text-neutral-500"
+            style={{ fontSize: "0.7rem" }}
+          >
+            {textShort}
+          </span>
+          <span className="text-[0.65rem] text-neutral-400 dark:text-neutral-500 max-w-[12rem]">
+            Remaining context is used by the conversation (user, assistant,
+            tool calls and results, etc.).
+          </span>
+        </div>
       )}
     </div>
   );
