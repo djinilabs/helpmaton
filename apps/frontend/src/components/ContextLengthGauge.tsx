@@ -232,7 +232,7 @@ export const ContextLengthGauge: FC<ContextLengthGaugeProps> = ({
           >
             {textShort}
           </span>
-          <span className="text-[0.65rem] text-neutral-400 dark:text-neutral-500 max-w-[12rem]">
+          <span className="max-w-[12rem] text-[0.65rem] text-neutral-400 dark:text-neutral-500">
             Remaining context is used by the conversation (user, assistant,
             tool calls and results, etc.).
           </span>
