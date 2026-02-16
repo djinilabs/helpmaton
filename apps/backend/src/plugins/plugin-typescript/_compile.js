@@ -87,9 +87,13 @@ async function compileHandler(params) {
     options = { ...config, ...options };
   }
 
-  const localConfig = getTsConfig(src);
-  if (localConfig) options.tsconfig = localConfig;
-  else if (globalTsConfig) options.tsconfig = globalTsConfig;
+  // esbuild 0.27+ requires tsconfig to be a string path when provided; omit when absent
+  const tsconfigPath = getTsConfig(src) || globalTsConfig;
+  if (typeof tsconfigPath === 'string') {
+    options.tsconfig = tsconfigPath;
+  } else {
+    delete options.tsconfig;
+  }
 
   await esbuild(options);
 
@@ -101,15 +105,19 @@ async function compileHandler(params) {
     );
     if (skillTsFiles.length > 0) {
       const skillEntryPoints = skillTsFiles.map((f) => join(skillsSrc, f));
-      await esbuild({
+      const skillsTsconfig = globalTsConfig || getTsConfig(cwd);
+      const skillsOptions = {
         entryPoints: skillEntryPoints,
         bundle: false,
         platform: 'node',
         format: 'cjs',
         outdir: handlerOutDir,
         outbase: skillsSrc,
-        tsconfig: globalTsConfig || getTsConfig(cwd),
-      });
+      };
+      if (typeof skillsTsconfig === 'string') {
+        skillsOptions.tsconfig = skillsTsconfig;
+      }
+      await esbuild(skillsOptions);
     }
   }
 

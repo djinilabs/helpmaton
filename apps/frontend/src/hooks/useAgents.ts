@@ -19,6 +19,7 @@ import {
   generatePrompt,
   dismissAgentSuggestion,
   improvePromptFromEvals,
+  type Agent,
   type CreateAgentInput,
   type UpdateAgentInput,
   type CreateAgentKeyInput,
@@ -109,13 +110,21 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
     mutationFn: (input: UpdateAgentInput) =>
       updateAgent(workspaceId, agentId, input),
     onSuccess: async (data) => {
-      // Update the specific agent query cache with the response data so form fields reflect immediately
+      // Merge PUT response into cache so form fields update immediately. Preserve contextStats and modelInfo
+      // from previous cache (PUT does not return them); refetch will replace with fresh stats for the new settings.
       queryClient.setQueryData(
         ["workspaces", workspaceId, "agents", agentId],
-        data,
+        (prev: Agent | undefined) => {
+          if (!prev) return data as Agent;
+          return {
+            ...prev,
+            ...data,
+            contextStats: data.contextStats ?? prev.contextStats,
+            modelInfo: data.modelInfo ?? prev.modelInfo,
+          } as Agent;
+        },
       );
       // Invalidate the single-agent query so it refetches (GET returns contextStats, modelInfo, etc.)
-      // PUT response does not include backend-computed fields; refetch keeps stats in sync after any setting change
       queryClient.invalidateQueries({
         queryKey: ["workspaces", workspaceId, "agents", agentId],
       });
