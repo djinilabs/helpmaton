@@ -67,7 +67,7 @@
     "cleanup-ecr:execute": "node scripts/cleanup-ecr-images.mjs --execute",
     "clean:local": "rm -rf apps/backend/dist apps/backend/public apps/frontend/dist .pnpm-store node_modules && pnpm install"
   },
-  "packageManager": "pnpm@10.28.2",
+  "packageManager": "pnpm@10.29.3",
   "pnpm": {
     "patchedDependencies": {
       "@architect/functions": "patches/@architect__functions.patch",
@@ -83,50 +83,50 @@
       "@sentry/cli"
     ],
     "overrides": {
-      "@types/node": "24.10.10",
-      "esbuild": "^0.27.2",
-      "vite": "^7.2.2",
-      "next": "^16.0.7"
+      "@types/node": "24.10.13",
+      "esbuild": "^0.27.3",
+      "vite": "^7.3.1",
+      "next": "^16.1.6"
     }
   },
   "devDependencies": {
-    "@aws-sdk/client-cloudformation": "^3.971.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.971.0",
-    "@aws-sdk/client-dynamodb": "^3.971.0",
-    "@aws-sdk/client-ecr": "^3.971.0",
-    "@aws-sdk/client-lambda": "^3.971.0",
-    "@aws-sdk/client-sqs": "^3.971.0",
-    "@aws-sdk/lib-dynamodb": "^3.971.0",
-    "@eslint/js": "^9.39.1",
+    "@aws-sdk/client-cloudformation": "^3.989.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.989.0",
+    "@aws-sdk/client-dynamodb": "^3.989.0",
+    "@aws-sdk/client-ecr": "^3.989.0",
+    "@aws-sdk/client-lambda": "^3.989.0",
+    "@aws-sdk/client-sqs": "^3.989.0",
+    "@aws-sdk/lib-dynamodb": "^3.989.0",
+    "@eslint/js": "^9.39.2",
     "@octokit/rest": "^22.0.1",
-    "@playwright/test": "^1.48.0",
-    "@sentry/cli": "^3.1.0",
-    "@types/express": "^5.0.5",
-    "@types/swagger-jsdoc": "^6.0.1",
+    "@playwright/test": "^1.58.2",
+    "@sentry/cli": "^3.2.0",
+    "@types/express": "^5.0.6",
+    "@types/swagger-jsdoc": "^6.0.4",
     "chokidar": "^5.0.0",
-    "dotenv": "^17.2.1",
+    "dotenv": "^17.3.1",
     "dynamodb-admin": "^5.1.3",
-    "esbuild": "^0.27.2",
-    "eslint": "^9.39.1",
+    "esbuild": "^0.27.3",
+    "eslint": "^9.39.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.0",
     "eslint-plugin-tailwindcss": "^3.18.2",
-    "glob": "^13.0.0",
-    "globals": "^17.0.0",
+    "glob": "^13.0.3",
+    "globals": "^17.3.0",
     "gray-matter": "^4.0.3",
     "jose": "^6.1.3",
-    "nanoid": "^5.0.9",
-    "node-gyp": "^12.1.0",
+    "nanoid": "^5.1.6",
+    "node-gyp": "^12.2.0",
     "npm-run-all2": "^8.0.4",
     "swagger-jsdoc": "^6.2.8",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.3"
+    "typescript-eslint": "^8.55.0"
   },
   "dependencies": {
     "@architect/asap": "^7.0.10",
-    "@posthog/ai": "^7.2.1"
+    "@posthog/ai": "^7.8.11"
   }
 }
