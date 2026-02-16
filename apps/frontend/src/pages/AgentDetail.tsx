@@ -741,17 +741,21 @@ function useAgentDetailState({
     `agent-detail-${agentId}`
   );
   const lastScrolledAgentIdRef = useRef<string | null>(null);
+  const innerRafIdRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
   const [chatClearKey, setChatClearKey] = useState(0);
   const toast = useToast();
   const queryClient = useQueryClient();
 
   // On entering this agent: if no section or the card itself was "visited", or the stored section id is invalid, scroll to top so the agent card is fully visible.
   useEffect(() => {
+    isMountedRef.current = true;
     if (lastScrolledAgentIdRef.current === agentId) {
       return;
     }
 
     lastScrolledAgentIdRef.current = agentId;
+    innerRafIdRef.current = null;
 
     const isAgentCardOrUndefined =
       !expandedSection || expandedSection === "agent";
@@ -761,16 +765,24 @@ function useAgentDetailState({
     }
 
     // Section set: after paint, ensure it exists in the DOM (e.g. not a stale/removed id); otherwise scroll to top and clear invalid preference.
-    const rafId = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    const rafId1 = requestAnimationFrame(() => {
+      const rafId2 = requestAnimationFrame(() => {
+        if (!isMountedRef.current) return;
         const sectionEl = document.getElementById(expandedSection);
         if (!sectionEl) {
           window.scrollTo({ top: 0, behavior: "auto" });
           toggleSection(expandedSection);
         }
       });
+      innerRafIdRef.current = rafId2;
     });
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      isMountedRef.current = false;
+      cancelAnimationFrame(rafId1);
+      if (innerRafIdRef.current != null) {
+        cancelAnimationFrame(innerRafIdRef.current);
+      }
+    };
   }, [agentId, expandedSection, toggleSection]);
 
   // Fetch all integrations for this workspace (paginated) to filter by agent

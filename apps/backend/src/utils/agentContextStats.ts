@@ -86,6 +86,11 @@ export async function computeContextStats(
   const estimatedSystemPromptTokens = Math.ceil(
     totalChars / CHARS_PER_TOKEN_ESTIMATE
   );
+  // Ensure instructions + skills sum exactly to estimatedSystemPromptTokens (avoid separate ceils causing sum > total)
+  estimatedSkillsTokens = Math.max(
+    0,
+    estimatedSystemPromptTokens - estimatedInstructionsTokens
+  );
 
   const estimatedKnowledgeTokens = agent.enableKnowledgeInjection
     ? (agent.knowledgeInjectionSnippetCount ?? 5) *

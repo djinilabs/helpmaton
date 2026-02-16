@@ -119,16 +119,17 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
       queryClient.invalidateQueries({
         queryKey: ["workspaces", workspaceId, "agents", agentId],
       });
-      // Invalidate list queries so list view (e.g. context gauge) reflects the update
+      // Invalidate only list queries (not single-agent, keys, or suggestions) so list view reflects the update without extra refetches
       queryClient.invalidateQueries({
         predicate: (query) => {
           const queryKey = query.queryKey;
           return (
             Array.isArray(queryKey) &&
-            queryKey.length >= 3 &&
             queryKey[0] === "workspaces" &&
             queryKey[1] === workspaceId &&
-            queryKey[2] === "agents"
+            queryKey[2] === "agents" &&
+            (queryKey.length === 3 ||
+              (queryKey.length === 4 && queryKey[3] === "infinite"))
           );
         },
       });

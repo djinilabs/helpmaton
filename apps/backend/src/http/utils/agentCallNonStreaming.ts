@@ -1,5 +1,7 @@
+import { boomify } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { generateText } from "ai";
+
 
 import { buildSystemPromptWithSkills } from "../../utils/agentSkills";
 import type {
@@ -161,12 +163,16 @@ const executeNonStreamingLLMCall = async (params: {
       params.finalModelName,
     );
     if (estimatedInputTokens > maxSafeInputTokens) {
-      const error = new Error(
+      const message =
         `Request would exceed model context limit: estimated ${estimatedInputTokens} input tokens (max ${maxSafeInputTokens}). ` +
-          "Reduce schedule prompt length, conversation history, or knowledge injection snippet count.",
-      );
-      (error as Error & { code?: string }).code = "CONTEXT_LENGTH_EXCEEDED";
-      throw error;
+        "Reduce schedule prompt length, conversation history, or knowledge injection snippet count.";
+      const error = new Error(message) as Error & { code?: string };
+      error.code = "CONTEXT_LENGTH_EXCEEDED";
+      const boomErr = boomify(error, { statusCode: 413 });
+      (boomErr.output.payload as Record<string, unknown>).code =
+        "CONTEXT_LENGTH_EXCEEDED";
+      (boomErr as Error & { code?: string }).code = "CONTEXT_LENGTH_EXCEEDED";
+      throw boomErr;
     }
 
     reservationId = await validateAndReserveCredits(

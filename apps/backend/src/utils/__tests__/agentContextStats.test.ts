@@ -97,6 +97,20 @@ describe("agentContextStats", () => {
       );
     });
 
+    it("ensures instructions + skills tokens sum exactly to system prompt tokens", async () => {
+      const agent = {
+        systemPrompt: "Instructions here",
+        enabledSkillIds: ["s1"],
+      };
+      mockBuildSystemPromptWithSkills.mockResolvedValue(
+        "Instructions here\n\nSkill content here",
+      );
+      const result = await computeContextStats(agent, { includeSkills: true });
+      expect(
+        result.estimatedInstructionsTokens + result.estimatedSkillsTokens,
+      ).toBe(result.estimatedSystemPromptTokens);
+    });
+
     it("uses default model when modelName is null", async () => {
       const agent = { systemPrompt: "x", modelName: null };
       await computeContextStats(agent, { includeSkills: false });
