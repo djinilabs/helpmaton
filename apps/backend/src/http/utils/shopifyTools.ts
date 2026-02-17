@@ -88,12 +88,27 @@ export function createShopifySearchProductsTool(
         .string()
         .min(1)
         .describe("Product title or keyword to search for"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(20)
+        .describe(
+          "Maximum number of products to return (default: 20, max: 100)"
+        ),
+      cursor: z
+        .string()
+        .optional()
+        .describe(
+          "Pagination cursor. Use nextCursor from previous response to get next page."
+        ),
     })
     .strict();
 
   return tool({
     description:
-      "Searches active, published products by keyword to check inventory levels and pricing.",
+      "Searches active, published products by keyword to check inventory levels and pricing. Use limit and cursor to paginate.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -106,13 +121,22 @@ export function createShopifySearchProductsTool(
         if (!parsed.ok) {
           return parsed.error;
         }
-        const { query } = parsed.data;
+        const { query, limit, cursor } = parsed.data;
         const result = await searchProductsByTitle(
           workspaceId,
           serverId,
-          query
+          query,
+          { first: limit, after: cursor }
         );
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          {
+            products: result.products,
+            nextCursor: result.pageInfo.endCursor ?? undefined,
+            hasMore: result.pageInfo.hasNextPage,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Shopify search products tool:", error);
         return `Error searching Shopify products: ${
@@ -139,8 +163,8 @@ export function createShopifySalesReportTool(
         .int()
         .min(1)
         .max(250)
-        .optional()
-        .describe("Maximum number of orders to sum (default: 250)"),
+        .default(100)
+        .describe("Maximum number of orders to sum (default: 100, max: 250)"),
     })
     .strict();
 

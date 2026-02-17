@@ -39,12 +39,14 @@ import {
 } from "./internalDocTool";
 import type { LlmObserver } from "./llmObserver";
 import { wrapToolsWithObserver } from "./llmObserver";
+import { getDefaultModel } from "./modelFactory";
 import {
   createAgentScheduleSchema,
   updateAgentScheduleSchema,
   createEvalJudgeSchema,
   updateEvalJudgeSchema,
 } from "./schemas/workspaceSchemas";
+import { listCursorSchema, listLimitSchema } from "./toolSchemas";
 
 
 /** Agent record shape needed for config tools */
@@ -232,16 +234,29 @@ function createAgentConfigTools(
   });
 
   tools.list_my_schedules = tool({
-    description: "List all schedules configured for this agent.",
-    parameters: z.object({}).strict(),
+    description:
+      "List schedules configured for this agent. Use limit and cursor to paginate.",
+    parameters: z
+      .object({
+        limit: listLimitSchema,
+        cursor: listCursorSchema,
+      })
+      .strict(),
     // @ts-expect-error - AI SDK execute signature
-    execute: async () => {
+    execute: async (args: unknown) => {
+      const parsed = z
+        .object({ limit: listLimitSchema, cursor: listCursorSchema })
+        .strict()
+        .parse(args ?? {});
       const db = await database();
-      const result = await db["agent-schedule"].query({
-        IndexName: "byAgentId",
-        KeyConditionExpression: "agentId = :agentId",
-        ExpressionAttributeValues: { ":agentId": agentId },
-      });
+      const result = await db["agent-schedule"].queryPaginated(
+        {
+          IndexName: "byAgentId",
+          KeyConditionExpression: "agentId = :agentId",
+          ExpressionAttributeValues: { ":agentId": agentId },
+        },
+        { limit: parsed.limit, cursor: parsed.cursor ?? null }
+      );
       const schedules = (result.items ?? []).map(
         (s: {
           scheduleId: string;
@@ -265,7 +280,15 @@ function createAgentConfigTools(
           updatedAt: s.updatedAt ?? null,
         })
       );
-      return JSON.stringify(schedules, null, 2);
+      return JSON.stringify(
+        {
+          schedules,
+          nextCursor: result.nextCursor ?? undefined,
+          hasMore: !!result.nextCursor,
+        },
+        null,
+        2
+      );
     },
   });
 
@@ -386,11 +409,29 @@ function createAgentConfigTools(
   });
 
   tools.list_my_eval_judges = tool({
-    description: "List all evaluation judges configured for this agent.",
-    parameters: z.object({}).strict(),
+    description:
+      "List evaluation judges configured for this agent. Use limit and cursor to paginate.",
+    parameters: z
+      .object({
+        limit: listLimitSchema,
+        cursor: listCursorSchema,
+      })
+      .strict(),
     // @ts-expect-error - AI SDK execute signature
-    execute: async () => {
+    execute: async (args: unknown) => {
+      const parsed = z
+        .object({ limit: listLimitSchema, cursor: listCursorSchema })
+        .strict()
+        .parse(args ?? {});
       const db = await database();
+      const result = await db["agent-eval-judge"].queryPaginated(
+        {
+          IndexName: "byAgentId",
+          KeyConditionExpression: "agentId = :agentId",
+          ExpressionAttributeValues: { ":agentId": agentId },
+        },
+        { limit: parsed.limit, cursor: parsed.cursor ?? null }
+      );
       const judgesList: Array<{
         id: string;
         name: string;
@@ -401,16 +442,6 @@ function createAgentConfigTools(
         evalPrompt: string;
         createdAt: string;
       }> = [];
-      const table = (db as unknown as Record<string, { query: (q: {
-        IndexName: string;
-        KeyConditionExpression: string;
-        ExpressionAttributeValues: Record<string, string>;
-      }) => Promise<{ items?: unknown[] }> }>)["agent-eval-judge"];
-      const result = await table.query({
-        IndexName: "byAgentId",
-        KeyConditionExpression: "agentId = :agentId",
-        ExpressionAttributeValues: { ":agentId": agentId },
-      });
       for (const judge of result.items ?? []) {
         const j = judge as {
           judgeId: string;
@@ -433,7 +464,15 @@ function createAgentConfigTools(
           createdAt: j.createdAt,
         });
       }
-      return JSON.stringify(judgesList, null, 2);
+      return JSON.stringify(
+        {
+          evalJudges: judgesList,
+          nextCursor: result.nextCursor ?? undefined,
+          hasMore: !!result.nextCursor,
+        },
+        null,
+        2
+      );
     },
   });
 
@@ -670,7 +709,15 @@ export function setupAgentConfigTools(
   options?: SetupAgentConfigToolsOptions
 ): SetupAgentConfigToolsResult {
   const rawTools = createAgentConfigTools(workspaceId, agentId, agent, options);
-  const tools = wrapToolsWithObserver(rawTools, options?.llmObserver);
+  const resolvedModelName =
+    typeof agent.modelName === "string" && agent.modelName.length > 0
+      ? agent.modelName
+      : getDefaultModel();
+  const tools = wrapToolsWithObserver(rawTools, {
+    observer: options?.llmObserver,
+    provider: "openrouter",
+    modelName: resolvedModelName,
+  });
   const systemPrompt = getMetaAgentSystemPrompt(agent.name);
   return { tools, systemPrompt };
 }

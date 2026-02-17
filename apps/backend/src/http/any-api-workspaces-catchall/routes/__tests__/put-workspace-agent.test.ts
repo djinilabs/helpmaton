@@ -54,6 +54,7 @@ vi.mock("../../../../tables", () => ({
 vi.mock("../../../../utils/pricing", () => ({
   getModelPricing: mockGetModelPricing,
   isImageCapableModel: mockIsImageCapableModel,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 vi.mock("../../../../utils/agentSkills", () => ({

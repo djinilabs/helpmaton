@@ -24,6 +24,7 @@ const {
 vi.mock("../../../utils/pricing", () => ({
   loadPricingConfig: mockLoadPricingConfig,
   getImageCapableModels: mockGetImageCapableModels,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 // Mock @architect/functions for database initialization (used by handlingErrors)

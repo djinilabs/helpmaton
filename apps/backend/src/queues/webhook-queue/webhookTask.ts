@@ -295,6 +295,8 @@ function buildAssistantContent(options: {
   toolCallsFromResult: unknown[];
   toolResultsFromResult: unknown[];
   responseContent: string;
+  provider?: string;
+  modelName?: string;
 }): Array<
   | { type: "text"; text: string }
   | {
@@ -326,6 +328,8 @@ function buildAssistantContent(options: {
     toolCallsFromResult,
     toolResultsFromResult,
     responseContent,
+    provider = "openrouter",
+    modelName,
   } = options;
   const assistantContent: Array<
     | { type: "text"; text: string }
@@ -357,7 +361,9 @@ function buildAssistantContent(options: {
   assistantContent.push(...reasoningFromSteps);
 
   const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
-  const toolResultMessages = toolResultsFromResult.map(formatToolResultMessage);
+  const toolResultMessages = toolResultsFromResult.map((tr) =>
+    formatToolResultMessage(tr, { provider, modelName })
+  );
 
   for (const toolCallMsg of toolCallMessages) {
     if (Array.isArray(toolCallMsg.content)) {
@@ -642,6 +648,8 @@ export async function processWebhookTask(options: {
       toolCallsFromResult: tooling.toolCallsFromResult,
       toolResultsFromResult: tooling.toolResultsFromResult,
       responseContent,
+      provider: "openrouter",
+      modelName: finalModelName,
     });
 
     console.log("[Webhook Task] Assistant content before message creation:", {

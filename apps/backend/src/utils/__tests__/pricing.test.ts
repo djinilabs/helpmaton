@@ -101,6 +101,10 @@ const { mockPricingConfig } = vi.hoisted(() => {
               usd: { input: 0.5, output: 1.5 },
               context_length: 200_000,
             },
+            "test-large-context-model": {
+              usd: { input: 0.5, output: 1.5 },
+              context_length: 2_000_000,
+            },
           },
         },
       },
@@ -120,8 +124,10 @@ import {
   getMaxCharsForPromptSegment,
   getModelContextLength,
   getMaxSafeInputTokens,
+  getMaxToolOutputBytes,
   getModelPricing,
   OPENROUTER_DEFAULT_CONTEXT_LENGTH,
+  OPENROUTER_MAX_CONTEXT_LENGTH,
 } from "../pricing";
 
 // Mock the pricing config import
@@ -182,6 +188,12 @@ describe("pricing", () => {
         Math.floor(OPENROUTER_DEFAULT_CONTEXT_LENGTH * 0.9),
       );
     });
+
+    it("should cap OpenRouter at OPENROUTER_MAX_CONTEXT_LENGTH when model lists larger context", () => {
+      // Models with context_length > 1M are capped so we never exceed the endpoint limit
+      const safe = getMaxSafeInputTokens("openrouter", "test-large-context-model");
+      expect(safe).toBe(Math.floor(OPENROUTER_MAX_CONTEXT_LENGTH * 0.9));
+    });
   });
 
   describe("getMaxCharsForPromptSegment", () => {
@@ -216,6 +228,21 @@ describe("pricing", () => {
       );
       // 180k safe - 200k reserved = 0 tokens → 0 chars, then max(4000, 0) = 4000
       expect(max).toBe(4000);
+    });
+  });
+
+  describe("getMaxToolOutputBytes", () => {
+    it("should return 10% of model context in bytes (from metadata), clamped to min/max", () => {
+      // test-context-model: 200k context → 10% = 20k tokens → 80k bytes
+      expect(getMaxToolOutputBytes("openrouter", "test-context-model")).toBe(
+        80_000,
+      );
+    });
+
+    it("should use default context when model missing and cap at max bytes", () => {
+      const bytes = getMaxToolOutputBytes("openrouter", "unknown");
+      expect(bytes).toBeLessThanOrEqual(1_048_576);
+      expect(bytes).toBeGreaterThan(0);
     });
   });
 

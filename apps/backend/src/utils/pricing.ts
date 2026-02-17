@@ -164,8 +164,16 @@ export function getModelContextLength(
 }
 
 /**
+ * OpenRouter endpoint limit (tokens). Some models list 2M in pricing but the API
+ * enforces 1M; cap so we never send more than the endpoint allows.
+ */
+export const OPENROUTER_MAX_CONTEXT_LENGTH = 1_048_576;
+
+/**
  * Max safe input tokens before calling the LLM (90% of model context length).
  * Use this to fail fast instead of exceeding the provider limit.
+ * For OpenRouter, never exceed 90% of OPENROUTER_MAX_CONTEXT_LENGTH so we stay
+ * within the endpoint limit even when pricing lists a larger context.
  */
 export function getMaxSafeInputTokens(
   provider: string,
@@ -174,11 +182,40 @@ export function getMaxSafeInputTokens(
   const contextLength =
     getModelContextLength(provider, modelName) ??
     (provider === "openrouter" ? OPENROUTER_DEFAULT_CONTEXT_LENGTH : 128_000);
-  return Math.floor(contextLength * 0.9);
+  const capped =
+    provider === "openrouter"
+      ? Math.min(contextLength, OPENROUTER_MAX_CONTEXT_LENGTH)
+      : contextLength;
+  return Math.floor(capped * 0.9);
 }
 
 /** Chars-per-token estimate used for prompt segment caps (~4 for typical models). */
 const CHARS_PER_TOKEN_ESTIMATE = 4;
+
+/** Upper bound for a single tool output in bytes (1 MiB). */
+const MAX_TOOL_OUTPUT_MAX_BYTES = 1_048_576;
+/** Fraction of model context (in tokens) allowed for one tool result (~10%). */
+const MAX_TOOL_OUTPUT_CONTEXT_FRACTION = 0.1;
+
+/**
+ * Max bytes for a single tool output, derived from model context_length in metadata.
+ * Uses a fraction of context so truncation is model-aware; capped at 1 MiB.
+ */
+export function getMaxToolOutputBytes(
+  provider: string,
+  modelName: string
+): number {
+  const contextLength =
+    getModelContextLength(provider, modelName) ??
+    (provider === "openrouter" ? OPENROUTER_DEFAULT_CONTEXT_LENGTH : 128_000);
+  const capped =
+    provider === "openrouter"
+      ? Math.min(contextLength, OPENROUTER_MAX_CONTEXT_LENGTH)
+      : contextLength;
+  const segmentTokens = Math.floor(capped * MAX_TOOL_OUTPUT_CONTEXT_FRACTION);
+  const segmentBytes = segmentTokens * CHARS_PER_TOKEN_ESTIMATE;
+  return Math.min(MAX_TOOL_OUTPUT_MAX_BYTES, segmentBytes);
+}
 
 export interface MaxCharsForPromptSegmentOptions {
   /** Tokens to reserve for system prompt, tools, and other content (default 200k, or 50% of context for small models). */

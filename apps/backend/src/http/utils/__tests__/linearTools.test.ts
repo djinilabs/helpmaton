@@ -47,14 +47,18 @@ describe("Linear Tools", () => {
       },
     });
 
-    vi.mocked(linearClient.listTeams).mockResolvedValue([
-      { id: "team-1", name: "Platform", key: "PLAT" },
-    ]);
+    vi.mocked(linearClient.listTeams).mockResolvedValue({
+      nodes: [{ id: "team-1", name: "Platform", key: "PLAT" }],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    });
 
     const tool = createLinearListTeamsTool(workspaceId, serverId);
     const result = await (tool as any).execute({});
 
-    expect(linearClient.listTeams).toHaveBeenCalledWith(workspaceId, serverId);
+    expect(linearClient.listTeams).toHaveBeenCalledWith(workspaceId, serverId, {
+      first: 50,
+      after: undefined,
+    });
     expect(result).toContain("Platform");
   });
 

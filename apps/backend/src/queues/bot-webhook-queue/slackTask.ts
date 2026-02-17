@@ -524,6 +524,8 @@ function buildSlackAssistantContent(params: {
   toolCallsFromResult: unknown[];
   toolResultsFromResult: unknown[];
   responseText: string;
+  provider?: string;
+  modelName?: string;
 }): Array<
   | { type: "text"; text: string }
   | { type: "tool-call"; toolCallId: string; toolName: string; args: unknown }
@@ -540,10 +542,18 @@ function buildSlackAssistantContent(params: {
       taskId?: string;
     }
 > {
-  const { reasoningFromSteps, toolCallsFromResult, toolResultsFromResult, responseText } =
-    params;
+  const {
+    reasoningFromSteps,
+    toolCallsFromResult,
+    toolResultsFromResult,
+    responseText,
+    provider = "openrouter",
+    modelName,
+  } = params;
   const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
-  const toolResultMessages = toolResultsFromResult.map(formatToolResultMessage);
+  const toolResultMessages = toolResultsFromResult.map((tr) =>
+    formatToolResultMessage(tr, { provider, modelName })
+  );
 
   const assistantContent: Array<
     | { type: "text"; text: string }
@@ -627,13 +637,6 @@ async function logSlackConversation(params: {
     generationStartedAt,
   });
 
-  const assistantContent = buildSlackAssistantContent({
-    reasoningFromSteps,
-    toolCallsFromResult,
-    toolResultsFromResult,
-    responseText,
-  });
-
   const { setupAgentAndTools } = await import("../../http/utils/agentSetup");
   const { agent, usesByok: agentUsesByok } = await setupAgentAndTools(
     workspaceId,
@@ -650,6 +653,15 @@ async function logSlackConversation(params: {
     typeof agent.modelName === "string"
       ? agent.modelName
       : "openrouter/gemini-2.0-flash-exp";
+
+  const assistantContent = buildSlackAssistantContent({
+    reasoningFromSteps,
+    toolCallsFromResult,
+    toolResultsFromResult,
+    responseText,
+    provider: "openrouter",
+    modelName: finalModelName,
+  });
 
   const userMessage = convertTextToUIMessage(messageText);
   const messagesForLogging: UIMessage[] = agentResult.observerEvents

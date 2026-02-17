@@ -75,15 +75,21 @@ function extractHeaders(
 
 /**
  * List messages in Gmail
+ * @param maxResults - Max 500, default 100 if not provided
  */
 export async function listMessages(
   workspaceId: string,
   serverId: string,
   query?: string,
-  pageToken?: string
+  pageToken?: string,
+  maxResults?: number
 ): Promise<GmailMessageListResponse> {
   const params = new URLSearchParams({
-    maxResults: "100",
+    maxResults: String(
+      maxResults !== undefined && maxResults >= 1 && maxResults <= 500
+        ? maxResults
+        : 100
+    ),
   });
 
   if (query) {

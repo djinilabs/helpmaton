@@ -9,6 +9,7 @@ const mockLoadPricingConfig = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../utils/pricing", () => ({
   loadPricingConfig: () => mockLoadPricingConfig(),
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 describe("modelFactory", () => {

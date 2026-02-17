@@ -131,28 +131,50 @@ async function makeZendeskApiRequest<T>(
   }
 }
 
+export interface ZendeskSearchOptions {
+  per_page?: number;
+  page?: number;
+}
+
 export async function searchZendeskTickets(
   workspaceId: string,
   serverId: string,
-  query: string
+  query: string,
+  options?: ZendeskSearchOptions
 ) {
-  const encodedQuery = encodeURIComponent(query);
+  const params = new URLSearchParams({ query });
+  if (options?.per_page !== undefined) {
+    params.set("per_page", String(options.per_page));
+  }
+  if (options?.page !== undefined) {
+    params.set("page", String(options.page));
+  }
   return makeZendeskApiRequest(
     workspaceId,
     serverId,
-    `/api/v2/search.json?query=${encodedQuery}`
+    `/api/v2/search.json?${params.toString()}`
   );
 }
 
 export async function getZendeskTicketComments(
   workspaceId: string,
   serverId: string,
-  ticketId: string
+  ticketId: string,
+  options?: ZendeskSearchOptions
 ) {
+  const path = `/api/v2/tickets/${encodeURIComponent(ticketId)}/comments.json`;
+  const params = new URLSearchParams();
+  if (options?.per_page !== undefined) {
+    params.set("per_page", String(options.per_page));
+  }
+  if (options?.page !== undefined) {
+    params.set("page", String(options.page));
+  }
+  const query = params.toString();
   return makeZendeskApiRequest(
     workspaceId,
     serverId,
-    `/api/v2/tickets/${encodeURIComponent(ticketId)}/comments.json`
+    query ? `${path}?${query}` : path
   );
 }
 
@@ -183,12 +205,19 @@ export async function draftZendeskTicketComment(
 export async function searchZendeskHelpCenter(
   workspaceId: string,
   serverId: string,
-  query: string
+  query: string,
+  options?: ZendeskSearchOptions
 ) {
-  const encodedQuery = encodeURIComponent(query);
+  const params = new URLSearchParams({ query });
+  if (options?.per_page !== undefined) {
+    params.set("per_page", String(options.per_page));
+  }
+  if (options?.page !== undefined) {
+    params.set("page", String(options.page));
+  }
   return makeZendeskApiRequest(
     workspaceId,
     serverId,
-    `/api/v2/help_center/articles/search.json?query=${encodedQuery}`
+    `/api/v2/help_center/articles/search.json?${params.toString()}`
   );
 }

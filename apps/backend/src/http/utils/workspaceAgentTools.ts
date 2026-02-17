@@ -56,6 +56,7 @@ import { HELPMATON_PRODUCT_DESCRIPTION } from "./metaAgentProductContext";
 import { getDefaultModel } from "./modelFactory";
 import { userRef } from "./session";
 import { WORKSPACE_AGENT_ID } from "./streamEndpointDetection";
+import { listCursorSchema, listLimitSchema } from "./toolSchemas";
 
 /**
  * Minimal agent-like descriptor for stream context (no DB record).
@@ -283,19 +284,30 @@ function createWorkspaceAgentTools(
 
   tools.list_agents = tool({
     description:
-      "List all agents in the workspace. Returns id, name, and a short summary for each agent.",
-    parameters: z.object({}).strict(),
+      "List agents in the workspace. Returns id, name, and a short summary for each agent. Use limit and cursor to paginate.",
+    parameters: z
+      .object({
+        limit: listLimitSchema,
+        cursor: listCursorSchema,
+      })
+      .strict(),
     // @ts-expect-error - AI SDK execute signature
-    execute: async () => {
+    execute: async (args: unknown) => {
+      const parsed = z
+        .object({ limit: listLimitSchema, cursor: listCursorSchema })
+        .strict()
+        .parse(args ?? {});
       await requireWorkspaceRead(workspaceId, userId);
       const db = await database();
-      const agentsResult = await db.agent.query({
-        IndexName: "byWorkspaceId",
-        KeyConditionExpression: "workspaceId = :workspaceId",
-        ExpressionAttributeValues: { ":workspaceId": workspaceId },
-      });
-      const agents = agentsResult?.items ?? [];
-      const list = agents.map(
+      const result = await db.agent.queryPaginated(
+        {
+          IndexName: "byWorkspaceId",
+          KeyConditionExpression: "workspaceId = :workspaceId",
+          ExpressionAttributeValues: { ":workspaceId": workspaceId },
+        },
+        { limit: parsed.limit, cursor: parsed.cursor ?? null }
+      );
+      const list = (result.items ?? []).map(
         (a: { pk: string; name: string; systemPrompt?: string }) => {
           const agentId = a.pk.replace(`agents/${workspaceId}/`, "");
           return {
@@ -309,25 +321,46 @@ function createWorkspaceAgentTools(
           };
         },
       );
-      return JSON.stringify(list, null, 2);
+      return JSON.stringify(
+        {
+          agents: list,
+          nextCursor: result.nextCursor ?? undefined,
+          hasMore: !!result.nextCursor,
+        },
+        null,
+        2
+      );
     },
   });
 
   tools.list_workspace_members = tool({
     description:
-      "List all members of the workspace with their userId, email, permission level (1=READ, 2=WRITE, 3=OWNER), and join date.",
-    parameters: z.object({}).strict(),
+      "List members of the workspace with their userId, email, permission level (1=READ, 2=WRITE, 3=OWNER), and join date. Use limit and cursor to paginate.",
+    parameters: z
+      .object({
+        limit: listLimitSchema,
+        cursor: listCursorSchema,
+      })
+      .strict(),
     // @ts-expect-error - AI SDK execute signature
-    execute: async () => {
+    execute: async (args: unknown) => {
+      const parsed = z
+        .object({ limit: listLimitSchema, cursor: listCursorSchema })
+        .strict()
+        .parse(args ?? {});
       await requireWorkspaceRead(workspaceId, userId);
       const db = await database();
       const workspaceResource = `workspaces/${workspaceId}`;
-      const permissions = await db.permission.query({
-        KeyConditionExpression: "pk = :workspacePk",
-        ExpressionAttributeValues: { ":workspacePk": workspaceResource },
-      });
+      const result = await db.permission.queryPaginated(
+        {
+          KeyConditionExpression: "pk = :workspacePk",
+          ExpressionAttributeValues: { ":workspacePk": workspaceResource },
+        },
+        { limit: parsed.limit, cursor: parsed.cursor ?? null }
+      );
+      const permissions = result.items ?? [];
       const members = await Promise.all(
-        (permissions.items ?? []).map(
+        permissions.map(
           async (permission: {
             sk: string;
             type: number;
@@ -345,7 +378,15 @@ function createWorkspaceAgentTools(
           },
         ),
       );
-      return JSON.stringify({ members }, null, 2);
+      return JSON.stringify(
+        {
+          members,
+          nextCursor: result.nextCursor ?? undefined,
+          hasMore: !!result.nextCursor,
+        },
+        null,
+        2
+      );
     },
   });
 
@@ -484,28 +525,38 @@ function createWorkspaceAgentTools(
 
   tools.list_documents = tool({
     description:
-      "List all documents in the workspace. Optionally filter by folder path.",
+      "List documents in the workspace. Optionally filter by folder path. Use limit and cursor to paginate.",
     parameters: z
       .object({
         folder: z.string().optional(),
+        limit: listLimitSchema,
+        cursor: listCursorSchema,
       })
       .strict(),
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
-      const { folder } = z
-        .object({ folder: z.string().optional() })
+      const parsed = z
+        .object({
+          folder: z.string().optional(),
+          limit: listLimitSchema,
+          cursor: listCursorSchema,
+        })
         .strict()
-        .parse(args);
+        .parse(args ?? {});
+      const { folder, limit, cursor } = parsed;
       await requireWorkspaceRead(workspaceId, userId);
       const db = await database();
-      const documents = await db["workspace-document"].query({
-        IndexName: "byWorkspaceId",
-        KeyConditionExpression: "workspaceId = :workspaceId",
-        ExpressionAttributeValues: { ":workspaceId": workspaceId },
-      });
-      let items = documents.items ?? [];
+      const result = await db["workspace-document"].queryPaginated(
+        {
+          IndexName: "byWorkspaceId",
+          KeyConditionExpression: "workspaceId = :workspaceId",
+          ExpressionAttributeValues: { ":workspaceId": workspaceId },
+        },
+        { limit, cursor: cursor ?? null }
+      );
+      let items = result.items ?? [];
       if (folder !== undefined) {
-        const normalized = normalizeFolderPath(folder ?? "");
+        const normalized = normalizeFolderPath(folder);
         items = items.filter(
           (doc: { folderPath: string }) => doc.folderPath === normalized,
         );
@@ -531,7 +582,15 @@ function createWorkspaceAgentTools(
           updatedAt: doc.updatedAt ?? doc.createdAt,
         }),
       );
-      return JSON.stringify({ documents: list }, null, 2);
+      return JSON.stringify(
+        {
+          documents: list,
+          nextCursor: result.nextCursor ?? undefined,
+          hasMore: !!result.nextCursor,
+        },
+        null,
+        2
+      );
     },
   });
 
@@ -890,17 +949,29 @@ function createWorkspaceAgentTools(
 
   tools.list_integrations = tool({
     description:
-      "List bot integrations for the workspace (e.g. Slack, Discord). Returns id, platform, name, agentId, status.",
-    parameters: z.object({}).strict(),
+      "List bot integrations for the workspace (e.g. Slack, Discord). Returns id, platform, name, agentId, status. Use limit and cursor to paginate.",
+    parameters: z
+      .object({
+        limit: listLimitSchema,
+        cursor: listCursorSchema,
+      })
+      .strict(),
     // @ts-expect-error - AI SDK execute signature
-    execute: async () => {
+    execute: async (args: unknown) => {
+      const parsed = z
+        .object({ limit: listLimitSchema, cursor: listCursorSchema })
+        .strict()
+        .parse(args ?? {});
       await requireWorkspaceRead(workspaceId, userId);
       const db = await database();
-      const result = await db["bot-integration"].query({
-        IndexName: "byWorkspaceId",
-        KeyConditionExpression: "workspaceId = :workspaceId",
-        ExpressionAttributeValues: { ":workspaceId": workspaceId },
-      });
+      const result = await db["bot-integration"].queryPaginated(
+        {
+          IndexName: "byWorkspaceId",
+          KeyConditionExpression: "workspaceId = :workspaceId",
+          ExpressionAttributeValues: { ":workspaceId": workspaceId },
+        },
+        { limit: parsed.limit, cursor: parsed.cursor ?? null }
+      );
       const integrations = (result.items ?? []).map(
         (integration: {
           pk: string;
@@ -919,7 +990,15 @@ function createWorkspaceAgentTools(
           lastUsedAt: integration.lastUsedAt ?? null,
         }),
       );
-      return JSON.stringify(integrations, null, 2);
+      return JSON.stringify(
+        {
+          integrations,
+          nextCursor: result.nextCursor ?? undefined,
+          hasMore: !!result.nextCursor,
+        },
+        null,
+        2
+      );
     },
   });
 
@@ -1105,7 +1184,11 @@ export async function setupWorkspaceAgentAndTools(
   );
 
   const rawTools = createWorkspaceAgentTools(workspaceId, options?.userId);
-  const tools = wrapToolsWithObserver(rawTools, options?.llmObserver);
+  const tools = wrapToolsWithObserver(rawTools, {
+    observer: options?.llmObserver,
+    provider: "openrouter",
+    modelName,
+  });
 
   return {
     agent,

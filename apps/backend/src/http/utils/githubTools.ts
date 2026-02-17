@@ -6,6 +6,23 @@ import * as githubClient from "../../utils/github/client";
 
 import { validateToolArgs } from "./toolValidation";
 
+/** Wrap array result with hasMore and nextPage for pagination. */
+function withPagination<T>(
+  result: T,
+  parsed: { per_page?: number; page?: number },
+  itemsKey: string
+): Record<string, unknown> {
+  const arr = Array.isArray(result) ? result : [];
+  const perPage = parsed.per_page ?? 30;
+  const currentPage = parsed.page ?? 1;
+  const hasMore = arr.length === perPage;
+  return {
+    [itemsKey]: arr,
+    hasMore,
+    nextPage: hasMore ? currentPage + 1 : undefined,
+  };
+}
+
 /**
  * Check if MCP server has OAuth connection
  */
@@ -54,7 +71,7 @@ export function createGithubListRepositoriesTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
+        .default(30)
         .describe("Number of results per page (1-100, default: 30)"),
       page: z
         .number()
@@ -88,8 +105,11 @@ export function createGithubListRepositoriesTool(
           serverId,
           parsed.data
         );
-
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          withPagination(result, parsed.data, "repositories"),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in GitHub list repositories tool:", error);
         return `Error listing GitHub repositories: ${
@@ -178,7 +198,7 @@ export function createGithubListIssuesTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
+        .default(30)
         .describe("Number of results per page (1-100, default: 30)"),
       page: z
         .number()
@@ -215,7 +235,11 @@ export function createGithubListIssuesTool(
           parsed.data
         );
 
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          withPagination(result, parsed.data, "issues"),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in GitHub list issues tool:", error);
         return `Error listing GitHub issues: ${
@@ -307,7 +331,7 @@ export function createGithubListPullRequestsTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
+        .default(30)
         .describe("Number of results per page (1-100, default: 30)"),
       page: z
         .number()
@@ -344,7 +368,11 @@ export function createGithubListPullRequestsTool(
           parsed.data
         );
 
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          withPagination(result, parsed.data, "pullRequests"),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in GitHub list pull requests tool:", error);
         return `Error listing GitHub pull requests: ${
@@ -503,7 +531,7 @@ export function createGithubListCommitsTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
+        .default(30)
         .describe("Number of results per page (1-100, default: 30)"),
       page: z
         .number()
@@ -541,7 +569,11 @@ export function createGithubListCommitsTool(
           options
         );
 
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          withPagination(result, parsed.data, "commits"),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in GitHub list commits tool:", error);
         return `Error listing GitHub commits: ${

@@ -12,6 +12,7 @@ const { mockCalculateTokenCost, mockSupportsReasoningTokens } = vi.hoisted(() =>
 vi.mock("../pricing", () => ({
   calculateTokenCost: mockCalculateTokenCost,
   supportsReasoningTokens: mockSupportsReasoningTokens,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 // Import after mocks are set up

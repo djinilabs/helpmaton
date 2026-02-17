@@ -36,6 +36,7 @@ vi.mock("../../tables/database", () => ({
 // Mock pricing
 vi.mock("../pricing", () => ({
   calculateTokenCost: mockCalculateTokenCost,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 // Mock @architect/functions queues

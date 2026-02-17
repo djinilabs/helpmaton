@@ -912,7 +912,11 @@ export async function callAgentInternal(
   }
 
   const wrappedTools = tools
-    ? wrapToolsWithObserver(tools, llmObserver)
+    ? wrapToolsWithObserver(tools, {
+        observer: llmObserver,
+        provider: "openrouter",
+        modelName,
+      })
     : undefined;
   const effectiveTools = resolveToolsForCapabilities(
     wrappedTools,

@@ -311,6 +311,8 @@ function buildDiscordAssistantContent(options: {
   toolCallsFromResult: unknown[];
   toolResultsFromResult: unknown[];
   reasoningFromSteps: Array<{ type: "reasoning"; text: string }>;
+  provider?: string;
+  modelName?: string;
 }): Array<
   | { type: "text"; text: string }
   | {
@@ -366,9 +368,11 @@ function buildDiscordAssistantContent(options: {
 
   assistantContent.push(...options.reasoningFromSteps);
 
+  const provider = options.provider ?? "openrouter";
+  const modelName = options.modelName;
   const toolCallMessages = options.toolCallsFromResult.map(formatToolCallMessage);
-  const toolResultMessages = options.toolResultsFromResult.map(
-    formatToolResultMessage
+  const toolResultMessages = options.toolResultsFromResult.map((tr) =>
+    formatToolResultMessage(tr, { provider, modelName })
   );
 
   for (const toolCallMsg of toolCallMessages) {
@@ -450,19 +454,22 @@ async function logDiscordConversation(options: {
     ) as unknown as typeof tooling.toolCallsFromResult;
   }
 
-  const assistantContent = buildDiscordAssistantContent({
-    responseText: options.responseText,
-    toolCallsFromResult: tooling.toolCallsFromResult,
-    toolResultsFromResult: tooling.toolResultsFromResult,
-    reasoningFromSteps: tooling.reasoningFromSteps,
-  });
-
   const { finalModelName, usesByok } = await getDiscordAgentInfo({
     workspaceId: options.workspaceId,
     agentId: options.agentId,
     baseUrl: options.baseUrl,
     context: options.context,
   });
+
+  const assistantContent = buildDiscordAssistantContent({
+    responseText: options.responseText,
+    toolCallsFromResult: tooling.toolCallsFromResult,
+    toolResultsFromResult: tooling.toolResultsFromResult,
+    reasoningFromSteps: tooling.reasoningFromSteps,
+    provider: "openrouter",
+    modelName: finalModelName,
+  });
+
 
   const userMessage = convertTextToUIMessage(options.messageText);
   const messagesForLogging: UIMessage[] = options.agentResult.observerEvents

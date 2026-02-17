@@ -22,6 +22,7 @@ const { mockGetModelPricing } = vi.hoisted(() => ({
 
 vi.mock("../pricing", () => ({
   getModelPricing: mockGetModelPricing,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 // Mock Sentry

@@ -924,7 +924,11 @@ export async function setupAgentAndTools(
   return {
     agent,
     model,
-    tools: wrapToolsWithObserver(tools, options?.llmObserver),
+    tools: wrapToolsWithObserver(tools, {
+      observer: options?.llmObserver,
+      provider: "openrouter",
+      modelName: resolvedModelName,
+    }),
     usesByok,
   };
 }

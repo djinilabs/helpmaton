@@ -21,6 +21,7 @@ vi.mock("../creditManagement", () => ({
 
 vi.mock("../pricing", () => ({
   calculateTokenCost: mockCalculateTokenCost,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 vi.mock("../featureFlags", () => ({

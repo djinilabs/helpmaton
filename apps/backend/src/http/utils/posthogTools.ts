@@ -40,6 +40,33 @@ function requirePosthogId(args: Record<string, unknown>, key: string): string | 
   return value;
 }
 
+/** Wrap a list API result with hasMore and nextOffset for agent pagination. */
+function withPaginationMeta(
+  result: unknown,
+  limit: number,
+  offset: number
+): Record<string, unknown> {
+  const resultsArray = Array.isArray(result)
+    ? result
+    : (result &&
+        typeof result === "object" &&
+        "results" in result &&
+        Array.isArray((result as { results: unknown[] }).results)
+        ? (result as { results: unknown[] }).results
+        : []);
+  const count = resultsArray.length;
+  const hasMore = count === limit;
+  const out: Record<string, unknown> =
+    typeof result === "object" && result !== null
+      ? { ...(result as Record<string, unknown>) }
+      : { results: result };
+  out.hasMore = hasMore;
+  if (hasMore) {
+    out.nextOffset = offset + limit;
+  }
+  return out;
+}
+
 export function createPosthogListProjectsTool(
   workspaceId: string,
   serverId: string
@@ -153,8 +180,20 @@ export function createPosthogListEventsTool(
         .union([z.number().int(), z.string()])
         .optional()
         .describe("Alias for personId"),
-      limit: z.number().int().optional().describe("Number of results to return"),
-      offset: z.number().int().optional().describe("Number of results to skip"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(50)
+        .describe("Number of results to return (default: 50, max: 100)"),
+      offset: z
+        .number()
+        .int()
+        .min(0)
+        .max(10000)
+        .optional()
+        .describe("Number of results to skip (for pagination)"),
     })
     .strict()
     .refine((data) => requirePosthogId(data as Record<string, unknown>, "projectId"), {
@@ -200,7 +239,12 @@ export function createPosthogListEventsTool(
             offset: parsed.data.offset,
           }
         );
-        return JSON.stringify(result, null, 2);
+        const offset = parsed.data.offset ?? 0;
+        return JSON.stringify(
+          withPaginationMeta(result, parsed.data.limit, offset),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in PostHog list events tool:", error);
         return `Error listing PostHog events: ${
@@ -222,8 +266,20 @@ export function createPosthogListFeatureFlagsTool(
         .optional()
         .describe("Alias for projectId"),
       search: z.string().optional().describe("Search by flag key or name"),
-      limit: z.number().int().optional().describe("Number of results to return"),
-      offset: z.number().int().optional().describe("Number of results to skip"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(50)
+        .describe("Number of results to return (default: 50, max: 100)"),
+      offset: z
+        .number()
+        .int()
+        .min(0)
+        .max(10000)
+        .optional()
+        .describe("Number of results to skip (for pagination)"),
     })
     .strict()
     .refine((data) => requirePosthogId(data as Record<string, unknown>, "projectId"), {
@@ -261,7 +317,12 @@ export function createPosthogListFeatureFlagsTool(
             offset: parsed.data.offset,
           }
         );
-        return JSON.stringify(result, null, 2);
+        const offset = parsed.data.offset ?? 0;
+        return JSON.stringify(
+          withPaginationMeta(result, parsed.data.limit, offset),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in PostHog list feature flags tool:", error);
         return `Error listing PostHog feature flags: ${
@@ -356,8 +417,20 @@ export function createPosthogListInsightsTool(
         .boolean()
         .optional()
         .describe("Filter by saved insights only"),
-      limit: z.number().int().optional().describe("Number of results to return"),
-      offset: z.number().int().optional().describe("Number of results to skip"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(50)
+        .describe("Number of results to return (default: 50, max: 100)"),
+      offset: z
+        .number()
+        .int()
+        .min(0)
+        .max(10000)
+        .optional()
+        .describe("Number of results to skip (for pagination)"),
     })
     .strict()
     .refine((data) => requirePosthogId(data as Record<string, unknown>, "projectId"), {
@@ -395,7 +468,12 @@ export function createPosthogListInsightsTool(
             offset: parsed.data.offset,
           }
         );
-        return JSON.stringify(result, null, 2);
+        const offset = parsed.data.offset ?? 0;
+        return JSON.stringify(
+          withPaginationMeta(result, parsed.data.limit, offset),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in PostHog list insights tool:", error);
         return `Error listing PostHog insights: ${
@@ -495,8 +573,20 @@ export function createPosthogListPersonsTool(
         .string()
         .optional()
         .describe("Alias for distinctId"),
-      limit: z.number().int().optional().describe("Number of results to return"),
-      offset: z.number().int().optional().describe("Number of results to skip"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(50)
+        .describe("Number of results to return (default: 50, max: 100)"),
+      offset: z
+        .number()
+        .int()
+        .min(0)
+        .max(10000)
+        .optional()
+        .describe("Number of results to skip (for pagination)"),
     })
     .strict()
     .refine((data) => requirePosthogId(data as Record<string, unknown>, "projectId"), {
@@ -539,7 +629,12 @@ export function createPosthogListPersonsTool(
             offset: parsed.data.offset,
           }
         );
-        return JSON.stringify(result, null, 2);
+        const offset = parsed.data.offset ?? 0;
+        return JSON.stringify(
+          withPaginationMeta(result, parsed.data.limit, offset),
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in PostHog list persons tool:", error);
         return `Error listing PostHog persons: ${

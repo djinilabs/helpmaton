@@ -125,8 +125,8 @@ export function createNotionSearchTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
-        .describe("Maximum number of results to return (default: 100, max: 100)"),
+        .default(50)
+        .describe("Maximum number of results to return (default: 50, max: 100)"),
     })
     .strict();
 
@@ -483,8 +483,8 @@ export function createNotionQueryDatabaseTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
-        .describe("Maximum number of results to return (default: 100, max: 100)"),
+        .default(50)
+        .describe("Maximum number of results to return (default: 50, max: 100)"),
     })
     .strict();
 

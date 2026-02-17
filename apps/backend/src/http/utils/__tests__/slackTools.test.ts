@@ -55,7 +55,7 @@ describe("Slack Tools", () => {
       expect(slackClient.listChannels).toHaveBeenCalledWith(
         workspaceId,
         serverId,
-        { limit: undefined, cursor: undefined }
+        { limit: 100, cursor: undefined }
       );
       expect(result).toContain("general");
     });

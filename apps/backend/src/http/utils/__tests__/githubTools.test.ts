@@ -85,7 +85,7 @@ describe("GitHub Tools", () => {
       expect(githubClient.listRepositories).toHaveBeenCalledWith(
         workspaceId,
         serverId,
-        {}
+        { per_page: 30 }
       );
       expect(result).toContain("repo-1");
     });

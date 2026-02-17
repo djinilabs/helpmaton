@@ -46,7 +46,18 @@ export function createGoogleDriveListTool(
       pageToken: z
         .string()
         .optional()
-        .describe("Optional page token for pagination (from previous list response)"),
+        .describe(
+          "Optional page token for pagination (from previous list response)"
+        ),
+      pageSize: z
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .default(100)
+        .describe(
+          "Maximum number of files to return per page (default: 100, max: 1000)"
+        ),
     })
     .strict();
 
@@ -56,7 +67,6 @@ export function createGoogleDriveListTool(
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-     
     execute: async (args: unknown) => {
       try {
         // Check OAuth connection
@@ -73,7 +83,8 @@ export function createGoogleDriveListTool(
           workspaceId,
           serverId,
           parsed.data.query,
-          parsed.data.pageToken
+          parsed.data.pageToken,
+          parsed.data.pageSize
         );
 
         return JSON.stringify(
@@ -88,6 +99,7 @@ export function createGoogleDriveListTool(
               webViewLink: file.webViewLink,
             })),
             nextPageToken: result.nextPageToken,
+            hasMore: !!result.nextPageToken,
           },
           null,
           2

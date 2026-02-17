@@ -17,6 +17,7 @@ const { mockLoadPricingConfig } = vi.hoisted(() => {
 // Mock the utility modules
 vi.mock("../../../utils/pricing", () => ({
   loadPricingConfig: mockLoadPricingConfig,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 // Mock @architect/functions for database initialization (used by handlingErrors)

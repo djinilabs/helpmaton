@@ -1,6 +1,10 @@
 import type { DelegationContent, UIMessage } from "../../utils/messageTypes";
 
-import { formatToolResultMessage } from "./toolFormatting";
+import { getDefaultModel } from "./modelFactory";
+import {
+  formatToolResultMessage,
+  getToolResultValueForModel,
+} from "./toolFormatting";
 
 export type LlmObserverEvent =
   | {
@@ -606,10 +610,41 @@ export function createStreamObserverCallbacks(
   };
 }
 
+export interface WrapToolsWithObserverOptions {
+  observer?: LlmObserver;
+  /** When set, tool results are truncated (model-derived cap) before returning to the SDK. Used for streaming/test. */
+  provider?: string;
+  modelName?: string;
+}
+
+function isLlmObserver(
+  value: LlmObserver | WrapToolsWithObserverOptions | undefined
+): value is LlmObserver {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    typeof (value as LlmObserver).recordToolExecutionStarted === "function"
+  );
+}
+
 export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
   tools: TTools,
-  observer?: LlmObserver
+  observerOrOptions?: LlmObserver | WrapToolsWithObserverOptions
 ): TTools {
+  const observer = isLlmObserver(observerOrOptions)
+    ? observerOrOptions
+    : (observerOrOptions as WrapToolsWithObserverOptions)?.observer;
+  const toolResultOptions =
+    observerOrOptions != null &&
+    typeof observerOrOptions === "object" &&
+    !isLlmObserver(observerOrOptions)
+      ? {
+          provider: (observerOrOptions as WrapToolsWithObserverOptions).provider,
+          modelName: (observerOrOptions as WrapToolsWithObserverOptions)
+            .modelName,
+        }
+      : undefined;
+
   const buildToolErrorResult = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     const name = error instanceof Error ? error.name : "Error";
@@ -661,6 +696,16 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
             toolName,
             result,
           });
+          // Apply model-derived tool output cap for streaming/test (same as continuation/webhook/scheduled)
+          if (toolResultOptions !== undefined) {
+            return getToolResultValueForModel(
+              { toolCallId, toolName, result },
+              {
+                provider: toolResultOptions.provider ?? "openrouter",
+                modelName: toolResultOptions.modelName ?? getDefaultModel(),
+              }
+            );
+          }
           return result;
         } catch (error) {
           const errorResult = buildToolErrorResult(error);
@@ -856,12 +901,18 @@ export function buildConversationMessagesFromObserver(params: {
         const signature = `${event.toolCallId}:${event.toolName}`;
         if (!toolResultSignatures.has(signature)) {
           toolResultSignatures.add(signature);
-          const formattedToolResult = formatToolResultMessage({
-            toolCallId: event.toolCallId,
-            toolName: event.toolName,
-            result: event.result,
-            ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
-          });
+          const formattedToolResult = formatToolResultMessage(
+            {
+              toolCallId: event.toolCallId,
+              toolName: event.toolName,
+              result: event.result,
+              ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
+            },
+            {
+              provider: assistantMeta.provider,
+              modelName: assistantMeta.modelName,
+            }
+          );
           if (Array.isArray(formattedToolResult.content)) {
             for (const item of formattedToolResult.content) {
               if (
@@ -930,12 +981,18 @@ export function buildConversationMessagesFromObserver(params: {
                 new Date(executionEnd).getTime() -
                 new Date(executionStart).getTime();
             }
-            const formattedToolResult = formatToolResultMessage({
-              toolCallId,
-              toolName: event.toolName,
-              result: event.result,
-              ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
-            });
+            const formattedToolResult = formatToolResultMessage(
+              {
+                toolCallId,
+                toolName: event.toolName,
+                result: event.result,
+                ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
+              },
+              {
+                provider: assistantMeta.provider,
+                modelName: assistantMeta.modelName,
+              }
+            );
             if (Array.isArray(formattedToolResult.content)) {
               for (const item of formattedToolResult.content) {
                 if (

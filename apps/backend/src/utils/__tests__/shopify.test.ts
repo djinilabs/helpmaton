@@ -83,7 +83,10 @@ describe("Shopify API Client", () => {
       "Hoodie"
     );
 
-    expect(result).toEqual({ products: [] });
+    expect(result).toEqual({
+      products: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    });
     expect(fetch).toHaveBeenCalledWith(
       "https://cool-store.myshopify.com/admin/api/2024-01/graphql.json",
       expect.objectContaining({

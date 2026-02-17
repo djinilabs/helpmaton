@@ -3,6 +3,8 @@ import { describe, it, expect } from "vitest";
 import {
   formatToolCallMessage,
   formatToolResultMessage,
+  getDefaultMaxToolOutputBytes,
+  TOOL_OUTPUT_TRIMMED_SUFFIX,
 } from "../../toolFormatting";
 
 describe("formatToolCallMessage", () => {
@@ -96,8 +98,9 @@ describe("formatToolResultMessage", () => {
     expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Search results here");
   });
 
-  it("should truncate long string results", () => {
-    const longString = "a".repeat(3000);
+  it("should truncate long string results over 1 MB with trimmed-for-brevity indication", () => {
+    const maxBytes = getDefaultMaxToolOutputBytes();
+    const longString = "a".repeat(maxBytes + 1000);
     const toolResult = {
       toolCallId: "call-123",
       toolName: "search_documents",
@@ -109,7 +112,8 @@ describe("formatToolResultMessage", () => {
     expect(toolResultContent).toBeDefined();
     const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
     expect(formattedResult.length).toBeLessThan(longString.length);
-    expect(formattedResult).toContain("[Results truncated");
+    expect(formattedResult).toContain(TOOL_OUTPUT_TRIMMED_SUFFIX);
+    expect(formattedResult.length).toBe(maxBytes);
   });
 
   it("should not truncate short strings", () => {
@@ -124,6 +128,53 @@ describe("formatToolResultMessage", () => {
     const toolResultContent = result.content.find((item) => item.type === "tool-result");
     expect(toolResultContent).toBeDefined();
     expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe(shortString);
+  });
+
+  it("should not truncate strings under 1 MB", () => {
+    const maxBytes = getDefaultMaxToolOutputBytes();
+    const underLimit = "b".repeat(maxBytes - 100);
+    const toolResult = {
+      toolCallId: "call-123",
+      toolName: "search_documents",
+      output: underLimit,
+    };
+
+    const result = formatToolResultMessage(toolResult);
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
+    expect(formattedResult).toBe(underLimit);
+    expect(formattedResult).not.toContain(TOOL_OUTPUT_TRIMMED_SUFFIX);
+  });
+
+  it("should truncate large object output when stringified length exceeds 1 MB", () => {
+    const maxBytes = getDefaultMaxToolOutputBytes();
+    const bigPayload = { data: "x".repeat(maxBytes) };
+    const toolResult = {
+      toolCallId: "call-123",
+      toolName: "search_documents",
+      output: bigPayload,
+    };
+
+    const result = formatToolResultMessage(toolResult);
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined;
+    expect(formattedResult).toEqual(
+      expect.objectContaining({
+        _truncated: true,
+        preview: expect.any(String),
+      })
+    );
+    const preview =
+      typeof formattedResult === "object" &&
+      formattedResult &&
+      "preview" in formattedResult &&
+      typeof (formattedResult as { preview: string }).preview === "string"
+        ? (formattedResult as { preview: string }).preview
+        : "";
+    expect(preview).toContain(TOOL_OUTPUT_TRIMMED_SUFFIX);
+    expect(preview.length).toBe(maxBytes);
   });
 
   it("should handle object results", () => {

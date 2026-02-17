@@ -84,7 +84,9 @@ describe("continuation tool-round message (MissingToolResultsError fix)", () => 
       },
     ];
     const toolCallUIMessages = toolCalls.map(formatToolCallMessage);
-    const toolResultUIMessages = toolResults.map(formatToolResultMessage);
+    const toolResultUIMessages = toolResults.map((tr) =>
+      formatToolResultMessage(tr),
+    );
     const toolRoundContent = [
       ...toolCallUIMessages.flatMap((m) => m.content),
       ...toolResultUIMessages.flatMap((m) => m.content),
