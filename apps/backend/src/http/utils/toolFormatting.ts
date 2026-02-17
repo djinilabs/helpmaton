@@ -57,6 +57,20 @@ export function getDefaultMaxToolOutputBytes(): number {
 export const TOOL_OUTPUT_TRIMMED_SUFFIX =
   "\n\n[Output trimmed for brevity.]";
 
+/**
+ * Truncates a string so that the result length is at most maxTotalChars (content + suffix).
+ * Returns the original string if it fits; otherwise content up to (maxTotalChars - suffix.length) + suffix.
+ */
+function truncateWithSuffix(
+  str: string,
+  maxTotalChars: number,
+  suffix: string
+): string {
+  if (str.length <= maxTotalChars) return str;
+  const maxContentChars = maxTotalChars - suffix.length;
+  return str.substring(0, Math.max(0, maxContentChars)) + suffix;
+}
+
 export interface FormatToolResultMessageOptions {
   /** Provider (e.g. "openrouter"); used with modelName to get max output bytes from model metadata. */
   provider?: string;
@@ -76,6 +90,7 @@ export function formatToolResultMessage(
 ) {
   const provider = options?.provider ?? "openrouter";
   const modelName = options?.modelName ?? getDefaultModel();
+  // Applied as a character (code unit) cap for truncation; non-ASCII output can exceed the byte-equivalent
   const maxOutputBytes = getMaxToolOutputBytes(provider, modelName);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
@@ -141,10 +156,13 @@ export function formatToolResultMessage(
     delegation = extractedDelegation;
     outputValue = finalProcessedResult;
 
-    // Cap string output at model-derived limit; show indication when trimmed (after cost and delegation extraction)
+    // Cap string output at model-derived limit; budget for suffix so total length stays within cap
     if (outputValue.length > maxOutputBytes) {
-      outputValue =
-        outputValue.substring(0, maxOutputBytes) + TOOL_OUTPUT_TRIMMED_SUFFIX;
+      outputValue = truncateWithSuffix(
+        outputValue,
+        maxOutputBytes,
+        TOOL_OUTPUT_TRIMMED_SUFFIX
+      );
     }
   } else if (typeof outputValue !== "object" || outputValue === null) {
     outputValue = String(outputValue);
@@ -184,13 +202,17 @@ export function formatToolResultMessage(
   };
 
   const generateImageFilePart = extractGenerateImageFilePart();
-  // Cap object output when stringified representation exceeds model-derived limit
+  // Cap object output when stringified representation exceeds model-derived limit; budget for suffix
   if (typeof outputValue === "object" && outputValue !== null) {
     const str = JSON.stringify(outputValue);
     if (str.length > maxOutputBytes) {
       outputValue = {
         _truncated: true,
-        preview: str.substring(0, maxOutputBytes) + TOOL_OUTPUT_TRIMMED_SUFFIX,
+        preview: truncateWithSuffix(
+          str,
+          maxOutputBytes,
+          TOOL_OUTPUT_TRIMMED_SUFFIX
+        ),
       };
     }
   }

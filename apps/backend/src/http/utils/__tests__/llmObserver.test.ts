@@ -595,7 +595,7 @@ describe("llmObserver helpers", () => {
 
     expect(typeof result).toBe("string");
     const str = result as string;
-    expect(str.length).toBe(CAP + TOOL_OUTPUT_TRIMMED_SUFFIX.length);
+    expect(str.length).toBe(CAP);
     expect(str.endsWith(TOOL_OUTPUT_TRIMMED_SUFFIX)).toBe(true);
     expect(str.startsWith("xxxxx")).toBe(true);
   });

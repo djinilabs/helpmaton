@@ -546,27 +546,21 @@ function createWorkspaceAgentTools(
       const { folder, limit, cursor } = parsed;
       await requireWorkspaceRead(workspaceId, userId);
       const db = await database();
-      const normalizedFolder =
-        folder !== undefined ? normalizeFolderPath(folder) : undefined;
-      const query: {
-        IndexName: string;
-        KeyConditionExpression: string;
-        ExpressionAttributeValues: Record<string, string>;
-        FilterExpression?: string;
-      } = {
-        IndexName: "byWorkspaceId",
-        KeyConditionExpression: "workspaceId = :workspaceId",
-        ExpressionAttributeValues: { ":workspaceId": workspaceId },
-      };
-      if (normalizedFolder !== undefined) {
-        query.FilterExpression = "folderPath = :folderPath";
-        query.ExpressionAttributeValues[":folderPath"] = normalizedFolder;
-      }
       const result = await db["workspace-document"].queryPaginated(
-        query,
+        {
+          IndexName: "byWorkspaceId",
+          KeyConditionExpression: "workspaceId = :workspaceId",
+          ExpressionAttributeValues: { ":workspaceId": workspaceId },
+        },
         { limit, cursor: cursor ?? null }
       );
-      const items = result.items ?? [];
+      let items = result.items ?? [];
+      if (folder !== undefined) {
+        const normalized = normalizeFolderPath(folder);
+        items = items.filter(
+          (doc: { folderPath: string }) => doc.folderPath === normalized,
+        );
+      }
       const list = items.map(
         (doc: {
           pk: string;

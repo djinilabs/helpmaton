@@ -85,7 +85,7 @@ export function createZendeskSearchTicketsTool(
           { per_page, page: page ?? 1 }
         )) as { results?: unknown[]; next_page?: string | null };
         const results = result.results ?? [];
-        const hasMore = results.length === (per_page ?? 25);
+        const hasMore = !!result.next_page;
         const currentPage = page ?? 1;
         return JSON.stringify(
           {
@@ -143,7 +143,7 @@ export function createZendeskGetTicketDetailsTool(
           { per_page, page: page ?? 1 }
         )) as { comments?: unknown[]; next_page?: string | null };
         const comments = Array.isArray(result) ? result : result.comments ?? [];
-        const hasMore = comments.length === (per_page ?? 25);
+        const hasMore = !!result.next_page;
         const currentPage = page ?? 1;
         return JSON.stringify(
           {
@@ -249,9 +249,9 @@ export function createZendeskSearchHelpCenterTool(
           serverId,
           query,
           { per_page, page: page ?? 1 }
-        )) as { results?: unknown[] };
+        )) as { results?: unknown[]; next_page?: string | null };
         const results = result.results ?? [];
-        const hasMore = results.length === (per_page ?? 25);
+        const hasMore = !!result.next_page;
         const currentPage = page ?? 1;
         return JSON.stringify(
           {

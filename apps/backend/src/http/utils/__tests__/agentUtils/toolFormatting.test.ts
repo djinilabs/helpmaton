@@ -113,7 +113,7 @@ describe("formatToolResultMessage", () => {
     const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
     expect(formattedResult.length).toBeLessThan(longString.length);
     expect(formattedResult).toContain(TOOL_OUTPUT_TRIMMED_SUFFIX);
-    expect(formattedResult.length).toBe(maxBytes + TOOL_OUTPUT_TRIMMED_SUFFIX.length);
+    expect(formattedResult.length).toBe(maxBytes);
   });
 
   it("should not truncate short strings", () => {
@@ -174,7 +174,7 @@ describe("formatToolResultMessage", () => {
         ? (formattedResult as { preview: string }).preview
         : "";
     expect(preview).toContain(TOOL_OUTPUT_TRIMMED_SUFFIX);
-    expect(preview.length).toBe(maxBytes + TOOL_OUTPUT_TRIMMED_SUFFIX.length);
+    expect(preview.length).toBe(maxBytes);
   });
 
   it("should handle object results", () => {

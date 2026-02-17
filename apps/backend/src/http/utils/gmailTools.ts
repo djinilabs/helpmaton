@@ -63,7 +63,7 @@ export function createGmailListTool(
 
   return tool({
     description:
-      "List emails in Gmail. Returns a list of messages with their metadata (id, threadId, snippet). Supports pagination with pageToken and optional search query.",
+      "List emails in Gmail. Returns up to 50 messages per page with full metadata (id, threadId, from, subject, date, snippet). Use maxResults and pageToken to paginate; use the next page token from the response for the next page.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -88,11 +88,11 @@ export function createGmailListTool(
           maxResults
         );
 
-        // Get message details for each message ID
+        // Get message details for each message ID (cap to avoid timeouts/rate limits)
+        const MAX_MESSAGE_DETAILS_TO_FETCH = 50;
         const messages = [];
         if (result.messages) {
-          for (const msg of result.messages.slice(0, maxResults)) {
-            // Limit to 50 messages to avoid too many API calls
+          for (const msg of result.messages.slice(0, MAX_MESSAGE_DETAILS_TO_FETCH)) {
             try {
               const message = await gmailClient.getMessage(
                 workspaceId,
