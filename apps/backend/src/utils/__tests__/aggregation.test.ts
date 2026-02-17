@@ -1,13 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import type {
   AgentConversationRecord,
   WorkspaceCreditTransactionRecord,
-} from "../../tables/schema";
+ DatabaseSchema } from "../../tables/schema";
 import {
   aggregateConversations,
   aggregateToolTransactionsStream,
   mergeUsageStats,
+  queryToolAggregatesForDate,
 } from "../aggregation";
 
 /**
@@ -258,5 +259,129 @@ describe("aggregateToolTransactionsStream (reranking no double-count)", () => {
     expect(stats.costByType.tavily).toBe(20_000_000);
     expect(stats.toolExpenses["rerank-openrouter"].costUsd).toBe(100_000_000);
     expect(stats.toolExpenses["search_web-tavily"].costUsd).toBe(20_000_000);
+  });
+});
+
+describe("queryToolAggregatesForDate (GSI fallback)", () => {
+  it("uses GSI when available (single query, no fallback)", async () => {
+    const gsiItems = [
+      {
+        pk: "tool-aggregates/ws-1/2020-01-01",
+        sk: "search_web-tavily",
+        date: "2020-01-01",
+        aggregateType: "agent" as const,
+        workspaceId: "ws-1",
+        agentId: "agent-1",
+        toolCall: "search_web",
+        supplier: "tavily",
+        costUsd: 10_000_000,
+        callCount: 1,
+      },
+    ];
+    const mockQuery = vi.fn().mockResolvedValue({ items: gsiItems });
+    const db = {
+      "tool-usage-aggregates": { query: mockQuery },
+    } as unknown as DatabaseSchema;
+
+    const result = await queryToolAggregatesForDate(db, {
+      workspaceId: "ws-1",
+      agentId: "agent-1",
+      date: "2020-01-01",
+    });
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        IndexName: "byWorkspaceIdAndAgentId",
+        ExpressionAttributeValues: {
+          ":workspaceId": "ws-1",
+          ":agentIdDate": "agent-1#2020-01-01",
+        },
+      }),
+    );
+    expect(result.costUsd).toBe(10_000_000);
+    expect(result.toolExpenses["search_web-tavily"].callCount).toBe(1);
+  });
+
+  it("falls back to byWorkspaceIdAndDate + filter when byWorkspaceIdAndAgentId index is missing", async () => {
+    const fallbackItems = [
+      {
+        pk: "tool-aggregates/ws-1/2020-01-01",
+        sk: "search_web-tavily",
+        date: "2020-01-01",
+        aggregateType: "agent" as const,
+        workspaceId: "ws-1",
+        agentId: "agent-1",
+        toolCall: "search_web",
+        supplier: "tavily",
+        costUsd: 50_000_000,
+        callCount: 2,
+      },
+    ];
+    let queryCallCount = 0;
+    const mockQuery = vi.fn().mockImplementation((params: { IndexName?: string }) => {
+      queryCallCount += 1;
+      if (params.IndexName === "byWorkspaceIdAndAgentId") {
+        throw new Error(
+          "Error querying table tool-usage-aggregates: @aws-lite/client: DynamoDB.Query: The table does not have the specified index: byWorkspaceIdAndAgentId",
+        );
+      }
+      if (params.IndexName === "byWorkspaceIdAndDate") {
+        return Promise.resolve({ items: fallbackItems });
+      }
+      return Promise.resolve({ items: [] });
+    });
+
+    const db = {
+      "tool-usage-aggregates": { query: mockQuery },
+    } as unknown as DatabaseSchema;
+
+    const result = await queryToolAggregatesForDate(db, {
+      workspaceId: "ws-1",
+      agentId: "agent-1",
+      date: "2020-01-01",
+    });
+
+    expect(queryCallCount).toBe(2);
+    expect(mockQuery).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      IndexName: "byWorkspaceIdAndAgentId",
+      KeyConditionExpression: "workspaceId = :workspaceId AND agentIdDate = :agentIdDate",
+      ExpressionAttributeValues: {
+        ":workspaceId": "ws-1",
+        ":agentIdDate": "agent-1#2020-01-01",
+      },
+    }));
+    expect(mockQuery).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      IndexName: "byWorkspaceIdAndDate",
+      KeyConditionExpression: "workspaceId = :workspaceId AND #date = :date",
+      FilterExpression: "agentId = :agentId",
+      ExpressionAttributeNames: { "#date": "date" },
+      ExpressionAttributeValues: {
+        ":workspaceId": "ws-1",
+        ":date": "2020-01-01",
+        ":agentId": "agent-1",
+      },
+    }));
+    expect(result.costUsd).toBe(50_000_000);
+    expect(result.toolExpenses["search_web-tavily"]).toEqual({
+      costUsd: 50_000_000,
+      callCount: 2,
+    });
+  });
+
+  it("rethrows when query fails with a different error", async () => {
+    const mockQuery = vi.fn().mockRejectedValue(new Error("Network error"));
+    const db = {
+      "tool-usage-aggregates": { query: mockQuery },
+    } as unknown as DatabaseSchema;
+
+    await expect(
+      queryToolAggregatesForDate(db, {
+        workspaceId: "ws-1",
+        agentId: "agent-1",
+        date: "2020-01-01",
+      }),
+    ).rejects.toThrow("Network error");
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
