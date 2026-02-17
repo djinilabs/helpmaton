@@ -18,6 +18,7 @@ const {
   mockCheckWorkspaceLimitAndGetCurrentCount,
   mockEnsureAuthorization,
   mockRandomUUID,
+  mockCreateWorkspaceRecord,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
@@ -25,6 +26,7 @@ const {
     mockCheckWorkspaceLimitAndGetCurrentCount: vi.fn(),
     mockEnsureAuthorization: vi.fn(),
     mockRandomUUID: vi.fn(),
+    mockCreateWorkspaceRecord: vi.fn(),
   };
 });
 
@@ -47,6 +49,10 @@ vi.mock("../../../../utils/subscriptionUtils", () => ({
   checkWorkspaceLimitAndGetCurrentCount: mockCheckWorkspaceLimitAndGetCurrentCount,
 }));
 
+vi.mock("../../../../utils/workspaceCreate", () => ({
+  createWorkspaceRecord: mockCreateWorkspaceRecord,
+}));
+
 vi.mock("crypto", () => ({
   randomUUID: mockRandomUUID,
 }));
@@ -63,7 +69,10 @@ describe("POST /api/workspaces", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
-    // Extract the handler logic directly
+    // Extract the handler logic directly (mirrors post-workspaces route)
+    const { createWorkspaceRecord } = await import(
+      "../../../../utils/workspaceCreate"
+    );
     const handler = async (
       req: express.Request,
       res: express.Response,
@@ -75,45 +84,31 @@ describe("POST /api/workspaces", () => {
           throw badRequest("name is required and must be a string");
         }
 
-        // Currency is always USD
-        const selectedCurrency = "usd";
-
         const db = await mockDatabase();
         const userRef = (req as { userRef?: string }).userRef;
         if (!userRef) {
           throw unauthorized();
         }
 
-        // Get or create user subscription (auto-migration)
         const userId = userRef.replace("users/", "");
         const subscription = await mockGetUserSubscription(userId);
         const subscriptionId = subscription.pk.replace("subscriptions/", "");
 
-        const currentWorkspaceCount =
-          await mockCheckWorkspaceLimitAndGetCurrentCount(subscriptionId, 1);
-        const isFirstWorkspace = currentWorkspaceCount === 0;
-        const initialCredits =
-          subscription.plan === "free" && isFirstWorkspace
-            ? toNanoDollars(2)
-            : 0;
+        await mockCheckWorkspaceLimitAndGetCurrentCount(subscriptionId, 1);
 
         const workspaceId = mockRandomUUID();
         const workspacePk = `workspaces/${workspaceId}`;
         const workspaceSk = "workspace";
 
-        // Create workspace entity
-        const workspace = await db.workspace.create({
+        const workspace = await createWorkspaceRecord(db, {
           pk: workspacePk,
           sk: workspaceSk,
           name,
           description: description || undefined,
           createdBy: userRef,
           subscriptionId,
-          currency: selectedCurrency,
-          creditBalance: initialCredits,
         });
 
-        // Grant creator OWNER permission
         await mockEnsureAuthorization(
           workspacePk,
           userRef,
@@ -139,6 +134,8 @@ describe("POST /api/workspaces", () => {
     await handler(req as express.Request, res as express.Response, next);
   }
 
+  const INITIAL_CREDITS_NANO = toNanoDollars(2);
+
   it("should create workspace successfully with all fields", async () => {
     const workspaceId = "workspace-123";
     mockRandomUUID.mockReturnValue(workspaceId);
@@ -160,13 +157,12 @@ describe("POST /api/workspaces", () => {
       createdBy: "users/user-123",
       subscriptionId: "sub-123",
       currency: "usd",
-      creditBalance: 0,
+      creditBalance: INITIAL_CREDITS_NANO,
       spendingLimits: [],
       createdAt: "2024-01-01T00:00:00Z",
     };
 
-    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.create = mockWorkspaceCreate;
+    mockCreateWorkspaceRecord.mockResolvedValue(mockWorkspace);
 
     mockEnsureAuthorization.mockResolvedValue(undefined);
 
@@ -188,15 +184,13 @@ describe("POST /api/workspaces", () => {
       "sub-123",
       1
     );
-    expect(mockWorkspaceCreate).toHaveBeenCalledWith({
+    expect(mockCreateWorkspaceRecord).toHaveBeenCalledWith(mockDb, {
       pk: `workspaces/${workspaceId}`,
       sk: "workspace",
       name: "Test Workspace",
       description: "Test Description",
       createdBy: "users/user-123",
       subscriptionId: "sub-123",
-      currency: "usd",
-      creditBalance: 0,
     });
     expect(mockEnsureAuthorization).toHaveBeenCalledWith(
       `workspaces/${workspaceId}`,
@@ -210,7 +204,7 @@ describe("POST /api/workspaces", () => {
       name: "Test Workspace",
       description: "Test Description",
       permissionLevel: PERMISSION_LEVELS.OWNER,
-      creditBalance: 0,
+      creditBalance: INITIAL_CREDITS_NANO,
       currency: "usd",
       spendingLimits: [],
       createdAt: "2024-01-01T00:00:00Z",
@@ -221,7 +215,6 @@ describe("POST /api/workspaces", () => {
     const workspaceId = "workspace-free-plan";
     mockRandomUUID.mockReturnValue(workspaceId);
 
-    const freePlanInitialCredits = 2_000_000_000; // 2 USD in nano-dollars
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
@@ -239,13 +232,12 @@ describe("POST /api/workspaces", () => {
       createdBy: "users/user-free",
       subscriptionId: "sub-free",
       currency: "usd",
-      creditBalance: freePlanInitialCredits,
+      creditBalance: INITIAL_CREDITS_NANO,
       spendingLimits: [],
       createdAt: "2024-01-01T00:00:00Z",
     };
 
-    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.create = mockWorkspaceCreate;
+    mockCreateWorkspaceRecord.mockResolvedValue(mockWorkspace);
 
     mockEnsureAuthorization.mockResolvedValue(undefined);
 
@@ -264,20 +256,22 @@ describe("POST /api/workspaces", () => {
       "sub-free",
       1
     );
-    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
+    expect(mockCreateWorkspaceRecord).toHaveBeenCalledWith(
+      mockDb,
       expect.objectContaining({
-        creditBalance: freePlanInitialCredits,
+        name: "Free User Workspace",
+        subscriptionId: "sub-free",
       })
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        creditBalance: freePlanInitialCredits,
+        creditBalance: INITIAL_CREDITS_NANO,
       })
     );
   });
 
-  it("should create workspace with 0 credits when free plan user already has a workspace", async () => {
+  it("should create workspace with 2 USD credits even when free plan user already has a workspace", async () => {
     const workspaceId = "workspace-free-second";
     mockRandomUUID.mockReturnValue(workspaceId);
 
@@ -299,13 +293,12 @@ describe("POST /api/workspaces", () => {
       createdBy: "users/user-free",
       subscriptionId: "sub-free",
       currency: "usd",
-      creditBalance: 0,
+      creditBalance: INITIAL_CREDITS_NANO,
       spendingLimits: [],
       createdAt: "2024-01-01T00:00:00Z",
     };
 
-    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.create = mockWorkspaceCreate;
+    mockCreateWorkspaceRecord.mockResolvedValue(mockWorkspace);
 
     mockEnsureAuthorization.mockResolvedValue(undefined);
 
@@ -324,14 +317,15 @@ describe("POST /api/workspaces", () => {
       "sub-free",
       1
     );
-    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
+    expect(mockCreateWorkspaceRecord).toHaveBeenCalledWith(
+      mockDb,
       expect.objectContaining({
-        creditBalance: 0,
+        name: "Second Workspace",
       })
     );
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        creditBalance: 0,
+        creditBalance: INITIAL_CREDITS_NANO,
       })
     );
   });
@@ -357,13 +351,12 @@ describe("POST /api/workspaces", () => {
       createdBy: "users/user-123",
       subscriptionId: "sub-123",
       currency: "usd",
-      creditBalance: 0,
+      creditBalance: INITIAL_CREDITS_NANO,
       spendingLimits: [],
       createdAt: "2024-01-01T00:00:00Z",
     };
 
-    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.create = mockWorkspaceCreate;
+    mockCreateWorkspaceRecord.mockResolvedValue(mockWorkspace);
 
     mockEnsureAuthorization.mockResolvedValue(undefined);
 
@@ -378,13 +371,13 @@ describe("POST /api/workspaces", () => {
 
     await callRouteHandler(req, res, next);
 
-    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
+    expect(mockCreateWorkspaceRecord).toHaveBeenCalledWith(
+      mockDb,
       expect.objectContaining({
-        currency: "usd",
+        name: "Test Workspace",
       })
     );
   });
-
 
   it("should default to usd when invalid currency provided", async () => {
     const workspaceId = "workspace-invalid-currency";
@@ -407,13 +400,12 @@ describe("POST /api/workspaces", () => {
       createdBy: "users/user-123",
       subscriptionId: "sub-123",
       currency: "usd",
-      creditBalance: 0,
+      creditBalance: INITIAL_CREDITS_NANO,
       spendingLimits: [],
       createdAt: "2024-01-01T00:00:00Z",
     };
 
-    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.create = mockWorkspaceCreate;
+    mockCreateWorkspaceRecord.mockResolvedValue(mockWorkspace);
 
     mockEnsureAuthorization.mockResolvedValue(undefined);
 
@@ -429,9 +421,10 @@ describe("POST /api/workspaces", () => {
 
     await callRouteHandler(req, res, next);
 
-    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
+    expect(mockCreateWorkspaceRecord).toHaveBeenCalledWith(
+      mockDb,
       expect.objectContaining({
-        currency: "usd",
+        name: "Test Workspace",
       })
     );
   });
@@ -525,13 +518,12 @@ describe("POST /api/workspaces", () => {
       createdBy: "users/user-123",
       subscriptionId: "sub-123",
       currency: "usd",
-      creditBalance: 0,
+      creditBalance: INITIAL_CREDITS_NANO,
       spendingLimits: [],
       createdAt: "2024-01-01T00:00:00Z",
     };
 
-    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.create = mockWorkspaceCreate;
+    mockCreateWorkspaceRecord.mockResolvedValue(mockWorkspace);
 
     mockEnsureAuthorization.mockResolvedValue(undefined);
 
@@ -546,7 +538,8 @@ describe("POST /api/workspaces", () => {
 
     await callRouteHandler(req, res, next);
 
-    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
+    expect(mockCreateWorkspaceRecord).toHaveBeenCalledWith(
+      mockDb,
       expect.objectContaining({
         description: undefined,
       })

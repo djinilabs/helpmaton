@@ -16,6 +16,7 @@ import {
 } from "../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../tables/schema";
 import { removeAgentResources } from "../../utils/agentCleanup";
+import { createAgentRecord } from "../../utils/agentCreate";
 import { queryUsageStats } from "../../utils/aggregation";
 import { indexDocument } from "../../utils/documentIndexing";
 import {
@@ -31,13 +32,13 @@ import {
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
- getUserEmailById } from "../../utils/subscriptionUtils";
+  getUserEmailById,
+} from "../../utils/subscriptionUtils";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 import {
   createWorkspaceInvite,
   sendInviteEmail,
 } from "../../utils/workspaceInvites";
-
 
 import { getWorkspaceApiKey } from "./agent-keys";
 import { createAgentModel } from "./agent-model";
@@ -99,7 +100,7 @@ ${getInternalDocsPromptSection()}
 `;
 
 export function createWorkspaceAgentDescriptor(
-  workspaceId: string
+  workspaceId: string,
 ): WorkspaceAgentDescriptor {
   return {
     pk: `workspaces/${workspaceId}`,
@@ -133,7 +134,7 @@ export type WorkspaceAgentSetup = {
 
 async function requireWorkspaceRead(
   workspaceId: string,
-  userId: string | undefined
+  userId: string | undefined,
 ): Promise<void> {
   if (!userId) {
     throw new Error("Authentication required");
@@ -143,7 +144,7 @@ async function requireWorkspaceRead(
   const [authorized] = await isUserAuthorized(
     userRef,
     resource,
-    PERMISSION_LEVELS.READ
+    PERMISSION_LEVELS.READ,
   );
   if (!authorized) {
     throw new Error("Insufficient permissions to access this workspace");
@@ -152,7 +153,7 @@ async function requireWorkspaceRead(
 
 async function requireWorkspaceWrite(
   workspaceId: string,
-  userId: string | undefined
+  userId: string | undefined,
 ): Promise<void> {
   if (!userId) {
     throw new Error("Authentication required");
@@ -162,7 +163,7 @@ async function requireWorkspaceWrite(
   const [authorized] = await isUserAuthorized(
     userRef,
     resource,
-    PERMISSION_LEVELS.WRITE
+    PERMISSION_LEVELS.WRITE,
   );
   if (!authorized) {
     throw new Error("Insufficient permissions to modify this workspace");
@@ -171,7 +172,7 @@ async function requireWorkspaceWrite(
 
 async function requireWorkspaceOwner(
   workspaceId: string,
-  userId: string | undefined
+  userId: string | undefined,
 ): Promise<string> {
   if (!userId) {
     throw new Error("Authentication required");
@@ -181,7 +182,7 @@ async function requireWorkspaceOwner(
   const [authorized] = await isUserAuthorized(
     userRef,
     resource,
-    PERMISSION_LEVELS.OWNER
+    PERMISSION_LEVELS.OWNER,
   );
   if (!authorized) {
     throw new Error("Insufficient permissions: owner access required");
@@ -196,7 +197,7 @@ const RESERVED_AGENT_IDS = ["_workspace", "workspace"] as const;
 
 function createWorkspaceAgentTools(
   workspaceId: string,
-  userId: string | undefined
+  userId: string | undefined,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool types
 ): Record<string, any> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool types
@@ -236,7 +237,7 @@ function createWorkspaceAgentTools(
           subscriptionId: workspace.subscriptionId ?? undefined,
         },
         null,
-        2
+        2,
       );
     },
   });
@@ -294,17 +295,20 @@ function createWorkspaceAgentTools(
         ExpressionAttributeValues: { ":workspaceId": workspaceId },
       });
       const agents = agentsResult?.items ?? [];
-      const list = agents.map((a: { pk: string; name: string; systemPrompt?: string }) => {
-        const agentId = a.pk.replace(`agents/${workspaceId}/`, "");
-        return {
-          id: agentId,
-          name: a.name,
-          systemPromptPreview:
-            typeof a.systemPrompt === "string"
-              ? a.systemPrompt.slice(0, 200) + (a.systemPrompt.length > 200 ? "..." : "")
-              : "",
-        };
-      });
+      const list = agents.map(
+        (a: { pk: string; name: string; systemPrompt?: string }) => {
+          const agentId = a.pk.replace(`agents/${workspaceId}/`, "");
+          return {
+            id: agentId,
+            name: a.name,
+            systemPromptPreview:
+              typeof a.systemPrompt === "string"
+                ? a.systemPrompt.slice(0, 200) +
+                  (a.systemPrompt.length > 200 ? "..." : "")
+                : "",
+          };
+        },
+      );
       return JSON.stringify(list, null, 2);
     },
   });
@@ -324,7 +328,11 @@ function createWorkspaceAgentTools(
       });
       const members = await Promise.all(
         (permissions.items ?? []).map(
-          async (permission: { sk: string; type: number; createdAt?: string }) => {
+          async (permission: {
+            sk: string;
+            type: number;
+            createdAt?: string;
+          }) => {
             const uid = permission.sk.replace("users/", "");
             const email = await getUserEmailById(uid);
             return {
@@ -334,8 +342,8 @@ function createWorkspaceAgentTools(
               permissionLevel: permission.type,
               createdAt: permission.createdAt,
             };
-          }
-        )
+          },
+        ),
       );
       return JSON.stringify({ members }, null, 2);
     },
@@ -372,16 +380,21 @@ function createWorkspaceAgentTools(
           workspaceId,
           email.toLowerCase().trim(),
           level,
-          currentUserRef
+          currentUserRef,
         );
-        const inviterEmail = userId ? await getUserEmailById(userId) : undefined;
+        const inviterEmail = userId
+          ? await getUserEmailById(userId)
+          : undefined;
         if (inviterEmail) {
           await sendInviteEmail(invite, workspace, inviterEmail);
         }
         return `Invite sent to ${email} with permission level ${level}.`;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        if (message.includes("already has access") || message.includes("pending invite")) {
+        if (
+          message.includes("already has access") ||
+          message.includes("pending invite")
+        ) {
           return `Could not send invite: ${message}`;
         }
         throw err;
@@ -392,11 +405,7 @@ function createWorkspaceAgentTools(
   const updateMemberRoleSchema = z
     .object({
       userId: z.string().min(1),
-      permissionLevel: z.union([
-        z.literal(1),
-        z.literal(2),
-        z.literal(3),
-      ]),
+      permissionLevel: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     })
     .strict();
   tools.update_member_role = tool({
@@ -415,19 +424,17 @@ function createWorkspaceAgentTools(
       }
       const granterLevel = await getUserAuthorizationLevelForResource(
         workspaceResource,
-        currentUserRef
+        currentUserRef,
       );
       if (!granterLevel || granterLevel < permissionLevel) {
-        throw new Error(
-          "Cannot grant permission level higher than your own"
-        );
+        throw new Error("Cannot grant permission level higher than your own");
       }
       const memberUserRef = userRef(memberUserId);
       await ensureExactAuthorization(
         workspaceResource,
         memberUserRef,
         permissionLevel,
-        currentUserRef
+        currentUserRef,
       );
       return `Member ${memberUserId} permission updated to ${permissionLevel}.`;
     },
@@ -447,7 +454,7 @@ function createWorkspaceAgentTools(
       const memberUserRef = userRef(memberUserId);
       const permission = await db.permission.get(
         workspaceResource,
-        memberUserRef
+        memberUserRef,
       );
       if (!permission) {
         return JSON.stringify({ error: "Member not found in workspace" });
@@ -462,11 +469,11 @@ function createWorkspaceAgentTools(
           ExpressionAttributeValues: { ":workspacePk": workspaceResource },
         });
         const ownerCount = (allPermissions.items ?? []).filter(
-          (p: { type: number }) => p.type === PERMISSION_LEVELS.OWNER
+          (p: { type: number }) => p.type === PERMISSION_LEVELS.OWNER,
         ).length;
         if (ownerCount <= 1) {
           throw new Error(
-            "Cannot remove the last owner. The workspace must have at least one owner."
+            "Cannot remove the last owner. The workspace must have at least one owner.",
           );
         }
       }
@@ -500,7 +507,7 @@ function createWorkspaceAgentTools(
       if (folder !== undefined) {
         const normalized = normalizeFolderPath(folder ?? "");
         items = items.filter(
-          (doc: { folderPath: string }) => doc.folderPath === normalized
+          (doc: { folderPath: string }) => doc.folderPath === normalized,
         );
       }
       const list = items.map(
@@ -522,7 +529,7 @@ function createWorkspaceAgentTools(
           size: doc.size,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt ?? doc.createdAt,
-        })
+        }),
       );
       return JSON.stringify({ documents: list }, null, 2);
     },
@@ -542,7 +549,7 @@ function createWorkspaceAgentTools(
       const documentPk = `workspace-documents/${workspaceId}/${documentId}`;
       const document = await db["workspace-document"].get(
         documentPk,
-        "document"
+        "document",
       );
       if (!document) {
         return JSON.stringify({ error: "Document not found" });
@@ -550,7 +557,7 @@ function createWorkspaceAgentTools(
       const content = await getDocument(
         workspaceId,
         documentId,
-        document.s3Key
+        document.s3Key,
       );
       return JSON.stringify(
         {
@@ -565,7 +572,7 @@ function createWorkspaceAgentTools(
           updatedAt: document.updatedAt ?? document.createdAt,
         },
         null,
-        2
+        2,
       );
     },
   });
@@ -590,9 +597,14 @@ function createWorkspaceAgentTools(
       }
       const subscriptionId = await ensureWorkspaceSubscription(
         workspaceId,
-        userId
+        userId,
       );
-      await checkSubscriptionLimits(subscriptionId, "document", 1, parsed.content.length);
+      await checkSubscriptionLimits(
+        subscriptionId,
+        "document",
+        1,
+        parsed.content.length,
+      );
       const db = await database();
       const documentId = randomUUID();
       const folderPath = normalizeFolderPath(parsed.folderPath ?? "");
@@ -608,7 +620,7 @@ function createWorkspaceAgentTools(
         parsed.content,
         filename,
         "text/plain",
-        folderPath
+        folderPath,
       );
       const documentPk = `workspace-documents/${workspaceId}/${documentId}`;
       await db["workspace-document"].create({
@@ -656,7 +668,7 @@ function createWorkspaceAgentTools(
       const documentPk = `workspace-documents/${workspaceId}/${parsed.documentId}`;
       const document = await db["workspace-document"].get(
         documentPk,
-        "document"
+        "document",
       );
       if (!document) {
         return JSON.stringify({ error: "Document not found" });
@@ -671,7 +683,7 @@ function createWorkspaceAgentTools(
           parsed.content,
           document.filename,
           document.contentType,
-          document.folderPath
+          document.folderPath,
         );
         document.s3Key = s3Key;
         document.size = Buffer.byteLength(parsed.content, "utf-8");
@@ -702,16 +714,18 @@ function createWorkspaceAgentTools(
       const documentPk = `workspace-documents/${workspaceId}/${documentId}`;
       const document = await db["workspace-document"].get(
         documentPk,
-        "document"
+        "document",
       );
       if (!document) {
         return JSON.stringify({ error: "Document not found" });
       }
-      const { deleteDocumentSnippets } = await import(
-        "../../utils/documentIndexing"
-      );
+      const { deleteDocumentSnippets } =
+        await import("../../utils/documentIndexing");
       await deleteDocumentSnippets(workspaceId, documentId).catch((err) => {
-        console.error("[workspaceAgentTools] deleteDocumentSnippets failed:", err);
+        console.error(
+          "[workspaceAgentTools] deleteDocumentSnippets failed:",
+          err,
+        );
       });
       await deleteDocument(workspaceId, documentId, document.s3Key);
       await db["workspace-document"].delete(documentPk, "document");
@@ -728,7 +742,11 @@ function createWorkspaceAgentTools(
         .object({ agentId: z.string().min(1) })
         .strict()
         .parse(args);
-      if (RESERVED_AGENT_IDS.includes(agentId as (typeof RESERVED_AGENT_IDS)[number])) {
+      if (
+        RESERVED_AGENT_IDS.includes(
+          agentId as (typeof RESERVED_AGENT_IDS)[number],
+        )
+      ) {
         return JSON.stringify({
           error:
             "The workspace agent is a virtual agent; use list_agents to get specific agent IDs.",
@@ -767,7 +785,7 @@ function createWorkspaceAgentTools(
           updatedAt: agent.updatedAt,
         },
         null,
-        2
+        2,
       );
     },
   });
@@ -792,7 +810,7 @@ function createWorkspaceAgentTools(
       }
       const subscriptionId = await ensureWorkspaceSubscription(
         workspaceId,
-        userId
+        userId,
       );
       await checkSubscriptionLimits(subscriptionId, "agent", 1);
       const db = await database();
@@ -813,7 +831,7 @@ function createWorkspaceAgentTools(
           });
         }
       }
-      const agent = await db.agent.create({
+      const agent = await createAgentRecord(db, {
         pk: agentPk,
         sk: "agent",
         workspaceId,
@@ -833,7 +851,7 @@ function createWorkspaceAgentTools(
           message: "Agent created.",
         },
         null,
-        2
+        2,
       );
     },
   });
@@ -851,7 +869,11 @@ function createWorkspaceAgentTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const { agentId } = deleteAgentSchema.parse(args);
-      if (RESERVED_AGENT_IDS.includes(agentId as (typeof RESERVED_AGENT_IDS)[number])) {
+      if (
+        RESERVED_AGENT_IDS.includes(
+          agentId as (typeof RESERVED_AGENT_IDS)[number],
+        )
+      ) {
         return JSON.stringify({ error: "Cannot delete the workspace agent." });
       }
       await requireWorkspaceWrite(workspaceId, userId);
@@ -895,7 +917,7 @@ function createWorkspaceAgentTools(
           agentId: integration.agentId.replace(`agents/${workspaceId}/`, ""),
           status: integration.status,
           lastUsedAt: integration.lastUsedAt ?? null,
-        })
+        }),
       );
       return JSON.stringify(integrations, null, 2);
     },
@@ -910,9 +932,7 @@ function createWorkspaceAgentTools(
       await requireWorkspaceRead(workspaceId, userId);
       const db = await database();
       const endDate = new Date();
-      const startDate = new Date(
-        endDate.getTime() - 30 * 24 * 60 * 60 * 1000
-      );
+      const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
       const stats = await queryUsageStats(db, {
         workspaceId,
         startDate,
@@ -938,7 +958,7 @@ function createWorkspaceAgentTools(
           },
         },
         null,
-        2
+        2,
       );
     },
   });
@@ -959,7 +979,7 @@ function createWorkspaceAgentTools(
       return JSON.stringify(
         { spendingLimits: workspace.spendingLimits ?? [] },
         null,
-        2
+        2,
       );
     },
   });
@@ -981,20 +1001,20 @@ function createWorkspaceAgentTools(
       const db = await database();
       const existing = await db.workspace.get(
         `workspaces/${workspaceId}`,
-        "workspace"
+        "workspace",
       );
       if (!existing) {
         return JSON.stringify({ error: "Workspace not found" });
       }
       const hasLimit = (existing.spendingLimits ?? []).some(
-        (l: { timeFrame: string }) => l.timeFrame === parsed.timeFrame
+        (l: { timeFrame: string }) => l.timeFrame === parsed.timeFrame,
       );
       if (hasLimit) {
         await updateSpendingLimit(
           db,
           workspaceId,
           parsed.timeFrame,
-          parsed.amount
+          parsed.amount,
         );
       } else {
         await addSpendingLimit(db, workspaceId, {
@@ -1020,9 +1040,14 @@ function createWorkspaceAgentTools(
     // @ts-expect-error - AI SDK execute signature
     execute: async (args: unknown) => {
       const { agentId, message } = configureAgentSchema.parse(args);
-      if (RESERVED_AGENT_IDS.includes(agentId as (typeof RESERVED_AGENT_IDS)[number])) {
+      if (
+        RESERVED_AGENT_IDS.includes(
+          agentId as (typeof RESERVED_AGENT_IDS)[number],
+        )
+      ) {
         return JSON.stringify({
-          error: "Cannot configure the workspace agent; use a specific agent ID from list_agents.",
+          error:
+            "Cannot configure the workspace agent; use a specific agent ID from list_agents.",
         });
       }
       await requireWorkspaceWrite(workspaceId, userId);
@@ -1044,7 +1069,7 @@ function createWorkspaceAgentTools(
         undefined,
         WORKSPACE_AGENT_ID,
         undefined,
-        { configurationMode: true, userId }
+        { configurationMode: true, userId },
       );
       return result.response;
     },
@@ -1059,7 +1084,7 @@ function createWorkspaceAgentTools(
  */
 export async function setupWorkspaceAgentAndTools(
   workspaceId: string,
-  options?: WorkspaceAgentSetupOptions
+  options?: WorkspaceAgentSetupOptions,
 ): Promise<WorkspaceAgentSetup> {
   const agent = createWorkspaceAgentDescriptor(workspaceId);
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "openrouter");
@@ -1076,13 +1101,10 @@ export async function setupWorkspaceAgentAndTools(
     options?.userId,
     "openrouter",
     {},
-    options?.llmObserver
+    options?.llmObserver,
   );
 
-  const rawTools = createWorkspaceAgentTools(
-    workspaceId,
-    options?.userId
-  );
+  const rawTools = createWorkspaceAgentTools(workspaceId, options?.userId);
   const tools = wrapToolsWithObserver(rawTools, options?.llmObserver);
 
   return {

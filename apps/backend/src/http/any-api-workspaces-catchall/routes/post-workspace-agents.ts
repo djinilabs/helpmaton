@@ -5,6 +5,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { createAgentRecord } from "../../../utils/agentCreate";
 import { getRandomAvatar, isValidAvatar } from "../../../utils/avatarUtils";
 import { normalizeSummarizationPrompts } from "../../../utils/memory/summarizeMemory";
 import { isImageCapableModel } from "../../../utils/pricing";
@@ -12,7 +13,6 @@ import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
-import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { createAgentSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
@@ -233,8 +233,8 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           avatarPath = getRandomAvatar();
         }
 
-        // Create agent entity
-        const agent = await db.agent.create({
+        // Create agent entity (single place for agent record creation)
+        const agent = await createAgentRecord(db, {
           pk: agentPk,
           sk: agentSk,
           workspaceId,
@@ -275,19 +275,6 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           createdBy: currentUserRef,
         });
 
-        // Track agent creation
-        trackBusinessEvent(
-          "agent",
-          "created",
-          {
-            workspace_id: workspaceId,
-            agent_id: agentId,
-            provider: agent.provider,
-            model_name: agent.modelName || undefined,
-          },
-          req,
-        );
-
         res.status(201).json({
           id: agentId,
           name: agent.name,
@@ -300,7 +287,8 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           modelName: agent.modelName ?? null,
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
-          enabledMcpServerToolNames: agent.enabledMcpServerToolNames ?? undefined,
+          enabledMcpServerToolNames:
+            agent.enabledMcpServerToolNames ?? undefined,
           enableMemorySearch: agent.enableMemorySearch ?? false,
           enableImageGeneration: agent.enableImageGeneration ?? false,
           imageGenerationModel: agent.imageGenerationModel ?? null,

@@ -6,18 +6,14 @@ import express from "express";
 import { database } from "../../../tables";
 import { ensureAuthorization } from "../../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
-import { toNanoDollars } from "../../../utils/creditConversions";
 import {
   checkWorkspaceLimitAndGetCurrentCount,
   getUserSubscription,
 } from "../../../utils/subscriptionUtils";
-import { trackBusinessEvent } from "../../../utils/tracking";
+import { createWorkspaceRecord } from "../../../utils/workspaceCreate";
 import { validateBody } from "../../utils/bodyValidation";
 import { createWorkspaceSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth } from "../middleware";
-
-/** Credits in USD granted to free-plan users when creating their first workspace. */
-const FREE_PLAN_FIRST_WORKSPACE_CREDITS_USD = 2;
 
 /**
  * @openapi
@@ -67,30 +63,19 @@ export const registerPostWorkspaces = (app: express.Application) => {
       const subscriptionId = subscription.pk.replace("subscriptions/", "");
 
       // Check workspace limit and get current count in one query (avoids duplicate fetch)
-      const currentWorkspaceCount = await checkWorkspaceLimitAndGetCurrentCount(
-        subscriptionId,
-        1
-      );
-      const isFirstWorkspace = currentWorkspaceCount === 0;
-      const initialCredits =
-        subscription.plan === "free" && isFirstWorkspace
-          ? toNanoDollars(FREE_PLAN_FIRST_WORKSPACE_CREDITS_USD)
-          : 0;
+      await checkWorkspaceLimitAndGetCurrentCount(subscriptionId, 1);
 
       const workspaceId = randomUUID();
       const workspacePk = `workspaces/${workspaceId}`;
       const workspaceSk = "workspace"; // Sort key required by DynamoDB table
 
-      // Create workspace entity
-      const workspace = await db.workspace.create({
+      const workspace = await createWorkspaceRecord(db, {
         pk: workspacePk,
         sk: workspaceSk,
         name,
         description: description || undefined,
         createdBy: userRef,
         subscriptionId,
-        currency: "usd",
-        creditBalance: initialCredits,
       });
 
       // Grant creator OWNER permission
@@ -99,16 +84,6 @@ export const registerPostWorkspaces = (app: express.Application) => {
         userRef,
         PERMISSION_LEVELS.OWNER,
         userRef
-      );
-
-      // Track workspace creation
-      trackBusinessEvent(
-        "workspace",
-        "created",
-        {
-          workspace_id: workspaceId,
-        },
-        req
       );
 
       res.status(201).json({
