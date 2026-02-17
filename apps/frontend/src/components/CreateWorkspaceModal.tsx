@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useCreateWorkspace } from "../hooks/useWorkspaces";
-import { trackEvent } from "../utils/tracking";
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;
@@ -45,9 +44,6 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
       const workspace = await createWorkspace.mutateAsync({
         name: name.trim(),
         description: description.trim() || undefined,
-      });
-      trackEvent("workspace_created", {
-        workspace_id: workspace.id,
       });
       setName("");
       setDescription("");
