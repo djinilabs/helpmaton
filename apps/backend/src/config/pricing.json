@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.25,
+            "input": 0.26,
             "output": 0.38,
-            "cachedInput": 0.025
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -13104,10 +13104,10 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 256000
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-02-16T10:48:23.506Z"
+  "lastUpdated": "2026-02-17T00:20:30.483Z"
 }
