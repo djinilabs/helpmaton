@@ -159,9 +159,22 @@ describe("formatToolResultMessage", () => {
     const result = formatToolResultMessage(toolResult);
     const toolResultContent = result.content.find((item) => item.type === "tool-result");
     expect(toolResultContent).toBeDefined();
-    const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
-    expect(formattedResult).toContain(TOOL_OUTPUT_TRIMMED_SUFFIX);
-    expect(formattedResult.length).toBe(maxBytes + TOOL_OUTPUT_TRIMMED_SUFFIX.length);
+    const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined;
+    expect(formattedResult).toEqual(
+      expect.objectContaining({
+        _truncated: true,
+        preview: expect.any(String),
+      })
+    );
+    const preview =
+      typeof formattedResult === "object" &&
+      formattedResult &&
+      "preview" in formattedResult &&
+      typeof (formattedResult as { preview: string }).preview === "string"
+        ? (formattedResult as { preview: string }).preview
+        : "";
+    expect(preview).toContain(TOOL_OUTPUT_TRIMMED_SUFFIX);
+    expect(preview.length).toBe(maxBytes + TOOL_OUTPUT_TRIMMED_SUFFIX.length);
   });
 
   it("should handle object results", () => {

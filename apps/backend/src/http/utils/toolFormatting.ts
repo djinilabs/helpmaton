@@ -188,8 +188,10 @@ export function formatToolResultMessage(
   if (typeof outputValue === "object" && outputValue !== null) {
     const str = JSON.stringify(outputValue);
     if (str.length > maxOutputBytes) {
-      outputValue =
-        str.substring(0, maxOutputBytes) + TOOL_OUTPUT_TRIMMED_SUFFIX;
+      outputValue = {
+        _truncated: true,
+        preview: str.substring(0, maxOutputBytes) + TOOL_OUTPUT_TRIMMED_SUFFIX,
+      };
     }
   }
 

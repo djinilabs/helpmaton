@@ -1,5 +1,6 @@
 import type { DelegationContent, UIMessage } from "../../utils/messageTypes";
 
+import { getDefaultModel } from "./modelFactory";
 import {
   formatToolResultMessage,
   getToolResultValueForModel,
@@ -696,13 +697,13 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
             result,
           });
           // Apply model-derived tool output cap for streaming/test (same as continuation/webhook/scheduled)
-          if (
-            toolResultOptions?.provider !== undefined &&
-            toolResultOptions?.modelName !== undefined
-          ) {
+          if (toolResultOptions !== undefined) {
             return getToolResultValueForModel(
               { toolCallId, toolName, result },
-              toolResultOptions
+              {
+                provider: toolResultOptions.provider ?? "openrouter",
+                modelName: toolResultOptions.modelName ?? getDefaultModel(),
+              }
             );
           }
           return result;
