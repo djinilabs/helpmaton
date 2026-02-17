@@ -10,16 +10,23 @@ const GOOGLE_DRIVE_API_BASE = "https://www.googleapis.com/drive/v3";
 
 /**
  * List files in Google Drive
+ * @param pageSize - Max 1000, default 100 if not provided
  */
 export async function listFiles(
   workspaceId: string,
   serverId: string,
   query?: string,
-  pageToken?: string
+  pageToken?: string,
+  pageSize?: number
 ): Promise<GoogleDriveFileListResponse> {
+  const size =
+    pageSize !== undefined && pageSize >= 1 && pageSize <= 1000
+      ? pageSize
+      : 100;
   const params = new URLSearchParams({
-    pageSize: "100",
-    fields: "nextPageToken,files(id,name,mimeType,modifiedTime,createdTime,size,webViewLink,parents)",
+    pageSize: String(size),
+    fields:
+      "nextPageToken,files(id,name,mimeType,modifiedTime,createdTime,size,webViewLink,parents)",
   });
 
   if (query) {

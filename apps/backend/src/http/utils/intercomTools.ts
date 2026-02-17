@@ -36,8 +36,8 @@ const paginationSchema = z
       .int()
       .min(1)
       .max(150)
-      .optional()
-      .describe("Number of results to return per page (default: 20, max: 150)"),
+      .default(50)
+      .describe("Number of results to return per page (default: 50, max: 150)"),
     startingAfter: z
       .string()
       .optional()

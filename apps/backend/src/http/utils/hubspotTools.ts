@@ -29,8 +29,8 @@ const listSchema = z
       .int()
       .min(1)
       .max(100)
-      .optional()
-      .describe("Number of results to return (default: 100, max: 100)"),
+      .default(50)
+      .describe("Number of results to return (default: 50, max: 100)"),
     after: z
       .string()
       .optional()
@@ -54,8 +54,8 @@ const searchSchema = z
       .int()
       .min(1)
       .max(100)
-      .optional()
-      .describe("Number of results to return (default: 100, max: 100)"),
+      .default(50)
+      .describe("Number of results to return (default: 50, max: 100)"),
     after: z
       .string()
       .optional()
@@ -536,8 +536,8 @@ export function createHubspotListOwnersTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
-        .describe("Number of results to return (default: 100, max: 100)"),
+        .default(50)
+        .describe("Number of results to return (default: 50, max: 100)"),
       after: z
         .string()
         .optional()
@@ -645,8 +645,8 @@ export function createHubspotSearchOwnersTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
-        .describe("Number of results to return (default: 100, max: 100)"),
+        .default(50)
+        .describe("Number of results to return (default: 50, max: 100)"),
       after: z
         .string()
         .optional()

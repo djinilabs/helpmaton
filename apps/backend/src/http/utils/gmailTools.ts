@@ -46,7 +46,18 @@ export function createGmailListTool(
       pageToken: z
         .string()
         .optional()
-        .describe("Optional page token for pagination (from previous list response)"),
+        .describe(
+          "Optional page token for pagination (from previous list response)"
+        ),
+      maxResults: z
+        .number()
+        .int()
+        .min(1)
+        .max(500)
+        .default(50)
+        .describe(
+          "Maximum number of messages to return (default: 50, max: 500)"
+        ),
     })
     .strict();
 
@@ -56,7 +67,6 @@ export function createGmailListTool(
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-     
     execute: async (args: unknown) => {
       try {
         // Check OAuth connection
@@ -69,17 +79,19 @@ export function createGmailListTool(
           return parsed.error;
         }
 
+        const maxResults = parsed.data.maxResults ?? 50;
         const result = await gmailClient.listMessages(
           workspaceId,
           serverId,
           parsed.data.query,
-          parsed.data.pageToken
+          parsed.data.pageToken,
+          maxResults
         );
 
         // Get message details for each message ID
         const messages = [];
         if (result.messages) {
-          for (const msg of result.messages.slice(0, 50)) {
+          for (const msg of result.messages.slice(0, maxResults)) {
             // Limit to 50 messages to avoid too many API calls
             try {
               const message = await gmailClient.getMessage(
@@ -116,6 +128,7 @@ export function createGmailListTool(
             messages,
             nextPageToken: result.nextPageToken,
             resultSizeEstimate: result.resultSizeEstimate,
+            hasMore: !!result.nextPageToken,
           },
           null,
           2

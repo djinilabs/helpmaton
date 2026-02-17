@@ -29,7 +29,7 @@ const listChannelsSchema = z
       .int()
       .min(1)
       .max(1000)
-      .optional()
+      .default(100)
       .describe("Number of channels to return (default: 100)"),
     cursor: z
       .string()
@@ -54,7 +54,7 @@ const channelIdSchema = z
       .int()
       .min(1)
       .max(1000)
-      .optional()
+      .default(100)
       .describe("Number of messages to return (default: 100)"),
     cursor: z
       .string()

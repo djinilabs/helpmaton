@@ -181,22 +181,47 @@ export async function getOrderByNumber(
   );
 }
 
+export interface SearchProductsByTitleOptions {
+  first?: number;
+  after?: string;
+}
+
+export interface SearchProductsByTitleResult {
+  products: Array<{
+    id: string;
+    title: string;
+    handle: string;
+    status: string;
+    publishedAt: string | null;
+  }>;
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string | null;
+  };
+}
+
 export async function searchProductsByTitle(
   workspaceId: string,
   serverId: string,
-  query: string
-) {
+  query: string,
+  options?: SearchProductsByTitleOptions
+): Promise<SearchProductsByTitleResult> {
   const sanitized = sanitizeShopifySearchTerm(query);
   const searchQuery = buildShopifyProductSearchQuery(sanitized);
+  const first = options?.first ?? 20;
   const graphqlQuery = `
-    query SearchProducts($query: String!, $first: Int!) {
-      products(first: $first, query: $query) {
+    query SearchProducts($query: String!, $first: Int!, $after: String) {
+      products(first: $first, after: $after, query: $query) {
         nodes {
           id
           title
           handle
           status
           publishedAt
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }
@@ -211,11 +236,26 @@ export async function searchProductsByTitle(
         status: string;
         publishedAt: string | null;
       }>;
+      pageInfo?: { hasNextPage: boolean; endCursor: string | null };
     };
-  }>(workspaceId, serverId, graphqlQuery, { query: searchQuery, first: 20 });
+  }>(workspaceId, serverId, graphqlQuery, {
+    query: searchQuery,
+    first,
+    after: options?.after ?? null,
+  });
+
+  const products = data.products?.nodes ?? [];
+  const pageInfo = data.products?.pageInfo ?? {
+    hasNextPage: false,
+    endCursor: null,
+  };
 
   return {
-    products: data.products?.nodes ?? [],
+    products,
+    pageInfo: {
+      hasNextPage: pageInfo.hasNextPage ?? false,
+      endCursor: pageInfo.endCursor ?? null,
+    },
   };
 }
 

@@ -53,27 +53,39 @@ export function createStripeSearchChargesTool(
 ) {
   const schema = z
     .object({
-    query: z
-      .string()
-      .optional()
-      .describe(
-        "Optional Stripe search query string (e.g., \"email:'bob@example.com' AND status:'succeeded'\")"
-      ),
-    email: z
-      .string()
-      .email()
-      .optional()
-      .describe("Optional email address to search charges by"),
+      query: z
+        .string()
+        .optional()
+        .describe(
+          "Optional Stripe search query string (e.g., \"email:'bob@example.com' AND status:'succeeded'\")"
+        ),
+      email: z
+        .string()
+        .email()
+        .optional()
+        .describe("Optional email address to search charges by"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(10)
+        .describe("Maximum number of charges to return (default: 10, max: 100)"),
+      page: z
+        .string()
+        .optional()
+        .describe(
+          "Cursor for next page. Use nextPage from previous response to paginate."
+        ),
     })
     .strict();
 
   return tool({
     description:
-      "Search Stripe charges using the Stripe search query language. Provide a query string and/or an email address.",
+      "Search Stripe charges using the Stripe search query language. Provide a query string and/or an email address. Use limit and page to paginate.",
     parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-     
     execute: async (args: unknown) => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {
@@ -85,8 +97,10 @@ export function createStripeSearchChargesTool(
           return parsed.error;
         }
 
-        const query = typeof parsed.data.query === "string" ? parsed.data.query.trim() : "";
-        const email = typeof parsed.data.email === "string" ? parsed.data.email.trim() : "";
+        const query =
+          typeof parsed.data.query === "string" ? parsed.data.query.trim() : "";
+        const email =
+          typeof parsed.data.email === "string" ? parsed.data.email.trim() : "";
 
         if (!query && !email) {
           return "Error: Provide a Stripe search query or an email address.";
@@ -101,9 +115,18 @@ export function createStripeSearchChargesTool(
         const result = await stripeClient.searchCharges(
           workspaceId,
           serverId,
-          finalQuery
+          finalQuery,
+          { limit: parsed.data.limit, page: parsed.data.page }
         );
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          {
+            data: result.data,
+            hasMore: result.has_more,
+            nextPage: result.next_page ?? undefined,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Stripe search charges tool:", error);
         return `Error searching Stripe charges: ${
@@ -131,7 +154,7 @@ export function createStripeGetMetricsTool(
       .int()
       .min(1)
       .max(100)
-      .optional()
+      .default(20)
       .describe("Maximum number of refunds to return (default: 20, max: 100)"),
     })
     .strict();

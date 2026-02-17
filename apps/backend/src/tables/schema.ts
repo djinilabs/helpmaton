@@ -870,6 +870,8 @@ export type DatabaseSchema = {
   "agent-delegation-tasks": TableAPI<"agent-delegation-tasks">;
   "bot-integration": TableAPI<"bot-integration">;
   "agent-schedule": TableAPI<"agent-schedule">;
+  "agent-eval-judge": TableAPI<"agent-eval-judge">;
+  "agent-eval-result": TableAPI<"agent-eval-result">;
 };
 
 /**
@@ -914,7 +916,9 @@ export type TableRecord =
   | z.infer<(typeof tableSchemas)["user-refresh-token"]>
   | z.infer<(typeof tableSchemas)["workspace-credit-transactions"]>
   | z.infer<(typeof tableSchemas)["bot-integration"]>
-  | z.infer<(typeof tableSchemas)["agent-schedule"]>;
+  | z.infer<(typeof tableSchemas)["agent-schedule"]>
+  | z.infer<(typeof tableSchemas)["agent-eval-judge"]>
+  | z.infer<(typeof tableSchemas)["agent-eval-result"]>;
 
 /**
  * Callback function for atomic update operations

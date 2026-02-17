@@ -66,6 +66,7 @@ describe("Shopify Tools", () => {
 
     vi.mocked(shopifyClient.searchProductsByTitle).mockResolvedValue({
       products: [],
+      pageInfo: { hasNextPage: false, endCursor: null },
     });
 
     const tool = createShopifySearchProductsTool(workspaceId, serverId);
@@ -74,7 +75,8 @@ describe("Shopify Tools", () => {
     expect(shopifyClient.searchProductsByTitle).toHaveBeenCalledWith(
       workspaceId,
       serverId,
-      "Hoodie"
+      "Hoodie",
+      { first: 20, after: undefined }
     );
     expect(result).toContain("products");
   });

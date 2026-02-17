@@ -97,35 +97,64 @@ async function makeLinearRequest<T>(
   }
 }
 
-export async function listTeams(
-  workspaceId: string,
-  serverId: string
-): Promise<
-  Array<{
+export interface LinearListTeamsOptions {
+  first?: number;
+  after?: string;
+}
+
+export interface LinearListTeamsResult {
+  nodes: Array<{
     id: string;
     name: string;
     key: string;
     description?: string | null;
-  }>
-> {
+  }>;
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+}
+
+export async function listTeams(
+  workspaceId: string,
+  serverId: string,
+  options?: LinearListTeamsOptions
+): Promise<LinearListTeamsResult> {
+  const first = options?.first ?? 50;
   const query = `
-    query ListTeams {
-      teams {
+    query ListTeams($first: Int, $after: String) {
+      teams(first: $first, after: $after) {
         nodes {
           id
           name
           key
           description
         }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
       }
     }
   `;
 
   const data = await makeLinearRequest<{
-    teams: { nodes: Array<{ id: string; name: string; key: string; description?: string | null }> };
-  }>(workspaceId, serverId, query);
+    teams: {
+      nodes: Array<{
+        id: string;
+        name: string;
+        key: string;
+        description?: string | null;
+      }>;
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    };
+  }>(workspaceId, serverId, query, {
+    first,
+    after: options?.after ?? null,
+  });
 
-  return data.teams.nodes;
+  const teams = data.teams;
+  return {
+    nodes: teams.nodes,
+    pageInfo: teams.pageInfo ?? { hasNextPage: false, endCursor: null },
+  };
 }
 
 export async function listProjects(

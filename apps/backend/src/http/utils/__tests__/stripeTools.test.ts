@@ -41,7 +41,12 @@ describe("Stripe Tools", () => {
         config: { accessToken: "token-123" },
       });
 
-      vi.mocked(stripeClient.searchCharges).mockResolvedValue({ data: [] });
+      vi.mocked(stripeClient.searchCharges).mockResolvedValue({
+        object: "search_result",
+        data: [],
+        has_more: false,
+        url: "/v1/charges/search",
+      });
 
       const tool = createStripeSearchChargesTool(workspaceId, serverId);
       const result = await (tool as any).execute({
@@ -52,7 +57,8 @@ describe("Stripe Tools", () => {
       expect(stripeClient.searchCharges).toHaveBeenCalledWith(
         workspaceId,
         serverId,
-        "(status:'succeeded') AND email:'bob@example.com'"
+        "(status:'succeeded') AND email:'bob@example.com'",
+        { limit: 10, page: undefined }
       );
       expect(result).toContain("data");
     });

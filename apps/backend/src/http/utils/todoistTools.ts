@@ -1,10 +1,9 @@
-import { jsonSchema, tool } from "ai";
+import { tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
 import * as todoistClient from "../../utils/todoist/client";
 
-import { EMPTY_PARAMETERS_JSON_SCHEMA } from "./toolSchemas";
 import { validateToolArgs } from "./toolValidation";
 
 async function getTodoistConfig(
@@ -50,12 +49,31 @@ const addTaskSchema = z
   })
   .strict();
 
+const todoistLimitSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(200)
+  .default(30)
+  .describe("Maximum number of items to return (default: 30, max: 200)");
+const todoistOffsetSchema = z
+  .number()
+  .int()
+  .min(0)
+  .max(10_000)
+  .default(0)
+  .describe(
+    "Offset for pagination (0-based). Use nextOffset from previous response for next page."
+  );
+
 const getTasksSchema = z
   .object({
     filter: z
       .string()
       .min(1)
       .describe("Todoist filter syntax (e.g., 'today', 'overdue')."),
+    limit: todoistLimitSchema,
+    offset: todoistOffsetSchema,
   })
   .strict();
 
@@ -111,7 +129,7 @@ export function createTodoistGetTasksTool(
 ) {
   return tool({
     description:
-      "Lists active Todoist tasks. Use this to summarize what is due today or this week.",
+      "Lists active Todoist tasks. Use limit and offset to paginate. Use this to summarize what is due today or this week.",
     parameters: getTasksSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -130,12 +148,24 @@ export function createTodoistGetTasksTool(
           return parsed.error;
         }
 
-        const result = await todoistClient.listTasks(
+        const allTasks = await todoistClient.listTasks(
           workspaceId,
           serverId,
           parsed.data.filter
         );
-        return JSON.stringify(result, null, 2);
+        const items = Array.isArray(allTasks) ? allTasks : [];
+        const { limit, offset } = parsed.data;
+        const slice = items.slice(offset, offset + limit);
+        const hasMore = items.length > offset + limit;
+        return JSON.stringify(
+          {
+            tasks: slice,
+            hasMore,
+            nextOffset: hasMore ? offset + limit : undefined,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Todoist get tasks tool:", error);
         return `Error listing Todoist tasks: ${
@@ -186,16 +216,21 @@ export function createTodoistCloseTaskTool(
   });
 }
 
+const getProjectsSchema = z
+  .object({
+    limit: todoistLimitSchema,
+    offset: todoistOffsetSchema,
+  })
+  .strict();
+
 export function createTodoistGetProjectsTool(
   workspaceId: string,
   serverId: string
 ) {
-  const schema = z.object({}).strict();
-
   return tool({
     description:
-      "Lists all Todoist projects to find the correct project ID for task creation.",
-    inputSchema: jsonSchema(EMPTY_PARAMETERS_JSON_SCHEMA),
+      "Lists Todoist projects to find the correct project ID for task creation. Use limit and offset to paginate.",
+    parameters: getProjectsSchema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
      
@@ -205,13 +240,31 @@ export function createTodoistGetProjectsTool(
           return "Error: Todoist is not connected. Please connect your Todoist account first.";
         }
 
-        const parsed = validateToolArgs<z.infer<typeof schema>>(schema, args);
+        const parsed = validateToolArgs<z.infer<typeof getProjectsSchema>>(
+          getProjectsSchema,
+          args
+        );
         if (!parsed.ok) {
           return parsed.error;
         }
 
-        const result = await todoistClient.listProjects(workspaceId, serverId);
-        return JSON.stringify(result, null, 2);
+        const allProjects = await todoistClient.listProjects(
+          workspaceId,
+          serverId
+        );
+        const items = Array.isArray(allProjects) ? allProjects : [];
+        const { limit, offset } = parsed.data;
+        const slice = items.slice(offset, offset + limit);
+        const hasMore = items.length > offset + limit;
+        return JSON.stringify(
+          {
+            projects: slice,
+            hasMore,
+            nextOffset: hasMore ? offset + limit : undefined,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Todoist get projects tool:", error);
         return `Error listing Todoist projects: ${

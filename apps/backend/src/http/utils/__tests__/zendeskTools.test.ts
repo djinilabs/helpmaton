@@ -53,7 +53,8 @@ describe("Zendesk Tools", () => {
     expect(zendeskClient.searchZendeskTickets).toHaveBeenCalledWith(
       workspaceId,
       serverId,
-      "type:ticket status:open"
+      "type:ticket status:open",
+      { page: 1, per_page: 25 }
     );
     expect(result).toContain("Need help");
   });
@@ -106,7 +107,8 @@ describe("Zendesk Tools", () => {
     expect(zendeskClient.getZendeskTicketComments).toHaveBeenCalledWith(
       workspaceId,
       serverId,
-      "456"
+      "456",
+      { page: 1, per_page: 25 }
     );
     expect(result).toContain("Hello");
   });
@@ -156,7 +158,8 @@ describe("Zendesk Tools", () => {
     expect(zendeskClient.searchZendeskHelpCenter).toHaveBeenCalledWith(
       workspaceId,
       serverId,
-      "refund policy"
+      "refund policy",
+      { page: 1, per_page: 25 }
     );
     expect(result).toContain("FAQ");
   });

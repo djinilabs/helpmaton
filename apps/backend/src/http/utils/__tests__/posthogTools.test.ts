@@ -61,6 +61,22 @@ describe("PostHog Tools", () => {
     );
   });
 
+  it("should return hasMore and nextOffset when result length equals limit", async () => {
+    const results = Array.from({ length: 50 }, (_, i) => ({ id: i }));
+    vi.mocked(getPosthogJson).mockResolvedValue({ results });
+
+    const tool = createPosthogListEventsTool(workspaceId, serverId);
+    const result = await (tool as any).execute({
+      project_id: "123",
+      limit: 50,
+    });
+
+    const parsed = JSON.parse(result);
+    expect(parsed.results).toHaveLength(50);
+    expect(parsed.hasMore).toBe(true);
+    expect(parsed.nextOffset).toBe(50);
+  });
+
   it("should return validation error when projectId is missing", async () => {
     const tool = createPosthogListEventsTool(workspaceId, serverId);
     const result = await (tool as any).execute({ event: "pageview" });

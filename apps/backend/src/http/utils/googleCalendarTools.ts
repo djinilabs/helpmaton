@@ -59,7 +59,7 @@ export function createGoogleCalendarListTool(
         .int()
         .min(1)
         .max(2500)
-        .optional()
+        .default(100)
         .describe("Maximum number of events to return (default: 100, max: 2500)"),
       pageToken: z
         .string()
@@ -263,7 +263,7 @@ export function createGoogleCalendarSearchTool(
         .int()
         .min(1)
         .max(2500)
-        .optional()
+        .default(100)
         .describe("Maximum number of events to return (default: 100, max: 2500)"),
       pageToken: z
         .string()

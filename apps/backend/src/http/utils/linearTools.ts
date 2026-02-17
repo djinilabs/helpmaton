@@ -1,10 +1,9 @@
-import { jsonSchema, tool } from "ai";
+import { tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
 import * as linearClient from "../../utils/linear/client";
 
-import { EMPTY_PARAMETERS_JSON_SCHEMA } from "./toolSchemas";
 import { validateToolArgs } from "./toolValidation";
 
 async function hasOAuthConnection(
@@ -27,12 +26,26 @@ export function createLinearListTeamsTool(
   workspaceId: string,
   serverId: string
 ) {
-  const schema = z.object({}).strict();
+  const schema = z
+    .object({
+      first: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(50)
+        .describe("Number of results to return (default: 50, max: 100)"),
+      after: z
+        .string()
+        .optional()
+        .describe("Pagination cursor for the next page"),
+    })
+    .strict();
 
   return tool({
     description:
-      "List Linear teams available to the connected account. Returns team IDs, names, and keys.",
-    inputSchema: jsonSchema(EMPTY_PARAMETERS_JSON_SCHEMA),
+      "List Linear teams available to the connected account. Returns team IDs, names, and keys. Use first and after to paginate.",
+    parameters: schema,
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     execute: async (args: unknown) => {
@@ -46,8 +59,19 @@ export function createLinearListTeamsTool(
           return parsed.error;
         }
 
-        const result = await linearClient.listTeams(workspaceId, serverId);
-        return JSON.stringify(result, null, 2);
+        const result = await linearClient.listTeams(workspaceId, serverId, {
+          first: parsed.data.first,
+          after: parsed.data.after,
+        });
+        return JSON.stringify(
+          {
+            teams: result.nodes,
+            nextCursor: result.pageInfo.endCursor ?? undefined,
+            hasMore: result.pageInfo.hasNextPage,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Linear list teams tool:", error);
         return `Error listing Linear teams: ${
@@ -69,7 +93,7 @@ export function createLinearListProjectsTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
+        .default(50)
         .describe("Number of results to return (default: 50, max: 100)"),
       after: z
         .string()
@@ -100,7 +124,15 @@ export function createLinearListProjectsTool(
           first: parsed.data.first,
           after: parsed.data.after,
         });
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          {
+            projects: result.nodes,
+            nextCursor: result.pageInfo.endCursor ?? undefined,
+            hasMore: result.pageInfo.hasNextPage,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Linear list projects tool:", error);
         return `Error listing Linear projects: ${
@@ -138,7 +170,7 @@ export function createLinearListIssuesTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
+        .default(50)
         .describe("Number of results to return (default: 50, max: 100)"),
       after: z
         .string()
@@ -173,7 +205,15 @@ export function createLinearListIssuesTool(
           first: parsed.data.first,
           after: parsed.data.after,
         });
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          {
+            issues: result.nodes,
+            nextCursor: result.pageInfo.endCursor ?? undefined,
+            hasMore: result.pageInfo.hasNextPage,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Linear list issues tool:", error);
         return `Error listing Linear issues: ${
@@ -270,7 +310,7 @@ export function createLinearSearchIssuesTool(
         .int()
         .min(1)
         .max(100)
-        .optional()
+        .default(50)
         .describe("Number of results to return (default: 50, max: 100)"),
       after: z
         .string()
@@ -306,7 +346,15 @@ export function createLinearSearchIssuesTool(
           first: parsed.data.first,
           after: parsed.data.after,
         });
-        return JSON.stringify(result, null, 2);
+        return JSON.stringify(
+          {
+            issues: result.nodes,
+            nextCursor: result.pageInfo.endCursor ?? undefined,
+            hasMore: result.pageInfo.hasNextPage,
+          },
+          null,
+          2
+        );
       } catch (error) {
         console.error("Error in Linear search issues tool:", error);
         return `Error searching Linear issues: ${

@@ -107,14 +107,38 @@ async function makeStripeApiRequest<T>(
   }
 }
 
+export interface StripeSearchChargesOptions {
+  limit?: number;
+  page?: string;
+}
+
+export interface StripeSearchChargesResponse {
+  object: string;
+  data: unknown[];
+  has_more: boolean;
+  next_page?: string;
+  url: string;
+}
+
 export async function searchCharges(
   workspaceId: string,
   serverId: string,
-  query: string
-) {
+  query: string,
+  options?: StripeSearchChargesOptions
+): Promise<StripeSearchChargesResponse> {
   const params = new URLSearchParams({ query });
+  if (options?.limit !== undefined) {
+    params.set("limit", String(options.limit));
+  }
+  if (options?.page !== undefined && options.page !== "") {
+    params.set("page", options.page);
+  }
   const url = `${STRIPE_API_BASE}/v1/charges/search?${params.toString()}`;
-  return makeStripeApiRequest(workspaceId, serverId, url);
+  return makeStripeApiRequest<StripeSearchChargesResponse>(
+    workspaceId,
+    serverId,
+    url
+  );
 }
 
 export async function getBalance(workspaceId: string, serverId: string) {
