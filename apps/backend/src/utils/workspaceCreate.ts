@@ -2,6 +2,7 @@ import type { DatabaseSchema } from "../tables";
 import type { WorkspaceRecord } from "../tables/schema";
 
 import { toNanoDollars } from "./creditConversions";
+import { idFromRef } from "./refUtils";
 import { trackEvent } from "./tracking";
 
 /** Initial credits in USD granted to every new workspace. */
@@ -9,10 +10,6 @@ export const INITIAL_WORKSPACE_CREDITS_USD = 2;
 
 /** PostHog event name for workspace creation. Single place for this event (sent from here). */
 export const WORKSPACE_CREATED_EVENT = "workspace_created";
-
-function idFromRef(ref: string, prefix: string): string {
-  return ref.startsWith(prefix) ? ref.slice(prefix.length) : ref;
-}
 
 export type CreateWorkspaceRecordParams = {
   pk: string;

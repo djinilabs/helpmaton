@@ -57,6 +57,7 @@
 ### Database Patterns
 
 - **Workspace creation**: Single place—`createWorkspaceRecord` in `utils/workspaceCreate.ts`. All new workspaces (create-from-UI and import) get 2 USD initial credits. The `workspace_created` PostHog event is also sent only from this function (best-effort, does not block creation). Callers pass `pk`, `sk`, `name`, `createdBy`, `subscriptionId`, and optional `description`, `currency`, `spendingLimits`, `creationNotes`.
+- **Agent creation**: Single place—`createAgentRecord` in `utils/agentCreate.ts`. All agent rows are created via this function. The PostHog `agent_created` event is sent only from this function (best-effort, does not block creation); sent only when pk parses to both workspaceId and agentId. Callers: POST `/api/workspaces/:workspaceId/agents`, workspace import (`workspaceImport.ts`), and workspace agent tool `create_agent` (`workspaceAgentTools.ts`). Params type: `CreateAgentRecordParams` (same shape as agent record minus `version`/`createdAt`). Ref parsing shared with workspace creation via `utils/refUtils.ts` (`idFromRef`).
 - **DynamoDB**: Single-table design with GSIs
 - **Encryption**: Sensitive tables use `encrypt true` in app.arc
 - **TTL**: Expiring records (sessions, logs, reservations)

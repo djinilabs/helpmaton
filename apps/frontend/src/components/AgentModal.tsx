@@ -429,13 +429,7 @@ export const AgentModal: FC<AgentModalProps> = ({
           modelName: modelName || null,
           avatar: avatar || null,
         });
-        trackEvent("agent_created", {
-          workspace_id: workspaceId,
-          agent_id: createdAgent.id,
-          model_name: createdAgent.modelName || modelName || undefined,
-          has_notification_channel: !!notificationChannelId,
-          has_avatar: !!avatar,
-        });
+        // agent_created is sent only from backend createAgentRecord
         handleClose();
         navigate(`/workspaces/${workspaceId}/agents/${createdAgent.id}`);
       }

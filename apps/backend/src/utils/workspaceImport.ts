@@ -9,6 +9,7 @@ import { database } from "../tables";
 import { ensureAuthorization } from "../tables/permissions";
 import { PERMISSION_LEVELS } from "../tables/schema";
 
+import { createAgentRecord } from "./agentCreate";
 import { getAvailableSkills } from "./agentSkills";
 import type { McpServerForSkills } from "./agentSkills";
 import {
@@ -596,7 +597,7 @@ async function createAgentsAndNestedEntities(
       );
     }
 
-    await ctx.db.agent.create({
+    await createAgentRecord(ctx.db, {
       pk: agentPk,
       sk: "agent",
       workspaceId,
