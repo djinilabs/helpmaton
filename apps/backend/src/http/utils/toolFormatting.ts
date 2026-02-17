@@ -32,6 +32,9 @@ export function formatToolCallMessage(
   };
 }
 
+import { getMaxToolOutputBytes } from "../../utils/pricing";
+
+import { getDefaultModel } from "./modelFactory";
 import {
   extractToolCostFromResult,
   TOOL_COST_MARKER_PATTERN,
@@ -41,19 +44,39 @@ import {
   type DelegationMetadata,
 } from "./toolDelegationExtraction";
 
+
 // Re-export for use in other modules
 export { TOOL_COST_MARKER_PATTERN };
 
+/** Default max tool output bytes (from default model metadata). Lazy so tests can mock pricing before first use. */
+export function getDefaultMaxToolOutputBytes(): number {
+  return getMaxToolOutputBytes("openrouter", getDefaultModel());
+}
+
+/** Suffix shown when tool output is trimmed for length. */
+export const TOOL_OUTPUT_TRIMMED_SUFFIX =
+  "\n\n[Output trimmed for brevity.]";
+
+export interface FormatToolResultMessageOptions {
+  /** Provider (e.g. "openrouter"); used with modelName to get max output bytes from model metadata. */
+  provider?: string;
+  /** Model name; used with provider to get max output bytes from model metadata. */
+  modelName?: string;
+}
+
 /**
- * Formats tool result as UI message with truncation
- * Extracts cost from result string if present (format: __HM_TOOL_COST__:8000)
- * Improved marker format that's less likely to conflict with actual content
+ * Formats tool result as UI message with truncation.
+ * Max output size is derived from model metadata (context length) when provider/modelName are given;
+ * otherwise uses default OpenRouter model. Extracts cost from result string if present.
  */
 export function formatToolResultMessage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-  toolResult: any
+  toolResult: any,
+  options?: FormatToolResultMessageOptions
 ) {
-  const MAX_RESULT_LENGTH = 2000;
+  const provider = options?.provider ?? "openrouter";
+  const modelName = options?.modelName ?? getDefaultModel();
+  const maxOutputBytes = getMaxToolOutputBytes(provider, modelName);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
   let outputValue: any =
@@ -118,16 +141,16 @@ export function formatToolResultMessage(
     delegation = extractedDelegation;
     outputValue = finalProcessedResult;
 
-    // Truncate if string (after cost and delegation extraction)
-    if (outputValue.length > MAX_RESULT_LENGTH) {
+    // Cap string output at model-derived limit; show indication when trimmed (after cost and delegation extraction)
+    if (outputValue.length > maxOutputBytes) {
       outputValue =
-        outputValue.substring(0, MAX_RESULT_LENGTH) +
-        "\n\n[Results truncated for brevity. Please provide a summary based on the information shown.]";
+        outputValue.substring(0, maxOutputBytes) + TOOL_OUTPUT_TRIMMED_SUFFIX;
     }
   } else if (typeof outputValue !== "object" || outputValue === null) {
     outputValue = String(outputValue);
   }
 
+  // Extract file part from object before possibly capping (e.g. generate_image)
   const extractGenerateImageFilePart = () => {
     if (toolResult.toolName !== "generate_image") {
       return null;
@@ -159,6 +182,16 @@ export function formatToolResultMessage(
       }),
     };
   };
+
+  const generateImageFilePart = extractGenerateImageFilePart();
+  // Cap object output when stringified representation exceeds model-derived limit
+  if (typeof outputValue === "object" && outputValue !== null) {
+    const str = JSON.stringify(outputValue);
+    if (str.length > maxOutputBytes) {
+      outputValue =
+        str.substring(0, maxOutputBytes) + TOOL_OUTPUT_TRIMMED_SUFFIX;
+    }
+  }
 
   // Build content array with tool result and optionally delegation
   const content: Array<
@@ -211,7 +244,6 @@ export function formatToolResultMessage(
     });
   }
 
-  const generateImageFilePart = extractGenerateImageFilePart();
   if (generateImageFilePart) {
     content.push(generateImageFilePart);
   }
@@ -221,4 +253,35 @@ export function formatToolResultMessage(
     role: "assistant" as const,
     content,
   };
+}
+
+/**
+ * Returns the (possibly truncated) tool result value to send to the model.
+ * Reuses the same model-derived cap and "Output trimmed for brevity" as
+ * formatToolResultMessage. Use when returning from tool execution (e.g.
+ * wrapToolsWithObserver) so streaming and test paths match continuation/webhook/scheduled.
+ *
+ * @param toolResult - Raw tool result (e.g. { toolCallId, toolName, result }).
+ * @param options - Optional provider/modelName for model-derived cap.
+ * @returns Value to return to the AI SDK (string or object; truncated if over cap).
+ */
+export function getToolResultValueForModel(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
+  toolResult: any,
+  options?: FormatToolResultMessageOptions
+): unknown {
+  const formatted = formatToolResultMessage(toolResult, options);
+  const part = formatted.content.find(
+    (p) =>
+      p != null &&
+      typeof p === "object" &&
+      "type" in p &&
+      (p as { type: string }).type === "tool-result" &&
+      "result" in p
+  );
+  const truncatedResult =
+    part && typeof part === "object" && "result" in part
+      ? (part as { result: unknown }).result
+      : undefined;
+  return truncatedResult ?? toolResult?.result ?? toolResult?.output;
 }

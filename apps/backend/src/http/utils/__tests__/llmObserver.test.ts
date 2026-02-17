@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { LlmObserverEvent } from "../llmObserver";
 import {
@@ -7,6 +7,16 @@ import {
   withLlmObserver,
   wrapToolsWithObserver,
 } from "../llmObserver";
+import { TOOL_OUTPUT_TRIMMED_SUFFIX } from "../toolFormatting";
+
+const CAP = 50;
+vi.mock("../../../utils/pricing", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../utils/pricing")>();
+  return {
+    ...actual,
+    getMaxToolOutputBytes: () => CAP,
+  };
+});
 
 describe("buildConversationMessagesFromObserver", () => {
   it("builds assistant content with tool timing and cost extraction", () => {
@@ -567,5 +577,26 @@ describe("llmObserver helpers", () => {
     if (endedEvent && endedEvent.type === "tool-execution-ended") {
       expect(endedEvent.error).toBe("Tool failed");
     }
+  });
+
+  it("truncates long tool result when provider and modelName are passed", async () => {
+    const tools = {
+      search_documents: {
+        description: "Search docs",
+        execute: async () => "x".repeat(CAP + 100),
+      },
+    };
+
+    const wrapped = wrapToolsWithObserver(tools, {
+      provider: "openrouter",
+      modelName: "test/small",
+    });
+    const result = await wrapped.search_documents.execute?.();
+
+    expect(typeof result).toBe("string");
+    const str = result as string;
+    expect(str.length).toBe(CAP + TOOL_OUTPUT_TRIMMED_SUFFIX.length);
+    expect(str.endsWith(TOOL_OUTPUT_TRIMMED_SUFFIX)).toBe(true);
+    expect(str.startsWith("xxxxx")).toBe(true);
   });
 });

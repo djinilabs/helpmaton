@@ -134,9 +134,18 @@ export async function handleToolContinuation(
     .filter((tc): tc is NonNullable<typeof tc> => tc != null)
     .map(formatToolCallMessage);
 
+  const resolvedModelName =
+    typeof agent.modelName === "string" && agent.modelName.length > 0
+      ? agent.modelName
+      : getDefaultModel();
   const toolResultUIMessages = toolResults
     .filter((tr): tr is NonNullable<typeof tr> => tr != null)
-    .map(formatToolResultMessage);
+    .map((tr) =>
+      formatToolResultMessage(tr, {
+        provider: "openrouter",
+        modelName: resolvedModelName,
+      })
+    );
 
   // Merge all tool calls and tool results into a single assistant message.
   // convertUIMessagesToModelMessages uses appendToolResultsToAssistantWithToolCalls,

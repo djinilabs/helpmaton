@@ -39,6 +39,7 @@ import {
 } from "./internalDocTool";
 import type { LlmObserver } from "./llmObserver";
 import { wrapToolsWithObserver } from "./llmObserver";
+import { getDefaultModel } from "./modelFactory";
 import {
   createAgentScheduleSchema,
   updateAgentScheduleSchema,
@@ -670,7 +671,15 @@ export function setupAgentConfigTools(
   options?: SetupAgentConfigToolsOptions
 ): SetupAgentConfigToolsResult {
   const rawTools = createAgentConfigTools(workspaceId, agentId, agent, options);
-  const tools = wrapToolsWithObserver(rawTools, options?.llmObserver);
+  const resolvedModelName =
+    typeof agent.modelName === "string" && agent.modelName.length > 0
+      ? agent.modelName
+      : getDefaultModel();
+  const tools = wrapToolsWithObserver(rawTools, {
+    observer: options?.llmObserver,
+    provider: "openrouter",
+    modelName: resolvedModelName,
+  });
   const systemPrompt = getMetaAgentSystemPrompt(agent.name);
   return { tools, systemPrompt };
 }

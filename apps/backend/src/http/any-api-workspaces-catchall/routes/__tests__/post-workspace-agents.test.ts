@@ -40,6 +40,7 @@ vi.mock("../../../../utils/subscriptionUtils", () => ({
 
 vi.mock("../../../../utils/pricing", () => ({
   getModelPricing: mockGetModelPricing,
+  getMaxToolOutputBytes: () => 1_048_576,
 }));
 
 vi.mock("crypto", () => ({

@@ -1083,7 +1083,11 @@ export async function setupWorkspaceAgentAndTools(
     workspaceId,
     options?.userId
   );
-  const tools = wrapToolsWithObserver(rawTools, options?.llmObserver);
+  const tools = wrapToolsWithObserver(rawTools, {
+    observer: options?.llmObserver,
+    provider: "openrouter",
+    modelName,
+  });
 
   return {
     agent,

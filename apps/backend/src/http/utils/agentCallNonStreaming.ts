@@ -162,9 +162,15 @@ const executeNonStreamingLLMCall = async (params: {
       "openrouter",
       params.finalModelName,
     );
-    if (estimatedInputTokens > maxSafeInputTokens) {
+    // Use conservative factor: real tokenizers often use fewer chars/token than 4,
+    // so we can underestimate; 1.5x ensures we fail fast before hitting the API.
+    const CONTEXT_ESTIMATE_SAFETY_FACTOR = 1.5;
+    const effectiveEstimatedTokens = Math.ceil(
+      estimatedInputTokens * CONTEXT_ESTIMATE_SAFETY_FACTOR,
+    );
+    if (effectiveEstimatedTokens > maxSafeInputTokens) {
       const message =
-        `Request would exceed model context limit: estimated ${estimatedInputTokens} input tokens (max ${maxSafeInputTokens}). ` +
+        `Request would exceed model context limit: estimated ${estimatedInputTokens} input tokens (effective ${effectiveEstimatedTokens} with safety factor, max ${maxSafeInputTokens}). ` +
         "Reduce schedule prompt length, conversation history, or knowledge injection snippet count.";
       const error = new Error(message) as Error & { code?: string };
       error.code = "CONTEXT_LENGTH_EXCEEDED";
