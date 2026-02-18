@@ -1,10 +1,10 @@
 import type {
   ModelMessage,
   UserModelMessage,
-  AssistantModelMessage,
   SystemModelMessage,
   ToolCallPart,
   ToolResultPart,
+  ToolModelMessage,
   ImagePart,
   FilePart,
 } from "ai";
@@ -89,46 +89,19 @@ const parseFilePart = (part: {
 };
 
 /**
- * Appends tool results to the assistant message that contains the matching tool calls.
- * Must append to the LAST assistant with tool-call content (the one we just built),
- * not the first assistant. When there are multiple assistant messages (e.g. from
- * conversation history), appending to the first would attach results to the wrong
- * message and cause AI_MissingToolResultsError for the current tool round.
+ * Pushes tool results as a separate message with role "tool".
+ * The AI SDK's convertToLanguageModelPrompt only clears pending tool-call IDs when
+ * it sees a message with role "tool" (see case 'tool' in the validation loop).
+ * Putting results inside the assistant message caused AI_MissingToolResultsError.
+ * @see aiSdkToolMessageFormat.test.ts (validates our output against the SDK)
  */
-const appendToolResultsToAssistantWithToolCalls = (
+const pushToolResultsMessage = (
   modelMessages: ModelMessage[],
   toolResults: ToolResultPart[]
 ): void => {
   if (toolResults.length === 0) return;
-
-  const hasToolCalls = (content: unknown): boolean =>
-    Array.isArray(content) &&
-    content.some(
-      (p: unknown) =>
-        p &&
-        typeof p === "object" &&
-        "type" in p &&
-        (p as { type: string }).type === "tool-call"
-    );
-
-  for (let i = modelMessages.length - 1; i >= 0; i--) {
-    const msg = modelMessages[i];
-    if (msg.role === "assistant" && hasToolCalls(msg.content)) {
-      const existingMsg = msg as AssistantModelMessage;
-      if (Array.isArray(existingMsg.content) && existingMsg.content.length > 0) {
-        (existingMsg.content as Array<unknown>).push(...toolResults);
-      } else {
-        (modelMessages[i] as AssistantModelMessage).content = toolResults;
-      }
-      return;
-    }
-  }
-
-  const assistantMessage: AssistantModelMessage = {
-    role: "assistant",
-    content: toolResults,
-  };
-  modelMessages.push(assistantMessage);
+  const toolMessage: ToolModelMessage = { role: "tool", content: toolResults };
+  modelMessages.push(toolMessage);
 };
 
 /**
@@ -350,7 +323,7 @@ const buildAssistantMessages = (
     modelMessages.push({ role: "assistant", content: combinedTextPart.text });
   }
 
-  appendToolResultsToAssistantWithToolCalls(modelMessages, toolResults);
+  pushToolResultsMessage(modelMessages, toolResults);
 };
 
 const buildToolMessage = (message: UIMessage, modelMessages: ModelMessage[]): void => {
@@ -388,7 +361,8 @@ const buildToolMessage = (message: UIMessage, modelMessages: ModelMessage[]): vo
   }
 
   if (toolResults.length > 0) {
-    modelMessages.push({ role: "assistant", content: toolResults });
+    const toolMessage: ToolModelMessage = { role: "tool", content: toolResults };
+    modelMessages.push(toolMessage);
   }
 };
 

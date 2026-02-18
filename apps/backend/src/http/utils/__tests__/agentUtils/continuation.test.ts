@@ -98,29 +98,21 @@ describe("continuation tool-round message (MissingToolResultsError fix)", () => 
 
     const modelMessages = convertUIMessagesToModelMessages(messages);
 
+    // Tool results are emitted as a separate message with role "tool" so the AI SDK
+    // validator clears pending tool-call IDs (avoids AI_MissingToolResultsError).
     const assistantMessages = modelMessages.filter((m) => m.role === "assistant");
+    const toolMessages = modelMessages.filter((m) => m.role === "tool");
     expect(assistantMessages).toHaveLength(1);
-    const content = (assistantMessages[0] as { content: unknown[] }).content;
-    const calls = content.filter(
+    expect(toolMessages).toHaveLength(1);
+    const assistantContent = (assistantMessages[0] as { content: unknown[] }).content;
+    const calls = assistantContent.filter(
       (p: unknown) =>
         p && typeof p === "object" && "type" in p && p.type === "tool-call"
     );
-    const results = content.filter(
-      (p: unknown) =>
-        p &&
-        typeof p === "object" &&
-        "type" in p &&
-        p.type === "tool-result"
-    );
+    const toolContent = (toolMessages[0] as { content: Array<{ toolCallId?: string }> }).content;
     expect(calls).toHaveLength(2);
-    expect(results).toHaveLength(2);
-    const resultIds = new Set(
-      results.map((r: unknown) =>
-        r && typeof r === "object" && "toolCallId" in r
-          ? (r as { toolCallId?: string }).toolCallId
-          : undefined
-      )
-    );
+    expect(toolContent).toHaveLength(2);
+    const resultIds = new Set(toolContent.map((r) => r.toolCallId));
     for (const c of calls as { toolCallId?: string }[]) {
       expect(resultIds.has(c.toolCallId)).toBe(true);
     }

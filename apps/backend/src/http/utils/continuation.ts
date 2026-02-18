@@ -147,11 +147,11 @@ export async function handleToolContinuation(
       })
     );
 
-  // Merge all tool calls and tool results into a single assistant message.
-  // convertUIMessagesToModelMessages uses appendToolResultsToAssistantWithToolCalls,
-  // which appends results to the last assistant message with tool-call content.
-  // If we passed multiple assistant messages (one per tool call/result), only the
-  // first would get results; merging into one ensures every tool call has a result.
+  // Merge all tool calls and tool results into a single assistant UI message.
+  // convertUIMessagesToModelMessages emits tool results in a separate message with
+  // role "tool" (required by the AI SDK validator so it clears pending tool-call IDs).
+  // We still pass one UI message with both parts so the converter can output
+  // assistant (tool calls) + tool (results) in the correct order.
   const toolRoundContent = [
     ...toolCallUIMessages.flatMap((m) => m.content),
     ...toolResultUIMessages.flatMap((m) => m.content),
