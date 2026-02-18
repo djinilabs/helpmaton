@@ -148,7 +148,8 @@ describe("convertUIMessagesToModelMessages", () => {
 
   it("should convert single assistant with multiple tool calls and results (continuation format, avoids MissingToolResultsError)", () => {
     // Structure built by handleToolContinuation: one assistant message containing
-    // all tool-call parts then all tool-result parts, so every tool call has a result.
+    // all tool-call parts then all tool-result parts. We emit tool results in a
+    // separate message with role "tool" so the AI SDK validator clears pending tool-call IDs.
     const messages: UIMessage[] = [
       {
         role: "user",
@@ -186,31 +187,37 @@ describe("convertUIMessagesToModelMessages", () => {
     ];
 
     const result = convertUIMessagesToModelMessages(messages);
-    expect(result).toHaveLength(2); // user + assistant
+    expect(result).toHaveLength(3); // user + assistant (tool calls) + tool (results)
     const assistantMsg = result.find((m) => m.role === "assistant") as
       | AssistantModelMessage
       | undefined;
+    const toolMsg = result.find((m) => m.role === "tool") as ToolModelMessage | undefined;
     expect(assistantMsg).toBeDefined();
-    if (!assistantMsg) return;
+    expect(toolMsg).toBeDefined();
+    if (!assistantMsg || !toolMsg) return;
     expect(Array.isArray(assistantMsg.content)).toBe(true);
-    const content = assistantMsg.content as Array<
+    const assistantContent = assistantMsg.content as Array<
       { type: string; toolCallId?: string } & Record<string, unknown>
     >;
-    const toolCalls = content.filter((p) => p.type === "tool-call");
-    const toolResults = content.filter((p) => p.type === "tool-result");
+    const toolCalls = assistantContent.filter((p) => p.type === "tool-call");
     expect(toolCalls).toHaveLength(2);
-    expect(toolResults).toHaveLength(2);
-    const resultIds = new Set(toolResults.map((r) => r.toolCallId));
+    expect(toolMsg.content).toHaveLength(2);
+    const resultIds = new Set(
+      (toolMsg.content as Array<{ toolCallId?: string }>)
+        .map((r) => r.toolCallId)
+        .filter((id): id is string => id != null)
+    );
     for (const tc of toolCalls) {
-      expect(resultIds.has(tc.toolCallId)).toBe(true);
+      expect(tc.toolCallId).toBeDefined();
+      expect(resultIds.has(tc.toolCallId!)).toBe(true);
     }
   });
 
-  it("should append tool results to the assistant with tool calls, not the first assistant (multi-turn continuation)", () => {
+  it("should emit tool results in a separate tool message (multi-turn continuation)", () => {
     // Simulates continuation when there's conversation history: user, previous
     // assistant (text), current assistant (tool calls + results). Tool results
-    // must be appended to the LAST assistant (the one with tool calls), not
-    // the first, to avoid AI_MissingToolResultsError.
+    // are emitted as a message with role "tool" so the AI SDK validator clears
+    // pending tool-call IDs (avoids AI_MissingToolResultsError).
     const messages: UIMessage[] = [
       { role: "user", content: "First message" },
       { role: "assistant", content: "Previous response" },
@@ -236,10 +243,13 @@ describe("convertUIMessagesToModelMessages", () => {
 
     const result = convertUIMessagesToModelMessages(messages);
     const assistants = result.filter((m) => m.role === "assistant");
+    const toolMessages = result.filter((m) => m.role === "tool");
     expect(assistants).toHaveLength(2);
+    expect(toolMessages).toHaveLength(1);
 
     const firstAssistant = assistants[0] as AssistantModelMessage;
     const secondAssistant = assistants[1] as AssistantModelMessage;
+    const toolMsg = toolMessages[0] as ToolModelMessage;
 
     expect(firstAssistant.content).toBe("Previous response");
     expect(Array.isArray(secondAssistant.content)).toBe(true);
@@ -248,17 +258,18 @@ describe("convertUIMessagesToModelMessages", () => {
       toolCallId?: string;
     }>;
     const toolCalls = content.filter((p) => p.type === "tool-call");
-    const toolResults = content.filter((p) => p.type === "tool-result");
     expect(toolCalls).toHaveLength(1);
-    expect(toolResults).toHaveLength(1);
     expect(toolCalls[0].toolCallId).toBe("tool_send_notification_Abc123");
-    expect(toolResults[0].toolCallId).toBe("tool_send_notification_Abc123");
+    expect(toolMsg.content).toHaveLength(1);
+    expect((toolMsg.content[0] as { toolCallId: string }).toolCallId).toBe(
+      "tool_send_notification_Abc123"
+    );
   });
 
-  it("should append tool results to assistant with tool-calls when same message has tool-calls, text, and tool-results", () => {
+  it("should emit tool results in a separate tool message when same message has tool-calls, text, and tool-results", () => {
     // When one assistant message has tool-calls, text, and tool-results,
-    // buildAssistantMessages pushes: (1) assistant with toolCalls, (2) assistant with text.
-    // Tool results must go to the assistant with tool-calls, not the text-only one.
+    // buildAssistantMessages pushes: (1) assistant with toolCalls, (2) assistant with text,
+    // (3) tool message with results (so the AI SDK validator clears pending tool-call IDs).
     const messages: UIMessage[] = [
       { role: "user", content: "Run tool and respond" },
       {
@@ -283,18 +294,23 @@ describe("convertUIMessagesToModelMessages", () => {
 
     const result = convertUIMessagesToModelMessages(messages);
     const assistants = result.filter((m) => m.role === "assistant");
+    const toolMessages = result.filter((m) => m.role === "tool");
     expect(assistants).toHaveLength(2);
+    expect(toolMessages).toHaveLength(1);
 
     const firstAssistant = assistants[0] as AssistantModelMessage;
     const secondAssistant = assistants[1] as AssistantModelMessage;
+    const toolMsg = toolMessages[0] as ToolModelMessage;
 
     expect(Array.isArray(firstAssistant.content)).toBe(true);
     const firstContent = firstAssistant.content as Array<{ type: string; toolCallId?: string }>;
     const toolCalls = firstContent.filter((p) => p.type === "tool-call");
-    const toolResults = firstContent.filter((p) => p.type === "tool-result");
     expect(toolCalls).toHaveLength(1);
-    expect(toolResults).toHaveLength(1);
     expect(toolCalls[0].toolCallId).toBe("tool_get_datetime_xyz");
+    expect(toolMsg.content).toHaveLength(1);
+    expect((toolMsg.content[0] as { toolCallId: string }).toolCallId).toBe(
+      "tool_get_datetime_xyz"
+    );
 
     expect(secondAssistant.content).toBe("Checking time...");
   });
@@ -316,7 +332,7 @@ describe("convertUIMessagesToModelMessages", () => {
 
     const result = convertUIMessagesToModelMessages(messages);
     expect(result).toHaveLength(1);
-    expect(result[0].role).toEqual("assistant" as const);
+    expect(result[0].role).toEqual("tool" as const);
     const toolMessage = result[0] as ToolModelMessage;
     expect(toolMessage.content).toHaveLength(1);
     expect(toolMessage.content[0]).toMatchObject({
