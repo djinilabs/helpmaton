@@ -539,9 +539,9 @@
         },
         "z-ai/glm-4.7": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.5,
-            "cachedInput": 0.04
+            "input": 0.38,
+            "output": 1.7,
+            "cachedInput": 0.038000000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -965,9 +965,9 @@
         },
         "mistralai/devstral-2512": {
           "usd": {
-            "input": 0.049999999999999996,
-            "output": 0.22,
-            "cachedInput": 0.005
+            "input": 0.39999999999999997,
+            "output": 2,
+            "cachedInput": 0.04
           },
           "capabilities": {
             "input_modalities": [
@@ -3070,9 +3070,9 @@
         },
         "z-ai/glm-4.6": {
           "usd": {
-            "input": 0.35,
-            "output": 1.5,
-            "cachedInput": 0.034999999999999996
+            "input": 0.33999999999999997,
+            "output": 1.7,
+            "cachedInput": 0.033999999999999996
           },
           "capabilities": {
             "input_modalities": [
@@ -12679,9 +12679,9 @@
         },
         "qwen/qwen3-coder-next": {
           "usd": {
-            "input": 0.07,
-            "output": 0.3,
-            "cachedInput": 0.007000000000000001
+            "input": 0.12,
+            "output": 0.75,
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -12964,7 +12964,7 @@
         "minimax/minimax-m2.5": {
           "usd": {
             "input": 0.3,
-            "output": 1.2,
+            "output": 1.1,
             "cachedInput": 0.03
           },
           "capabilities": {
@@ -13072,9 +13072,9 @@
         },
         "qwen/qwen3.5-397b-a17b": {
           "usd": {
-            "input": 0.6,
-            "output": 3.5999999999999996,
-            "cachedInput": 0.06
+            "input": 0.15,
+            "output": 1,
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -13105,9 +13105,46 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "anthropic/claude-sonnet-4.6": {
+          "usd": {
+            "input": 3,
+            "output": 15,
+            "cachedInput": 0.30000000000000004
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-02-17T00:20:30.483Z"
+  "lastUpdated": "2026-02-18T00:20:10.043Z"
 }
