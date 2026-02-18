@@ -4,16 +4,10 @@ import type {
   SystemModelMessage,
   ToolCallPart,
   ToolResultPart,
+  ToolModelMessage,
   ImagePart,
   FilePart,
 } from "ai";
-
-/**
- * Tool message: results must be in a message with role "tool" so the AI SDK
- * validator clears pending tool-call IDs (avoid AI_MissingToolResultsError).
- * @see https://sdk.vercel.ai/docs/09-troubleshooting/21-missing-tool-results-error
- */
-type ToolModelMessage = { role: "tool"; content: ToolResultPart[] };
 
 import type { UIMessage } from "../../utils/messageTypes";
 
