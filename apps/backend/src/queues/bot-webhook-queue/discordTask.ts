@@ -531,7 +531,9 @@ async function logDiscordConversation(options: {
   );
 
   const conversationPk = `conversations/${options.workspaceId}/${options.agentId}/${options.finalConversationId}`;
-  const existingConversation = await getRecord(options.db, conversationPk);
+  const existingConversation = await getRecord(options.db, conversationPk, undefined, {
+    enrichFromS3: false,
+  });
 
   if (existingConversation) {
     await updateConversation(

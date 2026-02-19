@@ -203,6 +203,41 @@ describe("conversationRecords", () => {
         }),
       );
     });
+
+    it("when record already has messagesS3Key, re-uploads to S3 and stores messages: [] (authoritative)", async () => {
+      const mockUpsert = vi.fn().mockResolvedValue({});
+      const db = {
+        "agent-conversations": {
+          upsert: mockUpsert,
+        },
+      } as never;
+
+      const now = new Date().toISOString();
+      await upsertRecord(db, {
+        pk: "conversations/ws1/ag1/conv1",
+        workspaceId: "ws1",
+        agentId: "ag1",
+        conversationId: "conv1",
+        conversationType: "test",
+        messages: [{ role: "user", content: "small" }],
+        messagesS3Key: "conversation-messages/ws1/ag1/conv1.json",
+        startedAt: now,
+        lastMessageAt: now,
+        expires: 888888,
+      } as unknown as Omit<AgentConversationRecord, "version">);
+
+      expect(putS3Object).toHaveBeenCalledWith(
+        "conversation-messages/ws1/ag1/conv1.json",
+        JSON.stringify([{ role: "user", content: "small" }]),
+        "application/json",
+      );
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: [],
+          messagesS3Key: "conversation-messages/ws1/ag1/conv1.json",
+        }),
+      );
+    });
   });
 
   describe("getRecord", () => {
@@ -267,6 +302,34 @@ describe("conversationRecords", () => {
         ...record,
         messages: [{ role: "user", content: "from S3" }],
       });
+    });
+
+    it("returns record without S3 fetch when enrichFromS3: false", async () => {
+      vi.mocked(getS3ObjectBody).mockClear();
+      const record = {
+        pk: "conversations/ws1/ag1/conv1",
+        workspaceId: "ws1",
+        agentId: "ag1",
+        conversationId: "conv1",
+        conversationType: "test" as const,
+        messages: [],
+        messagesS3Key: "conversation-messages/ws1/ag1/conv1.json",
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: calculateTTL(),
+      };
+      const db = {
+        "agent-conversations": {
+          get: vi.fn().mockResolvedValue(record),
+        },
+      } as never;
+
+      const result = await getRecord(db, "conversations/ws1/ag1/conv1", undefined, {
+        enrichFromS3: false,
+      });
+
+      expect(getS3ObjectBody).not.toHaveBeenCalled();
+      expect(result).toEqual(record);
     });
 
     it("returns record without enrichment when S3 fetch fails", async () => {
@@ -407,11 +470,9 @@ describe("conversationRecords", () => {
   describe("deleteRecord", () => {
     it("deletes by pk and returns deleted item", async () => {
       const deleted = { pk: "conversations/ws1/ag1/conv1", sk: undefined };
-      const mockGet = vi.fn().mockResolvedValue(deleted);
       const mockDelete = vi.fn().mockResolvedValue(deleted);
       const db = {
         "agent-conversations": {
-          get: mockGet,
           delete: mockDelete,
         },
       } as never;
@@ -426,10 +487,9 @@ describe("conversationRecords", () => {
     });
 
     it("throws when record not found", async () => {
-      const mockDelete = vi.fn();
+      const mockDelete = vi.fn().mockRejectedValue(new Error("Item not found"));
       const db = {
         "agent-conversations": {
-          get: vi.fn().mockResolvedValue(undefined),
           delete: mockDelete,
         },
       } as never;
@@ -437,7 +497,22 @@ describe("conversationRecords", () => {
       await expect(
         deleteRecord(db, "conversations/ws1/ag1/conv1"),
       ).rejects.toThrow("Conversation record not found");
-      expect(mockDelete).not.toHaveBeenCalled();
+      expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it("rethrows when delete fails with non-not-found error", async () => {
+      const mockDelete = vi
+        .fn()
+        .mockRejectedValue(new Error("Network error"));
+      const db = {
+        "agent-conversations": {
+          delete: mockDelete,
+        },
+      } as never;
+
+      await expect(
+        deleteRecord(db, "conversations/ws1/ag1/conv1"),
+      ).rejects.toThrow("Network error");
     });
 
     it("calls deleteS3Object when record has messagesS3Key", async () => {
@@ -446,11 +521,9 @@ describe("conversationRecords", () => {
         sk: undefined,
         messagesS3Key: "conversations/ws1/ag1/conv1/messages.json",
       };
-      const mockGet = vi.fn().mockResolvedValue(deleted);
       const mockDelete = vi.fn().mockResolvedValue(deleted);
       const db = {
         "agent-conversations": {
-          get: mockGet,
           delete: mockDelete,
         },
       } as never;

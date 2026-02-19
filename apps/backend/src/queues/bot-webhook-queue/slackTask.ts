@@ -715,7 +715,9 @@ async function logSlackConversation(params: {
   );
 
   const conversationPk = `conversations/${workspaceId}/${agentId}/${finalConversationId}`;
-  const existingConversation = await getRecord(db, conversationPk);
+  const existingConversation = await getRecord(db, conversationPk, undefined, {
+    enrichFromS3: false,
+  });
 
   if (existingConversation) {
     await updateConversation(

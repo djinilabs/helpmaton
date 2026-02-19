@@ -7,6 +7,7 @@
  * (a) Enrichment: Every record we retrieve from DynamoDB is automatically enriched from S3 when
  * the record has messagesS3Key—getRecord, queryRecords, queryRecordsPaginated, and the return
  * value of atomicUpdateRecord all return records with messages populated from S3 when applicable.
+ * For existence checks only, use getRecord(..., { enrichFromS3: false }) to avoid S3 reads.
  *
  * (b) S3 overflow: Every create or update path automatically delegates to S3 when the record
  * exceeds the size limit—createRecord, upsertRecord, and atomicUpdateRecord all run the payload
@@ -40,8 +41,11 @@ function estimateRecordSizeBytes(record: Record<string, unknown>): number {
 }
 
 /**
- * If the record exceeds MAX_RECORD_SIZE_BYTES, upload messages to S3 and return a record with
- * messages: [] and messagesS3Key set. Otherwise return the record unchanged.
+ * If the record exceeds MAX_RECORD_SIZE_BYTES, or it already has messagesS3Key (authoritative:
+ * keep messages in S3), upload messages to S3 and return a record with messages: [] and
+ * messagesS3Key set. Otherwise return the record unchanged. This avoids inconsistent state
+ * where DynamoDB has both inline messages and messagesS3Key (reads would prefer S3 and could
+ * return stale data).
  */
 async function ensureMessagesInDynamoOrS3<
   T extends {
@@ -49,17 +53,17 @@ async function ensureMessagesInDynamoOrS3<
     workspaceId: string;
     agentId: string;
     conversationId: string;
+    messagesS3Key?: string;
   },
 >(record: T): Promise<T & { messagesS3Key?: string }> {
   const size = estimateRecordSizeBytes(record as Record<string, unknown>);
-  if (size <= MAX_RECORD_SIZE_BYTES) {
+  const alreadyInS3 = !!record.messagesS3Key;
+  if (size <= MAX_RECORD_SIZE_BYTES && !alreadyInS3) {
     return record as T & { messagesS3Key?: string };
   }
-  const key = buildMessagesS3Key(
-    record.workspaceId,
-    record.agentId,
-    record.conversationId,
-  );
+  const key =
+    record.messagesS3Key ??
+    buildMessagesS3Key(record.workspaceId, record.agentId, record.conversationId);
   await putS3Object(key, JSON.stringify(record.messages), "application/json");
   return { ...record, messages: [], messagesS3Key: key } as T & {
     messagesS3Key: string;
@@ -207,14 +211,20 @@ export async function atomicUpdateRecord(
   return enrichRecordFromS3(written);
 }
 
+export type GetRecordOptions = {
+  /** When true (default), fetch messages from S3 when messagesS3Key is set. Set false for existence checks to avoid S3 reads. */
+  enrichFromS3?: boolean;
+};
+
 /**
- * Get a conversation record by pk. When the record has messagesS3Key, messages are fetched
- * from S3 and attached. Returns null if not found.
+ * Get a conversation record by pk. When the record has messagesS3Key and options.enrichFromS3
+ * is not false, messages are fetched from S3 and attached. Returns null if not found.
  */
 export async function getRecord(
   db: DatabaseSchema,
   pk: string,
   sk?: string,
+  options?: GetRecordOptions,
 ): Promise<AgentConversationRecord | null> {
   const raw = (await db["agent-conversations"].get(pk, sk)) as (AgentConversationRecord & {
     messagesS3Key?: string;
@@ -222,11 +232,15 @@ export async function getRecord(
   if (!raw) {
     return null;
   }
+  if (options?.enrichFromS3 === false) {
+    return raw;
+  }
   return enrichRecordFromS3(raw);
 }
 
 /**
- * Query conversation records. Each item is automatically enriched from S3 when messagesS3Key is set.
+ * Query conversation records. Each item is automatically enriched from S3 when messagesS3Key is set
+ * (enrichment runs in parallel for all items; large result sets may issue many S3 GetObject calls).
  */
 export async function queryRecords(
   db: DatabaseSchema,
@@ -243,7 +257,8 @@ export async function queryRecords(
 
 /**
  * Query conversation records with pagination. Each item is automatically enriched from S3 when
- * messagesS3Key is set.
+ * messagesS3Key is set (enrichment runs in parallel; pages with many overflow records may issue
+ * many S3 GetObject calls).
  */
 export async function queryRecordsPaginated(
   db: DatabaseSchema,
@@ -259,28 +274,44 @@ export async function queryRecordsPaginated(
   };
 }
 
+function isRecordNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return false;
+  }
+  const msg = (error as { message: unknown }).message;
+  const message = typeof msg === "string" ? msg.toLowerCase() : "";
+  return message.includes("not found");
+}
+
 /**
  * Delete one conversation record. If the record had messagesS3Key, deletes that S3 object too.
- * Throws if the record is not found (avoids calling table delete and gives a clear error).
+ * Throws if the record is not found. Uses a single read (table.delete returns the deleted item).
  */
 export async function deleteRecord(
   db: DatabaseSchema,
   pk: string,
   sk?: string,
 ): Promise<AgentConversationRecord> {
-  const record = (await db["agent-conversations"].get(pk, sk)) as (AgentConversationRecord & {
-    messagesS3Key?: string;
-  }) | undefined;
-  if (!record) {
+  let deleted: (AgentConversationRecord & { messagesS3Key?: string }) | undefined;
+  try {
+    deleted = (await db["agent-conversations"].delete(pk, sk)) as (AgentConversationRecord & {
+      messagesS3Key?: string;
+    }) | undefined;
+  } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      throw new Error("Conversation record not found");
+    }
+    throw error;
+  }
+  if (!deleted) {
     throw new Error("Conversation record not found");
   }
-  const deleted = await db["agent-conversations"].delete(pk, sk);
-  if (record.messagesS3Key) {
+  if (deleted.messagesS3Key) {
     try {
-      await deleteS3Object(record.messagesS3Key);
+      await deleteS3Object(deleted.messagesS3Key);
     } catch (error) {
       console.warn(
-        `[Conversation Records] Failed to delete S3 messages blob ${record.messagesS3Key}:`,
+        `[Conversation Records] Failed to delete S3 messages blob ${deleted.messagesS3Key}:`,
         error instanceof Error ? error.message : String(error),
       );
     }

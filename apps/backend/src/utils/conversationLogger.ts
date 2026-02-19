@@ -1063,7 +1063,7 @@ export async function trackDelegation(
     // Check if conversation exists first
     // If it doesn't exist, we'll create it with just the delegation
     // This ensures delegations are tracked even if updateConversation hasn't been called yet
-    const existing = await getRecord(db, pk);
+    const existing = await getRecord(db, pk, undefined, { enrichFromS3: false });
     if (!existing) {
       console.log(
         "[Delegation Tracking] Conversation not found, creating it with delegation:",

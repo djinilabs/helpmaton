@@ -468,7 +468,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
       // Check if conversation exists before attempting update
       // Retry up to 3 times with exponential backoff if conversation not found
       // This handles edge cases where the conversation might not be saved yet
-      let existing = await getRecord(db, pk);
+      let existing = await getRecord(db, pk, undefined, { enrichFromS3: false });
       if (!existing) {
         // Retry with exponential backoff (500ms, 1000ms, 2000ms)
         for (let retry = 0; retry < 3; retry++) {
@@ -478,7 +478,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             { conversationId, agentId, workspaceId }
           );
           await sleep(delay);
-          existing = await getRecord(db, pk);
+          existing = await getRecord(db, pk, undefined, { enrichFromS3: false });
           if (existing) {
             console.log(
               `[Cost Verification] Conversation found after retry ${retry + 1}:`,
