@@ -1435,9 +1435,9 @@
         },
         "deepseek/deepseek-v3.2-speciale": {
           "usd": {
-            "input": 0.27,
-            "output": 0.41,
-            "cachedInput": 0.027000000000000003
+            "input": 0.39999999999999997,
+            "output": 1.2,
+            "cachedInput": 0.04
           },
           "capabilities": {
             "input_modalities": [
@@ -2100,9 +2100,9 @@
         },
         "moonshotai/kimi-k2-thinking": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.75,
-            "cachedInput": 0.04
+            "input": 0.47,
+            "output": 2,
+            "cachedInput": 0.047
           },
           "capabilities": {
             "input_modalities": [
@@ -2139,7 +2139,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 131072
         },
         "amazon/nova-premier-v1": {
           "usd": {
@@ -3070,9 +3070,9 @@
         },
         "z-ai/glm-4.6": {
           "usd": {
-            "input": 0.33999999999999997,
-            "output": 1.7,
-            "cachedInput": 0.033999999999999996
+            "input": 0.35,
+            "output": 1.71,
+            "cachedInput": 0.034999999999999996
           },
           "capabilities": {
             "input_modalities": [
@@ -4321,9 +4321,9 @@
         },
         "nousresearch/hermes-4-70b": {
           "usd": {
-            "input": 0.11,
-            "output": 0.38,
-            "cachedInput": 0.011000000000000001
+            "input": 0.13,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.013000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -5118,9 +5118,9 @@
         },
         "qwen/qwen3-30b-a3b-instruct-2507": {
           "usd": {
-            "input": 0.08,
-            "output": 0.33,
-            "cachedInput": 0.008
+            "input": 0.09,
+            "output": 0.3,
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -5155,9 +5155,9 @@
         },
         "z-ai/glm-4.5": {
           "usd": {
-            "input": 0.35,
-            "output": 1.55,
-            "cachedInput": 0.034999999999999996
+            "input": 0.55,
+            "output": 2,
+            "cachedInput": 0.05500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -5190,7 +5190,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 131000
         },
         "z-ai/glm-4.5-air:free": {
           "usd": {
@@ -7006,9 +7006,9 @@
         },
         "qwen/qwen3-30b-a3b": {
           "usd": {
-            "input": 0.06,
-            "output": 0.22,
-            "cachedInput": 0.006
+            "input": 0.08,
+            "output": 0.28,
+            "cachedInput": 0.008
           },
           "capabilities": {
             "input_modalities": [
@@ -7087,9 +7087,9 @@
         },
         "qwen/qwen3-14b": {
           "usd": {
-            "input": 0.049999999999999996,
-            "output": 0.22,
-            "cachedInput": 0.005
+            "input": 0.06,
+            "output": 0.24,
+            "cachedInput": 0.006
           },
           "capabilities": {
             "input_modalities": [
@@ -7169,9 +7169,9 @@
         },
         "qwen/qwen3-235b-a22b": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.45499999999999996,
+            "output": 1.8199999999999998,
+            "cachedInput": 0.0455
           },
           "capabilities": {
             "input_modalities": [
@@ -7208,7 +7208,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 40960
+          "context_length": 131072
         },
         "tngtech/deepseek-r1t-chimera:free": {
           "usd": {
@@ -7775,9 +7775,9 @@
         },
         "qwen/qwen2.5-vl-32b-instruct": {
           "usd": {
-            "input": 0.049999999999999996,
-            "output": 0.22,
-            "cachedInput": 0.005
+            "input": 0.19999999999999998,
+            "output": 0.6,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -7811,7 +7811,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 16384
+          "context_length": 128000
         },
         "deepseek/deepseek-chat-v3-0324": {
           "usd": {
@@ -7925,9 +7925,9 @@
         },
         "mistralai/mistral-small-3.1-24b-instruct": {
           "usd": {
-            "input": 0.03,
-            "output": 0.11,
-            "cachedInput": 0.003
+            "input": 0.35,
+            "output": 0.56,
+            "cachedInput": 0.034999999999999996
           },
           "capabilities": {
             "input_modalities": [
@@ -7959,7 +7959,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 128000
         },
         "allenai/olmo-2-0325-32b-instruct": {
           "usd": {
@@ -8014,9 +8014,9 @@
         },
         "google/gemma-3-4b-it": {
           "usd": {
-            "input": 0.01703012,
-            "output": 0.0681536,
-            "cachedInput": 0.001703012
+            "input": 0.04,
+            "output": 0.08,
+            "cachedInput": 0.004
           },
           "capabilities": {
             "input_modalities": [
@@ -8046,7 +8046,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 96000
+          "context_length": 131072
         },
         "google/gemma-3-12b-it:free": {
           "usd": {
@@ -8080,9 +8080,9 @@
         },
         "google/gemma-3-12b-it": {
           "usd": {
-            "input": 0.03,
-            "output": 0.09999999999999999,
-            "cachedInput": 0.003
+            "input": 0.04,
+            "output": 0.13,
+            "cachedInput": 0.004
           },
           "capabilities": {
             "input_modalities": [
@@ -8880,9 +8880,9 @@
         },
         "qwen/qwen2.5-vl-72b-instruct": {
           "usd": {
-            "input": 0.15,
-            "output": 0.6,
-            "cachedInput": 0.015
+            "input": 0.25,
+            "output": 0.75,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -8914,7 +8914,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 32000
         },
         "qwen/qwen-plus": {
           "usd": {
@@ -9121,9 +9121,9 @@
         },
         "deepseek/deepseek-r1-distill-llama-70b": {
           "usd": {
-            "input": 0.03,
-            "output": 0.11,
-            "cachedInput": 0.003
+            "input": 0.7,
+            "output": 0.7999999999999999,
+            "cachedInput": 0.06999999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -9298,9 +9298,9 @@
         },
         "deepseek/deepseek-chat": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.32,
+            "output": 0.8899999999999999,
+            "cachedInput": 0.032
           },
           "capabilities": {
             "input_modalities": [
@@ -9785,9 +9785,9 @@
         },
         "qwen/qwen-2.5-coder-32b-instruct": {
           "usd": {
-            "input": 0.03,
-            "output": 0.11,
-            "cachedInput": 0.003
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -13146,5 +13146,5 @@
       }
     }
   },
-  "lastUpdated": "2026-02-18T00:20:10.043Z"
+  "lastUpdated": "2026-02-19T00:20:30.138Z"
 }
