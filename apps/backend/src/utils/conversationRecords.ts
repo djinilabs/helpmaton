@@ -7,7 +7,8 @@
  * (a) Enrichment: Every record we retrieve from DynamoDB is automatically enriched from S3 when
  * the record has messagesS3Key—getRecord, queryRecords, queryRecordsPaginated, and the return
  * value of atomicUpdateRecord all return records with messages populated from S3 when applicable.
- * For existence checks only, use getRecord(..., { enrichFromS3: false }) to avoid S3 reads.
+ * For existence checks only, use getRecord(..., { enrichFromS3: false }). For query APIs, pass
+ * enrichFromS3: false when messages are not needed (e.g. metadata-only or high-cardinality queries).
  *
  * (b) S3 overflow: Every create or update path automatically delegates to S3 when the record
  * exceeds the size limit—createRecord, upsertRecord, and atomicUpdateRecord all run the payload
@@ -56,10 +57,12 @@ async function ensureMessagesInDynamoOrS3<
     messagesS3Key?: string;
   },
 >(record: T): Promise<T & { messagesS3Key?: string }> {
-  const size = estimateRecordSizeBytes(record as Record<string, unknown>);
   const alreadyInS3 = !!record.messagesS3Key;
-  if (size <= MAX_RECORD_SIZE_BYTES && !alreadyInS3) {
-    return record as T & { messagesS3Key?: string };
+  if (!alreadyInS3) {
+    const size = estimateRecordSizeBytes(record as Record<string, unknown>);
+    if (size <= MAX_RECORD_SIZE_BYTES) {
+      return record as T & { messagesS3Key?: string };
+    }
   }
   const key =
     record.messagesS3Key ??
@@ -188,7 +191,7 @@ export async function atomicUpdateRecord(
       const now = new Date().toISOString();
       const merged = rawCurrent
         ? {
-            ...rawCurrent,
+            ...(enriched ?? rawCurrent),
             ...partial,
             version: (rawCurrent as AgentConversationRecord).version + 1,
             updatedAt: now,
@@ -239,16 +242,28 @@ export async function getRecord(
 }
 
 /**
+ * Options for queryRecords.
+ * @property enrichFromS3 - If true (default), each item with messagesS3Key is enriched with messages from S3.
+ *   Set to false for metadata-only or high-cardinality queries where messages are not needed (avoids S3 reads).
+ */
+export type QueryRecordsOptions = { enrichFromS3?: boolean };
+
+/**
  * Query conversation records. Each item is automatically enriched from S3 when messagesS3Key is set
  * (enrichment runs in parallel for all items; large result sets may issue many S3 GetObject calls).
+ * Pass { enrichFromS3: false } to skip enrichment when messages are not needed.
  */
 export async function queryRecords(
   db: DatabaseSchema,
   query: Query,
+  options?: QueryRecordsOptions,
 ): Promise<{ items: AgentConversationRecord[]; areAnyUnpublished: boolean }> {
   const result = await db["agent-conversations"].query(query);
   const rawItems = result.items as (AgentConversationRecord & { messagesS3Key?: string })[];
-  const items = await Promise.all(rawItems.map((item) => enrichRecordFromS3(item)));
+  const items =
+    options?.enrichFromS3 === false
+      ? (rawItems as AgentConversationRecord[])
+      : await Promise.all(rawItems.map((item) => enrichRecordFromS3(item)));
   return {
     items,
     areAnyUnpublished: result.areAnyUnpublished,
@@ -256,18 +271,37 @@ export async function queryRecords(
 }
 
 /**
+ * Options for queryRecordsPaginated.
+ * @property limit - Max items per page.
+ * @property cursor - Pagination cursor from previous page.
+ * @property version - Optional version for conditional queries.
+ * @property enrichFromS3 - If true (default), each item with messagesS3Key is enriched with messages from S3.
+ *   Set to false when messages are not needed (avoids S3 reads).
+ */
+export type QueryRecordsPaginatedOptions = {
+  limit: number;
+  cursor?: string | null;
+  version?: string | null;
+  enrichFromS3?: boolean;
+};
+
+/**
  * Query conversation records with pagination. Each item is automatically enriched from S3 when
  * messagesS3Key is set (enrichment runs in parallel; pages with many overflow records may issue
- * many S3 GetObject calls).
+ * many S3 GetObject calls). Pass enrichFromS3: false to skip enrichment when messages are not needed.
  */
 export async function queryRecordsPaginated(
   db: DatabaseSchema,
   query: Query,
-  options: { limit: number; cursor?: string | null; version?: string | null },
+  options: QueryRecordsPaginatedOptions,
 ): Promise<{ items: AgentConversationRecord[]; nextCursor: string | null }> {
-  const result = await db["agent-conversations"].queryPaginated(query, options);
+  const { enrichFromS3, ...queryOpts } = options;
+  const result = await db["agent-conversations"].queryPaginated(query, queryOpts);
   const rawItems = result.items as (AgentConversationRecord & { messagesS3Key?: string })[];
-  const items = await Promise.all(rawItems.map((item) => enrichRecordFromS3(item)));
+  const items =
+    enrichFromS3 === false
+      ? (rawItems as AgentConversationRecord[])
+      : await Promise.all(rawItems.map((item) => enrichRecordFromS3(item)));
   return {
     items,
     nextCursor: result.nextCursor,
@@ -369,6 +403,16 @@ function extractConversationFileKeys(messages: unknown, workspaceId: string): Se
 }
 
 /**
+ * Fetch and parse messages from S3. Returns [] when body is not a JSON array.
+ * Shared by enrichRecordFromS3 and deleteAllRecordsForAgent for consistent parsing.
+ */
+async function fetchMessagesFromS3Key(key: string): Promise<unknown[]> {
+  const body = await getS3ObjectBody(key);
+  const parsed = JSON.parse(body.toString("utf-8")) as unknown;
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+/**
  * Enrich a raw record by fetching messages from S3 when messagesS3Key is set.
  * Used by getRecord and atomicUpdateRecord so the updater receives full messages.
  */
@@ -379,9 +423,7 @@ async function enrichRecordFromS3(
     return raw;
   }
   try {
-    const body = await getS3ObjectBody(raw.messagesS3Key);
-    const parsed = JSON.parse(body.toString("utf-8")) as unknown;
-    const messages = Array.isArray(parsed) ? parsed : [];
+    const messages = await fetchMessagesFromS3Key(raw.messagesS3Key);
     return { ...raw, messages };
   } catch (error) {
     console.warn(
@@ -416,9 +458,7 @@ export async function deleteAllRecordsForAgent(
     let messagesForFileKeys: unknown = record.messages;
     if (record.messagesS3Key) {
       try {
-        const body = await getS3ObjectBody(record.messagesS3Key);
-        const parsed = JSON.parse(body.toString("utf-8"));
-        messagesForFileKeys = Array.isArray(parsed) ? parsed : [];
+        messagesForFileKeys = await fetchMessagesFromS3Key(record.messagesS3Key);
       } catch (error) {
         console.warn(
           `[Conversation Records] Failed to fetch messages from S3 for file key extraction (${record.messagesS3Key}):`,

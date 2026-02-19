@@ -409,6 +409,44 @@ describe("conversationRecords", () => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0].messages).toEqual([{ role: "user", content: "from S3" }]);
     });
+
+    it("skips S3 enrichment when enrichFromS3 is false", async () => {
+      vi.mocked(getS3ObjectBody).mockClear();
+      const rawItems = [
+        {
+          pk: "conversations/ws1/ag1/c1",
+          conversationId: "c1",
+          messages: [],
+          messagesS3Key: "conversation-messages/ws1/ag1/c1.json",
+          workspaceId: "ws1",
+          agentId: "ag1",
+          conversationType: "test" as const,
+          startedAt: new Date().toISOString(),
+          lastMessageAt: new Date().toISOString(),
+          expires: 999,
+        },
+      ];
+      const db = {
+        "agent-conversations": {
+          query: vi.fn().mockResolvedValue({ items: rawItems, areAnyUnpublished: false }),
+        },
+      } as never;
+
+      const result = await queryRecords(
+        db,
+        {
+          IndexName: "byAgentId",
+          KeyConditionExpression: "agentId = :agentId",
+          ExpressionAttributeValues: { ":agentId": "ag1" },
+        },
+        { enrichFromS3: false },
+      );
+
+      expect(getS3ObjectBody).not.toHaveBeenCalled();
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].messages).toEqual([]);
+      expect(result.items[0].messagesS3Key).toBe("conversation-messages/ws1/ag1/c1.json");
+    });
   });
 
   describe("queryRecordsPaginated", () => {
@@ -464,6 +502,42 @@ describe("conversationRecords", () => {
       expect(getS3ObjectBody).toHaveBeenCalledWith("conversation-messages/ws1/ag1/c2.json");
       expect(result.items).toHaveLength(1);
       expect(result.items[0].messages).toEqual([{ role: "user", content: "from S3" }]);
+    });
+
+    it("skips S3 enrichment when enrichFromS3 is false", async () => {
+      vi.mocked(getS3ObjectBody).mockClear();
+      const rawItems = [
+        {
+          pk: "conversations/ws1/ag1/c2",
+          conversationId: "c2",
+          messages: [],
+          messagesS3Key: "conversation-messages/ws1/ag1/c2.json",
+          workspaceId: "ws1",
+          agentId: "ag1",
+          conversationType: "stream" as const,
+          startedAt: new Date().toISOString(),
+          lastMessageAt: new Date().toISOString(),
+          expires: 888,
+        },
+      ];
+      const db = {
+        "agent-conversations": {
+          queryPaginated: vi
+            .fn()
+            .mockResolvedValue({ items: rawItems, nextCursor: null }),
+        },
+      } as never;
+
+      const result = await queryRecordsPaginated(
+        db,
+        { IndexName: "byAgentId", KeyConditionExpression: "agentId = :a", ExpressionAttributeValues: { ":a": "ag1" } },
+        { limit: 10, enrichFromS3: false },
+      );
+
+      expect(getS3ObjectBody).not.toHaveBeenCalled();
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].messages).toEqual([]);
+      expect(result.items[0].messagesS3Key).toBe("conversation-messages/ws1/ag1/c2.json");
     });
   });
 
@@ -700,6 +774,7 @@ describe("conversationRecords", () => {
     });
 
     it("enriches current from S3 when record has messagesS3Key so updater receives full messages", async () => {
+      vi.mocked(putS3Object).mockClear();
       let receivedCurrent: AgentConversationRecord | undefined;
       const rawCurrent = {
         pk: "conversations/ws1/ag1/conv1",
@@ -736,6 +811,14 @@ describe("conversationRecords", () => {
 
       expect(getS3ObjectBody).toHaveBeenCalledWith("conversation-messages/ws1/ag1/conv1.json");
       expect(receivedCurrent?.messages).toEqual([{ role: "user", content: "from S3" }]);
+      // Merged record uses enriched messages; ensure we did not overwrite S3 with []
+      expect(putS3Object).toHaveBeenCalledWith(
+        "conversation-messages/ws1/ag1/conv1.json",
+        expect.any(String),
+        "application/json",
+      );
+      const [, body] = vi.mocked(putS3Object).mock.calls[0];
+      expect(JSON.parse(body as string)).toEqual([{ role: "user", content: "from S3" }]);
     });
 
     it("delegates to S3 when merged record exceeds size limit", async () => {
