@@ -15,6 +15,7 @@ import {
 
 import { isCreditOrBudgetConversationError } from "./conversationErrorInfo";
 import type { TokenUsage } from "./conversationLogger";
+import { getRecord } from "./conversationRecords";
 import { validateCreditsAndLimitsAndReserve } from "./creditValidation";
 import type { UIMessage } from "./messageTypes";
 import type { AugmentedContext } from "./workspaceCreditContext";
@@ -375,7 +376,7 @@ export async function executeEvaluation(
 
   // Get the conversation
   const conversationPk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
-  const conversation = await db["agent-conversations"].get(conversationPk);
+  const conversation = await getRecord(db, conversationPk);
   if (!conversation) {
     throw new Error(`Conversation ${conversationId} not found`);
   }

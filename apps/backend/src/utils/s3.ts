@@ -352,6 +352,58 @@ export async function deleteS3Object(s3Key: string): Promise<void> {
   );
 }
 
+/**
+ * Put a buffer or string into S3 at the given key.
+ * For conversation message blobs (conversation-messages/*), only conversationRecords.ts should use this.
+ */
+export async function putS3Object(
+  key: string,
+  body: Buffer | string,
+  contentType?: string,
+): Promise<void> {
+  const s3 = await getS3Client();
+  const buffer = typeof body === "string" ? Buffer.from(body, "utf-8") : body;
+  await withS3Span("PutObject", key, () =>
+    s3.PutObject({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType ?? "application/octet-stream",
+    }),
+  );
+}
+
+/**
+ * Get object body from S3 as a buffer.
+ * For conversation message blobs (conversation-messages/*), only conversationRecords.ts should use this.
+ */
+export async function getS3ObjectBody(key: string): Promise<Buffer> {
+  const s3 = await getS3Client();
+  const response = await withS3Span("GetObject", key, () =>
+    s3.GetObject({
+      Bucket: BUCKET_NAME,
+      Key: key,
+    }),
+  );
+  if (response.Body instanceof Buffer) {
+    return response.Body;
+  }
+  if (typeof response.Body === "string") {
+    return Buffer.from(response.Body, "utf-8");
+  }
+  const chunks: Uint8Array[] = [];
+  if (
+    response.Body &&
+    typeof response.Body === "object" &&
+    Symbol.asyncIterator in response.Body
+  ) {
+    for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+  }
+  return Buffer.concat(chunks);
+}
+
 // Rename/move document in S3
 export async function renameDocument(
   workspaceId: string,

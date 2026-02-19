@@ -264,9 +264,10 @@ describe("openrouter-cost-verification-queue", () => {
         3,
       );
 
-      // Verify conversation was updated
+      // Verify conversation was updated (getRecord calls get(pk, sk) with sk undefined)
       expect(mockGet).toHaveBeenCalledWith(
         "conversations/workspace-1/agent-1/conv-1",
+        undefined,
       );
       expect(mockAtomicUpdate).toHaveBeenCalled();
 

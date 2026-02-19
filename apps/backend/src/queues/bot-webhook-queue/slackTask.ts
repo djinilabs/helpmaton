@@ -22,6 +22,7 @@ import {
   startConversation,
   updateConversation,
 } from "../../utils/conversationLogger";
+import { getRecord } from "../../utils/conversationRecords";
 import type { UIMessage } from "../../utils/messageTypes";
 import { resetPostHogRequestContext } from "../../utils/posthog";
 import { Sentry, ensureError } from "../../utils/sentry";
@@ -714,9 +715,7 @@ async function logSlackConversation(params: {
   );
 
   const conversationPk = `conversations/${workspaceId}/${agentId}/${finalConversationId}`;
-  const existingConversation = await db["agent-conversations"].get(
-    conversationPk
-  );
+  const existingConversation = await getRecord(db, conversationPk);
 
   if (existingConversation) {
     await updateConversation(

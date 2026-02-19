@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { database } from "../../tables";
 import { getDefined } from "../../utils";
+import { atomicUpdateRecord, getRecord } from "../../utils/conversationRecords";
 import { finalizeCreditReservation } from "../../utils/creditManagement";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { getMessageCost } from "../../utils/messageCostCalculation";
@@ -467,7 +468,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
       // Check if conversation exists before attempting update
       // Retry up to 3 times with exponential backoff if conversation not found
       // This handles edge cases where the conversation might not be saved yet
-      let existing = await db["agent-conversations"].get(pk);
+      let existing = await getRecord(db, pk);
       if (!existing) {
         // Retry with exponential backoff (500ms, 1000ms, 2000ms)
         for (let retry = 0; retry < 3; retry++) {
@@ -477,7 +478,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             { conversationId, agentId, workspaceId }
           );
           await sleep(delay);
-          existing = await db["agent-conversations"].get(pk);
+          existing = await getRecord(db, pk);
           if (existing) {
             console.log(
               `[Cost Verification] Conversation found after retry ${retry + 1}:`,
@@ -496,10 +497,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
         }
       }
 
-      await db["agent-conversations"].atomicUpdate(
-        pk,
-        undefined,
-        async (current) => {
+      await atomicUpdateRecord(db, pk, undefined, async (current) => {
           if (!current) {
             // This shouldn't happen since we checked above, but handle it gracefully
             console.warn(
@@ -724,8 +722,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
               costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
             };
           }
-        }
-      );
+      });
     } catch (error) {
       // Log error but don't fail the cost verification
       // The credit reservation has already been finalized

@@ -8,6 +8,13 @@ import {
 } from "./conversationErrorInfo";
 import { expandMessagesWithToolCalls } from "./conversationMessageExpander";
 import {
+  atomicUpdateRecord,
+  calculateTTL,
+  createRecord,
+  getRecord,
+  upsertRecord,
+} from "./conversationRecords";
+import {
   writeToWorkingMemory,
   type MemoryExtractionConfig,
 } from "./memory/writeMemory";
@@ -84,12 +91,8 @@ export {
 } from "./conversationErrorInfo";
 export type { ConversationErrorInfo } from "./conversationErrorInfo";
 
-/**
- * Calculate TTL timestamp (30 days from now in seconds)
- */
-export function calculateTTL(): number {
-  return Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
-}
+/** Re-export for backward compatibility; implementation lives in conversationRecords. */
+export { calculateTTL } from "./conversationRecords";
 
 async function resolveMemoryExtractionConfig(
   db: DatabaseSchema,
@@ -941,7 +944,7 @@ export async function startConversation(
     createdAt: now,
   };
 
-  await upsertConversationWithRetry(db, conversationRecord);
+  await upsertRecord(db, conversationRecord);
 
   // Write to working memory - await to ensure it completes before Lambda finishes
   // This prevents Lambda from freezing the execution context before SQS message is sent
@@ -1026,80 +1029,6 @@ export async function startConversation(
   return conversationId;
 }
 
-const CONVERSATION_UPSERT_MAX_ATTEMPTS = 3;
-const CONVERSATION_UPSERT_BASE_DELAY_MS = 100;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function isConversationVersionConflict(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const message =
-    "message" in error && typeof error.message === "string"
-      ? error.message.toLowerCase()
-      : "";
-
-  return (
-    message.includes("item was outdated") ||
-    message.includes("item already exists") ||
-    message.includes("conditional request failed") ||
-    message.includes("conditionalcheckfailed")
-  );
-}
-
-async function upsertConversationWithRetry(
-  db: DatabaseSchema,
-  conversationRecord: Parameters<
-    DatabaseSchema["agent-conversations"]["upsert"]
-  >[0],
-): Promise<void> {
-  let lastError: Error | undefined;
-
-  for (
-    let attempt = 0;
-    attempt < CONVERSATION_UPSERT_MAX_ATTEMPTS;
-    attempt += 1
-  ) {
-    try {
-      await db["agent-conversations"].upsert(conversationRecord);
-      return;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (
-        isConversationVersionConflict(error) &&
-        attempt < CONVERSATION_UPSERT_MAX_ATTEMPTS - 1
-      ) {
-        const backoffMs =
-          CONVERSATION_UPSERT_BASE_DELAY_MS * Math.pow(2, attempt);
-        console.warn(
-          `[Conversation Logger] Conversation upsert conflict, retrying in ${backoffMs}ms (attempt ${
-            attempt + 1
-          }/${CONVERSATION_UPSERT_MAX_ATTEMPTS}):`,
-          {
-            conversationId: conversationRecord.conversationId,
-            workspaceId: conversationRecord.workspaceId,
-            agentId: conversationRecord.agentId,
-            error: lastError.message,
-          },
-        );
-        await sleep(backoffMs);
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  throw new Error(
-    `Failed to upsert conversation after ${CONVERSATION_UPSERT_MAX_ATTEMPTS} attempts due to concurrent updates: ${
-      lastError?.message || "Unknown error"
-    }`,
-  );
-}
-
 /**
  * Track a delegation call in conversation metadata
  */
@@ -1134,7 +1063,7 @@ export async function trackDelegation(
     // Check if conversation exists first
     // If it doesn't exist, we'll create it with just the delegation
     // This ensures delegations are tracked even if updateConversation hasn't been called yet
-    const existing = await db["agent-conversations"].get(pk);
+    const existing = await getRecord(db, pk);
     if (!existing) {
       console.log(
         "[Delegation Tracking] Conversation not found, creating it with delegation:",
@@ -1146,7 +1075,8 @@ export async function trackDelegation(
         ...delegation,
         timestamp: new Date().toISOString(),
       };
-      await db["agent-conversations"].create({
+      const now = new Date().toISOString();
+      await createRecord(db, {
         pk,
         sk: "conversation",
         workspaceId,
@@ -1155,9 +1085,9 @@ export async function trackDelegation(
         conversationType: "test", // Default type, will be updated by updateConversation
         messages: [],
         delegations: [newDelegation],
-        startedAt: new Date().toISOString(),
-        agentIdStartedAt: `${agentId}#${new Date().toISOString()}`,
-        lastMessageAt: new Date().toISOString(),
+        startedAt: now,
+        agentIdStartedAt: `${agentId}#${now}`,
+        lastMessageAt: now,
         expires: calculateTTL(),
       });
       console.log(
@@ -1179,19 +1109,16 @@ export async function trackDelegation(
       return;
     }
 
-    await db["agent-conversations"].atomicUpdate(
-      pk,
-      undefined,
-      async (current) => {
-        if (!current) {
-          // Conversation was removed between the existence check and update; skip tracking
-          // Return existing object to maintain type safety (we know it exists from check above)
-          console.warn(
-            "[Delegation Tracking] Conversation disappeared before update, skipping delegation tracking:",
-            { workspaceId, agentId, conversationId },
-          );
-          return existing;
-        }
+    await atomicUpdateRecord(db, pk, undefined, async (current) => {
+      if (!current) {
+        // Conversation was removed between the existence check and update; skip tracking
+        // Return existing object to maintain type safety (we know it exists from check above)
+        console.warn(
+          "[Delegation Tracking] Conversation disappeared before update, skipping delegation tracking:",
+          { workspaceId, agentId, conversationId },
+        );
+        return existing!;
+      }
 
         const existingDelegations =
           (
@@ -1226,12 +1153,11 @@ export async function trackDelegation(
             status: delegation.status,
           },
         });
-        return {
-          pk: current.pk,
-          delegations: updatedDelegations,
-        };
-      },
-    );
+      return {
+        pk: current.pk,
+        delegations: updatedDelegations,
+      };
+    });
   } catch (error) {
     // Log but don't fail - delegation tracking is best-effort
     console.error("[Delegation Tracking] Error tracking delegation:", {
@@ -1289,10 +1215,7 @@ export async function updateConversation(
   let trulyNewMessages: UIMessage[] = [];
   let expandedAllMessagesForMemory: UIMessage[] = [];
   // Use atomicUpdate to ensure thread-safe conversation updates
-  await db["agent-conversations"].atomicUpdate(
-    pk,
-    undefined,
-    async (existing) => {
+  await atomicUpdateRecord(db, pk, undefined, async (existing) => {
       const now = new Date().toISOString();
 
       if (!existing) {
@@ -1578,8 +1501,7 @@ export async function updateConversation(
       };
 
       return conversationRecord;
-    },
-  );
+    });
 
   // Write to working memory - await to ensure it completes before Lambda finishes
   // This prevents Lambda from freezing the execution context before SQS message is sent

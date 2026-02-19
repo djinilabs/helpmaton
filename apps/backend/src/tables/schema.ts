@@ -295,6 +295,7 @@ export const tableSchemas = {
     agentIdStartedAt: z.string().optional(), // GSI byWorkspaceIdAndAgentId sort key: "${agentId}#${startedAt}"
     lastMessageAt: z.iso.datetime(), // when last message was added
     expires: z.number(), // TTL timestamp
+    messagesS3Key: z.string().optional(), // when set, messages are stored in S3 at this key; DynamoDB record has messages: []
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),

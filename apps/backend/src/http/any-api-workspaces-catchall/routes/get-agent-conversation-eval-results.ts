@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { getRecord } from "../../../utils/conversationRecords";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -108,7 +109,7 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
 
         // Verify conversation exists and belongs to workspace/agent
         const conversationPk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
-        const conversation = await db["agent-conversations"].get(conversationPk);
+        const conversation = await getRecord(db, conversationPk);
         if (!conversation) {
           throw badRequest("Conversation not found");
         }
