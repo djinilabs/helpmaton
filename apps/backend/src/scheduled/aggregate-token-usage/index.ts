@@ -11,6 +11,7 @@ import {
   extractSupplierFromModelName,
   formatDate,
 } from "../../utils/aggregation";
+import { queryRecords } from "../../utils/conversationRecords";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { Sentry, ensureError, initSentry } from "../../utils/sentry";
 
@@ -103,7 +104,7 @@ const fetchConversationsForAgent = async (params: {
 }): Promise<AgentConversationRecord[]> => {
   const { db, agentId, startOfDay, endOfDay } = params;
   try {
-    const conversationsQuery = await db["agent-conversations"].query({
+    const conversationsQuery = await queryRecords(db, {
       IndexName: "byAgentId",
       KeyConditionExpression: "agentId = :agentId",
       ExpressionAttributeNames: {

@@ -20,6 +20,7 @@ import {
   startConversation,
   updateConversation,
 } from "../../utils/conversationLogger";
+import { getRecord } from "../../utils/conversationRecords";
 import type { UIMessage } from "../../utils/messageTypes";
 import { resetPostHogRequestContext } from "../../utils/posthog";
 import { Sentry, ensureError } from "../../utils/sentry";
@@ -530,9 +531,9 @@ async function logDiscordConversation(options: {
   );
 
   const conversationPk = `conversations/${options.workspaceId}/${options.agentId}/${options.finalConversationId}`;
-  const existingConversation = await options.db["agent-conversations"].get(
-    conversationPk
-  );
+  const existingConversation = await getRecord(options.db, conversationPk, undefined, {
+    enrichFromS3: false,
+  });
 
   if (existingConversation) {
     await updateConversation(

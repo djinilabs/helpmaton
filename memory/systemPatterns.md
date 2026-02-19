@@ -61,6 +61,7 @@
 - **DynamoDB**: Single-table design with GSIs
 - **Encryption**: Sensitive tables use `encrypt true` in app.arc
 - **TTL**: Expiring records (sessions, logs, reservations)
+- **Conversation records**: All create/read/update/delete for `agent-conversations` go through `utils/conversationRecords.ts`. When a record exceeds the size limit (~350 KB), messages are stored in S3 at `conversation-messages/{workspaceId}/{agentId}/{conversationId}.json` and the DynamoDB item has `messages: []` and `messagesS3Key` set; `getRecord` enriches from S3 when present. S3 message fetch/parse is centralized in a shared `fetchMessagesFromS3Key` helper (used by enrichment and by deleteAllRecordsForAgent for file-key extraction). Records are not explicitly deleted for expiry—DynamoDB TTL on the `expires` attribute (30 days via `calculateTTL()`, configured in app.arc) removes them automatically. Only explicit removal is via `deleteRecord` or `deleteAllRecordsForAgent` (e.g. agent cleanup).
 - **Indexes**: GSIs for query patterns (byWorkspaceId, byAgentId, etc.)
 - **No Table Scans**: Always use indexed queries
 

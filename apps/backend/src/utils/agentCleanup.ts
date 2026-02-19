@@ -3,9 +3,9 @@ import type {
   TableAPI,
 } from "../tables/schema";
 
+import { deleteAllRecordsForAgent } from "./conversationRecords";
 import { deleteDiscordCommand } from "./discordApi";
 import { deleteGraphFactsFile } from "./duckdb/graphDb";
-import { deleteS3Object } from "./s3";
 import { removeAgentDatabases } from "./vectordb/agentRemoval";
 
 type CleanupResult = {
@@ -17,67 +17,6 @@ type CleanupParams = {
   workspaceId: string;
   agentId: string;
 };
-
-function normalizeConversationFileKey(
-  value: string,
-  workspaceId: string,
-): string | null {
-  const keyPrefix = `conversation-files/${workspaceId}/`;
-  const startIndex = value.indexOf(keyPrefix);
-  if (startIndex === -1) {
-    return null;
-  }
-
-  let endIndex = value.length;
-  const queryIndex = value.indexOf("?", startIndex);
-  if (queryIndex !== -1) {
-    endIndex = Math.min(endIndex, queryIndex);
-  }
-  const hashIndex = value.indexOf("#", startIndex);
-  if (hashIndex !== -1) {
-    endIndex = Math.min(endIndex, hashIndex);
-  }
-
-  let key = value.slice(startIndex, endIndex).trim();
-  key = key.replace(/[).,;:'"\]>}\s]+$/g, "");
-  return key.startsWith(keyPrefix) ? key : null;
-}
-
-function collectConversationFileKeys(
-  value: unknown,
-  workspaceId: string,
-  keys: Set<string>,
-): void {
-  if (typeof value === "string") {
-    const key = normalizeConversationFileKey(value, workspaceId);
-    if (key) {
-      keys.add(key);
-    }
-    return;
-  }
-
-  if (Array.isArray(value)) {
-    value.forEach((item) =>
-      collectConversationFileKeys(item, workspaceId, keys),
-    );
-    return;
-  }
-
-  if (value && typeof value === "object") {
-    Object.values(value as Record<string, unknown>).forEach((item) =>
-      collectConversationFileKeys(item, workspaceId, keys),
-    );
-  }
-}
-
-function extractConversationFileKeys(
-  messages: unknown,
-  workspaceId: string,
-): Set<string> {
-  const keys = new Set<string>();
-  collectConversationFileKeys(messages, workspaceId, keys);
-  return keys;
-}
 
 export async function removeAgentResources(
   params: CleanupParams,
@@ -129,35 +68,7 @@ export async function removeAgentResources(
   });
 
   await safeCleanup("agent-conversations", async () => {
-    const conversationTable = db["agent-conversations"];
-    for await (const conversation of conversationTable.queryAsync({
-      IndexName: "byAgentId",
-      KeyConditionExpression: "agentId = :agentId",
-      FilterExpression: "workspaceId = :workspaceId",
-      ExpressionAttributeValues: {
-        ":agentId": agentId,
-        ":workspaceId": workspaceId,
-      },
-    })) {
-      const fileKeys = extractConversationFileKeys(
-        conversation.messages,
-        workspaceId,
-      );
-      for (const key of fileKeys) {
-        try {
-          await deleteS3Object(key);
-        } catch (error) {
-          const err = error instanceof Error ? error : new Error(String(error));
-          console.warn(
-            `[Agent Removal] Failed to delete conversation file ${key}:`,
-            err.message,
-          );
-          cleanupErrors.push(err);
-        }
-      }
-
-      await conversationTable.delete(conversation.pk, conversation.sk);
-    }
+    await deleteAllRecordsForAgent(db, workspaceId, agentId);
   });
 
   await safeCleanup("agent-eval-judges", async () => {

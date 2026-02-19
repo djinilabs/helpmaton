@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { queryRecordsPaginated } from "../../../utils/conversationRecords";
 import { parseLimitParam } from "../../utils/paginationParams";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
@@ -118,9 +119,7 @@ export const registerGetAgentConversations = (app: express.Application) => {
       // This GSI sorts by lastMessageAt at the database level, so no in-memory sorting is needed
       // Note: We add a FilterExpression to ensure only conversations for this workspace
       // are returned (security check). This filtering happens at the database level.
-      const query: Parameters<
-        (typeof db)["agent-conversations"]["queryPaginated"]
-      >[0] = {
+      const query = {
         IndexName: "byAgentIdAndLastMessageAt",
         KeyConditionExpression: "agentId = :agentId",
         FilterExpression: "workspaceId = :workspaceId",
@@ -133,7 +132,7 @@ export const registerGetAgentConversations = (app: express.Application) => {
 
       // Query with database-level pagination (only fetches requested page)
       // Results are already sorted by lastMessageAt descending at the database level
-      const result = await db["agent-conversations"].queryPaginated(query, {
+      const result = await queryRecordsPaginated(db, query, {
         limit,
         cursor: cursor || null,
       });

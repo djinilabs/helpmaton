@@ -7,6 +7,7 @@ import type {
 } from "../tables/schema";
 
 import type { TokenUsage } from "./conversationLogger";
+import { queryRecords } from "./conversationRecords";
 import { getModelPricing } from "./pricing";
 import { Sentry, ensureError } from "./sentry";
 
@@ -1329,7 +1330,7 @@ async function queryConversationsForDateRange(
     // Query by GSI byWorkspaceIdAndAgentId: key-only, no scan/filter
     const agentIdStartedAtStart = `${agentId}#${startDate.toISOString()}`;
     const agentIdStartedAtEnd = `${agentId}#${endDate.toISOString()}`;
-    const query = await db["agent-conversations"].query({
+    const query = await queryRecords(db, {
       IndexName: "byWorkspaceIdAndAgentId",
       KeyConditionExpression:
         "workspaceId = :workspaceId AND agentIdStartedAt BETWEEN :start AND :end",
@@ -1342,7 +1343,7 @@ async function queryConversationsForDateRange(
     conversations.push(...query.items);
   } else if (agentId) {
     // Query by agentId only (no workspace scope)
-    const query = await db["agent-conversations"].query({
+    const query = await queryRecords(db, {
       IndexName: "byAgentId",
       KeyConditionExpression: "agentId = :agentId",
       ExpressionAttributeNames: {
@@ -1376,7 +1377,7 @@ async function queryConversationsForDateRange(
     // Query conversations for each agent
     const conversationQueryResults = await Promise.allSettled(
       agentIds.map((aid) =>
-        db["agent-conversations"].query({
+        queryRecords(db, {
           IndexName: "byAgentId",
           KeyConditionExpression: "agentId = :agentId",
           ExpressionAttributeNames: {
