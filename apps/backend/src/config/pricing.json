@@ -2313,9 +2313,9 @@
         },
         "nvidia/nemotron-nano-12b-v2-vl": {
           "usd": {
-            "input": 0.19999999999999998,
-            "output": 0.6,
-            "cachedInput": 0.02
+            "input": 0.07,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.007000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -13142,9 +13142,48 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "google/gemini-3.1-pro-preview": {
+          "usd": {
+            "input": 2,
+            "output": 12,
+            "cachedInput": 0.2
+          },
+          "capabilities": {
+            "input_modalities": [
+              "audio",
+              "file",
+              "image",
+              "text",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-02-19T00:20:30.138Z"
+  "lastUpdated": "2026-02-20T00:17:43.722Z"
 }
