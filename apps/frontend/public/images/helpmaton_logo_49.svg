@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Reusable class for thick contour lines - made slightly thicker for retro clunkiness */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 9px; /* Extra thick line width */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+       /* Thinner stroke for internal dial details */
+      .medium-stroke {
+        stroke: #000000;
+        stroke-width: 5px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+
+  <rect x="35" y="55" width="130" height="120" rx="25" ry="25" fill="#A89F91" class="thick-stroke"/>
+
+  <circle cx="50" cy="70" r="6" fill="#7D7468" class="medium-stroke"/>
+  <circle cx="150" cy="70" r="6" fill="#7D7468" class="medium-stroke"/>
+  <circle cx="50" cy="160" r="6" fill="#7D7468" class="medium-stroke"/>
+  <circle cx="150" cy="160" r="6" fill="#7D7468" class="medium-stroke"/>
+
+  <line x1="100" y1="55" x2="100" y2="35" class="thick-stroke"/>
+  <path d="M 100 35 L 92 30 L 108 25 L 92 20 L 100 15" fill="none" class="thick-stroke"/>
+  <circle cx="100" cy="10" r="12" fill="#FFD54F" class="thick-stroke"/>
+
+
+  <circle cx="70" cy="110" r="22" fill="#CD7F32" class="thick-stroke"/>
+  <circle cx="70" cy="110" r="15" fill="#F0EAD6" class="medium-stroke"/>
+  <path d="M 70 115 L 65 100 L 75 100 Z" fill="#D32F2F" class="medium-stroke"/>
+
+  <circle cx="130" cy="110" r="22" fill="#CD7F32" class="thick-stroke"/>
+  <circle cx="130" cy="110" r="15" fill="#F0EAD6" class="medium-stroke"/>
+  <path d="M 130 115 L 125 100 L 135 100 Z" fill="#D32F2F" class="medium-stroke"/>
+
+  <rect x="75" y="145" width="50" height="20" rx="5" ry="5" fill="#5D4C46" class="thick-stroke"/>
+  <line x1="75" y1="155" x2="125" y2="155" class="medium-stroke"/>
+</svg>

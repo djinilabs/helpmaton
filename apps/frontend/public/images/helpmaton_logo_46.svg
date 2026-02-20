@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Reusable class for thick contour lines */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 8px; /* Thick line width */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+      /* Slightly thinner stroke for internal mouth details */
+      .medium-stroke {
+         stroke: #000000;
+         stroke-width: 5px;
+         stroke-linecap: round;
+      }
+    </style>
+  </defs>
+
+  <ellipse cx="100" cy="110" rx="75" ry="65" fill="#69F0AE" class="thick-stroke"/>
+
+  <path d="M 25 90 A 25 35 0 0 0 25 150" fill="#FF7043" class="thick-stroke"/>
+  <path d="M 175 90 A 25 35 0 1 1 175 150" fill="#FF7043" class="thick-stroke"/>
+
+  <path d="M 60 105 Q 80 85 100 105" fill="none" class="thick-stroke"/>
+  <path d="M 100 105 Q 120 85 140 105" fill="none" class="thick-stroke"/>
+
+  <rect x="50" y="135" width="15" height="15" fill="#2979FF" class="thick-stroke"/>
+  <rect x="135" y="135" width="15" height="15" fill="#2979FF" class="thick-stroke"/>
+
+  <rect x="75" y="150" width="50" height="22" rx="5" ry="5" fill="#ECEFF1" class="thick-stroke"/>
+  <line x1="85" y1="155" x2="85" y2="167" class="medium-stroke"/>
+  <line x1="100" y1="155" x2="100" y2="167" class="medium-stroke"/>
+  <line x1="115" y1="155" x2="115" y2="167" class="medium-stroke"/>
+</svg>

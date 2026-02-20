@@ -1,9 +1,9 @@
 /**
  * Utility functions for avatar management
- * Hard-coded list of available avatar logos (helpmaton_logo_1.svg through helpmaton_logo_41.svg)
+ * Hard-coded list of available avatar logos (helpmaton_logo_1.svg through helpmaton_logo_58.svg)
  */
 
-const AVAILABLE_AVATARS: string[] = Array.from({ length: 42 }, (_, i) => {
+const AVAILABLE_AVATARS: string[] = Array.from({ length: 58 }, (_, i) => {
   const num = i + 1;
   return `/images/helpmaton_logo_${num}.svg`;
 });

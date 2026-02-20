@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Reusable class for thick contour lines */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 8px; /* Thick line width */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+    </style>
+  </defs>
+
+  <rect x="50" y="30" width="100" height="140" rx="20" ry="20" fill="#C5A86B" class="thick-stroke"/>
+
+  <line x1="40" y1="60" x2="40" y2="20" class="thick-stroke"/>
+  <circle cx="40" cy="20" r="8" fill="#00BFA5" class="thick-stroke"/>
+  <line x1="160" y1="60" x2="160" y2="20" class="thick-stroke"/>
+  <circle cx="160" cy="20" r="8" fill="#00BFA5" class="thick-stroke"/>
+
+  <diamond x="100" y="55" width="20" height="20" fill="#00BFA5" class="thick-stroke"/>
+  <rect x="90" y="45" width="20" height="20" transform="rotate(45 100 55)" fill="#00BFA5" class="thick-stroke"/>
+
+
+  <path d="M 55 95 Q 75 80 95 95" fill="none" stroke="#5D4037" stroke-width="10" stroke-linecap="round" class="thick-stroke"/>
+  <path d="M 105 95 Q 125 80 145 95" fill="none" stroke="#5D4037" stroke-width="10" stroke-linecap="round" class="thick-stroke"/>
+
+  <rect x="65" y="100" width="25" height="8" fill="#00BFA5" class="thick-stroke"/>
+  <rect x="110" y="100" width="25" height="8" fill="#00BFA5" class="thick-stroke"/>
+
+  <polygon points="70,125 130,125 120,145 80,145" fill="#5D4037" class="thick-stroke"/>
+  <polygon points="80,145 120,145 110,165 90,165" fill="#5D4037" class="thick-stroke"/>
+  <polygon points="90,165 110,165 100,185" fill="#5D4037" class="thick-stroke"/>
+
+</svg>

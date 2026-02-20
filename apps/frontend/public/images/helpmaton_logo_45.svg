@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Reusable class for thick contour lines */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 8px; /* Thick line width */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+    </style>
+  </defs>
+
+  <polygon points="100,50 155,80 155,145 100,175 45,145 45,80" fill="#9C27B0" class="thick-stroke"/>
+
+  <path d="M 100 50 C 115 40, 85 30, 100 20" fill="none" class="thick-stroke"/>
+  <circle cx="100" cy="15" r="12" fill="#00BFA5" class="thick-stroke"/>
+
+  <ellipse cx="75" cy="105" rx="12" ry="18" fill="#FFFFFF" class="thick-stroke"/>
+  <ellipse cx="75" cy="105" rx="6" ry="9" fill="#000000"/>
+  <ellipse cx="125" cy="105" rx="12" ry="18" fill="#FFFFFF" class="thick-stroke"/>
+  <ellipse cx="125" cy="105" rx="6" ry="9" fill="#000000"/>
+
+  <polygon points="50,130 65,138 50,146" fill="#FFD600" class="thick-stroke"/>
+  <polygon points="150,130 135,138 150,146" fill="#FFD600" class="thick-stroke"/>
+
+  <path d="M 80 155 A 20 20 0 0 0 120 155" fill="#37474F" class="thick-stroke"/>
+  <path d="M 90 165 Q 100 175 110 165" fill="#D32F2F" class="thick-stroke"/>
+</svg>

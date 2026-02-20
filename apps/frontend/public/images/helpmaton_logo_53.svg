@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Reusable class for thick contour lines */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 8px; /* Thick line width */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+      /* Medium stroke for internal details */
+      .medium-stroke {
+        stroke: #000000;
+        stroke-width: 5px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+
+  <rect x="20" y="90" width="30" height="60" fill="#78909C" class="thick-stroke"/>
+  <rect x="30" y="150" width="10" height="25" fill="#FFD54F" class="thick-stroke"/> <rect x="150" y="90" width="30" height="60" fill="#78909C" class="thick-stroke"/>
+  <rect x="160" y="150" width="10" height="25" fill="#FFD54F" class="thick-stroke"/> <path d="M 50 60 A 50 30 0 0 1 150 60 L 150 175 L 50 175 Z" fill="#D84315" class="thick-stroke"/>
+
+  <polygon points="75,30 125,30 100,5" fill="#C6A355" class="thick-stroke"/>
+  <rect x="85" y="30" width="30" height="30" fill="#C6A355" class="thick-stroke"/> <rect x="55" y="80" width="40" height="40" fill="#C6A355" class="thick-stroke"/>
+  <circle cx="75" cy="100" r="15" fill="#FFF9C4" class="medium-stroke"/>
+  <line x1="75" y1="100" x2="65" y2="90" class="medium-stroke"/>
+
+  <rect x="105" y="80" width="40" height="40" fill="#C6A355" class="thick-stroke"/>
+  <circle cx="125" cy="100" r="15" fill="#FFF9C4" class="medium-stroke"/>
+  <line x1="125" y1="100" x2="135" y2="90" class="medium-stroke"/>
+
+  <circle cx="100" cy="150" r="18" fill="#5D4037" class="thick-stroke"/>
+  <line x1="100" y1="130" x2="100" y2="170" class="medium-stroke"/>
+  <line x1="80" y1="150" x2="120" y2="150" class="medium-stroke"/>
+  <circle cx="100" cy="150" r="6" fill="#C6A355" class="medium-stroke"/>
+
+</svg>

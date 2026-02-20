@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Reusable class for thick contour lines */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 8px; /* Thick line width */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+      /* Medium stroke for internal magical details */
+      .medium-stroke {
+        stroke: #000000;
+        stroke-width: 5px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+
+  <rect x="45" y="150" width="110" height="30" rx="15" ry="15" fill="#FFD700" class="thick-stroke"/>
+
+  <path d="M 55 150 C 55 100, 80 50, 120 30 C 140 80, 145 120, 145 150 Z" fill="#6A1B9A" class="thick-stroke"/>
+
+  <path d="M 115 20 A 15 15 0 1 1 115 5 A 10 10 0 1 0 115 20 Z" fill="#FFD700" class="thick-stroke"/>
+
+  <circle cx="85" cy="110" r="16" fill="#00E5FF" class="thick-stroke"/>
+  <path d="M 80 105 A 5 5 0 0 1 90 105" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="125" cy="110" r="16" fill="#00E5FF" class="thick-stroke"/>
+  <path d="M 120 105 A 5 5 0 0 1 130 105" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+
+  <polygon points="65,135 75,145 65,155 55,145" fill="#00C853" class="thick-stroke"/>
+  <polygon points="145,135 155,145 145,155 135,145" fill="#00C853" class="thick-stroke"/>
+
+  <path d="M 90 145 Q 105 155 120 145" fill="none" stroke="#00E5FF" class="thick-stroke"/>
+
+</svg>

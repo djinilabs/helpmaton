@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Define a reusable class for the thick contour lines */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 8px; /* Thick line width */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+    </style>
+  </defs>
+
+  <rect x="35" y="50" width="130" height="115" rx="35" ry="35" fill="#4FC3F7" class="thick-stroke"/>
+
+  <line x1="70" y1="50" x2="55" y2="20" class="thick-stroke"/>
+  <circle cx="55" cy="20" r="12" fill="#FFEB3B" class="thick-stroke"/>
+  <line x1="130" y1="50" x2="145" y2="20" class="thick-stroke"/>
+  <circle cx="145" cy="20" r="12" fill="#FFEB3B" class="thick-stroke"/>
+
+  <circle cx="75" cy="95" r="18" fill="#FFFFFF" class="thick-stroke"/>
+  <circle cx="75" cy="95" r="8" fill="#000000"/>
+  <circle cx="125" cy="95" r="18" fill="#FFFFFF" class="thick-stroke"/>
+  <circle cx="125" cy="95" r="8" fill="#000000"/>
+
+  <circle cx="50" cy="135" r="9" fill="#F06292" class="thick-stroke"/>
+  <circle cx="150" cy="135" r="9" fill="#F06292" class="thick-stroke"/>
+
+  <path d="M 80 145 Q 100 165 120 145" fill="none" class="thick-stroke"/>
+</svg>

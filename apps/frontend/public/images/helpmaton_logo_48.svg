@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+  <defs>
+    <style>
+      /* Reusable class for thick contour lines */
+      .thick-stroke {
+        stroke: #000000; /* Solid black outline */
+        stroke-width: 6px; /* Slightly thinner than previous to handle complex details, but still thick */
+        stroke-linecap: round; /* Rounded line ends */
+        stroke-linejoin: round; /* Rounded corners */
+      }
+    </style>
+  </defs>
+
+  <polygon points="40,60 160,60 170,140 100,175 30,140" fill="#37474F" class="thick-stroke"/>
+  <polygon points="50,70 150,70 140,130 100,160 60,130" fill="#546E7A" class="thick-stroke"/>
+
+  <path d="M 105 90 L 135 85 L 145 95 L 115 100 Z" fill="#F50057" class="thick-stroke"/>
+  <rect x="60" y="85" width="10" height="10" fill="#00B0FF" class="thick-stroke"/>
+  <rect x="75" y="88" width="10" height="10" fill="#00B0FF" class="thick-stroke"/>
+  <rect x="90" y="92" width="10" height="10" fill="#00B0FF" class="thick-stroke"/>
+
+  <polyline points="70,60 70,40 90,40 100,30" fill="none" stroke="#FFD600" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" class="thick-stroke"/>
+  <circle cx="100" cy="30" r="6" fill="#FFD600" class="thick-stroke"/>
+  <polyline points="130,60 130,45 150,45" fill="none" stroke="#FFD600" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" class="thick-stroke"/>
+
+  <polygon points="80,135 120,135 115,150 85,150" fill="#263238" class="thick-stroke"/>
+  <line x1="90" y1="138" x2="90" y2="147" stroke="#00B0FF" stroke-width="4"/>
+  <line x1="100" y1="138" x2="100" y2="147" stroke="#F50057" stroke-width="4"/>
+  <line x1="110" y1="138" x2="110" y2="147" stroke="#00B0FF" stroke-width="4"/>
+
+  <path d="M 45 110 L 55 115 L 45 120" fill="none" stroke="#00B0FF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" class="thick-stroke"/>
+  <path d="M 155 110 L 145 115 L 155 120" fill="none" stroke="#F50057" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" class="thick-stroke"/>
+
+</svg>
