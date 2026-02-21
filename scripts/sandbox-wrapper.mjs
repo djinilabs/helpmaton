@@ -134,8 +134,9 @@ if (shouldGenerateInternalDocs()) {
 }
 
 // Spawn the sandbox process. Use Node 20 when current Node is 24+ so the sandbox runs on
-// Node 20 (avoids spawn EBADF in @architect/sandbox on Node 24). Always use stdio: 'inherit'
-// so the sandbox has real FDs; otherwise it gets pipes and its own Lambda spawn() can throw EBADF.
+// Node 20 (avoids spawn EBADF in @architect/sandbox on Node 24).
+// Use stdin as pipe so we can intercept Ctrl-C (\x03); stdout/stderr stay inherit so the
+// sandbox's Lambda spawn() doesn't hit EBADF and output is visible.
 const { command: sandboxCommand, args: sandboxArgs } = getSandboxCommandAndArgs();
 const sandboxEnv = {
   ...process.env,
@@ -143,7 +144,7 @@ const sandboxEnv = {
 };
 const sandboxProcess = spawn(sandboxCommand, sandboxArgs, {
   cwd: backendDir,
-  stdio: 'inherit',
+  stdio: ['pipe', 'inherit', 'inherit'],
   env: sandboxEnv,
   shell: false,
 });
@@ -151,6 +152,22 @@ const sandboxProcess = spawn(sandboxCommand, sandboxArgs, {
 let isShuttingDown = false;
 let shutdownTimeout = null;
 const sandboxPid = sandboxProcess.pid;
+
+// Intercept Ctrl-C from stdin so we always see it (SIGINT may go to sandbox's process group only).
+if (process.stdin.isTTY && sandboxPid) {
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (chunk) => {
+    if (chunk.includes('\u0003')) {
+      shutdown();
+      return;
+    }
+    if (sandboxProcess.stdin && !sandboxProcess.killed) {
+      sandboxProcess.stdin.write(chunk);
+    }
+  });
+}
 
 /**
  * Find all child processes of a given PID (recursively)
@@ -279,36 +296,6 @@ async function isProcessAlive(pid) {
   }
 }
 
-/**
- * Send SIGTERM to the process and its children
- */
-async function sendTermSignal(pid) {
-  if (isWindows) {
-    try {
-      sandboxProcess.kill('SIGTERM');
-    } catch (error) {
-      // Ignore errors
-    }
-  } else {
-    // Send SIGTERM to all children first
-    const children = await findAllChildProcesses(pid);
-    for (const childPid of children) {
-      try {
-        process.kill(childPid, 'SIGTERM');
-      } catch (error) {
-        // Ignore errors
-      }
-    }
-    
-    // Then send SIGTERM to the parent
-    try {
-      sandboxProcess.kill('SIGTERM');
-    } catch (error) {
-      // Ignore errors
-    }
-  }
-}
-
 function shutdown() {
   if (isShuttingDown) {
     return;
@@ -320,20 +307,14 @@ function shutdown() {
     return;
   }
 
-  // Send SIGTERM to all children immediately
-  sendTermSignal(sandboxPid).catch(() => {
-    // Ignore errors
-  });
-
-  // Wait 1 second, then force kill everything
-  shutdownTimeout = setTimeout(async () => {
-    // After 1 second, just kill everything aggressively
-    await killProcessTree(sandboxPid);
-    process.exit(0);
-  }, SHUTDOWN_WAIT_MS);
+  // Kill sandbox and its tree, then exit. SIGINT may never reach us (e.g. when run under pnpm),
+  // so we rely on stdin Ctrl-C (\x03) when isTTY; this path is also used for SIGINT when we get it.
+  killProcessTree(sandboxPid)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(0));
 }
 
-// Handle signals
+// Backup: if we do receive SIGINT (e.g. run as `node scripts/sandbox-wrapper.mjs`), handle it
 process.on('SIGINT', () => {
   shutdown();
 });
@@ -342,13 +323,24 @@ process.on('SIGTERM', () => {
   shutdown();
 });
 
-// Handle process exit
-process.on('exit', async () => {
+// Best-effort sync kill on exit (Node does not wait for async in 'exit' handlers)
+process.on('exit', () => {
   if (shutdownTimeout) {
     clearTimeout(shutdownTimeout);
   }
+  if (process.stdin.isTTY && process.stdin.setRawMode) {
+    try {
+      process.stdin.setRawMode(false);
+    } catch {
+      // ignore
+    }
+  }
   if (sandboxPid) {
-    await killProcessTree(sandboxPid);
+    try {
+      process.kill(sandboxPid, 'SIGKILL');
+    } catch {
+      // already dead
+    }
   }
 });
 
