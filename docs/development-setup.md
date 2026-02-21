@@ -139,6 +139,8 @@ Frontend only:
 pnpm dev:frontend
 ```
 
+**Node version and local sandbox**: The Architect sandbox can hit a `spawn EBADF` error on Node 24+. Use Node 20 for local dev: run `nvm use` (project has `.nvmrc` with `20`) before `pnpm dev`. The sandbox wrapper will also try to run the sandbox under Node 20 when nvm is available and current Node is 24+.
+
 ## Local Services
 
 ### DynamoDB (Database)

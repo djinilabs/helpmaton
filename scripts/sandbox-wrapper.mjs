@@ -6,11 +6,56 @@
  */
 
 import { spawn, execSync } from 'child_process';
-import { readdirSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+
+/** Find @architect/sandbox CLI in pnpm store. Prefer the copy that has our spawn patch (patchedDependencies). */
+function findSandboxCliInPnpm() {
+  const pnpmDir = join(projectRoot, 'node_modules', '.pnpm');
+  if (!existsSync(pnpmDir)) return null;
+  try {
+    const entries = readdirSync(pnpmDir, { withFileTypes: true });
+    const candidates = [];
+    for (const e of entries) {
+      if (e.isDirectory() && e.name.startsWith('@architect+sandbox@')) {
+        const cliPath = join(pnpmDir, e.name, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+        const spawnPath = join(pnpmDir, e.name, 'node_modules', '@architect', 'sandbox', 'src', 'invoke-lambda', 'exec', 'spawn.js');
+        if (existsSync(cliPath)) candidates.push({ cliPath, spawnPath });
+      }
+    }
+    // Prefer the copy with our patch (minimal spawnOpts + env sanitization)
+    for (const { cliPath, spawnPath } of candidates) {
+      if (existsSync(spawnPath)) {
+        const content = readFileSync(spawnPath, 'utf8');
+        if (content.includes('spawnOpts') && content.includes("'ignore', 'inherit', 'inherit'")) return cliPath;
+      }
+    }
+    return candidates[0]?.cliPath ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** First sandbox CLI path in .pnpm (any copy) – used when we need Node 20 launcher but no patched copy matched. */
+function findAnySandboxCliInPnpm() {
+  const pnpmDir = join(projectRoot, 'node_modules', '.pnpm');
+  if (!existsSync(pnpmDir)) return null;
+  try {
+    const entries = readdirSync(pnpmDir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isDirectory() && e.name.startsWith('@architect+sandbox@')) {
+        const cliPath = join(pnpmDir, e.name, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+        if (existsSync(cliPath)) return cliPath;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -20,6 +65,39 @@ const backendDir = join(projectRoot, 'apps', 'backend');
 
 const isWindows = process.platform === 'win32';
 const SHUTDOWN_WAIT_MS = 1000; // Wait 1 second before force killing
+
+/** Resolve Node 20 binary path (nvm) so we can run sandbox under Node 20 and avoid spawn EBADF on Node 24+. */
+function resolveNode20Path() {
+  const nvmDir = process.env.NVM_DIR || (process.env.HOME && join(process.env.HOME, '.nvm'));
+  if (!nvmDir || !existsSync(join(nvmDir, 'versions', 'node'))) return null;
+  try {
+    const versions = readdirSync(join(nvmDir, 'versions', 'node'), { withFileTypes: true });
+    const v20 = versions.filter((e) => e.isDirectory() && e.name.startsWith('v20.')).map((e) => e.name).sort((a, b) => b.localeCompare(a))[0];
+    if (!v20) return null;
+    const nodePath = join(nvmDir, 'versions', 'node', v20, 'bin', 'node');
+    return existsSync(nodePath) ? nodePath : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Run sandbox via node directly (direct child, real stdio). On Node 24+ run with Node 20 binary so Lambda spawn doesn't hit EBADF. */
+function getSandboxCommandAndArgs() {
+  const debugFlag = process.env.ARC_SANDBOX_DEBUG ? ['--debug'] : [];
+  const major = parseInt(process.version.slice(1).split('.')[0], 10);
+  if (major >= 24 && !isWindows) {
+    const node20 = resolveNode20Path();
+    const cliPath = findSandboxCliInPnpm() ?? findAnySandboxCliInPnpm();
+    if (node20 && cliPath) return { command: node20, args: [cliPath, ...debugFlag] };
+  }
+  const cliPath = join(backendDir, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+  const rootCliPath = join(projectRoot, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+  const pnpmCli = findSandboxCliInPnpm() ?? findAnySandboxCliInPnpm();
+  if (existsSync(cliPath)) return { command: 'node', args: [cliPath, ...debugFlag] };
+  if (existsSync(rootCliPath)) return { command: 'node', args: [rootCliPath, ...debugFlag] };
+  if (pnpmCli) return { command: 'node', args: [pnpmCli, ...debugFlag] };
+  return { command: 'pnpm', args: ['arc', 'sandbox', ...debugFlag] };
+}
 
 // Ensure internal docs are generated so workspace/meta-agent have up-to-date index.
 // Skip generation when output is already newer than the script and all docs (fast startup).
@@ -55,14 +133,18 @@ if (shouldGenerateInternalDocs()) {
   }
 }
 
-// Spawn the sandbox process
-const sandboxProcess = spawn('pnpm', ['arc', 'sandbox'], {
+// Spawn the sandbox process. Use Node 20 when current Node is 24+ so the sandbox runs on
+// Node 20 (avoids spawn EBADF in @architect/sandbox on Node 24). Always use stdio: 'inherit'
+// so the sandbox has real FDs; otherwise it gets pipes and its own Lambda spawn() can throw EBADF.
+const { command: sandboxCommand, args: sandboxArgs } = getSandboxCommandAndArgs();
+const sandboxEnv = {
+  ...process.env,
+  ARC_DB_PATH: process.env.ARC_DB_PATH || './db',
+};
+const sandboxProcess = spawn(sandboxCommand, sandboxArgs, {
   cwd: backendDir,
   stdio: 'inherit',
-  env: {
-    ...process.env,
-    ARC_DB_PATH: process.env.ARC_DB_PATH || './db',
-  },
+  env: sandboxEnv,
   shell: false,
 });
 

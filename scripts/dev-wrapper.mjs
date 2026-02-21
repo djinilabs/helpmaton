@@ -16,6 +16,7 @@ import { writeFileSync, appendFileSync } from 'fs';
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const projectRoot = process.cwd();
 const logFile = join(__dirname, '..', '.dev-wrapper.log');
 
 const isWindows = process.platform === 'win32';
@@ -38,26 +39,25 @@ function log(message) {
   }
 }
 
-// Spawn run-p dev:backend dev:frontend (what pnpm dev normally does)
-// run-p is from npm-run-all2 package, use pnpm exec to run it
-// IMPORTANT: We use 'pipe' instead of 'inherit' so signals come to us, not the child
-const devProcess = spawn('pnpm', ['exec', 'run-p', 'dev:backend', 'dev:frontend'], {
-  cwd: process.cwd(),
-  stdio: 'pipe', // Use 'pipe' so we can forward output AND receive signals
+// Spawn backend and frontend as direct children with stdio: 'inherit' so the
+// Architect sandbox gets real FDs and does not hit spawn EBADF when invoking Lambdas.
+const backendProcess = spawn('node', [join(__dirname, 'sandbox-wrapper.mjs')], {
+  cwd: projectRoot,
+  stdio: 'inherit',
   shell: false,
+  env: process.env,
 });
-
-// Forward stdout and stderr from child to our stdout/stderr
-if (devProcess.stdout) {
-  devProcess.stdout.pipe(process.stdout);
-}
-if (devProcess.stderr) {
-  devProcess.stderr.pipe(process.stderr);
-}
+const frontendProcess = spawn('pnpm', ['dev'], {
+  cwd: join(projectRoot, 'apps', 'frontend'),
+  stdio: 'inherit',
+  shell: false,
+  env: process.env,
+});
 
 let isShuttingDown = false;
 let shutdownTimeout = null;
-const devPid = devProcess.pid;
+const backendPid = backendProcess.pid;
+const frontendPid = frontendProcess.pid;
 
 // Clear log file on start
 try {
@@ -66,7 +66,7 @@ try {
   // Ignore if we can't write
 }
 
-log(`[dev-wrapper] Started with PID: ${devPid}`);
+log(`[dev-wrapper] Backend PID: ${backendPid}, Frontend PID: ${frontendPid}`);
 log(`[dev-wrapper] Parent process PID: ${process.pid}`);
 
 /**
@@ -249,42 +249,35 @@ async function killProcessesOnPorts(ports) {
 }
 
 /**
- * Send SIGTERM to all processes
+ * Send SIGTERM to a process and its children
  */
 async function sendTermSignal(pid) {
   log(`[dev-wrapper] sendTermSignal called for PID: ${pid}`);
   if (isWindows) {
     try {
-      log(`[dev-wrapper] Sending SIGTERM to devProcess on Windows`);
-      devProcess.kill('SIGTERM');
+      const proc = pid === backendPid ? backendProcess : frontendProcess;
+      if (proc) proc.kill('SIGTERM');
       log(`[dev-wrapper] Successfully sent SIGTERM on Windows`);
     } catch (error) {
       log(`[dev-wrapper] Error sending SIGTERM on Windows: ${error.message}`);
       // Ignore errors
     }
   } else {
-    // Send SIGTERM to all children first
-    log(`[dev-wrapper] Finding children to send SIGTERM...`);
     const children = await findAllChildProcesses(pid);
     log(`[dev-wrapper] Sending SIGTERM to ${children.length} children`);
     for (const childPid of children) {
       try {
-        log(`[dev-wrapper] Sending SIGTERM to child PID: ${childPid}`);
         process.kill(childPid, 'SIGTERM');
       } catch (error) {
         log(`[dev-wrapper] Error sending SIGTERM to child ${childPid}: ${error.message}`);
-        // Ignore errors
       }
     }
-    
-    // Then send SIGTERM to the parent
     try {
       log(`[dev-wrapper] Sending SIGTERM to parent PID: ${pid}`);
-      devProcess.kill('SIGTERM');
+      process.kill(pid, 'SIGTERM');
       log(`[dev-wrapper] Successfully sent SIGTERM to parent`);
     } catch (error) {
       log(`[dev-wrapper] Error sending SIGTERM to parent: ${error.message}`);
-      // Ignore errors
     }
   }
 }
@@ -299,32 +292,29 @@ function shutdown() {
   }
   isShuttingDown = true;
 
-  if (!devPid) {
-    log(`[dev-wrapper] No devPid, exiting immediately`);
+  const pids = [backendPid, frontendPid].filter(Boolean);
+  if (pids.length === 0) {
+    log(`[dev-wrapper] No PIDs, exiting immediately`);
     process.exit(0);
     return;
   }
 
-  log(`[dev-wrapper] Sending SIGTERM to PID ${devPid} and all children...`);
-  // Send SIGTERM to all children immediately
-  sendTermSignal(devPid).catch((error) => {
+  log(`[dev-wrapper] Sending SIGTERM to PIDs ${pids.join(', ')} and all children...`);
+  Promise.all(pids.map((pid) => sendTermSignal(pid))).catch((error) => {
     log(`[dev-wrapper] Error in sendTermSignal: ${error.message}`);
   });
 
   log(`[dev-wrapper] Setting timeout to force kill after ${SHUTDOWN_WAIT_MS}ms`);
-  // Wait 1 second, then force kill everything
   shutdownTimeout = setTimeout(async () => {
     const timeoutStartTime = Date.now();
     log(`[dev-wrapper] Timeout callback triggered at ${new Date().toISOString()} (${timeoutStartTime - startTime}ms after shutdown started)`);
     try {
-      log(`[dev-wrapper] Force killing process tree...`);
-      // Kill the main process tree
-      await killProcessTree(devPid);
-      
+      log(`[dev-wrapper] Force killing process trees...`);
+      for (const pid of pids) {
+        await killProcessTree(pid);
+      }
       log(`[dev-wrapper] Killing processes on ports 3333 and 5173...`);
-      // Also kill any processes on the ports (backend: 3333, frontend: 5173)
       await killProcessesOnPorts([3333, 5173]);
-      
       log(`[dev-wrapper] Force kill completed in ${Date.now() - timeoutStartTime}ms`);
     } catch (error) {
       log(`[dev-wrapper] Error in force kill: ${error.message}`);
@@ -369,29 +359,35 @@ process.on('exit', async () => {
   if (shutdownTimeout) {
     clearTimeout(shutdownTimeout);
   }
-  if (devPid) {
-    await killProcessTree(devPid);
-    await killProcessesOnPorts([3333, 5173]);
+  for (const pid of [backendPid, frontendPid].filter(Boolean)) {
+    await killProcessTree(pid);
   }
+  await killProcessesOnPorts([3333, 5173]);
 });
 
-// Forward dev process exit
-devProcess.on('exit', (code, signal) => {
+function onChildExit(name, code, signal) {
   if (shutdownTimeout) {
     clearTimeout(shutdownTimeout);
     shutdownTimeout = null;
   }
-  if (code !== null) {
-    process.exit(code);
-  } else if (signal) {
-    process.exit(1);
+  const exitCode = code !== null ? code : signal ? 1 : 0;
+  log(`[dev-wrapper] ${name} exited (code=${code}, signal=${signal}), killing sibling and exiting with ${exitCode}`);
+  const otherPid = name === 'Backend' ? frontendPid : backendPid;
+  if (otherPid) {
+    killProcessTree(otherPid).then(() => process.exit(exitCode)).catch(() => process.exit(exitCode));
   } else {
-    process.exit(0);
+    process.exit(exitCode);
   }
-});
+}
 
-devProcess.on('error', (error) => {
-  log(`[dev-wrapper] Error starting dev process: ${error.message}`);
+backendProcess.on('exit', (code, signal) => onChildExit('Backend', code, signal));
+frontendProcess.on('exit', (code, signal) => onChildExit('Frontend', code, signal));
+backendProcess.on('error', (error) => {
+  log(`[dev-wrapper] Error starting backend: ${error.message}`);
+  process.exit(1);
+});
+frontendProcess.on('error', (error) => {
+  log(`[dev-wrapper] Error starting frontend: ${error.message}`);
   process.exit(1);
 });
 

@@ -15,7 +15,7 @@ patchedDependencies:
     hash: f8a8bfced584be6b0b3d8529985c9c19a0ccb0ace405749a7ab137f1b4cae1e5
     path: patches/@architect__functions.patch
   '@architect/sandbox':
-    hash: 1226dfbd45bad482250582dc4bd351f2abc9d1c5aebcea7f04cf6e48ce92f065
+    hash: ec2f80fd3a66871df6b24a7fee214973b317db08440cd66f77c29c22a03c1222
     path: patches/@architect__sandbox.patch
   '@auth/core':
     hash: 82f799c13ec4149583665a398e6b43f0d1f0c32b327a07f598bdfe3d9cb23912
@@ -8225,7 +8225,7 @@ snapshots:
       '@architect/hydrate': 6.0.0
       '@architect/inventory': 6.0.0
       '@architect/logs': 7.0.0
-      '@architect/sandbox': 9.0.0(patch_hash=1226dfbd45bad482250582dc4bd351f2abc9d1c5aebcea7f04cf6e48ce92f065)(encoding@0.1.13)
+      '@architect/sandbox': 9.0.0(patch_hash=ec2f80fd3a66871df6b24a7fee214973b317db08440cd66f77c29c22a03c1222)(encoding@0.1.13)
       '@architect/utils': 6.0.3
       '@aws-lite/client': 0.23.2
       update-notifier-cjs: 5.1.6(encoding@0.1.13)
@@ -8331,7 +8331,7 @@ snapshots:
 
   '@architect/parser@8.0.1': {}
 
-  '@architect/sandbox@9.0.0(patch_hash=1226dfbd45bad482250582dc4bd351f2abc9d1c5aebcea7f04cf6e48ce92f065)(encoding@0.1.13)':
+  '@architect/sandbox@9.0.0(patch_hash=ec2f80fd3a66871df6b24a7fee214973b317db08440cd66f77c29c22a03c1222)(encoding@0.1.13)':
     dependencies:
       '@architect/asap': 7.0.10
       '@architect/create': 7.0.0
