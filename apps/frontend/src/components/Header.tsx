@@ -19,7 +19,7 @@ export const Header: FC = () => {
             <div className="relative size-10 shrink-0">
               <Logo className="size-full" />
             </div>
-            <BrandName className="text-2xl font-black tracking-tight" />
+            <BrandName className="font-display text-2xl font-black tracking-tight" />
           </Link>
 
           <nav className="flex items-center gap-4">
