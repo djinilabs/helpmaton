@@ -5,6 +5,7 @@ import {
   handleResultExtractionError,
   handleStreamingError,
   handleStreamingErrorForApiGateway,
+  writeErrorResponse,
 } from "../streamErrorHandling";
 import type { StreamRequestContext } from "../streamRequestContext";
 import { createMockResponseStream } from "../streamResponseStream";
@@ -35,6 +36,7 @@ vi.mock("../../../utils/sentry", () => ({
     error instanceof Error ? error : new Error(String(error)),
   Sentry: {
     captureException: mockSentryCaptureException,
+    captureMessage: vi.fn(),
     startSpan: async (_config: unknown, callback: () => unknown) => callback(),
     setTag: vi.fn(),
     setContext: vi.fn(),
@@ -231,6 +233,25 @@ describe("streamErrorHandling", () => {
     expect(getBody()).toContain("Insufficient credits");
 
     consoleInfoSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("writeErrorResponse does not write when stream is already ended (avoids write after end)", async () => {
+    const { stream, getBody } = createMockResponseStream();
+    stream.end(); // Simulate pipeline having already ended the stream (e.g. before AI_NoOutputGeneratedError on result.text)
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    await writeErrorResponse(stream, new Error("AI_NoOutputGeneratedError"));
+
+    // Should not have written anything (stream was already ended)
+    expect(getBody()).toBe("");
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Skipping error response write (stream already ended)"),
+      expect.objectContaining({ originalError: expect.any(String) })
+    );
+
     consoleErrorSpy.mockRestore();
   });
 });

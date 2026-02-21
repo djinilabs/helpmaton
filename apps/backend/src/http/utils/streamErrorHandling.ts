@@ -21,9 +21,35 @@ import {
 import { isMetaAgentStream } from "./streamEndpointDetection";
 import type { StreamRequestContext } from "./streamRequestContext";
 import {
+  isStreamWritable,
   writeChunkToStream,
   type HttpResponseStream,
 } from "./streamResponseStream";
+
+type Boomified = ReturnType<typeof boomify>;
+
+function safeEndStream(
+  responseStream: HttpResponseStream,
+  options: {
+    boomed: Boomified;
+    operation: string;
+    extra: Record<string, unknown>;
+  },
+): void {
+  try {
+    responseStream.end();
+  } catch (endError) {
+    if (options.boomed.isServer) {
+      Sentry.captureException(ensureError(endError), {
+        tags: {
+          context: "stream-error-handling",
+          operation: options.operation,
+        },
+        extra: options.extra,
+      });
+    }
+  }
+}
 
 /**
  * Writes an error response to the stream in SSE format (ai-sdk format)
@@ -33,8 +59,38 @@ export async function writeErrorResponse(
   error: unknown,
 ): Promise<void> {
   const errorMessage = extractErrorMessage(error);
-  // Boomify the original error to check if it's a server error
   const boomed = boomify(ensureError(error));
+  const errorName =
+    error instanceof Error
+      ? error.name || error.constructor?.name
+      : undefined;
+
+  // Avoid "write after end": if the stream was already closed (e.g. pipeline ended
+  // it before result extraction threw AI_NoOutputGeneratedError), skip writing.
+  if (!isStreamWritable(responseStream)) {
+    console.error(
+      "[Stream Handler] Skipping error response write (stream already ended):",
+      { originalError: errorMessage },
+    );
+    if (boomed.isServer) {
+      Sentry.captureMessage(
+        "Stream already ended before error response could be written",
+        {
+          tags: {
+            context: "stream-error-handling",
+            operation: "write-error-response-skipped",
+          },
+          extra: {
+            originalError: errorMessage,
+            ...(errorName && { errorName }),
+          },
+          level: "warning",
+        },
+      );
+    }
+    return;
+  }
+
   const errorChunk = `data: ${JSON.stringify({
     type: "error",
     errorText: errorMessage,
@@ -42,22 +98,11 @@ export async function writeErrorResponse(
 
   try {
     await writeChunkToStream(responseStream, errorChunk);
-    try {
-      responseStream.end();
-    } catch (endError) {
-      // Stream might already be ended - only log to Sentry if original error was server error
-      if (boomed.isServer) {
-        Sentry.captureException(ensureError(endError), {
-          tags: {
-            context: "stream-error-handling",
-            operation: "end-stream-after-error-write",
-          },
-          extra: {
-            originalError: errorMessage,
-          },
-        });
-      }
-    }
+    safeEndStream(responseStream, {
+      boomed,
+      operation: "end-stream-after-error-write",
+      extra: { originalError: errorMessage },
+    });
   } catch (writeError) {
     console.error(
       "[Stream Handler] Error writing error response (stream may already be ended):",
@@ -67,7 +112,6 @@ export async function writeErrorResponse(
         originalError: errorMessage,
       },
     );
-    // Only send to Sentry if the original error was a server error
     if (boomed.isServer) {
       Sentry.captureException(ensureError(writeError), {
         tags: {
@@ -76,28 +120,23 @@ export async function writeErrorResponse(
         },
         extra: {
           originalError: errorMessage,
+          ...(errorName && { errorName }),
         },
       });
     }
-    try {
-      responseStream.end();
-    } catch (endError) {
-      // Stream already ended - only log to Sentry if original error was server error
-      if (boomed.isServer) {
-        Sentry.captureException(ensureError(endError), {
-          tags: {
-            context: "stream-error-handling",
-            operation: "end-stream-after-write-error",
-          },
-          extra: {
-            writeError:
-              writeError instanceof Error
-                ? writeError.message
-                : String(writeError),
-            originalError: errorMessage,
-          },
-        });
-      }
+    // Only try to end if stream might still be open (avoids redundant throw and Sentry when write failed due to "write after end")
+    if (isStreamWritable(responseStream)) {
+      safeEndStream(responseStream, {
+        boomed,
+        operation: "end-stream-after-write-error",
+        extra: {
+          originalError: errorMessage,
+          writeError:
+            writeError instanceof Error
+              ? writeError.message
+              : String(writeError),
+        },
+      });
     }
   }
 }

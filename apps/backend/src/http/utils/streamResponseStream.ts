@@ -72,16 +72,33 @@ export function createMockResponseStream(): {
   const statusCode = 200;
   const headers: Record<string, string> = {};
 
+  // Track ended state so isStreamWritable() and tests can simulate "write after end"
+  let writable = true;
+  let writableEnded = false;
+
   // Create a mock stream that matches ResponseStream interface
   // ResponseStream.write can return boolean or accept callback
   // ResponseStream.end can return ResponseStream or accept callback
   const stream = {
     _statusCode: statusCode,
     _headers: headers,
+    get writable() {
+      return writable;
+    },
+    get writableEnded() {
+      return writableEnded;
+    },
     write: (
       chunk: string | Uint8Array,
       callback?: (error?: Error | null) => void
     ): boolean => {
+      if (!writable) {
+        const err = new Error("write after end");
+        if (callback) {
+          callback(err);
+        }
+        return false;
+      }
       const bytes =
         typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
       buffer.push(bytes);
@@ -91,12 +108,19 @@ export function createMockResponseStream(): {
       return true; // Return boolean as required by ResponseStream interface
     },
     end: (callback?: (error?: Error | null) => void): HttpResponseStream => {
+      writable = false;
+      writableEnded = true;
       if (callback) {
         callback();
       }
       return stream; // Return ResponseStream as required by interface
     },
-  } as HttpResponseStream & { _statusCode?: number; _headers?: Record<string, string> };
+  } as HttpResponseStream & {
+    _statusCode?: number;
+    _headers?: Record<string, string>;
+    writable: boolean;
+    writableEnded: boolean;
+  };
 
   const getBody = (): string => {
     const totalLength = buffer.reduce((sum, chunk) => sum + chunk.length, 0);
@@ -118,6 +142,24 @@ export function createMockResponseStream(): {
   };
 
   return { stream, buffer, getBody, getStatusCode, getHeaders };
+}
+
+/**
+ * Returns true if the stream is still writable (not yet ended).
+ * Uses Node.js Writable stream properties when present (Lambda runtime uses Node streams).
+ * If the stream does not expose these, we assume it is writable to avoid breaking callers.
+ */
+export function isStreamWritable(
+  responseStream: HttpResponseStream
+): boolean {
+  const stream = responseStream as { writable?: boolean; writableEnded?: boolean };
+  if (typeof stream.writable === "boolean" && !stream.writable) {
+    return false;
+  }
+  if (typeof stream.writableEnded === "boolean" && stream.writableEnded) {
+    return false;
+  }
+  return true;
 }
 
 /**
