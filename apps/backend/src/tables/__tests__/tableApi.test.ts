@@ -54,11 +54,14 @@ describe("deepClean", () => {
     expect(deepClean(m)).toBe(m);
   });
 
-  it("preserves Object.create(null) plain objects and cleans their entries", () => {
+  it("supports cleaning null-prototype objects (result has normal prototype)", () => {
     const obj = Object.create(null) as Record<string, unknown>;
     obj.a = 1;
     obj.b = undefined;
-    expect(deepClean(obj)).toEqual({ a: 1 });
+    const result = deepClean(obj);
+    expect(result).toEqual({ a: 1 });
+    // deepClean uses Object.fromEntries so the result is a normal object, not null-prototype
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
   });
 });
 
