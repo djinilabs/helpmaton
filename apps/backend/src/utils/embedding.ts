@@ -1,10 +1,10 @@
-import { OpenRouter } from "@openrouter/sdk";
-
 import { getWorkspaceApiKey } from "../http/utils/agent-keys";
 import { getDefined } from "../utils";
 
 // OpenRouter embedding model name
 export const EMBEDDING_MODEL = "thenlper/gte-base";
+
+const OPENROUTER_EMBEDDINGS_URL = "https://openrouter.ai/api/v1/embeddings";
 
 // Exponential backoff configuration
 const BACKOFF_INITIAL_DELAY_MS = 1000; // 1 second
@@ -21,16 +21,146 @@ const embeddingCache = new Map<string, number[]>();
 
 const EMBEDDING_TIMEOUT_MS = 30000; // 30 seconds timeout
 
-const openRouterClients = new Map<string, OpenRouter>();
+/** Parsed success response from OpenRouter embeddings API (lenient: we only require data[].embedding) */
+interface OpenRouterEmbeddingResponse {
+  data: Array<{ embedding?: number[] }>;
+  usage?: {
+    prompt_tokens?: number;
+    total_tokens?: number;
+    cost?: number;
+  };
+  id?: string;
+  model?: string;
+}
 
-function getOpenRouterClient(apiKey: string): OpenRouter {
-  const existingClient = openRouterClients.get(apiKey);
-  if (existingClient) {
-    return existingClient;
+/**
+ * Format OpenRouter error response body for logging.
+ * Prefers error.message when present (e.g. { error: { message: "..." } }).
+ */
+function formatOpenRouterErrorBody(body: unknown, rawText: string): string {
+  if (!body || typeof body !== "object" || !("error" in body)) {
+    return rawText.substring(0, 200);
   }
-  const newClient = new OpenRouter({ apiKey });
-  openRouterClients.set(apiKey, newClient);
-  return newClient;
+  const err = (body as { error: unknown }).error;
+  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
+    return (err as { message: string }).message;
+  }
+  return String(err).substring(0, 200);
+}
+
+/**
+ * Call OpenRouter embeddings API directly so we control response validation.
+ * The SDK enforces a strict schema (object/list, data, model); OpenRouter or
+ * upstream providers sometimes return 200 with a different shape (e.g. error
+ * payload or missing fields), which caused ResponseValidationError in production.
+ * We only require data[0].embedding to be an array of numbers.
+ */
+async function fetchEmbeddingFromOpenRouter(
+  text: string,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<OpenRouterEmbeddingResponse> {
+  const res = await fetch(OPENROUTER_EMBEDDINGS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      input: text,
+      model: EMBEDDING_MODEL,
+    }),
+    signal,
+  });
+
+  const rawText = await res.text();
+  let body: unknown;
+  try {
+    body = rawText ? JSON.parse(rawText) : undefined;
+  } catch {
+    console.error(
+      `[generateEmbedding] Non-JSON response (status ${res.status}):`,
+      rawText.substring(0, 300),
+    );
+    const err = new Error(
+      `OpenRouter embeddings returned non-JSON (status ${res.status})`,
+    ) as Error & { statusCode?: number };
+    err.statusCode = res.status;
+    throw err;
+  }
+
+  if (!res.ok) {
+    const errBody = formatOpenRouterErrorBody(body, rawText);
+    console.error(
+      `[generateEmbedding] OpenRouter error ${res.status}:`,
+      errBody,
+    );
+    const err = new Error(
+      `OpenRouter embeddings error: ${res.status} ${res.statusText}`,
+    ) as Error & { statusCode?: number };
+    err.statusCode = res.status;
+    throw err;
+  }
+
+  // Lenient validation: we only need data[0].embedding to be an array of numbers
+  if (!body || typeof body !== "object" || !Array.isArray((body as Record<string, unknown>).data)) {
+    console.error(
+      `[generateEmbedding] Unexpected 200 response shape (missing or invalid data array):`,
+      rawText.substring(0, 500),
+    );
+    throw new Error("Invalid embedding response format");
+  }
+
+  const data = (body as Record<string, unknown>).data as Array<{ embedding?: unknown }>;
+  const first = data[0];
+  if (!first || !Array.isArray(first.embedding)) {
+    console.error(
+      `[generateEmbedding] Unexpected 200 response (data[0].embedding missing or not array):`,
+      rawText.substring(0, 500),
+    );
+    throw new Error("Invalid embedding response format");
+  }
+
+  const embedding = first.embedding as unknown[];
+  if (!embedding.every((x) => typeof x === "number")) {
+    console.error(
+      `[generateEmbedding] data[0].embedding contained non-numbers:`,
+      rawText.substring(0, 300),
+    );
+    throw new Error("Invalid embedding response format");
+  }
+
+  const rawUsage = (body as Record<string, unknown>).usage;
+  const usage: OpenRouterEmbeddingResponse["usage"] =
+    typeof rawUsage === "object" && rawUsage !== null
+      ? {
+          prompt_tokens:
+            typeof (rawUsage as Record<string, unknown>).prompt_tokens === "number"
+              ? ((rawUsage as Record<string, unknown>).prompt_tokens as number)
+              : undefined,
+          total_tokens:
+            typeof (rawUsage as Record<string, unknown>).total_tokens === "number"
+              ? ((rawUsage as Record<string, unknown>).total_tokens as number)
+              : undefined,
+          cost:
+            typeof (rawUsage as Record<string, unknown>).cost === "number"
+              ? ((rawUsage as Record<string, unknown>).cost as number)
+              : undefined,
+        }
+      : undefined;
+
+  return {
+    data: [{ embedding: embedding as number[] }],
+    usage,
+    id:
+      typeof (body as Record<string, unknown>).id === "string"
+        ? ((body as Record<string, unknown>).id as string)
+        : undefined,
+    model:
+      typeof (body as Record<string, unknown>).model === "string"
+        ? ((body as Record<string, unknown>).model as string)
+        : undefined,
+  };
 }
 
 /**
@@ -202,7 +332,6 @@ async function generateEmbeddingResult(
           attempt + 1
         })...`,
       );
-      const openRouter = getOpenRouterClient(apiKey);
 
       // Create AbortController for this fetch request with timeout
       const fetchController = new AbortController();
@@ -231,47 +360,32 @@ async function generateEmbeddingResult(
         `[generateEmbedding] Starting OpenRouter embeddings request (timeout: ${EMBEDDING_TIMEOUT_MS}ms)`,
       );
       try {
-        const response = await openRouter.embeddings.generate(
-          {
-            input: text,
-            model: EMBEDDING_MODEL,
-          },
-          {
-            fetchOptions: {
-              signal: fetchController.signal,
-            },
-          },
+        const response = await fetchEmbeddingFromOpenRouter(
+          text,
+          apiKey,
+          fetchController.signal,
         );
         const requestDuration = Date.now() - requestStartTime;
         console.log(
           `[generateEmbedding] Request completed in ${requestDuration}ms`,
         );
 
-        if (typeof response === "string") {
-          console.error(
-            `[generateEmbedding] Invalid response format:`,
-            response.substring(0, 200),
-          );
-          throw new Error("Invalid embedding response format");
-        }
-
-        const embedding = response.data[0]?.embedding;
-        if (!Array.isArray(embedding)) {
-          console.error(
-            `[generateEmbedding] Invalid response format:`,
-            JSON.stringify(response).substring(0, 200),
-          );
-          throw new Error("Invalid embedding response format");
-        }
-
+        const embedding = response.data[0].embedding as number[];
         // Cache the embedding if cacheKey is provided
         if (cacheKey) {
           embeddingCache.set(cacheKey, embedding);
         }
 
+        const usage = response.usage;
         return {
           embedding,
-          usage: response.usage as EmbeddingUsage | undefined,
+          usage: usage
+            ? {
+                promptTokens: usage.prompt_tokens,
+                totalTokens: usage.total_tokens,
+                cost: usage.cost,
+              }
+            : undefined,
           id: response.id,
           fromCache: false,
         };
@@ -391,12 +505,17 @@ async function generateEmbeddingResult(
         attempt === BACKOFF_MAX_RETRIES ||
         !isThrottlingError(status, errorMessage)
       ) {
-        console.error(`[generateEmbedding] Error generating embedding:`, error);
         if (error instanceof Error) {
-          console.error(`[generateEmbedding] Error message: ${error.message}`);
-          console.error(`[generateEmbedding] Error stack: ${error.stack}`);
+          console.error(
+            `[generateEmbedding] Fatal error after ${attempt + 1} attempt(s): ${error.message}`,
+            error.stack ?? "",
+          );
           throw error;
         }
+        console.error(
+          `[generateEmbedding] Fatal error after ${attempt + 1} attempt(s):`,
+          error,
+        );
         throw new Error(`Failed to generate embedding: ${errorMessage}`);
       }
 

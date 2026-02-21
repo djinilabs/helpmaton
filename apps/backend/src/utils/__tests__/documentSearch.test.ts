@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
   mockQuery,
-  mockEmbeddingsGenerate,
+  mockFetch,
   mockReserveEmbeddingCredits,
   mockAdjustEmbeddingCreditReservation,
   mockRefundEmbeddingCredits,
@@ -11,7 +11,7 @@ const {
 } = vi.hoisted(() => {
   return {
     mockQuery: vi.fn(),
-    mockEmbeddingsGenerate: vi.fn(),
+    mockFetch: vi.fn(),
     mockReserveEmbeddingCredits: vi.fn(),
     mockAdjustEmbeddingCreditReservation: vi.fn(),
     mockRefundEmbeddingCredits: vi.fn(),
@@ -19,19 +19,27 @@ const {
   };
 });
 
+function embeddingResponse(body: {
+  data: Array<{ embedding?: number[]; notEmbedding?: unknown }>;
+  usage?: { prompt_tokens?: number; total_tokens?: number };
+  id?: string;
+}) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 // Mock LanceDB readClient
 vi.mock("../vectordb/readClient", () => ({
   query: mockQuery,
 }));
 
-vi.mock("@openrouter/sdk", () => {
-  class OpenRouterMock {
-    embeddings = {
-      generate: mockEmbeddingsGenerate,
-    };
-  }
-  return { OpenRouter: OpenRouterMock };
-});
+// Embeddings now use direct fetch; mock global fetch for OpenRouter embeddings URL
+vi.stubGlobal(
+  "fetch",
+  (url: string, init?: RequestInit) => mockFetch(url, init),
+);
 
 vi.mock("../embeddingCredits", () => ({
   reserveEmbeddingCredits: mockReserveEmbeddingCredits,
@@ -209,9 +217,9 @@ describe("documentSearch", () => {
 
     it("should generate embedding successfully", async () => {
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbeddingsGenerate.mockResolvedValueOnce({
-        data: [{ embedding: mockEmbedding }],
-      });
+      mockFetch.mockResolvedValueOnce(
+        embeddingResponse({ data: [{ embedding: mockEmbedding }] }),
+      );
 
       const embedding = await generateEmbedding(
         "test text",
@@ -220,7 +228,7 @@ describe("documentSearch", () => {
       );
 
       expect(embedding).toEqual(mockEmbedding);
-      expect(mockEmbeddingsGenerate).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalled();
     });
 
     it("should use cached embedding if available", async () => {
@@ -228,9 +236,9 @@ describe("documentSearch", () => {
       const uniqueCacheKey = `test-cache-key-${Date.now()}`;
 
       // First call - generate and cache
-      mockEmbeddingsGenerate.mockResolvedValueOnce({
-        data: [{ embedding: cachedEmbedding }],
-      });
+      mockFetch.mockResolvedValueOnce(
+        embeddingResponse({ data: [{ embedding: cachedEmbedding }] }),
+      );
 
       const firstResult = await generateEmbedding(
         "test text",
@@ -239,7 +247,7 @@ describe("documentSearch", () => {
       );
 
       expect(firstResult).toEqual(cachedEmbedding);
-      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
 
       // Second call - should use cache (no fetch call)
       const secondResult = await generateEmbedding(
@@ -250,7 +258,7 @@ describe("documentSearch", () => {
 
       expect(secondResult).toEqual(cachedEmbedding);
       // Should still only call fetch once (cached on second call)
-      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error for empty text", async () => {
@@ -281,16 +289,22 @@ describe("documentSearch", () => {
       vi.useFakeTimers();
 
       // First two calls fail with 429, third succeeds
-      const firstError = new Error("quota exceeded");
-      (firstError as { statusCode?: number }).statusCode = 429;
-      const secondError = new Error("rate limit");
-      (secondError as { statusCode?: number }).statusCode = 429;
-      mockEmbeddingsGenerate
-        .mockRejectedValueOnce(firstError)
-        .mockRejectedValueOnce(secondError)
-        .mockResolvedValueOnce({
-          data: [{ embedding: Array(768).fill(0.1) }],
-        });
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: "quota exceeded" }), {
+            status: 429,
+            headers: { "Content-Type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: "rate limit" }), {
+            status: 429,
+            headers: { "Content-Type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ embedding: Array(768).fill(0.1) }] }),
+        );
 
       const embeddingPromise = generateEmbedding(
         "test text",
@@ -305,37 +319,41 @@ describe("documentSearch", () => {
 
       expect(embedding).toBeDefined();
       expect(embedding.length).toBe(768);
-      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
 
       vi.useRealTimers();
     });
 
     it("should throw error for non-retryable errors without retrying", async () => {
-      const authError = new Error("unauthorized");
-      (authError as { statusCode?: number }).statusCode = 403;
-      mockEmbeddingsGenerate.mockRejectedValueOnce(authError);
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 403,
+          statusText: "Forbidden",
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
 
       await expect(
         generateEmbedding("test text", "test-api-key", undefined),
-      ).rejects.toThrow("unauthorized");
+      ).rejects.toThrow("OpenRouter embeddings error");
 
       // Should not retry
-      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error for invalid response format", async () => {
       vi.useFakeTimers();
       // Mock responses with invalid structure for all validation attempts
-      mockEmbeddingsGenerate
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        })
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        })
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        });
+      mockFetch
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        )
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        )
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        );
 
       const embeddingPromise = generateEmbedding(
         "test text",
@@ -356,16 +374,16 @@ describe("documentSearch", () => {
       vi.useFakeTimers();
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      mockEmbeddingsGenerate
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        })
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        })
-        .mockResolvedValueOnce({
-          data: [{ embedding: Array(768).fill(0.1) }],
-        });
+      mockFetch
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        )
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        )
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ embedding: Array(768).fill(0.1) }] }),
+        );
 
       const embeddingPromise = generateEmbedding(
         "test text",
@@ -377,7 +395,7 @@ describe("documentSearch", () => {
 
       const embedding = await embeddingPromise;
       expect(embedding.length).toBe(768);
-      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(warnSpy).toHaveBeenCalledTimes(2);
 
       warnSpy.mockRestore();
@@ -388,16 +406,16 @@ describe("documentSearch", () => {
       vi.useFakeTimers();
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      mockEmbeddingsGenerate
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        })
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        })
-        .mockResolvedValueOnce({
-          data: [{ notEmbedding: [] }],
-        });
+      mockFetch
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        )
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        )
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ notEmbedding: [] }] }),
+        );
 
       const embeddingPromise = generateEmbedding(
         "test text",
@@ -410,7 +428,7 @@ describe("documentSearch", () => {
 
       await vi.runAllTimersAsync();
       await expectation;
-      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(warnSpy).toHaveBeenCalledTimes(2);
 
       warnSpy.mockRestore();
@@ -421,11 +439,11 @@ describe("documentSearch", () => {
       vi.useFakeTimers();
 
       // First call fails with network error, second succeeds
-      mockEmbeddingsGenerate
+      mockFetch
         .mockRejectedValueOnce(new TypeError("fetch failed: network error"))
-        .mockResolvedValueOnce({
-          data: [{ embedding: Array(768).fill(0.1) }],
-        });
+        .mockResolvedValueOnce(
+          embeddingResponse({ data: [{ embedding: Array(768).fill(0.1) }] }),
+        );
 
       const embeddingPromise = generateEmbedding("test text", "test-api-key");
 
@@ -436,7 +454,7 @@ describe("documentSearch", () => {
 
       expect(embedding).toBeDefined();
       expect(embedding.length).toBe(768);
-      expect(mockEmbeddingsGenerate).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
 
       vi.useRealTimers();
     });
@@ -461,9 +479,9 @@ describe("documentSearch", () => {
 
       // Mock embedding generation for query
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbeddingsGenerate.mockResolvedValue({
-        data: [{ embedding: mockEmbedding }],
-      });
+      mockFetch.mockResolvedValue(
+        embeddingResponse({ data: [{ embedding: mockEmbedding }] }),
+      );
 
       const results = await searchDocuments("workspace-123", "test query");
 
@@ -496,9 +514,9 @@ describe("documentSearch", () => {
 
       // Mock embedding generation for query
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbeddingsGenerate.mockResolvedValue({
-        data: [{ embedding: mockEmbedding }],
-      });
+      mockFetch.mockResolvedValue(
+        embeddingResponse({ data: [{ embedding: mockEmbedding }] }),
+      );
 
       const results = await searchDocuments("workspace-123", "test query", 5);
 
@@ -535,9 +553,12 @@ describe("documentSearch", () => {
       mockQuery.mockResolvedValue(mockQueryResults);
 
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbeddingsGenerate.mockResolvedValue({
-        data: [{ embedding: mockEmbedding }],
-      });
+      // Return a fresh Response per call so body can be read by each concurrent request
+      mockFetch.mockImplementation(() =>
+        Promise.resolve(
+          embeddingResponse({ data: [{ embedding: mockEmbedding }] }),
+        ),
+      );
 
       // Start two searches concurrently
       const [results1, results2] = await Promise.all([
@@ -557,9 +578,9 @@ describe("documentSearch", () => {
       mockQuery.mockResolvedValue([]);
 
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbeddingsGenerate.mockResolvedValue({
-        data: [{ embedding: mockEmbedding }],
-      });
+      mockFetch.mockResolvedValue(
+        embeddingResponse({ data: [{ embedding: mockEmbedding }] }),
+      );
 
       // Test with workspaceId - each workspace has its own isolated database
       // No filter needed since workspace isolation is handled at the database path level
@@ -582,11 +603,13 @@ describe("documentSearch", () => {
 
     it("should reserve and adjust credits when context is provided", async () => {
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbeddingsGenerate.mockResolvedValue({
-        data: [{ embedding: mockEmbedding }],
-        usage: { promptTokens: 12, totalTokens: 12, cost: 0.000001 },
-        id: "gen-123",
-      });
+      mockFetch.mockResolvedValue(
+        embeddingResponse({
+          data: [{ embedding: mockEmbedding }],
+          usage: { prompt_tokens: 12, total_tokens: 12 },
+          id: "gen-123",
+        }),
+      );
       mockQuery.mockResolvedValue([]);
       mockReserveEmbeddingCredits.mockResolvedValue({
         reservationId: "res-1",
@@ -630,11 +653,13 @@ describe("documentSearch", () => {
 
     it("should mark BYOK when a workspace key is available", async () => {
       const mockEmbedding = Array(768).fill(0.1);
-      mockEmbeddingsGenerate.mockResolvedValue({
-        data: [{ embedding: mockEmbedding }],
-        usage: { promptTokens: 12, totalTokens: 12, cost: 0.000001 },
-        id: "gen-123",
-      });
+      mockFetch.mockResolvedValue(
+        embeddingResponse({
+          data: [{ embedding: mockEmbedding }],
+          usage: { prompt_tokens: 12, total_tokens: 12 },
+          id: "gen-123",
+        }),
+      );
       mockQuery.mockResolvedValue([]);
       mockReserveEmbeddingCredits.mockResolvedValue({
         reservationId: "byok",
@@ -666,7 +691,7 @@ describe("documentSearch", () => {
     });
 
     it("should refund credits when embedding generation fails", async () => {
-      mockEmbeddingsGenerate.mockRejectedValueOnce(new Error("Embedding failed"));
+      mockFetch.mockRejectedValueOnce(new Error("Embedding failed"));
       mockReserveEmbeddingCredits.mockResolvedValue({
         reservationId: "res-2",
         reservedAmount: 1000,
