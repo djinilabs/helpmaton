@@ -16,13 +16,50 @@ import {
 } from "./schema";
 
 /**
- * Removes undefined values from an object to ensure clean data for DynamoDB storage
- * DynamoDB doesn't accept undefined values, so we filter them out
+ * True when the value is a plain object ({} or Object.create(null)), so we can
+ * safely use Object.entries and recurse. Excludes Date, Map, Set, RegExp, etc.
+ */
+const isPlainObject = (value: object): boolean => {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
+
+/**
+ * Recursively removes undefined values from plain objects and arrays so that
+ * DynamoDB marshalling (e.g. @aws-lite/client) does not throw.
+ * DynamoDB does not support undefined; null is allowed.
+ * Date, Map, Set, RegExp, Buffer, and other non-plain objects are returned
+ * as-is so they are not corrupted (e.g. Date would become {} if we recursed).
+ * Exported for use in database.ts atomicUpdate.
+ */
+export const deepClean = (value: unknown): unknown => {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map(deepClean)
+      .filter((v) => v !== undefined);
+  }
+  if (!isPlainObject(value)) {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, deepClean(v)])
+  );
+};
+
+/**
+ * Deep-removes undefined from an item so it is safe for DynamoDB marshalling.
+ * Used for all items passed to PutItem/TransactWriteItems via the table API.
  */
 const clean = (item: Record<string, unknown>): Record<string, unknown> => {
-  return Object.fromEntries(
-    Object.entries(item).filter(([, value]) => value !== undefined)
-  );
+  return deepClean(item) as Record<string, unknown>;
 };
 
 const TABLES_WITHOUT_SORT_KEY = new Set<TableName>([
