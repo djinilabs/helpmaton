@@ -39,7 +39,7 @@ function findSandboxCliInPnpm() {
   }
 }
 
-/** First sandbox CLI path in .pnpm (any copy) – used when we need Node 20 launcher but no patched copy matched. */
+/** First sandbox CLI path in .pnpm (any copy) – fallback when no patched copy in backend/root. */
 function findAnySandboxCliInPnpm() {
   const pnpmDir = join(projectRoot, 'node_modules', '.pnpm');
   if (!existsSync(pnpmDir)) return null;
@@ -66,30 +66,9 @@ const backendDir = join(projectRoot, 'apps', 'backend');
 const isWindows = process.platform === 'win32';
 const SHUTDOWN_WAIT_MS = 1000; // Wait 1 second before force killing
 
-/** Resolve Node 20 binary path (nvm) so we can run sandbox under Node 20 and avoid spawn EBADF on Node 24+. */
-function resolveNode20Path() {
-  const nvmDir = process.env.NVM_DIR || (process.env.HOME && join(process.env.HOME, '.nvm'));
-  if (!nvmDir || !existsSync(join(nvmDir, 'versions', 'node'))) return null;
-  try {
-    const versions = readdirSync(join(nvmDir, 'versions', 'node'), { withFileTypes: true });
-    const v20 = versions.filter((e) => e.isDirectory() && e.name.startsWith('v20.')).map((e) => e.name).sort((a, b) => b.localeCompare(a))[0];
-    if (!v20) return null;
-    const nodePath = join(nvmDir, 'versions', 'node', v20, 'bin', 'node');
-    return existsSync(nodePath) ? nodePath : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Run sandbox via node directly (direct child, real stdio). On Node 24+ run with Node 20 binary so Lambda spawn doesn't hit EBADF. */
+/** Run sandbox via node directly (direct child, real stdio). */
 function getSandboxCommandAndArgs() {
   const debugFlag = process.env.ARC_SANDBOX_DEBUG ? ['--debug'] : [];
-  const major = parseInt(process.version.slice(1).split('.')[0], 10);
-  if (major >= 24 && !isWindows) {
-    const node20 = resolveNode20Path();
-    const cliPath = findSandboxCliInPnpm() ?? findAnySandboxCliInPnpm();
-    if (node20 && cliPath) return { command: node20, args: [cliPath, ...debugFlag] };
-  }
   const cliPath = join(backendDir, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
   const rootCliPath = join(projectRoot, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
   const pnpmCli = findSandboxCliInPnpm() ?? findAnySandboxCliInPnpm();
@@ -133,10 +112,8 @@ if (shouldGenerateInternalDocs()) {
   }
 }
 
-// Spawn the sandbox process. Use Node 20 when current Node is 24+ so the sandbox runs on
-// Node 20 (avoids spawn EBADF in @architect/sandbox on Node 24).
-// Use stdin as pipe so we can intercept Ctrl-C (\x03); stdout/stderr stay inherit so the
-// sandbox's Lambda spawn() doesn't hit EBADF and output is visible.
+// Spawn the sandbox process. Use stdin as pipe so we can intercept Ctrl-C (\x03);
+// stdout/stderr stay inherit so the sandbox's Lambda spawn() and output work correctly.
 const { command: sandboxCommand, args: sandboxArgs } = getSandboxCommandAndArgs();
 const sandboxEnv = {
   ...process.env,
