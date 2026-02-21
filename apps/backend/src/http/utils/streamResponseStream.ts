@@ -148,6 +148,11 @@ export function createMockResponseStream(): {
  * Returns true if the stream is still writable (not yet ended).
  * Uses Node.js Writable stream properties when present (Lambda runtime uses Node streams).
  * If the stream does not expose these, we assume it is writable to avoid breaking callers.
+ *
+ * @remarks
+ * This behavior is verified for Lambda Function URL response streams on Node.js 20.x
+ * (Node.js Writable semantics). If AWS changes the runtime or stream implementation,
+ * this check may need to be updated.
  */
 export function isStreamWritable(
   responseStream: HttpResponseStream

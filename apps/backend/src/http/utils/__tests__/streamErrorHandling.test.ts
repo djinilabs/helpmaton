@@ -1,3 +1,4 @@
+import { badRequest } from "@hapi/boom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InsufficientCreditsError } from "../../../utils/creditErrors";
@@ -10,14 +11,17 @@ import {
 import type { StreamRequestContext } from "../streamRequestContext";
 import { createMockResponseStream } from "../streamResponseStream";
 
-const { mockUpdateConversation, mockSentryCaptureException } = vi.hoisted(
-  () => {
-    return {
-      mockUpdateConversation: vi.fn(),
-      mockSentryCaptureException: vi.fn(),
-    };
-  },
-);
+const {
+  mockUpdateConversation,
+  mockSentryCaptureException,
+  mockSentryCaptureMessage,
+} = vi.hoisted(() => {
+  return {
+    mockUpdateConversation: vi.fn(),
+    mockSentryCaptureException: vi.fn(),
+    mockSentryCaptureMessage: vi.fn(),
+  };
+});
 
 vi.mock("../../../utils/conversationLogger", async () => {
   const actual = await vi.importActual<
@@ -36,7 +40,7 @@ vi.mock("../../../utils/sentry", () => ({
     error instanceof Error ? error : new Error(String(error)),
   Sentry: {
     captureException: mockSentryCaptureException,
-    captureMessage: vi.fn(),
+    captureMessage: mockSentryCaptureMessage,
     startSpan: async (_config: unknown, callback: () => unknown) => callback(),
     setTag: vi.fn(),
     setContext: vi.fn(),
@@ -243,14 +247,43 @@ describe("streamErrorHandling", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
+    // Plain Error is treated as server error (5xx) by boomify, so Sentry.captureMessage should be called
     await writeErrorResponse(stream, new Error("AI_NoOutputGeneratedError"));
 
     // Should not have written anything (stream was already ended)
     expect(getBody()).toBe("");
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining("Skipping error response write (stream already ended)"),
-      expect.objectContaining({ originalError: expect.any(String) })
+      expect.objectContaining({ originalError: expect.any(String) }),
     );
+    expect(mockSentryCaptureMessage).toHaveBeenCalledWith(
+      "Stream already ended before error response could be written",
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          context: "stream-error-handling",
+          operation: "write-error-response-skipped",
+        }),
+        extra: expect.objectContaining({ originalError: expect.any(String) }),
+        level: "warning",
+      }),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("writeErrorResponse does not call Sentry.captureMessage when stream already ended and error is client error", async () => {
+    const { stream, getBody } = createMockResponseStream();
+    stream.end();
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Boom 4xx: boomify preserves it, so isServer is false and we should not report to Sentry
+    const clientError = badRequest("Bad request");
+    await writeErrorResponse(stream, clientError);
+
+    expect(getBody()).toBe("");
+    expect(mockSentryCaptureMessage).not.toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
   });

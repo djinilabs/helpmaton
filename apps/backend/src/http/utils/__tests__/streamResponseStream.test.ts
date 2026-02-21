@@ -105,6 +105,25 @@ describe("streamResponseStream", () => {
       } as unknown as HttpResponseStream;
       expect(isStreamWritable(stream)).toBe(true);
     });
+
+    it("returns false when writable is explicitly false and writableEnded is undefined", () => {
+      const stream = {
+        writable: false,
+        write: vi.fn(() => true),
+        end: vi.fn(),
+      } as unknown as HttpResponseStream;
+      expect(isStreamWritable(stream)).toBe(false);
+    });
+
+    it("returns false when writable is explicitly false and writableEnded is false", () => {
+      const stream = {
+        writable: false,
+        writableEnded: false,
+        write: vi.fn(() => true),
+        end: vi.fn(),
+      } as unknown as HttpResponseStream;
+      expect(isStreamWritable(stream)).toBe(false);
+    });
   });
 
   describe("writeChunkToStream", () => {
