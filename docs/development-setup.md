@@ -15,11 +15,9 @@ This guide will help you set up a local development environment for Helpmaton.
 **Node.js**:
 
 ```bash
-# Using nvm (recommended)
-nvm install 20
-nvm use 20
-
-# Or download from https://nodejs.org/
+# Using nvm (recommended) or download from https://nodejs.org/
+nvm install
+nvm use
 ```
 
 **pnpm**:

@@ -30,7 +30,7 @@
   "copyright": "© 2025-present, Gordon & Teixeira Lda. (https://helpmaton.com)",
   "scripts": {
     "dev": "node scripts/dev-wrapper.mjs",
-    "dev:backend": "run-p dev:watch-source-refresh-lambda dev:backend:sandbox",
+    "dev:backend": "pnpm dev:backend:sandbox",
     "dev:watch-source-refresh-lambda": "node scripts/watchSourceRefreshLambda.cjs",
     "dev:backend:sandbox": "node scripts/sandbox-wrapper.mjs",
     "dev:frontend": "cd apps/frontend && pnpm dev",
@@ -65,7 +65,8 @@
     "cleanup-ecr": "node scripts/cleanup-ecr-images.mjs",
     "cleanup-ecr:dry-run": "node scripts/cleanup-ecr-images.mjs --dry-run",
     "cleanup-ecr:execute": "node scripts/cleanup-ecr-images.mjs --execute",
-    "clean:local": "rm -rf apps/backend/dist apps/backend/public apps/frontend/dist .pnpm-store node_modules && pnpm install"
+    "clean:local": "rm -rf apps/backend/dist apps/backend/public apps/frontend/dist .pnpm-store node_modules && pnpm install",
+    "postinstall": "node scripts/patch-sandbox-bootstrap.mjs"
   },
   "packageManager": "pnpm@10.28.2",
   "pnpm": {

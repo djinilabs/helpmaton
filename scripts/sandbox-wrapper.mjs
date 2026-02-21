@@ -6,11 +6,56 @@
  */
 
 import { spawn, execSync } from 'child_process';
-import { readdirSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+
+/** Find @architect/sandbox CLI in pnpm store. Prefer the copy that has our spawn patch (patchedDependencies). */
+function findSandboxCliInPnpm() {
+  const pnpmDir = join(projectRoot, 'node_modules', '.pnpm');
+  if (!existsSync(pnpmDir)) return null;
+  try {
+    const entries = readdirSync(pnpmDir, { withFileTypes: true });
+    const candidates = [];
+    for (const e of entries) {
+      if (e.isDirectory() && e.name.startsWith('@architect+sandbox@')) {
+        const cliPath = join(pnpmDir, e.name, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+        const spawnPath = join(pnpmDir, e.name, 'node_modules', '@architect', 'sandbox', 'src', 'invoke-lambda', 'exec', 'spawn.js');
+        if (existsSync(cliPath)) candidates.push({ cliPath, spawnPath });
+      }
+    }
+    // Prefer the copy with our patch (minimal spawnOpts + env sanitization)
+    for (const { cliPath, spawnPath } of candidates) {
+      if (existsSync(spawnPath)) {
+        const content = readFileSync(spawnPath, 'utf8');
+        if (content.includes('spawnOpts') && content.includes("'ignore', 'inherit', 'inherit'")) return cliPath;
+      }
+    }
+    return candidates[0]?.cliPath ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** First sandbox CLI path in .pnpm (any copy) – fallback when no patched copy in backend/root. */
+function findAnySandboxCliInPnpm() {
+  const pnpmDir = join(projectRoot, 'node_modules', '.pnpm');
+  if (!existsSync(pnpmDir)) return null;
+  try {
+    const entries = readdirSync(pnpmDir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isDirectory() && e.name.startsWith('@architect+sandbox@')) {
+        const cliPath = join(pnpmDir, e.name, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+        if (existsSync(cliPath)) return cliPath;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -20,6 +65,18 @@ const backendDir = join(projectRoot, 'apps', 'backend');
 
 const isWindows = process.platform === 'win32';
 const SHUTDOWN_WAIT_MS = 1000; // Wait 1 second before force killing
+
+/** Run sandbox via node directly (direct child, real stdio). */
+function getSandboxCommandAndArgs() {
+  const debugFlag = process.env.ARC_SANDBOX_DEBUG ? ['--debug'] : [];
+  const cliPath = join(backendDir, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+  const rootCliPath = join(projectRoot, 'node_modules', '@architect', 'sandbox', 'src', 'cli', 'cli.js');
+  const pnpmCli = findSandboxCliInPnpm() ?? findAnySandboxCliInPnpm();
+  if (existsSync(cliPath)) return { command: 'node', args: [cliPath, ...debugFlag] };
+  if (existsSync(rootCliPath)) return { command: 'node', args: [rootCliPath, ...debugFlag] };
+  if (pnpmCli) return { command: 'node', args: [pnpmCli, ...debugFlag] };
+  return { command: 'pnpm', args: ['arc', 'sandbox', ...debugFlag] };
+}
 
 // Ensure internal docs are generated so workspace/meta-agent have up-to-date index.
 // Skip generation when output is already newer than the script and all docs (fast startup).
@@ -55,20 +112,39 @@ if (shouldGenerateInternalDocs()) {
   }
 }
 
-// Spawn the sandbox process
-const sandboxProcess = spawn('pnpm', ['arc', 'sandbox'], {
+// Spawn the sandbox process. Use stdin as pipe so we can intercept Ctrl-C (\x03);
+// stdout/stderr stay inherit so the sandbox's Lambda spawn() and output work correctly.
+const { command: sandboxCommand, args: sandboxArgs } = getSandboxCommandAndArgs();
+const sandboxEnv = {
+  ...process.env,
+  ARC_DB_PATH: process.env.ARC_DB_PATH || './db',
+};
+const sandboxProcess = spawn(sandboxCommand, sandboxArgs, {
   cwd: backendDir,
-  stdio: 'inherit',
-  env: {
-    ...process.env,
-    ARC_DB_PATH: process.env.ARC_DB_PATH || './db',
-  },
+  stdio: ['pipe', 'inherit', 'inherit'],
+  env: sandboxEnv,
   shell: false,
 });
 
 let isShuttingDown = false;
 let shutdownTimeout = null;
 const sandboxPid = sandboxProcess.pid;
+
+// Intercept Ctrl-C from stdin so we always see it (SIGINT may go to sandbox's process group only).
+if (process.stdin.isTTY && sandboxPid) {
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (chunk) => {
+    if (chunk.includes('\u0003')) {
+      shutdown();
+      return;
+    }
+    if (sandboxProcess.stdin && !sandboxProcess.killed) {
+      sandboxProcess.stdin.write(chunk);
+    }
+  });
+}
 
 /**
  * Find all child processes of a given PID (recursively)
@@ -197,36 +273,6 @@ async function isProcessAlive(pid) {
   }
 }
 
-/**
- * Send SIGTERM to the process and its children
- */
-async function sendTermSignal(pid) {
-  if (isWindows) {
-    try {
-      sandboxProcess.kill('SIGTERM');
-    } catch (error) {
-      // Ignore errors
-    }
-  } else {
-    // Send SIGTERM to all children first
-    const children = await findAllChildProcesses(pid);
-    for (const childPid of children) {
-      try {
-        process.kill(childPid, 'SIGTERM');
-      } catch (error) {
-        // Ignore errors
-      }
-    }
-    
-    // Then send SIGTERM to the parent
-    try {
-      sandboxProcess.kill('SIGTERM');
-    } catch (error) {
-      // Ignore errors
-    }
-  }
-}
-
 function shutdown() {
   if (isShuttingDown) {
     return;
@@ -238,20 +284,14 @@ function shutdown() {
     return;
   }
 
-  // Send SIGTERM to all children immediately
-  sendTermSignal(sandboxPid).catch(() => {
-    // Ignore errors
-  });
-
-  // Wait 1 second, then force kill everything
-  shutdownTimeout = setTimeout(async () => {
-    // After 1 second, just kill everything aggressively
-    await killProcessTree(sandboxPid);
-    process.exit(0);
-  }, SHUTDOWN_WAIT_MS);
+  // Kill sandbox and its tree, then exit. SIGINT may never reach us (e.g. when run under pnpm),
+  // so we rely on stdin Ctrl-C (\x03) when isTTY; this path is also used for SIGINT when we get it.
+  killProcessTree(sandboxPid)
+    .then(() => process.exit(0))
+    .catch(() => process.exit(0));
 }
 
-// Handle signals
+// Backup: if we do receive SIGINT (e.g. run as `node scripts/sandbox-wrapper.mjs`), handle it
 process.on('SIGINT', () => {
   shutdown();
 });
@@ -260,13 +300,24 @@ process.on('SIGTERM', () => {
   shutdown();
 });
 
-// Handle process exit
-process.on('exit', async () => {
+// Best-effort sync kill on exit (Node does not wait for async in 'exit' handlers)
+process.on('exit', () => {
   if (shutdownTimeout) {
     clearTimeout(shutdownTimeout);
   }
+  if (process.stdin.isTTY && process.stdin.setRawMode) {
+    try {
+      process.stdin.setRawMode(false);
+    } catch {
+      // ignore
+    }
+  }
   if (sandboxPid) {
-    await killProcessTree(sandboxPid);
+    try {
+      process.kill(sandboxPid, 'SIGKILL');
+    } catch {
+      // already dead
+    }
   }
 });
 
