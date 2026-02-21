@@ -82,9 +82,11 @@ async function fetchEmbeddingFromOpenRouter(
       `[generateEmbedding] Non-JSON response (status ${res.status}):`,
       rawText.substring(0, 300),
     );
-    throw new Error(
+    const err = new Error(
       `OpenRouter embeddings returned non-JSON (status ${res.status})`,
-    );
+    ) as Error & { statusCode?: number };
+    err.statusCode = res.status;
+    throw err;
   }
 
   if (!res.ok) {
