@@ -54,11 +54,16 @@ export function initSentry(): void {
     // Ignore CefSharp bot errors (e.g. Outlook SafeSearch scanning links).
     // "Object Not Found Matching Id:..., MethodName:..., ParamCount:..." is thrown
     // by CefSharp when bots load the page; not a real user issue.
+    // Ignore Android WebView bridge errors (e.g. Facebook in-app browser). When the WebView
+    // or injected Java object is destroyed, JS calls into the bridge throw "Java object is gone".
+    // This is an environment lifecycle issue, not an app bug.
     ignoreErrors: [
       // CefSharp bot errors (e.g. Outlook SafeSearch); rejection value is the string below
       /Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/,
-      // Sentry's message for non-Error rejections
+      // Sentry's message for non-Error promise rejections
       /Non-Error promise rejection.*Object Not Found Matching Id:/,
+      // Android WebView / in-app browser (e.g. Facebook): Java bridge object destroyed
+      /Java object is gone/,
     ],
     // Set sample rate for session replay
     replaysSessionSampleRate: environment === "production" ? 0.1 : 1.0,

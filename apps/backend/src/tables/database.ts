@@ -14,26 +14,21 @@ import {
   AtomicUpdateCallback,
   TableRecord,
 } from "./schema";
-import { tableApi } from "./tableApi";
+import { deepClean, tableApi } from "./tableApi";
 
 /**
- * Removes undefined values from an object to ensure clean data for DynamoDB storage
- */
-const clean = (item: Record<string, unknown>): Record<string, unknown> => {
-  return Object.fromEntries(
-    Object.entries(item).filter(([, value]) => value !== undefined)
-  );
-};
-
-/**
- * Creates a parser function that validates and cleans items using Zod schemas
+ * Creates a parser function that validates and deep-cleans items using Zod schemas.
+ * Deep-cleaning removes nested undefined so DynamoDB marshalling does not throw.
  */
 const parsingItem =
   (schema: z.ZodSchema, tableName: string) =>
   (item: unknown, operation: string): Record<string, unknown> => {
     try {
       const parsed = schema.parse(item);
-      return clean(parsed as Record<string, unknown>);
+      return deepClean(parsed as Record<string, unknown>) as Record<
+        string,
+        unknown
+      >;
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       const error = new Error(

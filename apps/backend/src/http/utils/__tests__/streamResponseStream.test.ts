@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   createResponseStream,
   createMockResponseStream,
+  isStreamWritable,
   writeChunkToStream,
   type HttpResponseStream,
 } from "../streamResponseStream";
@@ -71,6 +72,57 @@ describe("streamResponseStream", () => {
       const callback = vi.fn();
       stream.end(callback);
       expect(callback).toHaveBeenCalled();
+    });
+
+    it("should report writable false and invoke write callback with error after end (write after end)", async () => {
+      const { stream, getBody } = createMockResponseStream();
+      stream.write("before");
+      stream.end();
+      expect(getBody()).toBe("before");
+      await expect(
+        writeChunkToStream(stream, "after end")
+      ).rejects.toThrow("write after end");
+      expect(getBody()).toBe("before");
+    });
+  });
+
+  describe("isStreamWritable", () => {
+    it("returns true for mock stream that has not been ended", () => {
+      const { stream } = createMockResponseStream();
+      expect(isStreamWritable(stream)).toBe(true);
+    });
+
+    it("returns false for mock stream after end()", () => {
+      const { stream } = createMockResponseStream();
+      stream.end();
+      expect(isStreamWritable(stream)).toBe(false);
+    });
+
+    it("returns true for stream without writable/writableEnded (backward compat)", () => {
+      const stream = {
+        write: vi.fn(() => true),
+        end: vi.fn(),
+      } as unknown as HttpResponseStream;
+      expect(isStreamWritable(stream)).toBe(true);
+    });
+
+    it("returns false when writable is explicitly false and writableEnded is undefined", () => {
+      const stream = {
+        writable: false,
+        write: vi.fn(() => true),
+        end: vi.fn(),
+      } as unknown as HttpResponseStream;
+      expect(isStreamWritable(stream)).toBe(false);
+    });
+
+    it("returns false when writable is explicitly false and writableEnded is false", () => {
+      const stream = {
+        writable: false,
+        writableEnded: false,
+        write: vi.fn(() => true),
+        end: vi.fn(),
+      } as unknown as HttpResponseStream;
+      expect(isStreamWritable(stream)).toBe(false);
     });
   });
 

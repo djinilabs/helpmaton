@@ -3,7 +3,67 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { TableAPI } from "../schema";
 import { tableSchemas } from "../schema";
-import { tableApi } from "../tableApi";
+import { deepClean, tableApi } from "../tableApi";
+
+describe("deepClean", () => {
+  it("removes top-level undefined values", () => {
+    expect(deepClean({ a: 1, b: undefined, c: "x" })).toEqual({ a: 1, c: "x" });
+  });
+
+  it("removes nested undefined in objects", () => {
+    expect(
+      deepClean({ config: { apiKey: "k", optional: undefined }, name: "srv" })
+    ).toEqual({ config: { apiKey: "k" }, name: "srv" });
+  });
+
+  it("removes undefined from arrays", () => {
+    expect(deepClean([1, undefined, 3])).toEqual([1, 3]);
+  });
+
+  it("deep-cleans nested arrays and objects", () => {
+    expect(
+      deepClean({
+        a: [1, undefined, { x: 2, y: undefined }],
+        b: undefined,
+      })
+    ).toEqual({ a: [1, { x: 2 }] });
+  });
+
+  it("preserves null and other primitives", () => {
+    expect(deepClean({ a: null, b: 0, c: false, d: "" })).toEqual({
+      a: null,
+      b: 0,
+      c: false,
+      d: "",
+    });
+  });
+
+  it("returns undefined for undefined input", () => {
+    expect(deepClean(undefined)).toBe(undefined);
+  });
+
+  it("preserves Date instances (does not turn them into {})", () => {
+    const d = new Date("2026-02-21T12:00:00.000Z");
+    expect(deepClean({ createdAt: d })).toEqual({ createdAt: d });
+    expect(deepClean(d)).toBe(d);
+  });
+
+  it("preserves non-plain objects (Map, Set, etc.) as-is", () => {
+    const m = new Map([["a", 1]]);
+    expect(deepClean({ m })).toEqual({ m });
+    expect(deepClean(m)).toBe(m);
+  });
+
+  it("supports cleaning null-prototype objects (result has normal prototype)", () => {
+    const obj = Object.create(null) as Record<string, unknown>;
+    obj.a = 1;
+    obj.b = undefined;
+    const result = deepClean(obj);
+    expect(result).toEqual({ a: 1 });
+    // deepClean uses Object.fromEntries so the result is a normal object, not null-prototype
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  });
+});
 
 describe("tableApi", () => {
   let mockLowLevelTable: {
