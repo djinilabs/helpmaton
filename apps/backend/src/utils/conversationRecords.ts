@@ -22,6 +22,7 @@
 import type { DatabaseSchema , AgentConversationRecord , Query } from "../tables/schema";
 
 import { deleteS3Object, getS3ObjectBody, putS3Object } from "./s3";
+import { Sentry, ensureError } from "./sentry";
 
 const CONVERSATION_UPSERT_MAX_ATTEMPTS = 3;
 const CONVERSATION_UPSERT_BASE_DELAY_MS = 100;
@@ -426,10 +427,23 @@ async function enrichRecordFromS3(
     const messages = await fetchMessagesFromS3Key(raw.messagesS3Key);
     return { ...raw, messages };
   } catch (error) {
+    const err = ensureError(error);
     console.warn(
       `[Conversation Records] Failed to fetch messages from S3 (${raw.messagesS3Key}):`,
-      error instanceof Error ? error.message : String(error),
+      err.message,
     );
+    Sentry.captureException(err, {
+      tags: {
+        context: "conversation-records",
+        operation: "enrich-from-s3",
+      },
+      extra: {
+        messagesS3Key: raw.messagesS3Key,
+        conversationId: raw.conversationId,
+        workspaceId: raw.workspaceId,
+        agentId: raw.agentId,
+      },
+    });
     return raw;
   }
 }
