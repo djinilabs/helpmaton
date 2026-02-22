@@ -163,6 +163,27 @@ describe("buildConversationMessagesFromObserver", () => {
     }
   });
 
+  it("builds user + assistant from fallbacks when observerEvents is empty (e.g. schedule queue)", () => {
+    const userMessage = { role: "user" as const, content: "scheduled prompt" };
+    const messages = buildConversationMessagesFromObserver({
+      observerEvents: [],
+      fallbackInputMessages: [userMessage],
+      fallbackAssistantText: "Agent response text",
+      assistantMeta: {
+        provider: "openrouter",
+        modelName: "test-model",
+      },
+    });
+
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toEqual(userMessage);
+    expect(messages[1].role).toBe("assistant");
+    expect(Array.isArray(messages[1].content)).toBe(true);
+    expect(messages[1].content).toEqual([
+      { type: "text", text: "Agent response text" },
+    ]);
+  });
+
   it("splits reasoning into its own assistant messages", () => {
     const events: LlmObserverEvent[] = [
       {

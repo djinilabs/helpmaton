@@ -227,21 +227,30 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
         : MODEL_NAME;
 
     const userMessage = convertTextToUIMessage(prompt);
-    const messagesForLogging = agentResult.observerEvents
-      ? buildConversationMessagesFromObserver({
-          observerEvents: agentResult.observerEvents,
-          fallbackInputMessages: [userMessage],
-          fallbackAssistantText: agentResult.text,
-          assistantMeta: {
-            tokenUsage: agentResult.tokenUsage,
-            modelName: finalModelName,
-            provider: "openrouter",
-            openrouterGenerationId: agentResult.openrouterGenerationId,
-            provisionalCostUsd: agentResult.provisionalCostUsd,
-            generationTimeMs,
-          },
-        })
-      : [userMessage];
+    // Use observer when we have events or assistant text so we never persist only the
+    // user message when the agent produced a response (avoids empty conversations).
+    const hasObserverEvents =
+      Array.isArray(agentResult.observerEvents) &&
+      agentResult.observerEvents.length > 0;
+    const hasAssistantText =
+      typeof agentResult.text === "string" &&
+      agentResult.text.trim().length > 0;
+    const messagesForLogging =
+      hasObserverEvents || hasAssistantText
+        ? buildConversationMessagesFromObserver({
+            observerEvents: agentResult.observerEvents ?? [],
+            fallbackInputMessages: [userMessage],
+            fallbackAssistantText: agentResult.text,
+            assistantMeta: {
+              tokenUsage: agentResult.tokenUsage,
+              modelName: finalModelName,
+              provider: "openrouter",
+              openrouterGenerationId: agentResult.openrouterGenerationId,
+              provisionalCostUsd: agentResult.provisionalCostUsd,
+              generationTimeMs,
+            },
+          })
+        : [userMessage];
 
     const validMessages = messagesForLogging.filter(
       (msg): msg is typeof userMessage =>
