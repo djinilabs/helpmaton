@@ -404,12 +404,29 @@ function extractConversationFileKeys(messages: unknown, workspaceId: string): Se
 }
 
 /**
- * Fetch and parse messages from S3. Returns [] when body is not a JSON array.
+ * Fetch and parse messages from S3. Returns [] when body is empty, invalid JSON, or not a JSON array.
  * Shared by enrichRecordFromS3 and deleteAllRecordsForAgent for consistent parsing.
+ * Handles corrupted/incomplete S3 objects (e.g. empty or truncated uploads) without throwing.
  */
 async function fetchMessagesFromS3Key(key: string): Promise<unknown[]> {
   const body = await getS3ObjectBody(key);
-  const parsed = JSON.parse(body.toString("utf-8")) as unknown;
+  if (body.length === 0) {
+    console.warn(`[Conversation Records] S3 object empty (${key}), treating as no messages`);
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body.toString("utf-8")) as unknown;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      console.warn(
+        `[Conversation Records] Invalid JSON in S3 (${key}):`,
+        error.message,
+      );
+      return [];
+    }
+    throw error;
+  }
   return Array.isArray(parsed) ? parsed : [];
 }
 

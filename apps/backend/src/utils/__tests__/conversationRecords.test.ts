@@ -504,6 +504,74 @@ describe("conversationRecords", () => {
       expect(result.items[0].messages).toEqual([{ role: "user", content: "from S3" }]);
     });
 
+    it("returns record with empty messages when S3 object body is empty", async () => {
+      vi.mocked(getS3ObjectBody).mockResolvedValueOnce(Buffer.alloc(0));
+      const rawItems = [
+        {
+          pk: "conversations/ws1/ag1/c2",
+          conversationId: "c2",
+          messages: [],
+          messagesS3Key: "conversation-messages/ws1/ag1/c2.json",
+          workspaceId: "ws1",
+          agentId: "ag1",
+          conversationType: "stream" as const,
+          startedAt: new Date().toISOString(),
+          lastMessageAt: new Date().toISOString(),
+          expires: 888,
+        },
+      ];
+      const db = {
+        "agent-conversations": {
+          queryPaginated: vi
+            .fn()
+            .mockResolvedValue({ items: rawItems, nextCursor: null }),
+        },
+      } as never;
+
+      const result = await queryRecordsPaginated(
+        db,
+        { IndexName: "byAgentId", KeyConditionExpression: "agentId = :a", ExpressionAttributeValues: { ":a": "ag1" } },
+        { limit: 10 },
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].messages).toEqual([]);
+    });
+
+    it("returns record with empty messages when S3 object contains invalid JSON", async () => {
+      vi.mocked(getS3ObjectBody).mockResolvedValueOnce(Buffer.from("{", "utf-8"));
+      const rawItems = [
+        {
+          pk: "conversations/ws1/ag1/c2",
+          conversationId: "c2",
+          messages: [],
+          messagesS3Key: "conversation-messages/ws1/ag1/c2.json",
+          workspaceId: "ws1",
+          agentId: "ag1",
+          conversationType: "stream" as const,
+          startedAt: new Date().toISOString(),
+          lastMessageAt: new Date().toISOString(),
+          expires: 888,
+        },
+      ];
+      const db = {
+        "agent-conversations": {
+          queryPaginated: vi
+            .fn()
+            .mockResolvedValue({ items: rawItems, nextCursor: null }),
+        },
+      } as never;
+
+      const result = await queryRecordsPaginated(
+        db,
+        { IndexName: "byAgentId", KeyConditionExpression: "agentId = :a", ExpressionAttributeValues: { ":a": "ag1" } },
+        { limit: 10 },
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].messages).toEqual([]);
+    });
+
     it("skips S3 enrichment when enrichFromS3 is false", async () => {
       vi.mocked(getS3ObjectBody).mockClear();
       const rawItems = [
