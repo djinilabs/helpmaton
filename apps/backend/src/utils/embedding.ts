@@ -102,13 +102,29 @@ async function fetchEmbeddingFromOpenRouter(
     throw err;
   }
 
+  // OpenRouter or upstream providers sometimes return 200 with an error payload
+  if (body && typeof body === "object" && "error" in body) {
+    const errBody = formatOpenRouterErrorBody(body, rawText);
+    console.error(
+      `[generateEmbedding] OpenRouter returned 200 with error body:`,
+      errBody,
+    );
+    const err = new Error(
+      `OpenRouter embeddings returned error in 200 body: ${errBody}`,
+    ) as Error & { statusCode?: number };
+    err.statusCode = 502;
+    throw err;
+  }
+
+  const responsePreview = rawText.substring(0, 500);
+
   // Lenient validation: we only need data[0].embedding to be an array of numbers
   if (!body || typeof body !== "object" || !Array.isArray((body as Record<string, unknown>).data)) {
     console.error(
       `[generateEmbedding] Unexpected 200 response shape (missing or invalid data array):`,
-      rawText.substring(0, 500),
+      responsePreview,
     );
-    throw new Error("Invalid embedding response format");
+    throw new Error(`Invalid embedding response format. Response preview: ${responsePreview}`);
   }
 
   const data = (body as Record<string, unknown>).data as Array<{ embedding?: unknown }>;
@@ -116,9 +132,9 @@ async function fetchEmbeddingFromOpenRouter(
   if (!first || !Array.isArray(first.embedding)) {
     console.error(
       `[generateEmbedding] Unexpected 200 response (data[0].embedding missing or not array):`,
-      rawText.substring(0, 500),
+      responsePreview,
     );
-    throw new Error("Invalid embedding response format");
+    throw new Error(`Invalid embedding response format. Response preview: ${responsePreview}`);
   }
 
   const embedding = first.embedding as unknown[];
@@ -127,7 +143,7 @@ async function fetchEmbeddingFromOpenRouter(
       `[generateEmbedding] data[0].embedding contained non-numbers:`,
       rawText.substring(0, 300),
     );
-    throw new Error("Invalid embedding response format");
+    throw new Error(`Invalid embedding response format. Response preview: ${responsePreview}`);
   }
 
   const rawUsage = (body as Record<string, unknown>).usage;
@@ -390,13 +406,13 @@ async function generateEmbeddingResult(
           fromCache: false,
         };
       } catch (requestError) {
-        // Check if it's a timeout/abort error
-        if (
+        // Check if it's a timeout/abort error (not e.g. upstream "timeout" in error message)
+        const isAbortOrTimeout =
           requestError instanceof Error &&
           (requestError.name === "AbortError" ||
-            requestError.message.includes("aborted") ||
-            requestError.message.includes("timeout"))
-        ) {
+            requestError.message === "Operation aborted" ||
+            requestError.message.startsWith("Embedding generation timed out"));
+        if (isAbortOrTimeout) {
           throw new Error(
             `Embedding generation timed out or was aborted after ${EMBEDDING_TIMEOUT_MS}ms`,
           );

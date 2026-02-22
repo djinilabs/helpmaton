@@ -136,6 +136,23 @@ describe("generateEmbeddingWithUsage (direct fetch)", () => {
     });
   });
 
+  it("throws on 200 with error body (OpenRouter/upstream error in 200)", async () => {
+    mockFetch.mockResolvedValueOnce(
+      embeddingResponse({ error: { message: "Upstream provider timeout" } }),
+    );
+
+    let caught: (Error & { statusCode?: number }) | null = null;
+    try {
+      await generateEmbeddingWithUsage("text", "key", undefined);
+    } catch (e) {
+      caught = e as Error & { statusCode?: number };
+    }
+    expect(caught).not.toBeNull();
+    expect(caught!.message).toContain("OpenRouter embeddings returned error in 200 body");
+    expect(caught!.message).toContain("Upstream provider timeout");
+    expect(caught!.statusCode).toBe(502);
+  });
+
   it("throws on 200 with missing data array", async () => {
     // Return same invalid shape on every call (retries consume mock)
     mockFetch.mockImplementation(() =>
