@@ -1,5 +1,53 @@
+diff --git a/src/invoke-lambda/exec/spawn.js b/src/invoke-lambda/exec/spawn.js
+index 30efb1ac722a2484fd09cfcbb7e325f7b73a3a23..12c7b9b8bfaf33e70ad628c1a4806a8e9f5ffc52 100644
+--- a/src/invoke-lambda/exec/spawn.js
++++ b/src/invoke-lambda/exec/spawn.js
+@@ -10,15 +10,26 @@ module.exports = function spawnChild (params, callback) {
+   let isInLambda = process.env.AWS_LAMBDA_FUNCTION_NAME
+   let timedOut = false
+ 
++  // Use inherit for stdout/stderr to avoid EBADF (pipes can fail on some Node/macOS). Lambda still talks to sandbox via HTTP runtime API.
++  let env = options.env && typeof options.env === 'object'
++    ? Object.fromEntries(Object.entries(options.env).filter(([, v]) => v !== undefined && v !== null))
++    : undefined
++  const spawnOpts = {
++    cwd: options.cwd,
++    env: env,
++    stdio: [ 'ignore', 'inherit', 'inherit' ],
++    shell: false,
++  }
++
+   // Let's go!
+   let pid = 'init'
+   let child, error, closed, to, check
+   function start () {
+-    child = spawn(command, args, options)
++    child = spawn(command, args, spawnOpts)
+     pid = child.pid
+ 
+-    child.stdout.on('data', data => process.stdout.write('\n' + data))
+-    child.stderr.on('data', data => process.stderr.write('\n' + data))
++    if (child.stdout) child.stdout.on('data', data => process.stdout.write('\n' + data))
++    if (child.stderr) child.stderr.on('data', data => process.stderr.write('\n' + data))
+     child.on('error', err => {
+       error = err
+       // Seen some non-string oob errors come via binary compilation
+diff --git a/src/invoke-lambda/index.js b/src/invoke-lambda/index.js
+index a3a4dbaa0949722c90ee4f91263cad97af393d14..c4a467bb4e422d48d9feb7206601e565aa0d8ddf 100644
+--- a/src/invoke-lambda/index.js
++++ b/src/invoke-lambda/index.js
+@@ -56,7 +56,8 @@ module.exports = function invokeLambda (params, callback) {
+     options: {
+       cwd: build || src,
+       env: getEnv(params, requestID),
+-      shell: true,
++      stdio: [ 'ignore', 'inherit', 'inherit' ],
++      shell: false,
+     },
+     requestID,
+     timeout: config.timeout * 1000,
 diff --git a/src/tables/index.js b/src/tables/index.js
-index 13d839450a3c9b183e98dcba12b4c634a0fc4430..871e6f4dab48d9cde8e993de296f99b4fb99757b 100644
+index e8b03e1347fd30537d57f5a6fcfff4f3fd9922af..eb7a7e3aa59305004cd2e71293be22773fe280f8 100644
 --- a/src/tables/index.js
 +++ b/src/tables/index.js
 @@ -26,7 +26,7 @@ function start (params, callback) {
