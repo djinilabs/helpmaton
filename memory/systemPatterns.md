@@ -120,7 +120,7 @@
 - **No Direct AWS Changes**: All infrastructure changes through code
 - **Reserved Concurrency**: Use per-Lambda `config.arc` with `@aws concurrency <n>` when isolating handlers
 - **Environment**: Uses ARC_DB_PATH for local DynamoDB
-- **Environment Detection**: Primary check is `process.env.ARC_ENV === "testing"` for local development (Architect sandbox). For S3/AWS services, also check if credentials are available - if missing, fall back to local mocked services (s3rver). Never use `NODE_ENV` alone for environment detection. **S3 local vs production**: In `s3.ts`, `isLocalS3Environment()` returns false when `AWS_LAMBDA_FUNCTION_NAME` is set (Lambda runtime sets this), so we never use localhost S3 in Lambda even if ARC_ENV/NODE_ENV are unset or wrong; local S3 (localhost:4568) only when not in Lambda and ARC_ENV=testing or (ARC_ENV !== "production" && NODE_ENV !== "production"). This avoids ECONNREFUSED to 127.0.0.1:4568 in production.
+- **Environment Detection**: Primary check is `process.env.ARC_ENV === "testing"` for local development (Architect sandbox). For S3/AWS services, also check if credentials are available - if missing, fall back to local mocked services (s3rver). Never use `NODE_ENV` alone for environment detection. **S3 local vs production**: In `s3.ts`, `isLocalS3Environment()` returns false (use real AWS S3) only when `AWS_LAMBDA_FUNCTION_NAME` is set and `ARC_ENV !== "testing"`. Sandbox sets AWS_LAMBDA_FUNCTION_NAME when invoking handlers, so we require ARC_ENV !== "testing" so E2E/local use local s3rver; production/staging Lambdas use real S3.
 
 ## Key Architectural Decisions
 

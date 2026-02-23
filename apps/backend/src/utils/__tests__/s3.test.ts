@@ -94,11 +94,18 @@ describe("s3 utilities", () => {
       expect(isLocalS3Environment()).toBe(false);
     });
 
-    it("returns false when in Lambda even if ARC_ENV is not production", () => {
+    it("returns false when in Lambda and ARC_ENV is staging (deployed staging)", () => {
       process.env.AWS_LAMBDA_FUNCTION_NAME = "some-handler";
       process.env.ARC_ENV = "staging";
       process.env.NODE_ENV = "development";
       expect(isLocalS3Environment()).toBe(false);
+    });
+
+    it("returns true when in Lambda but ARC_ENV is testing (sandbox/E2E)", () => {
+      process.env.AWS_LAMBDA_FUNCTION_NAME = "HelpmatonProduction-SomeHandler-abc";
+      process.env.ARC_ENV = "testing";
+      process.env.NODE_ENV = "test";
+      expect(isLocalS3Environment()).toBe(true);
     });
 
     it("returns true when not in Lambda and ARC_ENV is testing", () => {

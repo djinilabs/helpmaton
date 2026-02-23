@@ -13,11 +13,15 @@ const BUCKET_NAME = (
 ).trim();
 
 /**
- * True only when running locally (sandbox/tests). In AWS Lambda we always use real AWS S3.
- * Lambda sets AWS_LAMBDA_FUNCTION_NAME; when set, never use localhost to avoid ECONNREFUSED in production.
+ * True only when running locally (sandbox/tests). In deployed Lambda (production/staging) we use real AWS S3.
+ * Sandbox also sets AWS_LAMBDA_FUNCTION_NAME when invoking handlers, so we require ARC_ENV !== "testing"
+ * to treat as production; otherwise E2E and local dev would use production S3 and fail.
  */
 export function isLocalS3Environment(): boolean {
-  if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  if (
+    process.env.AWS_LAMBDA_FUNCTION_NAME &&
+    process.env.ARC_ENV !== "testing"
+  ) {
     return false;
   }
   const arcEnv = process.env.ARC_ENV;
