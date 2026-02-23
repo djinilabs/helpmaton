@@ -59,7 +59,7 @@ export function ensurePostHogIdentityFromRequest(req: RequestWithUser): void {
 export function trackEvent(
   eventName: string,
   properties?: TrackingProperties,
-  req?: RequestWithUser
+  req?: RequestWithUser,
 ): void {
   const phClient = getPostHogClient();
   if (!phClient) {
@@ -82,7 +82,7 @@ export function trackEvent(
       userEmail = properties.user_email;
       identifyUser(
         properties.user_id,
-        userEmail ? { email: userEmail } : undefined
+        userEmail ? { email: userEmail } : undefined,
       );
       userId = properties.user_id;
     } else {
@@ -113,7 +113,7 @@ export function trackEvent(
     // Capture event with distinct ID (user from req, properties, or request context)
     const distinctId = userId
       ? `user/${userId}`
-      : getCurrentRequestDistinctId() ?? "system";
+      : (getCurrentRequestDistinctId() ?? "system");
 
     phClient.capture({
       distinctId,
@@ -142,7 +142,7 @@ export function trackBusinessEvent(
   feature: string,
   action: string,
   properties?: TrackingProperties,
-  req?: RequestWithUser
+  req?: RequestWithUser,
 ): void {
   const eventName = `${feature}_${action}`;
   trackEvent(eventName, properties, req);
@@ -154,7 +154,7 @@ export function trackBusinessEvent(
 export function trackError(
   error: Error | string,
   context?: TrackingProperties,
-  req?: RequestWithUser
+  req?: RequestWithUser,
 ): void {
   const errorMessage = error instanceof Error ? error.message : error;
   const errorType = error instanceof Error ? error.constructor.name : "Unknown";
@@ -167,7 +167,6 @@ export function trackError(
       error_type: errorType,
       error_stack: error instanceof Error ? error.stack : undefined,
     },
-    req
+    req,
   );
 }
-

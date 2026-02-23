@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { database } from "../../tables";
 import { trackDelegation } from "../../utils/conversationLogger";
+import { DISCORD_MESSAGE_MAX_LENGTH } from "../../utils/discord";
 import { searchDocuments } from "../../utils/documentSearch";
 import { sendNotification } from "../../utils/notifications";
 import { Sentry, ensureError } from "../../utils/sentry";
@@ -413,8 +414,12 @@ export function createSendNotificationTool(
     content: z
       .string()
       .min(1, "Content parameter is required and cannot be empty")
+      .max(
+        DISCORD_MESSAGE_MAX_LENGTH,
+        "Content must be 2000 characters or fewer (Discord limit)"
+      )
       .describe(
-        "REQUIRED: The notification message text to send. This MUST be a non-empty string containing the actual message content. This is the ONLY parameter required. The channel is pre-configured - you do NOT need and CANNOT provide a channel ID. Just put the message text here. Example: If user wants to send 'hello world', use content='hello world'. The message will be sent to the pre-configured channel automatically. NEVER call this tool with an empty string or without the content parameter.",
+        "REQUIRED: The notification message text to send (max 2000 characters; longer text will be truncated for Discord). Non-empty string. The channel is pre-configured. Example: content='hello world'. NEVER call with empty string or without the content parameter.",
       ),
   });
 

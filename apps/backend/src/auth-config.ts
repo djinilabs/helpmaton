@@ -70,10 +70,10 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
           console.error(
             "Failed to parse frontend login URL:",
             frontendLoginUrl,
-            error
+            error,
           );
           throw new Error(
-            `Failed to parse frontend login URL: ${frontendLoginUrl}`
+            `Failed to parse frontend login URL: ${frontendLoginUrl}`,
           );
         }
 
@@ -157,11 +157,11 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
             const subscription = await getUserSubscription(userId);
             const subscriptionId = subscription.pk.replace(
               "subscriptions/",
-              ""
+              "",
             );
             await ensureSubscriptionApiKeyActive(
               subscriptionId,
-              subscription.plan
+              subscription.plan,
             );
             identifyUser(userId, {
               email: user.email ?? undefined,
@@ -171,7 +171,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
             console.error(
               "[signIn] Passkey: failed to ensure subscription for user:",
               userId,
-              error instanceof Error ? error.message : String(error)
+              error instanceof Error ? error.message : String(error),
             );
             return true;
           }
@@ -202,7 +202,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               } catch (error) {
                 console.warn(
                   `[signIn] Attempt ${attempt}/${maxRetries}: Failed to lookup user by email:`,
-                  error instanceof Error ? error.message : String(error)
+                  error instanceof Error ? error.message : String(error),
                 );
               }
             }
@@ -229,13 +229,13 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
 
             console.error(
               `[signIn] CRITICAL: Could not determine userId for user with email ${user.email}. User may be created without subscription!`,
-              errorContext
+              errorContext,
             );
 
             // Report to Sentry with full context
             Sentry.captureException(
               new Error(
-                `Failed to determine userId during sign-in for user with email: ${user.email}`
+                `Failed to determine userId during sign-in for user with email: ${user.email}`,
               ),
               {
                 tags: {
@@ -249,7 +249,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
                 },
                 extra: errorContext,
                 level: "error",
-              }
+              },
             );
 
             return true;
@@ -265,7 +265,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               subscription = await getUserSubscription(userId);
               subscriptionCreated = true;
               console.log(
-                `[signIn] Successfully ensured subscription exists for user ${userId} (attempt ${attempt})`
+                `[signIn] Successfully ensured subscription exists for user ${userId} (attempt ${attempt})`,
               );
               break;
             } catch (error) {
@@ -286,7 +286,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
 
                 console.error(
                   `[signIn] CRITICAL: Failed to create subscription for user ${userId} after ${maxRetries} attempts. User may proceed without subscription initially.`,
-                  errorDetails
+                  errorDetails,
                 );
 
                 // Report to Sentry with full context
@@ -313,7 +313,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               } else {
                 console.warn(
                   `[signIn] Attempt ${attempt}/${maxRetries}: Failed to create subscription for user ${userId}, retrying...`,
-                  errorMessage
+                  errorMessage,
                 );
                 // Wait before retrying
                 await new Promise((resolve) => setTimeout(resolve, retryDelay));
@@ -369,7 +369,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               await ensureSubscriptionApiKeyActive(subscriptionId, plan);
               apiKeyVerified = true;
               console.log(
-                `[signIn] Successfully verified API key for subscription ${subscriptionId} (attempt ${attempt})`
+                `[signIn] Successfully verified API key for subscription ${subscriptionId} (attempt ${attempt})`,
               );
               break;
             } catch (error) {
@@ -391,7 +391,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
 
                 console.error(
                   `[signIn] CRITICAL: Failed to verify/create API key for subscription ${subscriptionId} after ${maxRetries} attempts. Blocking login.`,
-                  errorDetails
+                  errorDetails,
                 );
 
                 // Report to Sentry with full context
@@ -421,7 +421,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               } else {
                 console.warn(
                   `[signIn] Attempt ${attempt}/${maxRetries}: Failed to verify/create API key for subscription ${subscriptionId}, retrying...`,
-                  errorMessage
+                  errorMessage,
                 );
                 // Wait before retrying
                 await new Promise((resolve) => setTimeout(resolve, retryDelay));
@@ -432,7 +432,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
           if (!apiKeyVerified) {
             // Block login if API key verification failed
             console.error(
-              `[signIn] Blocking login for user ${userId} - API key verification failed after all retry attempts`
+              `[signIn] Blocking login for user ${userId} - API key verification failed after all retry attempts`,
             );
             return false;
           }

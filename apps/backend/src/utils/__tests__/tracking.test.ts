@@ -34,7 +34,9 @@ describe("tracking", () => {
       };
       ensurePostHogIdentityFromRequest(req);
       expect(mockIdentify).toHaveBeenCalledTimes(1);
-      expect(mockIdentify).toHaveBeenCalledWith("uid-1", { email: "u@example.com" });
+      expect(mockIdentify).toHaveBeenCalledWith("uid-1", {
+        email: "u@example.com",
+      });
     });
 
     it("calls identifyUser with undefined properties when req has userRef but no email", () => {
@@ -77,7 +79,7 @@ describe("tracking", () => {
             workspace_id: "ws-1",
             user_id: "uid-ctx",
           }),
-        })
+        }),
       );
     });
 
@@ -88,7 +90,7 @@ describe("tracking", () => {
         expect.objectContaining({
           distinctId: "system",
           event: "system_event",
-        })
+        }),
       );
     });
 
@@ -104,7 +106,7 @@ describe("tracking", () => {
         expect.objectContaining({
           distinctId: "user/uid-same",
           properties: expect.objectContaining({ user_id: "uid-same" }),
-        })
+        }),
       );
     });
 
@@ -122,7 +124,7 @@ describe("tracking", () => {
         expect.objectContaining({
           distinctId: "user/uid-req",
           properties: expect.objectContaining({ user_id: "uid-req" }),
-        })
+        }),
       );
     });
   });
