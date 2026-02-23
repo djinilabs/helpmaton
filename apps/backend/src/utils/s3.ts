@@ -139,6 +139,33 @@ export async function getS3Client() {
     }
   }
 
+  // Safety: never use localhost in real Lambda (avoids ECONNREFUSED if isLocal was wrong or env inlined incorrectly)
+  const endpointStr = config.endpoint ?? "";
+  if (
+    process.env.AWS_LAMBDA_FUNCTION_NAME &&
+    (endpointStr.includes("localhost") || endpointStr.includes("127.0.0.1"))
+  ) {
+    const region =
+      config.region ??
+      process.env.HELPMATON_S3_REGION ??
+      process.env.AWS_REGION ??
+      "eu-west-2";
+    config.endpoint = `https://s3.${region}.amazonaws.com`;
+    config.region = region;
+    config.accessKeyId =
+      process.env.HELPMATON_S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+    config.secretAccessKey =
+      process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
+      process.env.AWS_SECRET_ACCESS_KEY;
+    if (!config.accessKeyId || !config.secretAccessKey) {
+      delete config.accessKeyId;
+      delete config.secretAccessKey;
+    }
+    console.warn(
+      `[getS3Client] SAFETY: Lambda detected but endpoint was localhost - forcing AWS S3 endpoint: ${config.endpoint}`,
+    );
+  }
+
   console.log(
     `[getS3Client] Final config - endpoint: ${config.endpoint}, region: ${config.region}, isLocal: ${isLocal}`,
   );
@@ -605,6 +632,34 @@ function getAwsSdkS3Client(): S3Client {
         secretAccessKey,
       };
     }
+  }
+
+  // Safety: never use localhost in real Lambda
+  const endpointStr = config.endpoint ?? "";
+  if (
+    process.env.AWS_LAMBDA_FUNCTION_NAME &&
+    (endpointStr.includes("localhost") || endpointStr.includes("127.0.0.1"))
+  ) {
+    const region =
+      config.region ??
+      process.env.HELPMATON_S3_REGION ??
+      process.env.AWS_REGION ??
+      "eu-west-2";
+    config.endpoint = `https://s3.${region}.amazonaws.com`;
+    config.region = region;
+    const accessKeyId =
+      process.env.HELPMATON_S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey =
+      process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
+      process.env.AWS_SECRET_ACCESS_KEY;
+    if (accessKeyId && secretAccessKey) {
+      config.credentials = { accessKeyId, secretAccessKey };
+    } else {
+      delete config.credentials;
+    }
+    console.warn(
+      `[getAwsSdkS3Client] SAFETY: Lambda detected but endpoint was localhost - forcing AWS S3`,
+    );
   }
 
   return new S3Client(config);

@@ -286,7 +286,9 @@ jobs:
           export AWS_CLOUDFRONT_CERTIFICATE_ARN="${AWS_CLOUDFRONT_CERTIFICATE_ARN}"
 
           # Build array of environment variables to set in batch
+          # ARC_ENV=production ensures S3 and other services use production AWS (never localhost)
           ENV_VARS=(
+            ARC_ENV "production"
             AUTH_SECRET "${AUTH_SECRET}"
             MAILGUN_KEY "${MAILGUN_KEY}"
             BASE_URL "${BASE_URL}"
