@@ -1,7 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Import after mocks are set up
-import { normalizeFolderPath, buildS3Key } from "../s3";
+import {
+  normalizeFolderPath,
+  buildS3Key,
+  isLocalS3Environment,
+} from "../s3";
 
 describe("s3 utilities", () => {
   beforeEach(() => {
@@ -57,6 +61,65 @@ describe("s3 utilities", () => {
       expect(normalizeFolderPath("folder/subfolder/file")).toBe(
         "folder/subfolder/file"
       );
+    });
+  });
+
+  describe("isLocalS3Environment", () => {
+    const originalLambda = process.env.AWS_LAMBDA_FUNCTION_NAME;
+    const originalArcEnv = process.env.ARC_ENV;
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    afterEach(() => {
+      if (originalLambda !== undefined) {
+        process.env.AWS_LAMBDA_FUNCTION_NAME = originalLambda;
+      } else {
+        delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      }
+      if (originalArcEnv !== undefined) {
+        process.env.ARC_ENV = originalArcEnv;
+      } else {
+        delete process.env.ARC_ENV;
+      }
+      if (originalNodeEnv !== undefined) {
+        process.env.NODE_ENV = originalNodeEnv;
+      } else {
+        delete process.env.NODE_ENV;
+      }
+    });
+
+    it("returns false when AWS_LAMBDA_FUNCTION_NAME is set (production Lambda)", () => {
+      process.env.AWS_LAMBDA_FUNCTION_NAME = "HelpmatonProduction-OpenrouterCostVerificationQueueQueue-abc";
+      delete process.env.ARC_ENV;
+      delete process.env.NODE_ENV;
+      expect(isLocalS3Environment()).toBe(false);
+    });
+
+    it("returns false when in Lambda even if ARC_ENV is not production", () => {
+      process.env.AWS_LAMBDA_FUNCTION_NAME = "some-handler";
+      process.env.ARC_ENV = "staging";
+      process.env.NODE_ENV = "development";
+      expect(isLocalS3Environment()).toBe(false);
+    });
+
+    it("returns true when not in Lambda and ARC_ENV is testing", () => {
+      delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      process.env.ARC_ENV = "testing";
+      process.env.NODE_ENV = "development";
+      expect(isLocalS3Environment()).toBe(true);
+    });
+
+    it("returns true when not in Lambda and ARC_ENV is not production and NODE_ENV is not production", () => {
+      delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      delete process.env.ARC_ENV;
+      process.env.NODE_ENV = "development";
+      expect(isLocalS3Environment()).toBe(true);
+    });
+
+    it("returns false when not in Lambda but ARC_ENV is production", () => {
+      delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      process.env.ARC_ENV = "production";
+      process.env.NODE_ENV = "development";
+      expect(isLocalS3Environment()).toBe(false);
     });
   });
 

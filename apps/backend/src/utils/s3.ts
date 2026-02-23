@@ -12,6 +12,22 @@ const BUCKET_NAME = (
   process.env.HELPMATON_S3_BUCKET || "workspace.documents"
 ).trim();
 
+/**
+ * True only when running locally (sandbox/tests). In AWS Lambda we always use real AWS S3.
+ * Lambda sets AWS_LAMBDA_FUNCTION_NAME; when set, never use localhost to avoid ECONNREFUSED in production.
+ */
+export function isLocalS3Environment(): boolean {
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return false;
+  }
+  const arcEnv = process.env.ARC_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  return (
+    arcEnv === "testing" ||
+    (arcEnv !== "production" && nodeEnv !== "production")
+  );
+}
+
 export async function withS3Span<T>(
   operation: string,
   key: string,
@@ -34,13 +50,7 @@ export async function withS3Span<T>(
 
 // Get S3 client configuration
 export async function getS3Client() {
-  // Check environment - be explicit about production detection
-  // In Lambda, ARC_ENV should be set by Architect, but we also check NODE_ENV as fallback
-  const arcEnv = process.env.ARC_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  const isLocal =
-    arcEnv === "testing" ||
-    (arcEnv !== "production" && nodeEnv !== "production");
+  const isLocal = isLocalS3Environment();
 
   const config: {
     region?: string;
@@ -468,12 +478,7 @@ function buildConversationFileKey(
 }
 
 function isLocalS3(): boolean {
-  const arcEnv = process.env.ARC_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  return (
-    arcEnv === "testing" ||
-    (arcEnv !== "production" && nodeEnv !== "production")
-  );
+  return isLocalS3Environment();
 }
 
 function resolveConversationFileUrl(key: string): string {
@@ -554,11 +559,7 @@ export async function uploadConversationFile(params: {
  * Uses AWS SDK v3 for presigned POST URL support
  */
 function getAwsSdkS3Client(): S3Client {
-  const arcEnv = process.env.ARC_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  const isLocal =
-    arcEnv === "testing" ||
-    (arcEnv !== "production" && nodeEnv !== "production");
+  const isLocal = isLocalS3Environment();
 
   const config: {
     endpoint?: string;
