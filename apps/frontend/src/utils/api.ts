@@ -2615,7 +2615,7 @@ export async function changeSubscriptionPlan(
 }
 
 export async function getSubscriptionPortalUrl(): Promise<{
-  portalUrl: string;
+  portalUrl: string | null;
 }> {
   const response = await apiFetch("/api/subscription/portal");
   return response.json();

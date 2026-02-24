@@ -495,7 +495,8 @@ describe("Subscription Modify and Cancel Endpoints", () => {
         const subscription = await mockGetUserSubscription(currentUserId);
 
         if (!subscription.lemonSqueezySubscriptionId) {
-          throw badRequest("Subscription is not associated with Lemon Squeezy");
+          res.json({ success: true });
+          return;
         }
 
         await mockCancelSubscription(subscription.lemonSqueezySubscriptionId);
@@ -1392,7 +1393,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
   });
 
   describe("POST /api/subscription/cancel", () => {
-    it("should return error when no Lemon Squeezy subscription exists", async () => {
+    it("should return success when no Lemon Squeezy subscription (free plan no-op)", async () => {
       const mockSubscription = {
         pk: `subscriptions/${subscriptionId}`,
         lemonSqueezySubscriptionId: undefined,
@@ -1407,13 +1408,11 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       await callCancelHandler(req, res, next);
 
-      const errorCall = (
-        next as unknown as { mock: { calls: Array<[unknown]> } }
-      ).mock.calls[0]?.[0] as Boom<unknown> | undefined;
-      expect(errorCall?.output?.statusCode).toBe(400);
-      expect(errorCall?.message).toContain(
-        "Subscription is not associated with Lemon Squeezy"
-      );
+      expect(mockCancelSubscription).not.toHaveBeenCalled();
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        success: true,
+      });
+      expect(res.statusCode).toBe(200);
     });
 
     it("should cancel active subscription successfully", async () => {
@@ -1545,6 +1544,86 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       expect(errorCall).toBe(error);
       // Database should NOT be updated
       expect(mockDatabase).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("GET /api/subscription/portal", () => {
+    async function callPortalHandler(
+      req: Partial<express.Request>,
+      res: Partial<express.Response>,
+      next: express.NextFunction
+    ) {
+      const handler = async (
+        req: express.Request,
+        res: express.Response,
+        next: express.NextFunction
+      ) => {
+        try {
+          const currentUserRef = req.userRef;
+          if (!currentUserRef) {
+            throw unauthorized();
+          }
+          const currentUserId = currentUserRef.replace("users/", "");
+
+          const subscription = await mockGetUserSubscription(currentUserId);
+
+          if (!subscription.lemonSqueezySubscriptionId) {
+            res.json({ portalUrl: null });
+            return;
+          }
+
+          const portalUrl = "https://app.lemonsqueezy.com/my-orders";
+          res.json({ portalUrl });
+        } catch (error) {
+          next(error);
+        }
+      };
+
+      await handler(req as express.Request, res as express.Response, next);
+    }
+
+    it("should return portalUrl null when no Lemon Squeezy subscription (free plan no-op)", async () => {
+      const mockSubscription = {
+        pk: `subscriptions/${subscriptionId}`,
+        lemonSqueezySubscriptionId: undefined,
+      };
+      mockGetUserSubscription.mockResolvedValue(mockSubscription);
+
+      const req = createMockRequest({
+        userRef: `users/${userId}`,
+      });
+      const res = createMockResponse();
+      const next = vi.fn();
+
+      await callPortalHandler(req, res, next);
+
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        portalUrl: null,
+      });
+      expect(res.statusCode).toBe(200);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("should return Lemon Squeezy orders URL when subscription has Lemon Squeezy ID", async () => {
+      const mockSubscription = {
+        pk: `subscriptions/${subscriptionId}`,
+        lemonSqueezySubscriptionId,
+      };
+      mockGetUserSubscription.mockResolvedValue(mockSubscription);
+
+      const req = createMockRequest({
+        userRef: `users/${userId}`,
+      });
+      const res = createMockResponse();
+      const next = vi.fn();
+
+      await callPortalHandler(req, res, next);
+
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        portalUrl: "https://app.lemonsqueezy.com/my-orders",
+      });
+      expect(res.statusCode).toBe(200);
+      expect(next).not.toHaveBeenCalled();
     });
   });
 });

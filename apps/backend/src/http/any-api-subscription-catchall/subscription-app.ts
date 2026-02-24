@@ -1086,8 +1086,10 @@ export const createApp: () => express.Application = () => {
 
       const subscription = await getUserSubscription(currentUserId);
 
+      // Free plan: no Lemon Squeezy subscription; return success without calling Lemon Squeezy
       if (!subscription.lemonSqueezySubscriptionId) {
-        throw badRequest("Subscription is not associated with Lemon Squeezy");
+        res.json({ success: true });
+        return;
       }
 
       // Cancel subscription via Lemon Squeezy
@@ -1128,8 +1130,10 @@ export const createApp: () => express.Application = () => {
 
       const subscription = await getUserSubscription(currentUserId);
 
+      // Free plan: no Lemon Squeezy subscription; return null URL so no error is reported
       if (!subscription.lemonSqueezySubscriptionId) {
-        throw badRequest("Subscription is not associated with Lemon Squeezy");
+        res.json({ portalUrl: null });
+        return;
       }
 
       // Use the Lemon Squeezy orders page as the portal URL

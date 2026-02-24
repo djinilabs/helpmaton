@@ -394,61 +394,78 @@ const SubscriptionManagement: FC = () => {
                 Subscription ID (for support): {subscription.subscriptionId}
               </div>
               <div className="flex gap-4">
-                {subscription.status === "past_due" && (
-                  <button
-                    onClick={() => {
-                      portalQuery.refetch().then((result) => {
-                        if (result.data?.portalUrl) {
-                          window.open(result.data.portalUrl, "_blank");
+                {subscription.lemonSqueezySubscriptionId &&
+                  subscription.status === "past_due" && (
+                    <button
+                      onClick={() => {
+                        portalQuery
+                          .refetch()
+                          .then((result) => {
+                            if (result.data?.portalUrl) {
+                              window.open(result.data.portalUrl, "_blank");
+                            }
+                          })
+                          .catch((err: Error) => {
+                            toast.error(
+                              err.message || "Failed to open payment portal"
+                            );
+                          });
+                      }}
+                      className="rounded-xl bg-error-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-error-700"
+                    >
+                      Update payment method
+                    </button>
+                  )}
+                {subscription.lemonSqueezySubscriptionId &&
+                  (subscription.plan === "starter" ||
+                    subscription.plan === "pro") && (
+                    <button
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Are you sure you want to cancel your subscription? It will remain active until the end of the billing period."
+                          )
+                        ) {
+                          cancelMutation.mutate(undefined, {
+                            onSuccess: () => {
+                              trackEvent("subscription_downgraded", {
+                                from_plan: subscription.plan,
+                                to_plan: "free",
+                              });
+                            },
+                          });
                         }
-                      });
-                    }}
-                    className="rounded-xl bg-error-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-error-700"
-                  >
-                    Update payment method
-                  </button>
-                )}
-                {(subscription.plan === "starter" ||
-                  subscription.plan === "pro") && (
-                  <button
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to cancel your subscription? It will remain active until the end of the billing period."
-                        )
-                      ) {
-                        cancelMutation.mutate(undefined, {
-                          onSuccess: () => {
-                            trackEvent("subscription_downgraded", {
-                              from_plan: subscription.plan,
-                              to_plan: "free",
-                            });
-                          },
-                        });
-                      }
-                    }}
-                    disabled={cancelMutation.isPending}
-                    className="rounded-xl border border-neutral-300 px-6 py-3 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
-                  >
-                    {cancelMutation.isPending
-                      ? "Cancelling..."
-                      : "Cancel plan"}
-                  </button>
-                )}
-                {(subscription.status || subscription.renewsAt) && (
-                  <button
-                    onClick={() => {
-                      portalQuery.refetch().then((result) => {
-                        if (result.data?.portalUrl) {
-                          window.open(result.data.portalUrl, "_blank");
-                        }
-                      });
-                    }}
-                    className="rounded-xl border border-neutral-300 px-6 py-3 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
-                  >
-                    Manage payment
-                  </button>
-                )}
+                      }}
+                      disabled={cancelMutation.isPending}
+                      className="rounded-xl border border-neutral-300 px-6 py-3 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                    >
+                      {cancelMutation.isPending
+                        ? "Cancelling..."
+                        : "Cancel plan"}
+                    </button>
+                  )}
+                {subscription.lemonSqueezySubscriptionId &&
+                  (subscription.status || subscription.renewsAt) && (
+                    <button
+                      onClick={() => {
+                        portalQuery
+                          .refetch()
+                          .then((result) => {
+                            if (result.data?.portalUrl) {
+                              window.open(result.data.portalUrl, "_blank");
+                            }
+                          })
+                          .catch((err: Error) => {
+                            toast.error(
+                              err.message || "Failed to open payment portal"
+                            );
+                          });
+                      }}
+                      className="rounded-xl border border-neutral-300 px-6 py-3 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                    >
+                      Manage payment
+                    </button>
+                  )}
               </div>
             </div>
           </div>
