@@ -23,8 +23,12 @@ testWithUserManagement.describe("Login Feature", () => {
     // Clear cookies, localStorage, and sessionStorage (all authentication state)
     await page.context().clearCookies();
     await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        // SecurityError when document doesn't allow storage
+      }
     });
 
     // Navigate to signout endpoint to ensure we're logged out server-side
@@ -32,8 +36,12 @@ testWithUserManagement.describe("Login Feature", () => {
 
     // Clear storage again after signout (in case signout set any new values)
     await page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        // SecurityError when document doesn't allow storage
+      }
     });
 
     // Use LoginPage.goto() which has robust waiting logic for PR environments

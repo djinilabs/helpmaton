@@ -291,7 +291,6 @@ async function globalSetup(config: FullConfig) {
       if (backendProcess?.stdout) {
         let sandboxStarted = false;
         let compilationComplete = false;
-        let sawCompiling = false;
 
         backendProcess.stdout.on("data", (data: Buffer) => {
           const output = data.toString();
@@ -306,15 +305,11 @@ async function globalSetup(config: FullConfig) {
             sandboxStarted = true;
           }
 
-          // Check if TypeScript compilation started
-          if (output.includes("Compiling TypeScript")) {
-            sawCompiling = true;
-          }
-
           // Check if TypeScript compilation is complete
-          // The backend logs "Compiled project" or "Sandbox Ran Sandbox startup plugins" after compilation
+          // The plugin logs "Compiled N handlers" or Architect logs "Sandbox Ran Sandbox startup plugins" / "File watcher now looking"
           if (
             output.includes("Compiled project") ||
+            output.includes("[plugin-typescript] Compiled ") ||
             output.includes("Sandbox Ran Sandbox startup plugins") ||
             output.includes("File watcher now looking")
           ) {
@@ -323,8 +318,10 @@ async function globalSetup(config: FullConfig) {
 
           // Backend is fully ready when:
           // 1. Sandbox has started, AND
-          // 2. Either compilation didn't happen (sawCompiling = false) OR compilation is complete
-          if (sandboxStarted && (!sawCompiling || compilationComplete)) {
+          // 2. If the TypeScript plugin ran, wait for compilation to finish before resolving.
+          //    (Resolving on "Sandbox Started" alone causes checkServiceReady to hit the server
+          //    before handlers like any-catchall are built, triggering Lambda init errors.)
+          if (sandboxStarted && compilationComplete) {
             clearTimeout(timeout);
             resolve(true);
           }

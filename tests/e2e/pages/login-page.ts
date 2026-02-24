@@ -111,8 +111,12 @@ export class LoginPage extends BasePage {
           // Navigate back to the login page and clear auth state
           await this.page.context().clearCookies();
           await this.page.evaluate(() => {
-            localStorage.clear();
-            sessionStorage.clear();
+            try {
+              localStorage.clear();
+              sessionStorage.clear();
+            } catch {
+              // SecurityError when document doesn't allow storage (e.g. opaque origin, error page)
+            }
           });
           // Try again
           if (attempt < maxRetries) {
@@ -133,8 +137,12 @@ export class LoginPage extends BasePage {
           // Clear auth state before retry
           await this.page.context().clearCookies();
           await this.page.evaluate(() => {
-            localStorage.clear();
-            sessionStorage.clear();
+            try {
+              localStorage.clear();
+              sessionStorage.clear();
+            } catch {
+              // SecurityError when document doesn't allow storage (e.g. opaque origin, error page)
+            }
           });
         }
       }
