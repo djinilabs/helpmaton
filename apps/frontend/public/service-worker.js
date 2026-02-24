@@ -1,6 +1,15 @@
+/**
+ * Service worker: caches root document and static assets for the SPA.
+ * Uses a re-entrancy guard so that when we fetch() from inside the handler,
+ * browsers that re-dispatch the fetch event (e.g. Chrome Mobile iOS) don't
+ * cause infinite recursion (RangeError: Maximum call stack size exceeded).
+ */
 const CACHE_VERSION = "v1";
 const STATIC_CACHE = `helpmaton-static-${CACHE_VERSION}`;
 const ROOT_URL = "/";
+
+/** URLs we're currently fetching from inside our handlers; re-entrant fetch events are skipped. */
+const inFlightUrls = new Set();
 
 const STATIC_ASSET_EXTENSIONS = new Set([
   "js",
@@ -50,11 +59,17 @@ const cacheFirst = async (request) => {
   if (cachedResponse) {
     return cachedResponse;
   }
-  const response = await fetch(request);
-  if (response.ok) {
-    await cache.put(request, response.clone());
+  const url = request.url;
+  inFlightUrls.add(url);
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } finally {
+    inFlightUrls.delete(url);
   }
-  return response;
 };
 
 const cacheRootDocument = async () => {
@@ -63,11 +78,17 @@ const cacheRootDocument = async () => {
   if (cachedResponse) {
     return cachedResponse;
   }
-  const response = await fetch(ROOT_URL, { cache: "reload" });
-  if (response.ok) {
-    await cache.put(ROOT_URL, response.clone());
+  const rootFullUrl = self.location.origin + ROOT_URL;
+  inFlightUrls.add(rootFullUrl);
+  try {
+    const response = await fetch(ROOT_URL, { cache: "reload" });
+    if (response.ok) {
+      await cache.put(ROOT_URL, response.clone());
+    }
+    return response;
+  } finally {
+    inFlightUrls.delete(rootFullUrl);
   }
-  return response;
 };
 
 self.addEventListener("install", (event) => {
@@ -123,8 +144,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // SPA navigation requests should return cached root HTML.
-  // Updates are handled via the version polling flow.
+  // Skip re-entrant fetches (we're already handling this URL from inside a handler).
+  if (inFlightUrls.has(request.url)) {
+    return;
+  }
+
+  // SPA navigation: return cached root HTML; updates via version polling.
   if (request.mode === "navigate" || url.pathname === ROOT_URL) {
     event.respondWith(cacheRootDocument());
     return;
