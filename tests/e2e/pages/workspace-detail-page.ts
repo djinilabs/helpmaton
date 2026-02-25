@@ -270,26 +270,21 @@ export class WorkspaceDetailPage extends BasePage {
     await createButton.waitFor({ state: "visible", timeout: 5000 });
     await this.clickElement(createButton);
 
-    // Wait for upload to complete
-    try {
-      await this.page.waitForSelector(
-        "text=/uploaded successfully|Document uploaded/i",
-        {
-          timeout: 20000,
-        }
-      );
-    } catch {
-      // If toast doesn't appear, continue
-    }
+    // Wait for upload to complete (toast from useUploadDocument onSuccess)
+    await this.page.waitForSelector(
+      "text=/uploaded successfully|Document uploaded/i",
+      { timeout: 25000 }
+    );
+
+    // List refetches after invalidateQueries; allow time for refetch in CI
+    await this.page.waitForTimeout(2000);
 
     // Wait for the document to appear in the documents list
     await this.expandDocumentsSection();
 
-    // Wait for the document name to appear in the list
-    await this.page.waitForSelector(`button:has-text("${documentName}")`, {
-      timeout: 20000,
-      state: "visible",
-    });
+    await this.page
+      .locator(`button:has-text("${documentName}")`)
+      .waitFor({ state: "visible", timeout: 30000 });
   }
 
   /**
