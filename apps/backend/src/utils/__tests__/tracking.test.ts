@@ -127,5 +127,94 @@ describe("tracking", () => {
         }),
       );
     });
+
+    it("does not call identifyUser when unauthenticated (no req, no user_id, no request context)", () => {
+      mockGetCurrentRequestDistinctId.mockReturnValue(null);
+      trackEvent("anonymous_event", { workspace_id: "ws-1" });
+      expect(mockIdentify).not.toHaveBeenCalled();
+      expect(mockCapture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          distinctId: "system",
+          event: "anonymous_event",
+        }),
+      );
+    });
+
+    it("sends allegedEmail and omits email/user_email in capture when unauthenticated and properties contain email", () => {
+      mockGetCurrentRequestDistinctId.mockReturnValue(null);
+      trackEvent("signup_started", {
+        email: "alleged@example.com",
+        workspace_id: "ws-1",
+      });
+      expect(mockIdentify).not.toHaveBeenCalled();
+      expect(mockCapture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          distinctId: "system",
+          event: "signup_started",
+          properties: expect.objectContaining({
+            workspace_id: "ws-1",
+            allegedEmail: "alleged@example.com",
+          }),
+        }),
+      );
+      const captureCall = mockCapture.mock.calls[0][0];
+      expect(captureCall.properties).not.toHaveProperty("email");
+      expect(captureCall.properties).not.toHaveProperty("user_email");
+    });
+
+    it("sends allegedEmail from user_email when unauthenticated and no email key", () => {
+      mockGetCurrentRequestDistinctId.mockReturnValue(null);
+      trackEvent("form_submitted", {
+        user_email: "form@example.com",
+      });
+      expect(mockIdentify).not.toHaveBeenCalled();
+      const captureCall = mockCapture.mock.calls[0][0];
+      expect(captureCall.properties.allegedEmail).toBe("form@example.com");
+      expect(captureCall.properties).not.toHaveProperty("email");
+      expect(captureCall.properties).not.toHaveProperty("user_email");
+    });
+
+    it("when unauthenticated with both email and user_email, allegedEmail uses email (precedence)", () => {
+      mockGetCurrentRequestDistinctId.mockReturnValue(null);
+      trackEvent("e", {
+        email: "primary@example.com",
+        user_email: "secondary@example.com",
+      });
+      const captureCall = mockCapture.mock.calls[0][0];
+      expect(captureCall.properties.allegedEmail).toBe("primary@example.com");
+      expect(captureCall.properties).not.toHaveProperty("email");
+      expect(captureCall.properties).not.toHaveProperty("user_email");
+    });
+
+    it("when unauthenticated with no email or user_email, capture has no allegedEmail key", () => {
+      mockGetCurrentRequestDistinctId.mockReturnValue(null);
+      trackEvent("anonymous_action", { workspace_id: "ws-1", foo: "bar" });
+      const captureCall = mockCapture.mock.calls[0][0];
+      expect(captureCall.properties).not.toHaveProperty("allegedEmail");
+      expect(captureCall.properties).not.toHaveProperty("email");
+      expect(captureCall.properties).not.toHaveProperty("user_email");
+      expect(captureCall.properties).toMatchObject({
+        workspace_id: "ws-1",
+        foo: "bar",
+      });
+    });
+
+    it("when authenticated, capture properties preserve email and user_email (no sanitization)", () => {
+      mockGetCurrentRequestDistinctId.mockReturnValue(null);
+      const req: RequestWithUser = {
+        userRef: "users/uid-auth",
+        session: { user: { id: "uid-auth", email: "auth@example.com" } },
+      };
+      trackEvent("authenticated_event", {
+        email: "event@example.com",
+        user_email: "event-user@example.com",
+        workspace_id: "ws-1",
+      }, req);
+      expect(mockIdentify).toHaveBeenCalled();
+      const captureCall = mockCapture.mock.calls[0][0];
+      expect(captureCall.properties.email).toBe("event@example.com");
+      expect(captureCall.properties.user_email).toBe("event-user@example.com");
+      expect(captureCall.properties).not.toHaveProperty("allegedEmail");
+    });
   });
 });

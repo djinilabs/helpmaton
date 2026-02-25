@@ -20,8 +20,8 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const userId = session?.user?.id;
   const userEmail = session?.user?.email;
 
-  // Identify user when authenticated. Alias first when coming from anonymous so PostHog
-  // merges the pre-sign-in profile into the identified user (single profile per user).
+  // Identify user only when authenticated; never send identification (or email) when unauthenticated.
+  // Alias first when coming from anonymous so PostHog merges the pre-sign-in profile into the identified user.
   useEffect(() => {
     if (status === "authenticated" && userId) {
       if (posthog && typeof posthog.identify === "function") {

@@ -27,8 +27,8 @@ export type RequestWithUser = {
 
 /**
  * Single place for request-based PostHog user identification.
- * Call this from auth middleware after setting req.userRef/session so all tracking in that request
- * is attributed to the user without each endpoint passing req to trackEvent/trackBusinessEvent.
+ * Call this only from auth middleware after setting req.userRef/session (authenticated requests only).
+ * All tracking in that request is then attributed to the user without each endpoint passing req.
  */
 export function ensurePostHogIdentityFromRequest(req: RequestWithUser): void {
   const userId = extractUserId(req);
@@ -39,11 +39,34 @@ export function ensurePostHogIdentityFromRequest(req: RequestWithUser): void {
 }
 
 /**
+ * When the user is not authenticated, we must not send "email" or "user_email" to PostHog so it
+ * does not treat the event as identification. This helper strips those keys and sends any value as
+ * "allegedEmail" (email takes precedence when both are present).
+ */
+function sanitizeCapturePropertiesForUnauthenticated(
+  baseCaptureProperties: Record<string, unknown>,
+  properties: TrackingProperties | undefined,
+): Record<string, unknown> {
+  const rest = { ...baseCaptureProperties };
+  delete rest.email;
+  delete rest.user_email;
+  const allegedEmail =
+    properties?.email ?? properties?.user_email ?? undefined;
+  return {
+    ...rest,
+    ...(allegedEmail !== undefined ? { allegedEmail } : {}),
+  };
+}
+
+/**
  * Track a custom event in PostHog (backend)
  * User identification is centralized: auth middleware calls ensurePostHogIdentityFromRequest(req),
  * so in authenticated routes you usually only need trackEvent(name, properties) and the user is
  * attributed from request context. Pass req only when the handler has req and didn't go through
  * that middleware, or pass properties.user_id for non-request flows (e.g. webhooks).
+ *
+ * When unauthenticated (no userId), properties.email and properties.user_email are never sent;
+ * they are sent as allegedEmail instead so PostHog does not treat them as identification.
  *
  * @param eventName - Name of the event (snake_case format: feature_action)
  * @param properties - Event properties (workspace_id, agent_id, etc.)
@@ -115,15 +138,22 @@ export function trackEvent(
       ? `user/${userId}`
       : (getCurrentRequestDistinctId() ?? "system");
 
+    const baseCaptureProperties: Record<string, unknown> = {
+      ...properties,
+      environment,
+      user_id: userId || properties?.user_id,
+    };
+    const captureProperties: Record<string, unknown> = userId
+      ? baseCaptureProperties
+      : sanitizeCapturePropertiesForUnauthenticated(
+          baseCaptureProperties,
+          properties,
+        );
+
     phClient.capture({
       distinctId,
       event: eventName,
-      properties: {
-        ...properties,
-        environment,
-        // Ensure user_id is included if we have it
-        user_id: userId || properties?.user_id,
-      },
+      properties: captureProperties,
       groups: properties?.workspace_id
         ? { workspace: properties.workspace_id }
         : undefined,

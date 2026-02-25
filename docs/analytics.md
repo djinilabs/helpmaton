@@ -15,6 +15,10 @@
 - Frontend: `apps/frontend/src/utils/tracking.ts`
 - Backend: `apps/backend/src/utils/tracking.ts`
 
+### Unauthenticated users
+- We never send the `email` key or identification events to PostHog when the user is not authenticated.
+- For unauthenticated contexts, use `allegedEmail` (backend does this automatically when capture properties contain email/user_email but there is no authenticated user).
+
 ## Observability (Sentry)
 
 ### Tracing defaults
