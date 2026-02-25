@@ -2,6 +2,8 @@
 
 ## Current Status
 
+- **PostHog: removed superfluous identify from signIn (2026-02-25)**: Removed the two redundant `identifyUser` calls from the NextAuth signIn callback in auth-config (passkey and email paths). Attribution is handled by the frontend (PostHogProvider) and backend auth middleware (`ensurePostHogIdentityFromRequest`). Dropped unused posthog import and posthog mock from auth-config.test.ts. systemPatterns.md updated to note we do not identify in the signIn callback. Typecheck, lint, and auth-config + tracking tests pass.
+
 - **PostHog: no email key or identify when unauthenticated (2026-02-25)**: (1) Backend `trackEvent`: when there is no `userId` (unauthenticated), capture payload no longer includes `email` or `user_email`; any such value from properties is sent as `allegedEmail` so PostHog does not treat it as identification. (2) `ensurePostHogIdentityFromRequest` comment: must only be called for authenticated requests. (3) New tests: unauthenticated capture gets `allegedEmail` and omits email/user_email; identify not called when unauthenticated. (4) PostHogProvider comment: identify only when authenticated. (5) Docs: systemPatterns.md and docs/analytics.md note on email vs allegedEmail and no identify when unauthenticated. Typecheck and tracking tests pass.
 
 - **Service worker re-entrancy guard – root-only (2026-02-24)**: Reverted the generalized `inFlightUrls` Set; it caused consistent E2E failures on CI (E2E runs against PR/staging where the SW is active). Restored root-only `handlingRootFetch` so we still fix the production RangeError (Chrome Mobile iOS) without affecting static-asset handling. File comment documents why we don't use a full in-flight URL set.

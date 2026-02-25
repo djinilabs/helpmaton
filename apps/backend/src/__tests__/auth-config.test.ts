@@ -16,10 +16,6 @@ vi.mock("../utils/apiGatewayUsagePlans", () => ({
   ensureSubscriptionApiKeyActive: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../utils/posthog", () => ({
-  identifyUser: vi.fn(),
-}));
-
 vi.mock("../utils/sentry", () => ({
   Sentry: { captureException: vi.fn() },
   ensureError: (e: unknown) => e,

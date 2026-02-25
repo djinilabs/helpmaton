@@ -4,7 +4,6 @@ import { ExpressAuthConfig } from "@auth/express";
 import { getDefined, once } from "./utils";
 import { ensureSubscriptionApiKeyActive } from "./utils/apiGatewayUsagePlans";
 import { getDynamoDBAdapter } from "./utils/authUtils";
-import { identifyUser } from "./utils/posthog";
 import { Sentry, ensureError, initSentry } from "./utils/sentry";
 import {
   getUserSubscription,
@@ -163,9 +162,6 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               subscriptionId,
               subscription.plan,
             );
-            identifyUser(userId, {
-              email: user.email ?? undefined,
-            });
             return true;
           } catch (error) {
             console.error(
@@ -352,11 +348,6 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
             // Block login if subscription creation failed
             return false;
           }
-
-          // Identify user in PostHog on every successful sign-in (sign-up and login)
-          identifyUser(userId, {
-            email: user.email ?? undefined,
-          });
 
           // Extract subscriptionId from pk (format: "subscriptions/{subscriptionId}")
           const subscriptionId = subscription.pk.replace("subscriptions/", "");
