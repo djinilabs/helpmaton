@@ -139,10 +139,12 @@ export async function getS3Client() {
     }
   }
 
-  // Safety: never use localhost in real Lambda (avoids ECONNREFUSED if isLocal was wrong or env inlined incorrectly)
+  // Safety: never use localhost in real Lambda (avoids ECONNREFUSED if isLocal was wrong or env inlined incorrectly).
+  // Skip when ARC_ENV is "testing" so sandbox/E2E keep using local s3rver (sandbox sets AWS_LAMBDA_FUNCTION_NAME when invoking handlers).
   const endpointStr = config.endpoint ?? "";
   if (
     process.env.AWS_LAMBDA_FUNCTION_NAME &&
+    process.env.ARC_ENV !== "testing" &&
     (endpointStr.includes("localhost") || endpointStr.includes("127.0.0.1"))
   ) {
     const region =
