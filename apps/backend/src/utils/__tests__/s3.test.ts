@@ -66,6 +66,7 @@ describe("s3 utilities", () => {
 
   describe("isLocalS3Environment", () => {
     const originalLambda = process.env.AWS_LAMBDA_FUNCTION_NAME;
+    const originalLogGroup = process.env.AWS_LAMBDA_LOG_GROUP_NAME;
     const originalArcEnv = process.env.ARC_ENV;
     const originalNodeEnv = process.env.NODE_ENV;
 
@@ -74,6 +75,11 @@ describe("s3 utilities", () => {
         process.env.AWS_LAMBDA_FUNCTION_NAME = originalLambda;
       } else {
         delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      }
+      if (originalLogGroup !== undefined) {
+        process.env.AWS_LAMBDA_LOG_GROUP_NAME = originalLogGroup;
+      } else {
+        delete process.env.AWS_LAMBDA_LOG_GROUP_NAME;
       }
       if (originalArcEnv !== undefined) {
         process.env.ARC_ENV = originalArcEnv;
@@ -85,6 +91,13 @@ describe("s3 utilities", () => {
       } else {
         delete process.env.NODE_ENV;
       }
+    });
+
+    it("returns false when AWS_LAMBDA_LOG_GROUP_NAME is /aws/lambda/... (real Lambda, even if ARC_ENV inlined wrong)", () => {
+      process.env.AWS_LAMBDA_LOG_GROUP_NAME = "/aws/lambda/HelpmatonProduction-ApiHandler-abc";
+      process.env.ARC_ENV = "testing";
+      process.env.AWS_LAMBDA_FUNCTION_NAME = "handler";
+      expect(isLocalS3Environment()).toBe(false);
     });
 
     it("returns false when AWS_LAMBDA_FUNCTION_NAME is set (production Lambda)", () => {
@@ -127,6 +140,44 @@ describe("s3 utilities", () => {
       process.env.ARC_ENV = "production";
       process.env.NODE_ENV = "development";
       expect(isLocalS3Environment()).toBe(false);
+    });
+
+    describe("S3 environment: local sandbox, staging, production", () => {
+      it("local sandbox: uses local S3 (s3rver) when ARC_ENV=testing and sandbox sets AWS_LAMBDA_FUNCTION_NAME", () => {
+        process.env.AWS_LAMBDA_FUNCTION_NAME = "HelpmatonProduction-AnyApiWorkspacesCatchall-abc";
+        delete process.env.AWS_LAMBDA_LOG_GROUP_NAME;
+        process.env.ARC_ENV = "testing";
+        process.env.NODE_ENV = "test";
+        expect(isLocalS3Environment()).toBe(true);
+      });
+
+      it("staging: uses real AWS S3 when running in deployed staging Lambda (AWS_LAMBDA_LOG_GROUP_NAME set)", () => {
+        process.env.AWS_LAMBDA_LOG_GROUP_NAME = "/aws/lambda/HelpmatonStagingPR99-SomeHandler-xyz";
+        process.env.AWS_LAMBDA_FUNCTION_NAME = "handler";
+        process.env.ARC_ENV = "staging";
+        expect(isLocalS3Environment()).toBe(false);
+      });
+
+      it("production: uses real AWS S3 when running in deployed production Lambda (AWS_LAMBDA_LOG_GROUP_NAME set)", () => {
+        process.env.AWS_LAMBDA_LOG_GROUP_NAME = "/aws/lambda/HelpmatonProduction-OpenrouterCostVerificationQueueQueue-abc";
+        process.env.AWS_LAMBDA_FUNCTION_NAME = "handler";
+        process.env.ARC_ENV = "production";
+        expect(isLocalS3Environment()).toBe(false);
+      });
+
+      it("staging fallback: uses real AWS S3 when Lambda has no log group but ARC_ENV=staging", () => {
+        delete process.env.AWS_LAMBDA_LOG_GROUP_NAME;
+        process.env.AWS_LAMBDA_FUNCTION_NAME = "staging-handler";
+        process.env.ARC_ENV = "staging";
+        expect(isLocalS3Environment()).toBe(false);
+      });
+
+      it("production fallback: uses real AWS S3 when Lambda has no log group but ARC_ENV=production", () => {
+        delete process.env.AWS_LAMBDA_LOG_GROUP_NAME;
+        process.env.AWS_LAMBDA_FUNCTION_NAME = "production-handler";
+        process.env.ARC_ENV = "production";
+        expect(isLocalS3Environment()).toBe(false);
+      });
     });
   });
 

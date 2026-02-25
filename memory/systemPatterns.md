@@ -120,7 +120,7 @@
 - **No Direct AWS Changes**: All infrastructure changes through code
 - **Reserved Concurrency**: Use per-Lambda `config.arc` with `@aws concurrency <n>` when isolating handlers
 - **Environment**: Uses ARC_DB_PATH for local DynamoDB
-- **Environment Detection**: Primary check is `process.env.ARC_ENV === "testing"` for local development (Architect sandbox). For S3/AWS services, also check if credentials are available - if missing, fall back to local mocked services (s3rver). Never use `NODE_ENV` alone for environment detection. **S3 local vs production**: In `s3.ts`, `isLocalS3Environment()` returns false (use real AWS S3) only when `AWS_LAMBDA_FUNCTION_NAME` is set and `ARC_ENV !== "testing"`. Sandbox sets AWS_LAMBDA_FUNCTION_NAME when invoking handlers, so we require ARC_ENV !== "testing" so E2E/local use local s3rver; production/staging Lambdas use real S3.
+- **Environment Detection**: Primary check is `process.env.ARC_ENV === "testing"` for local development (Architect sandbox). For S3/AWS services, also check if credentials are available - if missing, fall back to local mocked services (s3rver). Never use `NODE_ENV` alone for environment detection. **S3 local vs production**: In `s3.ts`, real Lambda is detected via `AWS_LAMBDA_LOG_GROUP_NAME` (runtime sets it to `/aws/lambda/...`; not inlined at build time). `isLocalS3Environment()` returns false when `isRealLambdaEnvironment()` (log group present) or when `AWS_LAMBDA_FUNCTION_NAME` is set and `ARC_ENV !== "testing"`. Sandbox does not set the log group, so E2E/local use local s3rver. A safeguard in `getS3Client`/`getAwsSdkS3Client` forces AWS S3 when the endpoint is localhost and `isRealLambdaEnvironment()` is true.
 
 ## Key Architectural Decisions
 

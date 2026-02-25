@@ -12,12 +12,36 @@ const BUCKET_NAME = (
   process.env.HELPMATON_S3_BUCKET || "workspace.documents"
 ).trim();
 
+const DEFAULT_LOCAL_S3_ENDPOINT = "http://localhost:4568";
+
 /**
- * True only when running locally (sandbox/tests). In deployed Lambda (production/staging) we use real AWS S3.
- * Sandbox also sets AWS_LAMBDA_FUNCTION_NAME when invoking handlers, so we require ARC_ENV !== "testing"
- * to treat as production; otherwise E2E and local dev would use production S3 and fail.
+ * True when running in real AWS Lambda (runtime sets AWS_LAMBDA_LOG_GROUP_NAME to /aws/lambda/...).
+ * Not inlined at build time, so reliable even when ARC_ENV was inlined incorrectly.
+ */
+function isRealLambdaEnvironment(): boolean {
+  return (
+    typeof process.env.AWS_LAMBDA_LOG_GROUP_NAME === "string" &&
+    process.env.AWS_LAMBDA_LOG_GROUP_NAME.startsWith("/aws/lambda/")
+  );
+}
+
+function isLocalhostEndpoint(url: string): boolean {
+  return url.includes("localhost") || url.includes("127.0.0.1");
+}
+
+/**
+ * True only when running locally (sandbox/tests). In real AWS Lambda we always use real S3.
+ * Real Lambda is detected via AWS_LAMBDA_LOG_GROUP_NAME; sandbox sets AWS_LAMBDA_FUNCTION_NAME
+ * but not that, and uses ARC_ENV=testing so we keep local s3rver for E2E.
+ *
+ * Environments:
+ * - Local sandbox: ARC_ENV=testing, no AWS_LAMBDA_LOG_GROUP_NAME → local s3rver (localhost:4568).
+ * - Staging/Production: AWS_LAMBDA_LOG_GROUP_NAME=/aws/lambda/... set by Lambda runtime → real AWS S3.
  */
 export function isLocalS3Environment(): boolean {
+  if (isRealLambdaEnvironment()) {
+    return false;
+  }
   if (
     process.env.AWS_LAMBDA_FUNCTION_NAME &&
     process.env.ARC_ENV !== "testing"
@@ -69,7 +93,7 @@ export async function getS3Client() {
   if (isLocal) {
     // Local development with s3rver
     const endpoint =
-      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+      process.env.HELPMATON_S3_ENDPOINT || DEFAULT_LOCAL_S3_ENDPOINT;
     config.endpoint = endpoint;
     config.accessKeyId = "S3RVER";
     config.secretAccessKey = "S3RVER";
@@ -89,11 +113,7 @@ export async function getS3Client() {
     const customEndpoint = process.env.HELPMATON_S3_ENDPOINT;
 
     // In production, never use localhost endpoints - always use AWS S3 endpoint
-    if (
-      customEndpoint &&
-      !customEndpoint.includes("localhost") &&
-      !customEndpoint.includes("127.0.0.1")
-    ) {
+    if (customEndpoint && !isLocalhostEndpoint(customEndpoint)) {
       // Use custom endpoint if provided (for S3-compatible services like MinIO, etc.)
       config.endpoint = customEndpoint;
       console.log(
@@ -139,14 +159,10 @@ export async function getS3Client() {
     }
   }
 
-  // Safety: never use localhost in real Lambda (avoids ECONNREFUSED if isLocal was wrong or env inlined incorrectly).
-  // Skip when ARC_ENV is "testing" so sandbox/E2E keep using local s3rver (sandbox sets AWS_LAMBDA_FUNCTION_NAME when invoking handlers).
+  // Safety: never use localhost in real AWS Lambda (see isRealLambdaEnvironment). If this triggers
+  // in production, the build likely inlined ARC_ENV incorrectly; the override prevents ECONNREFUSED.
   const endpointStr = config.endpoint ?? "";
-  if (
-    process.env.AWS_LAMBDA_FUNCTION_NAME &&
-    process.env.ARC_ENV !== "testing" &&
-    (endpointStr.includes("localhost") || endpointStr.includes("127.0.0.1"))
-  ) {
+  if (isLocalhostEndpoint(endpointStr) && isRealLambdaEnvironment()) {
     const region =
       config.region ??
       process.env.HELPMATON_S3_REGION ??
@@ -517,7 +533,7 @@ function isLocalS3(): boolean {
 function resolveConversationFileUrl(key: string): string {
   if (isLocalS3()) {
     const endpoint =
-      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+      process.env.HELPMATON_S3_ENDPOINT || DEFAULT_LOCAL_S3_ENDPOINT;
     return `${endpoint}/${BUCKET_NAME}/${key}`;
   }
 
@@ -607,7 +623,7 @@ function getAwsSdkS3Client(): S3Client {
   if (isLocal) {
     // Local development with s3rver
     const endpoint =
-      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+      process.env.HELPMATON_S3_ENDPOINT || DEFAULT_LOCAL_S3_ENDPOINT;
     config.endpoint = endpoint;
     config.credentials = {
       accessKeyId: "S3RVER",
@@ -636,12 +652,9 @@ function getAwsSdkS3Client(): S3Client {
     }
   }
 
-  // Safety: never use localhost in real Lambda
+  // Safety: never use localhost in real Lambda (same as getS3Client)
   const endpointStr = config.endpoint ?? "";
-  if (
-    process.env.AWS_LAMBDA_FUNCTION_NAME &&
-    (endpointStr.includes("localhost") || endpointStr.includes("127.0.0.1"))
-  ) {
+  if (isLocalhostEndpoint(endpointStr) && isRealLambdaEnvironment()) {
     const region =
       config.region ??
       process.env.HELPMATON_S3_REGION ??
@@ -660,7 +673,7 @@ function getAwsSdkS3Client(): S3Client {
       delete config.credentials;
     }
     console.warn(
-      `[getAwsSdkS3Client] SAFETY: Lambda detected but endpoint was localhost - forcing AWS S3`,
+      `[getAwsSdkS3Client] SAFETY: Real Lambda detected but endpoint was localhost - forcing AWS S3`,
     );
   }
 
