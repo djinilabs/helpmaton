@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useModalFocus } from "../hooks/useModalFocus";
 import { useCreateWorkspace } from "../hooks/useWorkspaces";
 
 interface CreateWorkspaceModalProps {
@@ -18,8 +19,11 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
   const navigate = useNavigate();
   const createWorkspace = useCreateWorkspace();
   const { registerDialog, unregisterDialog } = useDialogTracking();
+  const panelRef = useRef<HTMLDivElement>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+
+  useModalFocus(panelRef, isOpen);
 
   const handleClose = () => {
     setName("");
@@ -58,8 +62,18 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
-        <h2 className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-workspace-title"
+        tabIndex={-1}
+        className="modal-panel w-full max-w-md border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 md:p-10"
+      >
+        <h2
+          id="create-workspace-title"
+          className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50"
+        >
           Create a workspace
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -106,7 +120,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
             <button
               type="submit"
               disabled={createWorkspace.isPending || !name.trim()}
-              className="flex-1 transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+              className="touch-target flex-1 transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               {createWorkspace.isPending ? "Creating..." : "Create workspace"}
             </button>
@@ -114,7 +128,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={createWorkspace.isPending}
-              className="flex-1 transform rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.02] hover:border-neutral-400 hover:bg-neutral-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+              className="touch-target flex-1 transform rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.02] hover:border-neutral-400 hover:bg-neutral-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>

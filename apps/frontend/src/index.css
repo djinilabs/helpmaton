@@ -163,6 +163,18 @@ html.dark {
     @apply bg-gradient-to-r from-neon-cyan to-neon-magenta bg-clip-text text-transparent;
   }
   
+  /* WCAG 2.2 touch target minimum 44×44px for primary interactive elements */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Modal panel: safe-area bottom padding, full-bleed on small viewports */
+  .modal-panel {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    @apply rounded-none md:rounded-2xl;
+  }
+
   /* Links: ensure blue/purple (no green) - override any primary/green usage */
   a[href][class*="primary"] {
     @apply text-blue-600 hover:text-blue-700;
@@ -191,6 +203,13 @@ html.dark {
 @media (prefers-reduced-motion: no-preference) {
   .manga-shine-overlay {
     animation: manga-shine 10s ease 0s infinite normal none running;
+  }
+}
+
+/* Accordion: respect prefers-reduced-motion (no transition) */
+@media (prefers-reduced-motion: reduce) {
+  .accordion-content-transition {
+    transition-duration: 0s;
   }
 }
 

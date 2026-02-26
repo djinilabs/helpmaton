@@ -30,6 +30,19 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
     elementTop: number;
   } | null>(null);
   const [maxHeight, setMaxHeight] = useState<number>(0);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const fn = () => setPrefersReducedMotion(mq.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+
   const getStickyNavOffset = useCallback(() => {
     const navElement = document.querySelector("nav.sticky") as HTMLElement | null;
     if (!navElement) {
@@ -104,9 +117,10 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
       if (isExpanded) {
+        const behavior = prefersReducedMotion ? "auto" : "smooth";
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            scrollHeaderIntoView("smooth");
+            scrollHeaderIntoView(behavior);
           });
         });
       }
@@ -170,13 +184,12 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
     animationFrameId = requestAnimationFrame(maintainScrollDuringTransition);
 
     // After CSS transition completes, scroll the header to the top of the viewport
+    const scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
     const transitionTimeout = setTimeout(() => {
       if (headerRef.current) {
-        // Use requestAnimationFrame to ensure DOM is fully settled after transition
         requestAnimationFrame(() => {
           if (headerRef.current) {
-            // Scroll to position header below the sticky nav
-            scrollHeaderIntoView("smooth");
+            scrollHeaderIntoView(scrollBehavior);
           }
         });
       }
@@ -189,7 +202,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       }
       clearTimeout(transitionTimeout);
     };
-  }, [isExpanded, scrollHeaderIntoView]);
+  }, [isExpanded, prefersReducedMotion, scrollHeaderIntoView]);
 
   return (
     <div
@@ -199,7 +212,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       <button
         ref={headerRef}
         onClick={onToggle}
-        className="w-full rounded-2xl bg-white p-6 text-left transition-all duration-200 hover:bg-neutral-50 dark:bg-surface-50 dark:hover:bg-neutral-800 lg:p-8"
+        className="w-full rounded-2xl bg-white p-6 text-left transition-all duration-200 hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:bg-surface-50 dark:hover:bg-neutral-800 dark:focus-visible:ring-neon-cyan lg:p-8"
         aria-expanded={isExpanded}
         aria-controls={`accordion-content-${id}`}
         aria-label={`${isExpanded ? "Collapse" : "Expand"} section ${typeof title === "string" ? title : id}`}
@@ -216,7 +229,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       <div
         id={`accordion-content-${id}`}
         ref={contentRef}
-        className="overflow-hidden transition-all duration-300 ease-in-out"
+        className="accordion-content-transition overflow-hidden transition-all duration-300 ease-in-out"
         style={{
           // If expanded but height not measured yet, use a large value temporarily
           // The ResizeObserver will update it with the actual height

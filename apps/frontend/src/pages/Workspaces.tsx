@@ -76,8 +76,8 @@ const WorkspacesList: FC = () => {
         <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 lg:p-12">
           <div className="opacity-8 absolute right-0 top-0 size-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-accent blur-3xl"></div>
           <div className="relative z-10">
-            <div className="mb-8 flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
-              <div>
+            <div className="mb-8 flex flex-col flex-wrap items-start justify-between gap-8 sm:flex-row sm:items-center">
+              <div className="flex-1">
                 <h1 className="mb-4 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">
                   Your workspaces
                 </h1>
@@ -86,7 +86,7 @@ const WorkspacesList: FC = () => {
                   has its own agents, documents, and spending.
                 </p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row">
                 <button
                   onClick={() => setIsImportModalOpen(true)}
                   className="flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.03] hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.97] dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
@@ -115,7 +115,11 @@ const WorkspacesList: FC = () => {
         </div>
 
         {workspaces.length === 0 ? (
-          <div className="rounded-2xl border-2 border-neutral-300 bg-white p-12 text-center shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-14">
+          <div
+            className="rounded-2xl border-2 border-neutral-300 bg-white p-12 text-center shadow-large dark:border-neutral-700 dark:bg-surface-50 lg:p-14"
+            role="status"
+            aria-live="polite"
+          >
             <div className="mx-auto max-w-md">
               <div className="bg-gradient-primary/15 mx-auto mb-8 flex size-20 items-center justify-center rounded-2xl">
                 <svg

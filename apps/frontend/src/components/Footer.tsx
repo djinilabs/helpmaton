@@ -18,30 +18,30 @@ export const Footer: FC = () => {
             </div>
             <BrandName className="text-sm font-medium" />
           </div>
-          <div className="text-right text-xs text-neutral-500 dark:text-neutral-300">
+          <div className="text-right text-xs text-neutral-600 dark:text-neutral-200">
             <div className="mb-1">Straightforward AI. No fluff.</div>
             <div className="text-[10px]">
               © {currentYear} DjiniLabs & Gordon & Teixeira Lda.
             </div>
             <div className="mt-1 text-[10px]">Version {version}</div>
-            <div className="mt-3 flex items-center justify-end gap-2">
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-1">
               <Link
                 to="/docs/api"
-                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400"
+                className="touch-target inline-flex items-center border-b-2 border-neutral-900 p-2 text-sm font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400 sm:text-base"
               >
                 API Docs
               </Link>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
               <Link
                 to="/privacy"
-                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400"
+                className="touch-target inline-flex items-center border-b-2 border-neutral-900 p-2 text-sm font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400 sm:text-base"
               >
                 Privacy Statement
               </Link>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
               <Link
                 to="/terms-of-service"
-                className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400"
+                className="touch-target inline-flex items-center border-b-2 border-neutral-900 p-2 text-sm font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-blue-400/50 dark:text-neutral-300 dark:hover:text-blue-400 sm:text-base"
               >
                 Terms of Service
               </Link>

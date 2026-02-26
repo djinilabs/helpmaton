@@ -665,7 +665,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   return (
     <div
       className={`flex ${
-        isWidget ? "h-full" : "h-[600px]"
+        isWidget ? "h-full" : "h-[50vh] min-h-[400px] md:h-[600px]"
       } flex-col${isEmbedded ? "" : " rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-surface-50"}`}
     >
       {!isWidget && (
@@ -698,7 +698,7 @@ export const AgentChat: FC<AgentChatProps> = ({
               <button
                 onClick={handleClearConversation}
                 disabled={isLoading}
-                className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                className="touch-target flex shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
                 title="Clear conversation"
               >
                 <TrashIcon className="size-4" />
@@ -718,7 +718,7 @@ export const AgentChat: FC<AgentChatProps> = ({
             <button
               onClick={handleClearConversation}
               disabled={isLoading}
-              className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              className="touch-target flex shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
               title="Clear conversation"
             >
               <TrashIcon className="size-4" />
@@ -897,7 +897,7 @@ export const AgentChat: FC<AgentChatProps> = ({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
-              className="flex shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white p-4 text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              className="touch-target flex shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white p-4 text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
               title="Attach file"
             >
               <PaperClipIcon className="size-5" />
@@ -921,7 +921,7 @@ export const AgentChat: FC<AgentChatProps> = ({
             (!input.trim() && pendingFiles.length === 0) ||
             pendingFiles.some((f) => f.uploading || f.error)
           }
-          className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+          className="touch-target transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
         >
           <span className="flex items-center gap-2">
             {isLoading && (

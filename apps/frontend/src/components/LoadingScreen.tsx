@@ -70,6 +70,8 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
     if (compact) {
       return (
         <div
+          role="status"
+          aria-live="polite"
           className={`flex items-center justify-center gap-3 py-8 ${className}`}
         >
           <LockSpinner size="small" />
@@ -82,6 +84,8 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
     return (
       <div
+        role="status"
+        aria-live="polite"
         className={`bg-page flex min-h-screen items-center justify-center ${className}`}
       >
         <div className="flex items-center gap-3">
@@ -98,6 +102,8 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
   if (compact) {
     return (
       <div
+        role="status"
+        aria-live="polite"
         className={`flex items-center justify-center gap-3 py-8 ${className}`}
       >
         <LockSpinner size="medium" />
@@ -110,6 +116,8 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={`bg-page flex min-h-screen flex-col items-center justify-center ${className}`}
     >
       <div className="relative mb-8">

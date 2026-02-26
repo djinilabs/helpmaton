@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -6,6 +6,7 @@ import { useDialogTracking } from "../contexts/DialogContext";
 import { useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
 import { useChannels } from "../hooks/useChannels";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useModalFocus } from "../hooks/useModalFocus";
 import type { Agent, ModelCapabilities } from "../utils/api";
 import {
   filterTextGenerationModels,
@@ -390,8 +391,10 @@ export const AgentModal: FC<AgentModalProps> = ({
     onClose();
   };
 
+  const panelRef = useRef<HTMLDivElement>(null);
   const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, handleClose);
+  useModalFocus(panelRef, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -450,8 +453,18 @@ export const AgentModal: FC<AgentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
-        <h2 className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-modal-title"
+        tabIndex={-1}
+        className="modal-panel max-h-[90vh] w-full max-w-2xl overflow-y-auto border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 md:p-10"
+      >
+        <h2
+          id="agent-modal-title"
+          className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50"
+        >
           {isEditing ? "Edit Agent" : "Create Agent"}
         </h2>
         <QueryPanel

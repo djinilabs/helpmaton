@@ -8,7 +8,7 @@ import {
   CpuChipIcon,
   CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,6 +16,7 @@ import remarkGfm from "remark-gfm";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useModalFocus } from "../hooks/useModalFocus";
 import { useToast } from "../hooks/useToast";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
@@ -46,11 +47,13 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     agentId,
     conversationId
   );
+  const panelRef = useRef<HTMLDivElement>(null);
   const { registerDialog, unregisterDialog } = useDialogTracking();
   const [showRawJson, setShowRawJson] = useState(false);
   const toast = useToast();
 
   useEscapeKey(isOpen, onClose);
+  useModalFocus(panelRef, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -575,14 +578,25 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="conversation-detail-modal-title"
+        tabIndex={-1}
+        className="modal-panel max-h-[90vh] w-full max-w-4xl overflow-y-auto border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 md:p-8"
+      >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
+          <h2
+            id="conversation-detail-modal-title"
+            className="text-3xl font-bold text-neutral-900 dark:text-neutral-50"
+          >
             Conversation Details
           </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="touch-target rounded-xl border border-neutral-300 bg-white px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>
