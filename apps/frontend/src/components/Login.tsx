@@ -200,7 +200,9 @@ const Login: FC = () => {
 
                 {passkeyError && (
                   <p
+                    id="passkey-error"
                     role="alert"
+                    aria-live="polite"
                     className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200"
                   >
                     {passkeyError}
@@ -211,6 +213,7 @@ const Login: FC = () => {
                   type="button"
                   disabled={isPasskeyLoading}
                   onClick={handlePasskeySignIn}
+                  aria-describedby={passkeyError ? "passkey-error" : undefined}
                   className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3.5 font-semibold text-neutral-700 transition-all duration-200 hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-200 dark:hover:border-neutral-500 dark:hover:bg-neutral-700"
                 >
                   {isPasskeyLoading ? "Signing in..." : "Sign in with passkey"}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import type { FC } from "react";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -9,6 +9,7 @@ import {
   useInitiateOAuthFlow,
 } from "../hooks/useEmailConnection";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useModalFocus } from "../hooks/useModalFocus";
 import type { EmailConnection } from "../utils/api";
 
 import { BrandName } from "./BrandName";
@@ -31,6 +32,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
   const update = useUpdateEmailConnection(workspaceId);
   const testConnection = useTestEmailConnection(workspaceId);
   const initiateOAuth = useInitiateOAuthFlow(workspaceId);
+  const panelRef = useRef<HTMLDivElement>(null);
   const { registerDialog, unregisterDialog } = useDialogTracking();
 
   // Derive initial values from props when modal opens
@@ -112,6 +114,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
   };
 
   useEscapeKey(isOpen, handleClose);
+  useModalFocus(panelRef, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -190,8 +193,18 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
-        <h2 className="mb-8 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="email-connection-modal-title"
+        tabIndex={-1}
+        className="modal-panel max-h-[90vh] w-full max-w-2xl overflow-y-auto border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 md:p-8"
+      >
+        <h2
+          id="email-connection-modal-title"
+          className="mb-8 text-3xl font-bold text-neutral-900 dark:text-neutral-50"
+        >
           {isEditing ? "Edit Email Connection" : "Create Email Connection"}
         </h2>
         <form onSubmit={handleSMTPSubmit} className="space-y-5">
@@ -414,7 +427,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                       !smtpPassword.trim() ||
                       !smtpFromEmail.trim()))
                 }
-                className="flex-1 rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                className="touch-target flex-1 rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isPending
                   ? isEditing
@@ -429,7 +442,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={isPending}
-              className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="touch-target flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>

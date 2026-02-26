@@ -80,7 +80,7 @@ const Home: FC = () => {
                 </p>
               </div>
             </div>
-            <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300">
+            <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300 lg:max-w-none">
               {hasWorkspaces
                 ? "Start here to organize your workspaces, set up agents, and see usage at a glance."
                 : "Get started by creating your first workspace."}

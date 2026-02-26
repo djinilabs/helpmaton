@@ -89,7 +89,14 @@ export const DetailPageNav: FC<DetailPageNavProps> = ({
     });
   };
 
+  const handleMobileSectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value) scrollToSection(value);
+    e.target.value = "";
+  };
+
   return (
+    <>
     <nav
       aria-label={ariaLabel}
       className="fixed left-0 z-30 hidden flex-col border-r border-neutral-200 bg-white transition-[width] duration-200 dark:border-neutral-700 dark:bg-surface-50 lg:flex"
@@ -175,5 +182,34 @@ export const DetailPageNav: FC<DetailPageNavProps> = ({
         )}
       </div>
     </nav>
+
+    {/* Mobile section selector: sticky bar below LocationBar, visible only below lg */}
+    <div
+      className="sticky top-0 z-20 border-b border-neutral-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-surface-50 lg:hidden"
+      role="navigation"
+      aria-label={ariaLabel}
+    >
+      <label htmlFor="mobile-section-select" className="sr-only">
+        {headerTitle}
+      </label>
+      <select
+        id="mobile-section-select"
+        onChange={handleMobileSectionChange}
+        className="touch-target w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-100 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
+        defaultValue=""
+      >
+        <option value="">Jump to section...</option>
+        {groups.map((group) => (
+          <optgroup key={group.title} label={group.title}>
+            {group.children.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </div>
+    </>
   );
 };

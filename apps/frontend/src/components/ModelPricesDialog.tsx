@@ -7,8 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import type { FC } from "react";
 
+
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useModalFocus } from "../hooks/useModalFocus";
 import {
   getAvailableModels,
   getModelPricing,
@@ -87,6 +89,7 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
   capabilityFilter,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortColumn, setSortColumn] = useState<SortColumn>("model");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -105,6 +108,7 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
 
   const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, onClose);
+  useModalFocus(panelRef, isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -198,14 +202,25 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="model-prices-dialog-title"
+        tabIndex={-1}
+        className="modal-panel max-h-[90vh] w-full max-w-4xl overflow-y-auto border-2 border-neutral-300 bg-white p-6 shadow-dramatic dark:border-neutral-700 dark:bg-surface-50 md:p-8"
+      >
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-4xl font-black text-neutral-900 dark:text-neutral-50">
+          <h2
+            id="model-prices-dialog-title"
+            className="text-4xl font-black text-neutral-900 dark:text-neutral-50"
+          >
             OpenRouter Model Prices
           </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="touch-target rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-surface-50 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>

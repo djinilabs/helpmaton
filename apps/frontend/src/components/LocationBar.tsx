@@ -29,7 +29,10 @@ const WorkspaceLocationBar: FC<{ workspaceId: string }> = ({ workspaceId }) => {
       <span className="font-black text-neutral-900 dark:text-neutral-50">
         {" / "}
       </span>
-      <span className="uppercase tracking-wide text-neutral-900 dark:text-neutral-50">
+      <span
+        className="inline-block max-w-[120px] truncate align-middle uppercase tracking-wide text-neutral-900 dark:text-neutral-50 sm:max-w-[200px]"
+        title={workspace.name}
+      >
         {workspace.name}
       </span>
     </>
@@ -64,14 +67,18 @@ const AgentLocationBar: FC<{ workspaceId: string; agentId: string }> = ({
       </span>
       <Link
         to={`/workspaces/${workspaceId}`}
-        className="border-b-2 border-transparent uppercase tracking-wide text-neutral-600 transition-colors hover:border-neutral-900 hover:text-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-50 dark:hover:text-neutral-50"
+        className="inline-block max-w-[120px] truncate border-b-2 border-transparent align-middle uppercase tracking-wide text-neutral-600 transition-colors hover:border-neutral-900 hover:text-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-50 dark:hover:text-neutral-50 sm:max-w-[200px]"
+        title={workspace.name}
       >
         {workspace.name}
       </Link>
       <span className="font-black text-neutral-900 dark:text-neutral-50">
         {" / "}
       </span>
-      <span className="uppercase tracking-wide text-neutral-900 dark:text-neutral-50">
+      <span
+        className="inline-block max-w-[120px] truncate align-middle uppercase tracking-wide text-neutral-900 dark:text-neutral-50 sm:max-w-[200px]"
+        title={agent.name}
+      >
         {agent.name}
       </span>
     </>
@@ -157,7 +164,7 @@ export const LocationBar: FC = () => {
   return (
     <nav className="sticky top-0 z-40 border-b-4 border-neutral-900 bg-white dark:border-b dark:border-neon-cyan/20 dark:bg-surface-50">
       <div className="mx-auto max-w-7xl px-6 py-3 lg:px-8">
-        <div className="flex items-center gap-2 text-sm font-bold">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-bold">
           <QueryPanel fallback={<LoadingScreen compact />}>
             <LocationBarContent />
           </QueryPanel>
