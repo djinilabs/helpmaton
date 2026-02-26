@@ -1,16 +1,17 @@
 /**
  * Service worker: caches root document and static assets for the SPA.
- * Uses a root-only re-entrancy guard so that when we fetch(ROOT_URL) from
- * inside the handler, browsers that re-dispatch (e.g. Chrome Mobile iOS)
- * don't cause infinite recursion (RangeError: Maximum call stack size exceeded).
- * Only the root document is guarded; a full in-flight URL set was reverted
- * because it caused E2E failures in PR/staging where the SW is active.
+ * When we fetch(ROOT_URL) from inside the handler, browsers like Chrome Mobile iOS
+ * may re-dispatch the fetch event. We avoid RangeError (stack overflow) by sharing
+ * the in-flight promise: re-entrant requests get the same promise so we never
+ * call fetch(ROOT_URL) again from within the handler. Only the root document uses
+ * this; a full in-flight URL set was reverted because it caused E2E failures.
  */
 const CACHE_VERSION = "v1";
 const STATIC_CACHE = `helpmaton-static-${CACHE_VERSION}`;
 const ROOT_URL = "/";
 
-let handlingRootFetch = false;
+/** When we're fetching ROOT_URL from inside the handler, this holds the in-flight promise. */
+let rootFetchPromise = null;
 
 const STATIC_ASSET_EXTENSIONS = new Set([
   "js",
@@ -73,16 +74,23 @@ const cacheRootDocument = async () => {
   if (cachedResponse) {
     return cachedResponse;
   }
-  handlingRootFetch = true;
-  try {
-    const response = await fetch(ROOT_URL, { cache: "reload" });
-    if (response.ok) {
-      await cache.put(ROOT_URL, response.clone());
-    }
-    return response;
-  } finally {
-    handlingRootFetch = false;
+  // Re-entrant fetch events (e.g. Chrome Mobile iOS) get this same promise so they
+  // don't trigger another fetch() and cause stack overflow.
+  if (rootFetchPromise) {
+    return rootFetchPromise;
   }
+  rootFetchPromise = (async () => {
+    try {
+      const response = await fetch(ROOT_URL, { cache: "reload" });
+      if (response.ok) {
+        await cache.put(ROOT_URL, response.clone());
+      }
+      return response;
+    } finally {
+      rootFetchPromise = null;
+    }
+  })();
+  return rootFetchPromise;
 };
 
 self.addEventListener("install", (event) => {
@@ -139,12 +147,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   // SPA navigation: return cached root HTML; updates via version polling.
-  // Skip when we're already fetching ROOT_URL from inside cacheRootDocument
-  // to avoid re-entrancy and stack overflow on browsers that re-intercept.
-  if (
-    !handlingRootFetch &&
-    (request.mode === "navigate" || url.pathname === ROOT_URL)
-  ) {
+  // Re-entrant fetch events get the same in-flight promise from cacheRootDocument(),
+  // so we always respond and avoid stack overflow on Chrome Mobile iOS.
+  if (request.mode === "navigate" || url.pathname === ROOT_URL) {
     event.respondWith(cacheRootDocument());
     return;
   }
