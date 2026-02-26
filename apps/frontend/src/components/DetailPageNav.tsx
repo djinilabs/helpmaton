@@ -197,7 +197,6 @@ export const DetailPageNav: FC<DetailPageNavProps> = ({
         onChange={handleMobileSectionChange}
         className="touch-target w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-sm font-semibold text-neutral-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500 dark:border-neutral-600 dark:bg-surface-100 dark:text-neutral-100 dark:focus:border-blue-400 dark:focus:ring-blue-400/40"
         defaultValue=""
-        aria-label={`Jump to section. ${headerTitle}`}
       >
         <option value="">Jump to section...</option>
         {groups.map((group) => (

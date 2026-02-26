@@ -37,6 +37,12 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   );
 
   useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return undefined;
+    }
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const fn = () => setPrefersReducedMotion(mq.matches);
     if (typeof mq.addEventListener === "function") {

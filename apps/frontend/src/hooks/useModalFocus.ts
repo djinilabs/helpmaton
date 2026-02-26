@@ -66,7 +66,7 @@ export function useModalFocus(
       container.removeEventListener("keydown", handleKeyDown);
       const prev = previousActiveElement.current;
       previousActiveElement.current = null;
-      if (prev?.focus && document.contains(prev)) {
+      if (typeof prev?.focus === "function" && document.contains(prev)) {
         prev.focus();
       }
     };
