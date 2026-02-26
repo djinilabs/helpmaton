@@ -28,8 +28,9 @@ export function useModalFocus(
         ? document.activeElement
         : null;
 
-    // Move focus into the modal (first focusable or the container)
-    requestAnimationFrame(() => {
+    // Move focus into the modal (first focusable or the container); cancel if modal closes before RAF runs
+    const rafId = requestAnimationFrame(() => {
+      if (!container.isConnected) return;
       const focusable = getFocusableElements(container);
       if (focusable.length > 0) {
         focusable[0].focus();
@@ -61,6 +62,7 @@ export function useModalFocus(
 
     container.addEventListener("keydown", handleKeyDown);
     return () => {
+      cancelAnimationFrame(rafId);
       container.removeEventListener("keydown", handleKeyDown);
       const prev = previousActiveElement.current;
       previousActiveElement.current = null;

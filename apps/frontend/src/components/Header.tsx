@@ -1,10 +1,11 @@
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { FC } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useModalFocus } from "../hooks/useModalFocus";
 
 import { BrandName } from "./BrandName";
 import { Logo } from "./Logo";
@@ -20,7 +21,9 @@ const navLinkInactive =
 export const Header: FC = () => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
   useEscapeKey(menuOpen, () => setMenuOpen(false));
+  useModalFocus(drawerRef, menuOpen);
 
   return (
     <header className="border-b-2 border-neutral-300 bg-white/90 shadow-medium backdrop-blur-md dark:border-b dark:border-neon-cyan/30 dark:bg-surface-50/90">
@@ -89,11 +92,7 @@ export const Header: FC = () => {
       {menuOpen &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            className="fixed inset-0 z-[100] md:hidden"
-            aria-hidden="true"
-            role="presentation"
-          >
+          <div className="fixed inset-0 z-[100] md:hidden">
             <button
               type="button"
               className="absolute inset-0 bg-black/50 transition-opacity"
@@ -101,9 +100,12 @@ export const Header: FC = () => {
               aria-label="Close menu"
             />
             <div
+              ref={drawerRef}
               className="absolute right-0 top-0 flex size-full max-w-sm flex-col border-l-2 border-neutral-200 bg-white shadow-dramatic dark:border-neutral-700 dark:bg-surface-50"
               role="dialog"
+              aria-modal="true"
               aria-label="Navigation menu"
+              tabIndex={-1}
             >
               <div className="flex min-h-[44px] items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-700">
                 <span className="font-display text-lg font-bold">Menu</span>

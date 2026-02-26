@@ -39,8 +39,15 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const fn = () => setPrefersReducedMotion(mq.matches);
-    mq.addEventListener("change", fn);
-    return () => mq.removeEventListener("change", fn);
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", fn);
+      return () => mq.removeEventListener("change", fn);
+    }
+    if (typeof mq.addListener === "function") {
+      mq.addListener(fn);
+      return () => mq.removeListener(fn);
+    }
+    return undefined;
   }, []);
 
   const getStickyNavOffset = useCallback(() => {

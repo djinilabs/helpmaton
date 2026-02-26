@@ -8,6 +8,8 @@ interface ScrollContainerProps {
   maxHeight?: string | number;
   /** Show right-edge scroll hint when horizontally scrollable. Default true. */
   showScrollHint?: boolean;
+  /** Optional. When set, the scroll area gets role="region", this aria-label, and tabIndex=0 for keyboard scroll. Omit to avoid an extra tab stop and wrong label when content is not a table. */
+  ariaLabel?: string;
 }
 
 /**
@@ -17,7 +19,13 @@ interface ScrollContainerProps {
  */
 export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
   function ScrollContainer(
-    { className, children, maxHeight = "100vh", showScrollHint = true },
+    {
+      className,
+      children,
+      maxHeight = "100vh",
+      showScrollHint = true,
+      ariaLabel,
+    },
     ref: Ref<HTMLDivElement>
   ) {
     const innerRef = useRef<HTMLDivElement>(null);
@@ -68,11 +76,11 @@ export const ScrollContainer = forwardRef<HTMLDivElement, ScrollContainerProps>(
       <div className="relative">
         <div
           ref={setRefs}
-          className={`outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${className ?? ""}`}
+          className={`${ariaLabel != null ? "outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2" : ""} ${className ?? ""}`}
           style={style}
-          tabIndex={0}
-          role="region"
-          aria-label="Scrollable table"
+          {...(ariaLabel != null
+            ? { tabIndex: 0, role: "region" as const, "aria-label": ariaLabel }
+            : {})}
         >
           {children}
         </div>
