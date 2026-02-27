@@ -2313,9 +2313,9 @@
         },
         "nvidia/nemotron-nano-12b-v2-vl": {
           "usd": {
-            "input": 0.07,
-            "output": 0.19999999999999998,
-            "cachedInput": 0.007000000000000001
+            "input": 0.19999999999999998,
+            "output": 0.6,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -5625,9 +5625,9 @@
         },
         "moonshotai/kimi-k2": {
           "usd": {
-            "input": 0.5,
-            "output": 2.4,
-            "cachedInput": 0.05
+            "input": 0.55,
+            "output": 2.2,
+            "cachedInput": 0.05500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -5661,7 +5661,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 131000
         },
         "mistralai/devstral-medium": {
           "usd": {
@@ -13470,9 +13470,81 @@
             "image": false
           },
           "context_length": 1048576
+        },
+        "bytedance-seed/seed-2.0-mini": {
+          "usd": {
+            "input": 0.09999999999999999,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.01
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "google/gemini-3.1-flash-image-preview": {
+          "usd": {
+            "input": 0.25,
+            "output": 1.5,
+            "cachedInput": 0.025
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "image",
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": true,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": true
+          },
+          "context_length": 65536
         }
       }
     }
   },
-  "lastUpdated": "2026-02-26T00:17:29.817Z"
+  "lastUpdated": "2026-02-27T00:20:30.131Z"
 }
