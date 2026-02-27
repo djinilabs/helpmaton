@@ -98,9 +98,10 @@ function convertIntegrationUri(uri) {
  * @param {Object} pathToResourceId - Path to resource ID mapping
  * @param {Object} resources - Resources object (for dependencies)
  * @param {string} restApiId - REST API resource ID (default: 'HTTP')
+ * @param {number} [integrationTimeoutMs] - Optional integration timeout in ms (e.g. 60000). Only for Regional/private APIs; requires AWS quota increase above 29000.
  * @returns {Object} Object containing methods and method dependencies
  */
-function createMethods(routes, integrations, pathToResourceId, resources, restApiId = 'HTTP') {
+function createMethods(routes, integrations, pathToResourceId, resources, restApiId = 'HTTP', integrationTimeoutMs) {
   const methods = {};
   const methodDependencies = [];
 
@@ -320,7 +321,9 @@ function createMethods(routes, integrations, pathToResourceId, resources, restAp
         Type: integrationType,
         Uri: integrationUri,
       };
-      
+      if (integrationTimeoutMs != null && integrationTimeoutMs > 0) {
+        integrationConfig.TimeoutInMillis = integrationTimeoutMs;
+      }
       // AWS_PROXY integrations use POST method and don't support other properties
       if (integrationType === 'AWS_PROXY') {
         integrationConfig.IntegrationHttpMethod = 'POST';
@@ -394,17 +397,19 @@ function createMethods(routes, integrations, pathToResourceId, resources, restAp
         const integrationType = route._integrationType || 'AWS_PROXY';
         
         // Create method resource for root
-        const integrationConfig = {
+        const rootIntegrationConfig = {
           Type: integrationType,
           Uri: integrationUri,
         };
-        
+        if (integrationTimeoutMs != null && integrationTimeoutMs > 0) {
+          rootIntegrationConfig.TimeoutInMillis = integrationTimeoutMs;
+        }
         // AWS_PROXY integrations use POST method and don't support other properties
         if (integrationType === 'AWS_PROXY') {
-          integrationConfig.IntegrationHttpMethod = 'POST';
+          rootIntegrationConfig.IntegrationHttpMethod = 'POST';
         } else if (integrationType === 'HTTP_PROXY' || integrationType === 'HTTP') {
           // HTTP_PROXY integrations use the same HTTP method as the request
-          integrationConfig.IntegrationHttpMethod = httpMethod;
+          rootIntegrationConfig.IntegrationHttpMethod = httpMethod;
         }
         
         methods[uniqueRootMethodId] = {
@@ -415,7 +420,7 @@ function createMethods(routes, integrations, pathToResourceId, resources, restAp
             HttpMethod: httpMethod,
             AuthorizationType: authorizationType,
             AuthorizerId: authorizerId ? { Ref: authorizerId } : undefined,
-            Integration: integrationConfig,
+            Integration: rootIntegrationConfig,
           },
           DependsOn: [],
         };

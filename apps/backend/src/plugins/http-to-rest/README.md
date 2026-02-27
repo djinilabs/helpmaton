@@ -28,6 +28,18 @@ custom-domain
 
 The plugin requires no configuration. It automatically detects HTTP API v2 resources and transforms them to REST API.
 
+### Integration timeout (optional)
+
+By default, API Gateway uses a **29 second** integration timeout. To allow longer-running requests (e.g. LLM-backed endpoints like workspace suggestions), set:
+
+```bash
+export API_GATEWAY_INTEGRATION_TIMEOUT_MS=60000
+```
+
+- Only applies to **Regional** (and private) REST APIs; this project uses REGIONAL.
+- You must request a quota increase in AWS Service Quotas: **Amazon API Gateway** → **Maximum integration timeout in milliseconds** (e.g. 60000 or 90000). Without the increase, values above 29000 will fail at deploy or runtime.
+- After the quota is approved, set the env in your deployment (e.g. GitHub Actions secrets) and redeploy.
+
 ### Feature Flag (Optional)
 
 To enable/disable the transformation via environment variable, you can modify the plugin to check for an environment variable:

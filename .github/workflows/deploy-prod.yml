@@ -266,6 +266,7 @@ jobs:
           BASE_URL: "https://app.helpmaton.com"
           OAUTH_REDIRECT_BASE_URL: ${{ secrets.OAUTH_REDIRECT_BASE_URL }}
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          API_GATEWAY_INTEGRATION_TIMEOUT_MS: "60000"
         run: |
           echo "✅ Deploying to production"
 

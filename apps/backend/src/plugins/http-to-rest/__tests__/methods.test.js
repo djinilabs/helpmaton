@@ -55,6 +55,41 @@ describe('Method Creation', () => {
       expect(method.Properties.Integration.IntegrationHttpMethod).toBe('POST');
     });
 
+    it('should set TimeoutInMillis on Integration when integrationTimeoutMs is provided', () => {
+      const routes = [
+        {
+          Properties: {
+            RouteKey: 'GET /api/usage',
+            Target: 'integrations/GetApiUsageHTTPIntegration',
+          },
+        },
+      ];
+      const integrations = {
+        GetApiUsageHTTPIntegration: {
+          Properties: {
+            IntegrationUri: {
+              'Fn::Sub': [
+                'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations',
+                { FunctionArn: { 'Fn::GetAtt': ['GetApiUsageHTTPLambda', 'Arn'] } },
+              ],
+            },
+          },
+        },
+      };
+      const { resources, pathToResourceId } = createResourceHierarchy(routes);
+      const { methods } = createMethods(
+        routes,
+        integrations,
+        pathToResourceId,
+        resources,
+        'HTTP',
+        60000
+      );
+      const method = Object.values(methods).find((m) => m.Properties.HttpMethod === 'GET');
+      expect(method).toBeDefined();
+      expect(method.Properties.Integration.TimeoutInMillis).toBe(60000);
+    });
+
     it('should create method for POST route', () => {
       const routes = [
         {

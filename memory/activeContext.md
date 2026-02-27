@@ -2,6 +2,8 @@
 
 ## Current Status
 
+- **API Gateway integration timeout (Sentry 99518817, 2026-02-27)**: "Endpoint request timed out" on workspace page load—API Gateway default is 29s; Lambda has 900s. (1) Documented: timeout is API Gateway integration (29s), not Lambda; API is REGIONAL so quota increase is allowed. (2) http-to-rest plugin: optional `integrationTimeoutMs` (from env `API_GATEWAY_INTEGRATION_TIMEOUT_MS`) sets `TimeoutInMillis` on all method integrations; README and TROUBLESHOOTING updated. To use: request "Maximum integration timeout in milliseconds" in Service Quotas, then set env and redeploy.
+
 - **Service worker RangeError on Chrome Mobile iOS (Sentry 98889896, 2026-02-26)**: Production "Maximum call stack size exceeded" on app.helpmaton.com/ (Chrome Mobile iOS). Cause: re-entrancy guard skipped calling `event.respondWith()` for re-dispatched navigate requests, so the browser could re-dispatch and recurse. Fix: share the in-flight root fetch via `rootFetchPromise`; re-entrant requests get the same promise so we never call `fetch(ROOT_URL)` again from inside the handler. E2E-safe (root-only; no inFlightUrls for static assets). Typecheck passes.
 
 - **PostHog: removed superfluous identify from signIn (2026-02-25)**: Removed the two redundant `identifyUser` calls from the NextAuth signIn callback in auth-config (passkey and email paths). Attribution is handled by the frontend (PostHogProvider) and backend auth middleware (`ensurePostHogIdentityFromRequest`). Dropped unused posthog import and posthog mock from auth-config.test.ts. systemPatterns.md updated to note we do not identify in the signIn callback. Typecheck, lint, and auth-config + tracking tests pass.

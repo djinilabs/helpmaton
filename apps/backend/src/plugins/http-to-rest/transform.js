@@ -470,12 +470,17 @@ function transformToRestApi(cloudformation, inventory, stage) {
   });
 
   // 5. Create methods (pass restApiId so methods use correct API ID)
+  // Optional: API_GATEWAY_INTEGRATION_TIMEOUT_MS (e.g. 60000) extends integration timeout beyond 29s; requires AWS quota increase for Regional APIs
+  const integrationTimeoutMs = process.env.API_GATEWAY_INTEGRATION_TIMEOUT_MS
+    ? parseInt(process.env.API_GATEWAY_INTEGRATION_TIMEOUT_MS, 10)
+    : undefined;
   const { methods, methodDependencies } = createMethods(
     httpRoutes,
     httpIntegrations,
     pathToResourceId,
     apiResources,
-    restApiId
+    restApiId,
+    integrationTimeoutMs
   );
 
   // Update method authorizer references

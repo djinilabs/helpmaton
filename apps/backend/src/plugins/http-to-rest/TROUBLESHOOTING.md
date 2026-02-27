@@ -142,6 +142,23 @@ Common issues and solutions when using the HTTP to REST API transformation plugi
 
 4. **Check Integration Type**: Verify integration type is `AWS_PROXY`
 
+## Endpoint request timed out (504)
+
+### Symptoms
+- Client sees "Endpoint request timed out" or 504 during navigation/API calls
+- Lambda may still be running; the timeout is from API Gateway, not Lambda
+
+### Cause
+API Gateway REST API has a default integration timeout of **29 seconds**. If the Lambda (e.g. workspace or suggestions endpoint) takes longer, API Gateway returns 504.
+
+### Solutions
+
+1. **Request a quota increase** (required for &gt;29s): In AWS Service Quotas, find **Amazon API Gateway** → **Maximum integration timeout in milliseconds**. Request a higher value (e.g. 60000 or 90000). Only applies to **Regional** (and private) REST APIs; this project uses REGIONAL.
+
+2. **Set the integration timeout**: After the quota is approved, set `API_GATEWAY_INTEGRATION_TIMEOUT_MS` (e.g. `60000`) in your deployment environment so the http-to-rest plugin adds `TimeoutInMillis` to method integrations. Redeploy.
+
+3. **Optimize slow endpoints**: Consider making long-running work async (e.g. return quickly and load suggestions in the background) or caching so responses stay under 29s.
+
 ## CloudFormation Validation Errors
 
 ### Symptoms
