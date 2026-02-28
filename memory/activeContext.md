@@ -2,6 +2,10 @@
 
 ## Current Status
 
+- **Lambda runtime Node 20 → 24 (2026-02-28)**: Upgraded all Lambda runtimes and build targets to Node.js 24. Changes: app.arc and plugin-typescript `base-runtime`/baseRuntime → nodejs24.x; scripts/build-backend.ts esbuild target → node24; container-images and lambda-urls plugin tests (Runtime expectations → nodejs24.x); Dockerfiles (lancedb, base, puppeteer) base image → nodejs:24; memory/systemPatterns.md Runtime → Node.js 24.x. **Review-and-improve**: .nvmrc updated 20→24 for local dev consistency; package.json `engines.node` set to `>=24`. Typecheck, lint, and tests pass.
+
+- **Export SVG to 1200x1200 PNG (2026-02-27)**: Added `scripts/export-svg-to-png.mjs` and `pnpm export:svg-to-png` script. Converts all SVGs in `apps/frontend/public/images/` to 1200×1200 PNGs (fit: contain) in the same directory. Sharp added as devDependency. Ran once; 61 PNGs written. Optional `--dir` to override source directory.
+
 - **API Gateway integration timeout (Sentry 99518817, 2026-02-27)**: "Endpoint request timed out" on workspace page load—API Gateway default is 29s; Lambda has 900s. (1) Documented: timeout is API Gateway integration (29s), not Lambda; API is REGIONAL so quota increase is allowed. (2) http-to-rest plugin: optional `integrationTimeoutMs` (from env `API_GATEWAY_INTEGRATION_TIMEOUT_MS`) sets `TimeoutInMillis` on all method integrations; README and TROUBLESHOOTING updated. To use: request "Maximum integration timeout in milliseconds" in Service Quotas, then set env and redeploy.
 
 - **Service worker RangeError on Chrome Mobile iOS (Sentry 98889896, 2026-02-26)**: Production "Maximum call stack size exceeded" on app.helpmaton.com/ (Chrome Mobile iOS). Cause: re-entrancy guard skipped calling `event.respondWith()` for re-dispatched navigate requests, so the browser could re-dispatch and recurse. Fix: share the in-flight root fetch via `rootFetchPromise`; re-entrant requests get the same promise so we never call `fetch(ROOT_URL)` again from inside the handler. E2E-safe (root-only; no inFlightUrls for static assets). Typecheck passes.

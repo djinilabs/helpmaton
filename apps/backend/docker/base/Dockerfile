@@ -3,7 +3,7 @@
 # This is a minimal image that only includes the compiled code
 # No dependencies are installed here - use lancedb Dockerfile for functions that need dependencies
 
-FROM public.ecr.aws/lambda/nodejs:20
+FROM public.ecr.aws/lambda/nodejs:24
 
 # Build argument for dist source directory
 # Defaults to apps/backend/dist for backward compatibility

@@ -1,5 +1,5 @@
 # 1. Switch platform to linux/amd64 (x86)
-FROM --platform=linux/amd64 public.ecr.aws/lambda/nodejs:22
+FROM --platform=linux/amd64 public.ecr.aws/lambda/nodejs:24
 
 # Build argument for dist source directory
 # Defaults to apps/backend/dist for backward compatibility

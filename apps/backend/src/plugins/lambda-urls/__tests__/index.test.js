@@ -62,7 +62,7 @@ describe("Lambda URLs Plugin", () => {
       Type: "AWS::Lambda::Function",
       Properties: {
         FunctionName: "test-function",
-        Runtime: "nodejs20.x",
+        Runtime: "nodejs24.x",
       },
     };
 
@@ -88,7 +88,7 @@ describe("Lambda URLs Plugin", () => {
       Type: "AWS::Lambda::Function",
       Properties: {
         FunctionName: "test-function",
-        Runtime: "nodejs20.x",
+        Runtime: "nodejs24.x",
       },
     };
 
@@ -123,7 +123,7 @@ describe("Lambda URLs Plugin", () => {
       Type: "AWS::Lambda::Function",
       Properties: {
         FunctionName: "test-function",
-        Runtime: "nodejs20.x",
+        Runtime: "nodejs24.x",
       },
     };
 
@@ -149,7 +149,7 @@ describe("Lambda URLs Plugin", () => {
       Type: "AWS::Lambda::Function",
       Properties: {
         FunctionName: "test-function",
-        Runtime: "nodejs20.x",
+        Runtime: "nodejs24.x",
       },
     };
 
@@ -193,7 +193,7 @@ describe("Lambda URLs Plugin", () => {
       Type: "AWS::Lambda::Function",
       Properties: {
         FunctionName: "test-function",
-        Runtime: "nodejs20.x",
+        Runtime: "nodejs24.x",
       },
     };
 
@@ -218,7 +218,7 @@ describe("Lambda URLs Plugin", () => {
       Type: "AWS::Lambda::Function",
       Properties: {
         FunctionName: "test-function",
-        Runtime: "nodejs20.x",
+        Runtime: "nodejs24.x",
       },
     };
 
@@ -386,7 +386,7 @@ describe("Lambda URLs Plugin", () => {
         Type: "AWS::Lambda::Function",
         Properties: {
           FunctionName: "test-function",
-          Runtime: "nodejs20.x",
+          Runtime: "nodejs24.x",
         },
       };
 
@@ -422,7 +422,7 @@ describe("Lambda URLs Plugin", () => {
         Type: "AWS::Lambda::Function",
         Properties: {
           FunctionName: "test-function",
-          Runtime: "nodejs20.x",
+          Runtime: "nodejs24.x",
         },
       };
 
@@ -456,7 +456,7 @@ describe("Lambda URLs Plugin", () => {
         Type: "AWS::Lambda::Function",
         Properties: {
           FunctionName: "test-function",
-          Runtime: "nodejs20.x",
+          Runtime: "nodejs24.x",
         },
       };
 

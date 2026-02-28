@@ -4,7 +4,7 @@
 
 ### Backend
 
-- **Runtime**: Node.js 20.x, TypeScript
+- **Runtime**: Node.js 24.x, TypeScript
 - **Framework**: Architect Framework (AWS serverless)
 - **Database**: DynamoDB (with encryption for sensitive data)
 - **Storage**: S3 (document management)
