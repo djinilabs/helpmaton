@@ -4,6 +4,7 @@ import type { AugmentedContext } from "../../workspaceCreditContext";
 import {
   applyMemoryOperationsToGraph,
   extractConversationMemory,
+  MemoryExtractionRetriesExhaustedError,
 } from "../memoryExtraction";
 
 const mockGenerateText = vi.fn();
@@ -171,7 +172,7 @@ describe("memoryExtraction", () => {
               operation: "ADD",
               subject: "User",
               predicate: "value",
-              object: NaN,
+              object: null,
               confidence: 1,
             },
           ],
@@ -299,7 +300,7 @@ describe("memoryExtraction", () => {
       (e: unknown) => e,
     );
 
-    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(MemoryExtractionRetriesExhaustedError);
     expect((err as Error).message).toMatch(/failed after 2 attempts/);
     expect((err as Error).cause).toBeDefined();
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
@@ -384,7 +385,7 @@ describe("memoryExtraction", () => {
       (e: unknown) => e,
     );
 
-    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(MemoryExtractionRetriesExhaustedError);
     expect((err as Error).message).toMatch(/failed after 2 attempts/);
     expect((err as Error).cause).toBeInstanceOf(Error);
     expect((err as Error).cause).toHaveProperty(

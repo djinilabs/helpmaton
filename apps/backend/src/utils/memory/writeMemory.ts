@@ -9,6 +9,7 @@ import type { AugmentedContext } from "../workspaceCreditContext";
 import {
   applyMemoryOperationsToGraph,
   extractConversationMemory,
+  MemoryExtractionRetriesExhaustedError,
 } from "./memoryExtraction";
 
 /**
@@ -194,7 +195,7 @@ export async function writeToWorkingMemory(
         const stage = isGraphWrite ? "graph_write" : "memory_extraction";
         const retriesExhausted =
           stage === "memory_extraction" &&
-          /failed after \d+ attempts/i.test(err.message);
+          err instanceof MemoryExtractionRetriesExhaustedError;
         console.error(
           `[Memory Write] Memory extraction failed for conversation ${conversationId}, falling back to raw text:`,
           {

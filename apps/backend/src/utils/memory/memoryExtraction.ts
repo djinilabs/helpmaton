@@ -105,12 +105,23 @@ function buildRetryUserMessage(parseError: unknown): string {
     raw.length <= RETRY_ERROR_MESSAGE_MAX_LENGTH
       ? raw
       : `${raw.slice(0, RETRY_ERROR_MESSAGE_MAX_LENGTH)} (truncated)`;
-  return `Your previous response failed validation: ${errMsg}. Return a valid JSON object with keys "summary" and "memory_operations". Ensure every subject, predicate, and object value is a string (not a number).`;
+  return `Your previous response failed validation: ${errMsg}. Return a valid JSON object with keys "summary" and "memory_operations". Each subject, predicate, and object value must be representable as a non-empty string (numbers are allowed but will be converted to strings).`;
+}
+
+/** Error thrown when memory extraction exhausts retries; writeMemory uses this for Sentry tagging. */
+export class MemoryExtractionRetriesExhaustedError extends Error {
+  constructor(
+    message: string = `Memory extraction failed after ${MAX_MEMORY_EXTRACTION_ATTEMPTS} attempts`,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = "MemoryExtractionRetriesExhaustedError";
+  }
 }
 
 /** Throws the standard exhausted-retries error for empty/no-result so writeMemory can tag Sentry consistently. */
 function throwExhaustedEmptyResponse(): never {
-  throw new Error(
+  throw new MemoryExtractionRetriesExhaustedError(
     `Memory extraction failed after ${MAX_MEMORY_EXTRACTION_ATTEMPTS} attempts`,
     {
       cause: new Error("Memory extraction returned empty response"),
@@ -270,7 +281,10 @@ export async function extractConversationMemory(params: {
       if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
         messages = [
           ...messages,
-          { role: "assistant", content: "" },
+          {
+            role: "assistant",
+            content: "<no response>",
+          },
           {
             role: "user",
             content: buildRetryUserMessage(
@@ -403,14 +417,14 @@ export async function extractConversationMemory(params: {
         ];
         continue;
       }
-      throw new Error(
+      throw new MemoryExtractionRetriesExhaustedError(
         `Memory extraction failed after ${MAX_MEMORY_EXTRACTION_ATTEMPTS} attempts`,
         { cause: parseError },
       );
     }
   }
 
-  throw new Error("Memory extraction failed after max attempts");
+  throw new MemoryExtractionRetriesExhaustedError();
 }
 
 export async function applyMemoryOperationsToGraph(params: {
