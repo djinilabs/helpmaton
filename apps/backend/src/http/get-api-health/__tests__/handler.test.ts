@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // eslint-disable-next-line import/order
 import {
   createAPIGatewayEventV2,
-  createMockCallback,
   createMockContext,
 } from "../../utils/__tests__/test-helpers";
 
@@ -25,8 +24,6 @@ import { handler } from "../index";
 
 describe("get-api-health handler", () => {
   const mockContext = createMockContext();
-  const mockCallback = createMockCallback();
-
   beforeEach(() => {
     vi.clearAllMocks();
     mockDatabase.mockResolvedValue({
@@ -43,7 +40,7 @@ describe("get-api-health handler", () => {
       rawPath: "/api/health",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;

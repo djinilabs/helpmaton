@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // eslint-disable-next-line import/order
 import {
   createAPIGatewayEventV2,
-  createMockCallback,
   createMockContext,
 } from "../../utils/__tests__/test-helpers";
 
@@ -62,8 +61,6 @@ import { handler } from "../index";
 
 describe("any-api-auth-catchall handler", () => {
   const mockContext = createMockContext();
-  const mockCallback = createMockCallback();
-
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset mocks to default behavior
@@ -100,7 +97,7 @@ describe("any-api-auth-catchall handler", () => {
       },
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;

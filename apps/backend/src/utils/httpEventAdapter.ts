@@ -4,7 +4,6 @@ import type {
   APIGatewayProxyHandlerV2,
   APIGatewayProxyResultV2,
   Context,
-  Callback,
   LambdaFunctionURLEvent,
 } from "aws-lambda";
 
@@ -465,6 +464,11 @@ export function transformLambdaUrlToHttpV2Event(
  * export const handler = adaptHttpHandler(myHandler);
  * ```
  */
+/**
+ * Node.js 24+ Lambda does not support callback-based handlers; the runtime
+ * treats (event, context, callback) as callback-style and throws. So we use
+ * (event, context) only and never pass or accept a callback.
+ */
 export function adaptHttpHandler(
   handler: APIGatewayProxyHandlerV2
 ): (
@@ -473,8 +477,7 @@ export function adaptHttpHandler(
     | APIGatewayProxyEventV2
     | LambdaFunctionURLEvent
     | LambdaUrlEvent,
-  context: Context,
-  callback: Callback
+  context: Context
 ) => Promise<APIGatewayProxyResultV2> {
   return async (
     event:
@@ -482,8 +485,7 @@ export function adaptHttpHandler(
       | APIGatewayProxyEventV2
       | LambdaFunctionURLEvent
       | LambdaUrlEvent,
-    context: Context,
-    callback: Callback
+    context: Context
   ): Promise<APIGatewayProxyResultV2> => {
     try {
       const isRest = isRestEvent(event);
@@ -501,7 +503,7 @@ export function adaptHttpHandler(
         // Already HTTP v2 format (or unknown format - assume HTTP v2)
         httpV2Event = event;
       }
-      const result = await handler(httpV2Event, context, callback);
+      const result = await handler(httpV2Event, context, undefined!);
       if (!result) {
         throw new Error("Handler returned undefined");
       }

@@ -7,7 +7,6 @@ import { boomify } from "@hapi/boom";
 import {
   APIGatewayProxyHandlerV2,
   APIGatewayProxyEventV2,
-  Callback,
   APIGatewayProxyResultV2,
   ScheduledEvent,
 } from "aws-lambda";
@@ -56,13 +55,15 @@ const maybeNotifyCreditUserError = async (
   );
 };
 
+/**
+ * Node.js 24+ Lambda does not support callback-based handlers; use (event, context) only.
+ */
 export const handlingErrors = (
   userHandler: APIGatewayProxyHandlerV2
-): APIGatewayProxyHandlerV2 => {
+): ((event: APIGatewayProxyEventV2, context: Context) => Promise<APIGatewayProxyResultV2>) => {
   return async (
     event: APIGatewayProxyEventV2,
-    context: Context,
-    callback: Callback
+    context: Context
   ): Promise<APIGatewayProxyResultV2> => {
     const method = event.requestContext?.http?.method || "UNKNOWN";
     const path = event.rawPath || event.requestContext?.http?.path || "UNKNOWN";
@@ -167,7 +168,7 @@ export const handlingErrors = (
 
         let hadError = false;
         try {
-          const result = await userHandler(event, augmentedContext, callback);
+          const result = await userHandler(event, augmentedContext, undefined!);
           if (!result) {
             throw new Error("Handler returned undefined");
           }

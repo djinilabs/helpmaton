@@ -4,7 +4,6 @@ import type {
   APIGatewayProxyHandlerV2,
   APIGatewayProxyResultV2,
   Context,
-  Callback,
 } from "aws-lambda";
 import { describe, it, expect, vi } from "vitest";
 
@@ -53,8 +52,6 @@ describe("adaptHttpHandler", () => {
     fail: vi.fn(),
     succeed: vi.fn(),
   };
-
-  const mockCallback: Callback = vi.fn();
 
   describe("HTTP v2 event handling", () => {
     it("should pass through HTTP v2 events unchanged", async () => {
@@ -109,15 +106,14 @@ describe("adaptHttpHandler", () => {
       const adaptedHandler = adaptHttpHandler(mockHandler);
       const result = await adaptedHandler(
         httpV2Event,
-        mockContext,
-        mockCallback
+        mockContext
       );
 
       expect(mockHandler).toHaveBeenCalledTimes(1);
       expect(mockHandler).toHaveBeenCalledWith(
         httpV2Event,
         mockContext,
-        mockCallback
+        undefined
       );
       expect(result).toEqual({
         statusCode: 200,
@@ -179,7 +175,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       expect(mockHandler).toHaveBeenCalledTimes(1);
       const calledEvent = mockHandler.mock
@@ -257,7 +253,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -312,7 +308,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -364,7 +360,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -418,7 +414,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -466,7 +462,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -515,7 +511,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -564,7 +560,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -623,7 +619,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      const result = await adaptedHandler(restEvent, mockContext, mockCallback);
+      const result = await adaptedHandler(restEvent, mockContext);
 
       // multiValueHeaders should be converted to headers (first value taken)
       expect(result).toEqual({
@@ -681,7 +677,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      const result = await adaptedHandler(restEvent, mockContext, mockCallback);
+      const result = await adaptedHandler(restEvent, mockContext);
 
       // cookies array should be converted to Set-Cookie header (first cookie only due to REST API limitation)
       expect(result).toEqual({
@@ -741,7 +737,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      const result = await adaptedHandler(restEvent, mockContext, mockCallback);
+      const result = await adaptedHandler(restEvent, mockContext);
 
       // For REST API events, base64-encoded responses should be decoded
       expect(result).toEqual({
@@ -796,7 +792,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -847,7 +843,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(restEvent, mockContext, mockCallback);
+      await adaptedHandler(restEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -901,8 +897,7 @@ describe("adaptHttpHandler", () => {
       const adaptedHandler = adaptHttpHandler(mockHandler);
       const result = await adaptedHandler(
         httpV2Event,
-        mockContext,
-        mockCallback
+        mockContext
       );
 
       expect(result).toEqual(expectedResult);
@@ -951,7 +946,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      const result = await adaptedHandler(restEvent, mockContext, mockCallback);
+      const result = await adaptedHandler(restEvent, mockContext);
 
       expect(result).toEqual(expectedResult);
     });
@@ -995,7 +990,7 @@ describe("adaptHttpHandler", () => {
       const adaptedHandler = adaptHttpHandler(mockHandler);
 
       await expect(
-        adaptedHandler(httpV2Event, mockContext, mockCallback)
+        adaptedHandler(httpV2Event, mockContext)
       ).rejects.toThrow("Handler error");
     });
 
@@ -1040,7 +1035,7 @@ describe("adaptHttpHandler", () => {
       const adaptedHandler = adaptHttpHandler(mockHandler);
 
       await expect(
-        adaptedHandler(restEvent, mockContext, mockCallback)
+        adaptedHandler(restEvent, mockContext)
       ).rejects.toThrow("Handler error");
     });
   });
@@ -1720,7 +1715,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(lambdaEvent, mockContext, mockCallback);
+      await adaptedHandler(lambdaEvent, mockContext);
 
       expect(mockHandler).toHaveBeenCalledTimes(1);
       const calledEvent = mockHandler.mock
@@ -1796,7 +1791,7 @@ describe("adaptHttpHandler", () => {
       };
 
       const adaptedHandler = adaptHttpHandler(mockHandler);
-      await adaptedHandler(lambdaEvent, mockContext, mockCallback);
+      await adaptedHandler(lambdaEvent, mockContext);
 
       const calledEvent = mockHandler.mock
         .calls[0][0] as APIGatewayProxyEventV2;
@@ -1850,8 +1845,7 @@ describe("adaptHttpHandler", () => {
       const adaptedHandler = adaptHttpHandler(mockHandler);
       const result = await adaptedHandler(
         lambdaEvent,
-        mockContext,
-        mockCallback
+        mockContext
       );
 
       expect(result).toEqual(expectedResult);
@@ -1893,7 +1887,7 @@ describe("adaptHttpHandler", () => {
       const adaptedHandler = adaptHttpHandler(mockHandler);
 
       await expect(
-        adaptedHandler(lambdaEvent, mockContext, mockCallback)
+        adaptedHandler(lambdaEvent, mockContext)
       ).rejects.toThrow("Handler error");
     });
   });

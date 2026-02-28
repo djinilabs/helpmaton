@@ -39,7 +39,7 @@ const createHandler = async (): Promise<APIGatewayProxyHandlerV2> => {
   }
 };
 
-export const handler: APIGatewayProxyHandlerV2 = handlingErrors(
+export const handler = handlingErrors(
   async (...args: Parameters<APIGatewayProxyHandlerV2>) => {
     console.log(
       "[subscription-catchall] Handler called with args:",
