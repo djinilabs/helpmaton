@@ -144,7 +144,7 @@ describe("llm-shared handler", () => {
 
     await handler(event, mockContext);
 
-    expect(queueHandler).toHaveBeenCalledWith(event, mockContext, undefined);
+    expect(queueHandler).toHaveBeenCalledWith(event);
   });
 
   it("routes SQS events for physical FIFO queue names", async () => {
@@ -160,11 +160,7 @@ describe("llm-shared handler", () => {
 
     await handler(event, mockContext);
 
-    expect(mockWebhookQueueHandler).toHaveBeenCalledWith(
-      event,
-      mockContext,
-      undefined,
-    );
+    expect(mockWebhookQueueHandler).toHaveBeenCalledWith(event);
   });
 
   it("throws for unknown SQS queues", async () => {
@@ -201,11 +197,7 @@ describe("llm-shared handler", () => {
 
       await handler(event, mockContext);
 
-      expect(scheduleHandler).toHaveBeenCalledWith(
-        event,
-        mockContext,
-        undefined,
-      );
+      expect(scheduleHandler).toHaveBeenCalledWith(event);
     },
   );
 
@@ -229,11 +221,7 @@ describe("llm-shared handler", () => {
 
     await handler(event, mockContext);
 
-    expect(mockWebhookHandler).toHaveBeenCalledWith(
-      event,
-      mockContext,
-      undefined,
-    );
+    expect(mockWebhookHandler).toHaveBeenCalledWith(event, mockContext);
   });
 
   it("routes HTTP workspaces root to the correct handler", async () => {
@@ -243,11 +231,7 @@ describe("llm-shared handler", () => {
 
     await handler(event, mockContext);
 
-    expect(mockWorkspacesHandler).toHaveBeenCalledWith(
-      event,
-      mockContext,
-      undefined,
-    );
+    expect(mockWorkspacesHandler).toHaveBeenCalledWith(event, mockContext);
   });
 
   it("routes HTTP workspaces catchall to the correct handler", async () => {
@@ -260,7 +244,6 @@ describe("llm-shared handler", () => {
     expect(mockWorkspacesCatchallHandler).toHaveBeenCalledWith(
       event,
       mockContext,
-      undefined,
     );
   });
 

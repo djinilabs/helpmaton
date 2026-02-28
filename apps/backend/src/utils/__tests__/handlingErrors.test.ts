@@ -138,11 +138,7 @@ describe("handlingErrors", () => {
       });
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -151,8 +147,8 @@ describe("handlingErrors", () => {
       expect(result.statusCode).toBe(200);
       expect(mockHandler).toHaveBeenCalledWith(
         mockEvent,
-        mockContext,
-        expect.any(Function)
+        expect.anything(),
+        undefined
       );
       expect(mockSentryStartSpan).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -174,7 +170,7 @@ describe("handlingErrors", () => {
       });
 
       const wrappedHandler = handlingErrors(mockHandler);
-      await wrappedHandler(mockEvent, mockContext, vi.fn());
+      await wrappedHandler(mockEvent, mockContext);
 
       // Both should be flushed in finally block
       expect(flushPostHog).toHaveBeenCalledTimes(1);
@@ -207,7 +203,7 @@ describe("handlingErrors", () => {
       });
 
       const wrappedHandler = handlingErrors(mockHandler);
-      await wrappedHandler(mockEvent, mockContext, vi.fn());
+      await wrappedHandler(mockEvent, mockContext);
 
       expect(order).toContain("handler");
       expect(order.indexOf("flushSentry")).toBeGreaterThan(
@@ -232,11 +228,7 @@ describe("handlingErrors", () => {
         .mockImplementation(() => {});
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -259,11 +251,7 @@ describe("handlingErrors", () => {
       const mockHandler = vi.fn().mockRejectedValue(handlerError);
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -287,11 +275,7 @@ describe("handlingErrors", () => {
       const mockHandler = vi.fn().mockRejectedValue(handlerError);
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
       };
 
@@ -310,11 +294,7 @@ describe("handlingErrors", () => {
         .mockImplementation(() => {});
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -345,11 +325,7 @@ describe("handlingErrors", () => {
         .mockImplementation(() => {});
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -382,11 +358,7 @@ describe("handlingErrors", () => {
         .mockImplementation(() => {});
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -410,11 +382,7 @@ describe("handlingErrors", () => {
       const mockHandler = vi.fn().mockResolvedValue(undefined);
 
       const wrappedHandler = handlingErrors(mockHandler);
-      const result = (await wrappedHandler(
-        mockEvent,
-        mockContext,
-        vi.fn()
-      )) as {
+      const result = (await wrappedHandler(mockEvent, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;

@@ -1,6 +1,5 @@
 import type {
   APIGatewayProxyEventV2,
-  Callback,
   Context,
 } from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -206,8 +205,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -235,8 +233,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -296,8 +293,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -358,8 +354,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -418,8 +413,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -467,8 +461,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -528,8 +521,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -585,8 +577,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const lambdaContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, lambdaContext, mockCallback)) as {
+      const result = (await handler(event, lambdaContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -626,8 +617,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -677,8 +667,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
@@ -725,8 +714,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       const mockContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
-      const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, mockContext)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;

@@ -113,6 +113,10 @@
 - **Routes**: RESTful patterns in app.arc
 - **GSIs**: Descriptive names (e.g., `byWorkspaceId`, `byAgentIdAndDate`)
 
+### Lambda Handlers (Node.js 24+)
+
+- **Promise-only**: All Lambda handlers must use the async/Promise signature only. Node.js 24+ does not support callback-based handlers `(event, context, callback)`; use `(event, context) => Promise<...>` or `async (event, context) => ...`. Wrappers (`adaptHttpHandler`, `handlingErrors`, `handlingSQSErrors`, `handlingScheduledErrors`) and multiplexing handlers (e.g. llm-shared) must not accept or pass a callback parameter.
+
 ### Deployment Patterns
 
 - **PR Deployments**: Each PR creates CloudFormation stack

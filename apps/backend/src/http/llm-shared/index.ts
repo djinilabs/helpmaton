@@ -1,7 +1,6 @@
 import type {
   APIGatewayProxyEvent,
   APIGatewayProxyEventV2,
-  Callback,
   Context,
   ScheduledEvent,
   SQSEvent,
@@ -297,8 +296,6 @@ async function respondWithStream(
 export const handler = async (...args: unknown[]) => {
   const event = args[0];
   const context = resolveContext(args);
-  const callback =
-    typeof args[2] === "function" ? (args[2] as Callback) : undefined;
 
   if (isSqsEvent(event)) {
     const queueHandler = resolveQueueHandler(event);
@@ -308,7 +305,7 @@ export const handler = async (...args: unknown[]) => {
         `[llm-shared] Unknown SQS queue for event: ${queueName ?? "unknown"}`,
       );
     }
-    return await queueHandler(event, context, callback);
+    return await queueHandler(event);
   }
 
   if (isScheduledEvent(event)) {
@@ -316,7 +313,7 @@ export const handler = async (...args: unknown[]) => {
     if (!scheduleHandler) {
       throw new Error("[llm-shared] Unknown scheduled event");
     }
-    return await scheduleHandler(event, context, callback);
+    return await scheduleHandler(event);
   }
 
   if (isHttpEvent(event)) {
@@ -338,7 +335,7 @@ export const handler = async (...args: unknown[]) => {
       return buildHttpNotFound();
     }
     const responseStream = isResponseStream(args[1]) ? args[1] : undefined;
-    const response = await httpHandler(event, context, callback);
+    const response = await httpHandler(event, context);
     if (responseStream && response && typeof response === "object") {
       console.log("[llm-shared] Non-stream HTTP response streamed", {
         path,
