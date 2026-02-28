@@ -4,6 +4,7 @@ import type { AugmentedContext } from "../../workspaceCreditContext";
 import {
   applyMemoryOperationsToGraph,
   extractConversationMemory,
+  MemoryExtractionRetriesExhaustedError,
 } from "../memoryExtraction";
 
 const mockGenerateText = vi.fn();
@@ -161,21 +162,328 @@ describe("memoryExtraction", () => {
     expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
-  it("throws when JSON is invalid and does not call LLM again", async () => {
+  it("retries when first response has invalid object value (e.g. null)", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Bad",
+          memory_operations: [
+            {
+              operation: "ADD",
+              subject: "User",
+              predicate: "value",
+              object: null,
+              confidence: 1,
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Ok",
+          memory_operations: [
+            {
+              operation: "ADD",
+              subject: "User",
+              predicate: "value",
+              object: "3",
+              confidence: 1,
+            },
+          ],
+        }),
+      });
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: value is 3.",
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(result?.memoryOperations[0].object).toBe("3");
+  });
+
+  it("accepts numeric object (and subject/predicate) from LLM and coerces to string", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: JSON.stringify({
+        summary: "User shared quantity",
+        memory_operations: [
+          {
+            operation: "ADD",
+            subject: "User",
+            predicate: "child_count",
+            object: 3,
+            confidence: 1,
+          },
+          {
+            operation: "ADD",
+            subject: "User",
+            predicate: "preference",
+            object: "JavaScript",
+            confidence: 0.9,
+          },
+        ],
+      }),
+    });
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: I have 3 children.",
+    });
+
+    expect(result?.summary).toBe("User shared quantity");
+    expect(result?.memoryOperations).toHaveLength(2);
+    expect(result?.memoryOperations[0].object).toBe("3");
+    expect(typeof result?.memoryOperations[0].object).toBe("string");
+    expect(result?.memoryOperations[1].object).toBe("JavaScript");
+  });
+
+  it("refeeds parse error and retries; succeeds on second attempt", async () => {
+    // First attempt: invalid (missing required "object" field) → ZodError
+    mockGenerateText
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Bad",
+          memory_operations: [
+            {
+              operation: "ADD",
+              subject: "User",
+              predicate: "has_name",
+              // object missing → validation fails
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Fixed",
+          memory_operations: [
+            {
+              operation: "ADD",
+              subject: "User",
+              predicate: "has_name",
+              object: "Alice",
+              confidence: 1,
+            },
+          ],
+        }),
+      });
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: My name is Alice.",
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(result?.summary).toBe("Fixed");
+    expect(result?.memoryOperations).toHaveLength(1);
+    expect(result?.memoryOperations[0].object).toBe("Alice");
+  });
+
+  it("throws after max attempts when parse keeps failing", async () => {
     mockGenerateText.mockResolvedValue({
       text: "```json\n{ invalid }\n```",
     });
 
-    await expect(
-      extractConversationMemory({
-        workspaceId: "workspace-1",
-        agentId: "agent-1",
-        conversationId: "conversation-1",
-        conversationText: "User: Hello",
-      }),
-    ).rejects.toThrow();
+    const err = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+    }).then(
+      () => null,
+      (e: unknown) => e,
+    );
 
-    expect(mockGenerateText).toHaveBeenCalledTimes(1);
+    expect(err).toBeInstanceOf(MemoryExtractionRetriesExhaustedError);
+    expect((err as Error).message).toMatch(/failed after 2 attempts/);
+    expect((err as Error).cause).toBeDefined();
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries on empty response and succeeds on second attempt", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: "" })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Recovered",
+          memory_operations: [],
+        }),
+      });
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hi",
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(result?.summary).toBe("Recovered");
+    expect(result?.memoryOperations).toHaveLength(0);
+  });
+
+  it("charges for empty response then retries (no refund on parse/empty)", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: "" })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Ok",
+          memory_operations: [],
+        }),
+      });
+    mockValidateCreditsAndLimitsAndReserve
+      .mockResolvedValueOnce({
+        reservationId: "res-1",
+        reservedAmount: 100,
+        workspace: { creditBalance: 0, currency: "usd" },
+      })
+      .mockResolvedValueOnce({
+        reservationId: "res-2",
+        reservedAmount: 100,
+        workspace: { creditBalance: 0, currency: "usd" },
+      });
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 100,
+    });
+
+    const context = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hi",
+      context,
+    });
+
+    expect(result?.summary).toBe("Ok");
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockAdjustCreditsAfterLLMCall).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws after max attempts when both responses are empty", async () => {
+    mockGenerateText.mockResolvedValue({ text: "" });
+
+    const err = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+    }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    expect(err).toBeInstanceOf(MemoryExtractionRetriesExhaustedError);
+    expect((err as Error).message).toMatch(/failed after 2 attempts/);
+    expect((err as Error).cause).toBeInstanceOf(Error);
+    expect((err as Error).cause).toHaveProperty(
+      "message",
+      "Memory extraction returned empty response",
+    );
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+  });
+
+  it("second attempt receives refeed messages (original + assistant + user error)", async () => {
+    const invalidPayload = JSON.stringify({
+      summary: "Bad",
+      memory_operations: [
+        { operation: "ADD", subject: "User", predicate: "p" },
+        // missing object
+      ],
+    });
+    mockGenerateText
+      .mockResolvedValueOnce({ text: invalidPayload })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Ok",
+          memory_operations: [],
+        }),
+      });
+
+    await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    const firstCall = mockGenerateText.mock.calls[0][0] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const secondCall = mockGenerateText.mock.calls[1][0] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(firstCall.messages).toHaveLength(1);
+    expect(firstCall.messages[0].role).toBe("user");
+    expect(secondCall.messages).toHaveLength(3);
+    expect(secondCall.messages[0].role).toBe("user");
+    expect(secondCall.messages[1].role).toBe("assistant");
+    expect(secondCall.messages[1].content).toBe(invalidPayload);
+    expect(secondCall.messages[2].role).toBe("user");
+    expect(secondCall.messages[2].content).toMatch(/failed validation/i);
+    expect(secondCall.messages[2].content).toMatch(/subject.*predicate.*object/i);
+  });
+
+  it("reserves and adjusts credits twice when retry succeeds", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Bad",
+          memory_operations: [{ operation: "ADD", subject: "U", predicate: "p" }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Good",
+          memory_operations: [],
+        }),
+      });
+    mockValidateCreditsAndLimitsAndReserve
+      .mockResolvedValueOnce({
+        reservationId: "res-1",
+        reservedAmount: 100,
+        workspace: { creditBalance: 0, currency: "usd" },
+      })
+      .mockResolvedValueOnce({
+        reservationId: "res-2",
+        reservedAmount: 100,
+        workspace: { creditBalance: 0, currency: "usd" },
+      });
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 100,
+    });
+
+    const context = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+
+    await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+      context,
+    });
+
+    expect(mockValidateCreditsAndLimitsAndReserve).toHaveBeenCalledTimes(2);
+    expect(mockAdjustCreditsAfterLLMCall).toHaveBeenCalledTimes(2);
+    expect(mockEnqueueCostVerificationIfNeeded).toHaveBeenCalledTimes(2);
   });
 
   it("adjusts credits after a successful extraction when reservation exists", async () => {

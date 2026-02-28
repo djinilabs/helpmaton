@@ -28,12 +28,30 @@ import {
   DEFAULT_MEMORY_EXTRACTION_PROMPT,
 } from "./memoryExtractionPrompt";
 
+/** Max consecutive extraction attempts; on parse/validation failure we feed the error back and retry. */
+const MAX_MEMORY_EXTRACTION_ATTEMPTS = 2;
+
+/** Max length of validation error included in the feed-back message to avoid huge context. */
+const RETRY_ERROR_MESSAGE_MAX_LENGTH = 500;
+
+/** Max length of response preview in parse-failure logs. */
+const RESPONSE_PREVIEW_MAX_LENGTH = 300;
+
+/** Coerce string or finite number to string; LLMs sometimes return numbers for object (e.g. quantities). */
+const stringOrNumberSchema = z
+  .union([
+    z.string(),
+    z.number().refine(Number.isFinite, { message: "number must be finite" }),
+  ])
+  .transform((v) => String(v))
+  .refine((s) => s.length >= 1, { message: "value must be non-empty" });
+
 const MemoryOperationSchema = z
   .object({
     operation: z.enum(["ADD", "UPDATE", "DELETE"]),
-    subject: z.string().min(1),
-    predicate: z.string().min(1),
-    object: z.string().min(1),
+    subject: stringOrNumberSchema,
+    predicate: stringOrNumberSchema,
+    object: stringOrNumberSchema,
     confidence: z.number().min(0).max(1).optional().default(1),
   })
   .strict();
@@ -80,6 +98,37 @@ function buildExtractionMessages(conversationText: string): ModelMessage[] {
   ];
 }
 
+function buildRetryUserMessage(parseError: unknown): string {
+  const raw =
+    parseError instanceof Error ? parseError.message : String(parseError);
+  const errMsg =
+    raw.length <= RETRY_ERROR_MESSAGE_MAX_LENGTH
+      ? raw
+      : `${raw.slice(0, RETRY_ERROR_MESSAGE_MAX_LENGTH)} (truncated)`;
+  return `Your previous response failed validation: ${errMsg}. Return a valid JSON object with keys "summary" and "memory_operations". Each subject, predicate, and object value must be representable as a non-empty string (numbers are allowed but will be converted to strings).`;
+}
+
+/** Error thrown when memory extraction exhausts retries; writeMemory uses this for Sentry tagging. */
+export class MemoryExtractionRetriesExhaustedError extends Error {
+  constructor(
+    message: string = `Memory extraction failed after ${MAX_MEMORY_EXTRACTION_ATTEMPTS} attempts`,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = "MemoryExtractionRetriesExhaustedError";
+  }
+}
+
+/** Throws the standard exhausted-retries error for empty/no-result so writeMemory can tag Sentry consistently. */
+function throwExhaustedEmptyResponse(): never {
+  throw new MemoryExtractionRetriesExhaustedError(
+    `Memory extraction failed after ${MAX_MEMORY_EXTRACTION_ATTEMPTS} attempts`,
+    {
+      cause: new Error("Memory extraction returned empty response"),
+    },
+  );
+}
+
 function parseExtractionResponse(text: string): MemoryExtractionResult {
   const parsed = parseJsonWithFallback<unknown>(text);
   const result = MemoryExtractionResponseSchema.parse(parsed);
@@ -94,6 +143,12 @@ function parseExtractionResponse(text: string): MemoryExtractionResult {
   return { summary, memoryOperations };
 }
 
+/**
+ * Extracts summary and memory operations from conversation text via the LLM.
+ * On parse/validation failure, feeds the error back and retries up to MAX_MEMORY_EXTRACTION_ATTEMPTS.
+ * Charges for every LLM response (including empty or parse failure); refunds only when the provider
+ * completely fails (no response / non-OK status, i.e. generateText throws).
+ */
 export async function extractConversationMemory(params: {
   workspaceId: string;
   agentId: string;
@@ -121,176 +176,255 @@ export async function extractConversationMemory(params: {
       ? modelName.trim()
       : getDefaultModel();
   const systemPrompt = buildExtractionSystemPrompt(prompt);
-  const messages = buildExtractionMessages(conversationText);
+  let messages: ModelMessage[] = buildExtractionMessages(conversationText);
 
   const db = await database();
   const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
   const usesByok = workspaceKey !== null;
 
-  console.log("[Memory Extraction] generateText arguments:", {
-    workspaceId,
-    agentId,
-    conversationId,
-    model: resolvedModelName,
-    systemPromptLength: systemPrompt.length,
-    messageLength: conversationText.length,
-    promptPreview:
-      prompt && prompt.trim().length > 0
-        ? prompt.trim().substring(0, 60)
-        : DEFAULT_MEMORY_EXTRACTION_PROMPT.substring(0, 60),
-  });
+  // Retry loop: on empty response or parse/validation failure we feed the error back and try again (up to MAX_MEMORY_EXTRACTION_ATTEMPTS).
+  for (let attempt = 1; attempt <= MAX_MEMORY_EXTRACTION_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      console.warn("[Memory Extraction] Retrying after parse/validation failure", {
+        attempt,
+        maxAttempts: MAX_MEMORY_EXTRACTION_ATTEMPTS,
+        conversationId,
+      });
+    }
+    console.log("[Memory Extraction] generateText arguments:", {
+      workspaceId,
+      agentId,
+      conversationId,
+      attempt,
+      maxAttempts: MAX_MEMORY_EXTRACTION_ATTEMPTS,
+      model: resolvedModelName,
+      systemPromptLength: systemPrompt.length,
+      messageLength: conversationText.length,
+      promptPreview:
+        prompt && prompt.trim().length > 0
+          ? prompt.trim().substring(0, 60)
+          : DEFAULT_MEMORY_EXTRACTION_PROMPT.substring(0, 60),
+    });
 
-  const reservation = await validateCreditsAndLimitsAndReserve(
-    db,
-    workspaceId,
-    agentId,
-    "openrouter",
-    resolvedModelName,
-    messages,
-    systemPrompt,
-    undefined,
-    usesByok,
-    context,
-    conversationId,
-  );
-  const reservationId = reservation?.reservationId;
-
-  const requestTimeout = createRequestTimeout();
-  let result: Awaited<ReturnType<typeof generateText>> | null = null;
-  let model:
-    | Parameters<typeof generateText>[0]["model"]
-    | null = null;
-  let llmCallAttempted = false;
-  try {
-    model = (await createModel(
+    const reservation = await validateCreditsAndLimitsAndReserve(
+      db,
+      workspaceId,
+      agentId,
       "openrouter",
       resolvedModelName,
-      workspaceId,
-      process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook",
-    )) as unknown as Parameters<typeof generateText>[0]["model"];
-    llmCallAttempted = true;
-    result = await generateText({
-      model,
-      system: systemPrompt,
       messages,
-      abortSignal: requestTimeout.signal,
-    });
-  } catch (error) {
+      systemPrompt,
+      undefined,
+      usesByok,
+      context,
+      conversationId,
+    );
+    const reservationId = reservation?.reservationId;
+
+    const requestTimeout = createRequestTimeout();
+    let result: Awaited<ReturnType<typeof generateText>> | null = null;
+    let model:
+      | Parameters<typeof generateText>[0]["model"]
+      | null = null;
+    let llmCallAttempted = false;
+    try {
+      model = (await createModel(
+        "openrouter",
+        resolvedModelName,
+        workspaceId,
+        process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook",
+      )) as unknown as Parameters<typeof generateText>[0]["model"];
+      llmCallAttempted = true;
+      result = await generateText({
+        model,
+        system: systemPrompt,
+        messages,
+        abortSignal: requestTimeout.signal,
+      });
+    } catch (error) {
+      if (reservationId && context) {
+        await cleanupReservationOnError(
+          db,
+          reservationId,
+          workspaceId,
+          agentId,
+          "openrouter",
+          resolvedModelName,
+          error,
+          llmCallAttempted,
+          usesByok,
+          "memory-extraction",
+          context,
+        );
+      }
+      throw error;
+    } finally {
+      cleanupRequestTimeout(requestTimeout);
+    }
+
+    if (!result) {
+      if (reservationId && context) {
+        await cleanupReservationOnError(
+          db,
+          reservationId,
+          workspaceId,
+          agentId,
+          "openrouter",
+          resolvedModelName,
+          new Error("Memory extraction returned no result"),
+          true,
+          usesByok,
+          "memory-extraction",
+          context,
+        );
+      }
+      if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
+        messages = [
+          ...messages,
+          {
+            role: "assistant",
+            content: "<no response>",
+          },
+          {
+            role: "user",
+            content: buildRetryUserMessage(
+              new Error("Memory extraction returned empty response"),
+            ),
+          },
+        ];
+        continue;
+      }
+      throwExhaustedEmptyResponse();
+    }
+
+    // Charge for every LLM response; only refund when the provider completely fails (generateText threw).
+    const extractionResult = extractTokenUsageAndCosts(
+      result,
+      undefined,
+      resolvedModelName,
+      "memory-extraction",
+    );
+    const tokenUsage = extractionResult.tokenUsage;
+
     if (reservationId && context) {
-      await cleanupReservationOnError(
+      const dbWithAtomic = db as Parameters<typeof adjustCreditsAfterLLMCall>[0];
+      await adjustCreditsAfterLLMCall(
+        dbWithAtomic,
+        workspaceId,
+        agentId,
+        reservationId,
+        "openrouter",
+        resolvedModelName,
+        tokenUsage,
+        usesByok,
+        extractionResult.openrouterGenerationId,
+        extractionResult.openrouterGenerationIds,
+        "memory-extraction",
+        context,
+        conversationId,
+      );
+    } else if (reservationId && !context) {
+      console.warn("[Memory Extraction] No context for credit adjustment", {
+        workspaceId,
+        agentId,
+        reservationId,
+      });
+    }
+
+    const hasGenerationIds =
+      extractionResult.openrouterGenerationIds.length > 0 ||
+      Boolean(extractionResult.openrouterGenerationId);
+    if (
+      reservationId &&
+      reservationId !== "byok" &&
+      (!tokenUsage ||
+        (tokenUsage.promptTokens === 0 &&
+          tokenUsage.completionTokens === 0)) &&
+      !hasGenerationIds
+    ) {
+      await cleanupReservationWithoutTokenUsage(
         db,
         reservationId,
         workspaceId,
         agentId,
-        "openrouter",
-        resolvedModelName,
-        error,
-        llmCallAttempted,
-        usesByok,
         "memory-extraction",
-        context,
+      );
+    } else if (
+      reservationId &&
+      reservationId !== "byok" &&
+      (!tokenUsage ||
+        (tokenUsage.promptTokens === 0 &&
+          tokenUsage.completionTokens === 0)) &&
+      hasGenerationIds
+    ) {
+      console.warn(
+        "[Memory Extraction] No token usage available, keeping reservation for verification",
+        {
+          workspaceId,
+          agentId,
+          reservationId,
+        },
       );
     }
-    throw error;
-  } finally {
-    cleanupRequestTimeout(requestTimeout);
-  }
 
-  if (!result) {
-    throw new Error("Memory extraction returned empty response");
-  }
-  const resultText = result.text.trim();
-  if (!resultText) {
-    throw new Error("Memory extraction returned empty response");
-  }
-
-  const extractionResult = extractTokenUsageAndCosts(
-    result,
-    undefined,
-    resolvedModelName,
-    "memory-extraction",
-  );
-  const tokenUsage = extractionResult.tokenUsage;
-
-  if (reservationId && context) {
-    const dbWithAtomic = db as Parameters<typeof adjustCreditsAfterLLMCall>[0];
-    await adjustCreditsAfterLLMCall(
-      dbWithAtomic,
-      workspaceId,
-      agentId,
-      reservationId,
-      "openrouter",
-      resolvedModelName,
-      tokenUsage,
-      usesByok,
+    await enqueueCostVerificationIfNeeded(
       extractionResult.openrouterGenerationId,
       extractionResult.openrouterGenerationIds,
-      "memory-extraction",
-      context,
+      workspaceId,
+      reservationId,
       conversationId,
-    );
-  } else if (reservationId && !context) {
-    console.warn("[Memory Extraction] No context for credit adjustment", {
-      workspaceId,
-      agentId,
-      reservationId,
-    });
-  }
-
-  const hasGenerationIds =
-    extractionResult.openrouterGenerationIds.length > 0 ||
-    Boolean(extractionResult.openrouterGenerationId);
-  if (
-    reservationId &&
-    reservationId !== "byok" &&
-    (!tokenUsage ||
-      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
-    !hasGenerationIds
-  ) {
-    await cleanupReservationWithoutTokenUsage(
-      db,
-      reservationId,
-      workspaceId,
       agentId,
       "memory-extraction",
     );
-  } else if (
-    reservationId &&
-    reservationId !== "byok" &&
-    (!tokenUsage ||
-      (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)) &&
-    hasGenerationIds
-  ) {
-    console.warn(
-      "[Memory Extraction] No token usage available, keeping reservation for verification",
-      {
-        workspaceId,
-        agentId,
-        reservationId,
-      },
-    );
+
+    const resultText = result.text.trim();
+    if (!resultText) {
+      if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
+        messages = [
+          ...messages,
+          { role: "assistant", content: result.text },
+          {
+            role: "user",
+            content: buildRetryUserMessage(
+              new Error("Memory extraction returned empty response"),
+            ),
+          },
+        ];
+        continue;
+      }
+      throwExhaustedEmptyResponse();
+    }
+
+    try {
+      return parseExtractionResponse(resultText);
+    } catch (parseError) {
+      const errorMessage =
+        parseError instanceof Error ? parseError.message : String(parseError);
+      console.warn("[Memory Extraction] Failed to parse response:", {
+        attempt,
+        maxAttempts: MAX_MEMORY_EXTRACTION_ATTEMPTS,
+        error: errorMessage,
+        responsePreview: resultText.substring(0, RESPONSE_PREVIEW_MAX_LENGTH),
+      });
+      if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
+        messages = [
+          ...messages,
+          { role: "assistant", content: result.text },
+          {
+            role: "user",
+            content: buildRetryUserMessage(parseError),
+          },
+        ];
+        continue;
+      }
+      throw new MemoryExtractionRetriesExhaustedError(
+        `Memory extraction failed after ${MAX_MEMORY_EXTRACTION_ATTEMPTS} attempts`,
+        { cause: parseError },
+      );
+    }
   }
 
-  await enqueueCostVerificationIfNeeded(
-    extractionResult.openrouterGenerationId,
-    extractionResult.openrouterGenerationIds,
-    workspaceId,
-    reservationId,
-    conversationId,
-    agentId,
-    "memory-extraction",
-  );
-
-  try {
-    return parseExtractionResponse(resultText);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn("[Memory Extraction] Failed to parse response:", {
-      error: errorMessage,
-      responsePreview: resultText.substring(0, 300),
-    });
-    throw error;
-  }
+  throw new MemoryExtractionRetriesExhaustedError();
 }
 
 export async function applyMemoryOperationsToGraph(params: {
