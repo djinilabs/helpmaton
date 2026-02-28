@@ -192,6 +192,9 @@ export async function writeToWorkingMemory(
         const isGraphWrite =
           /S3|graph|COPY TO|HeadObject|Knowledge graph/i.test(err.message);
         const stage = isGraphWrite ? "graph_write" : "memory_extraction";
+        const retriesExhausted =
+          stage === "memory_extraction" &&
+          /failed after \d+ attempts/i.test(err.message);
         console.error(
           `[Memory Write] Memory extraction failed for conversation ${conversationId}, falling back to raw text:`,
           {
@@ -202,6 +205,7 @@ export async function writeToWorkingMemory(
             agentId,
             conversationId,
             stage,
+            retriesExhausted,
           },
         );
         Sentry.captureException(ensureError(error), {
@@ -211,8 +215,13 @@ export async function writeToWorkingMemory(
             conversationId,
             stage,
             errorMessage: err.message,
+            retriesExhausted,
           },
-          tags: { feature: "memory_write", failure: stage },
+          tags: {
+            feature: "memory_write",
+            failure: stage,
+            ...(retriesExhausted ? { retries_exhausted: "true" } : {}),
+          },
         });
       }
     }
