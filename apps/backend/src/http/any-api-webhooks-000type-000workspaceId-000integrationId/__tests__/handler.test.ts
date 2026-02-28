@@ -200,8 +200,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -221,8 +220,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -242,8 +240,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -258,8 +255,7 @@ describe("Unified webhook handler", () => {
       const event = createEvent();
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -277,8 +273,7 @@ describe("Unified webhook handler", () => {
       const event = createEvent();
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -300,8 +295,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -330,8 +324,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -369,8 +362,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -405,8 +397,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -444,8 +435,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -490,8 +480,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -524,8 +513,7 @@ describe("Unified webhook handler", () => {
 
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);
@@ -557,8 +545,7 @@ describe("Unified webhook handler", () => {
       const event = createDiscordEvent();
       const result = await handler(
         event,
-        {} as Parameters<typeof handler>[1],
-        () => {}
+        {} as Parameters<typeof handler>[1]
       );
 
       assertResult(result);

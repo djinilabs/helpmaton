@@ -81,7 +81,7 @@ async function buildBackend() {
         entryPoints: [entryPoint],
         bundle: true,
         platform: "node",
-        target: "node20",
+        target: "node24",
         format: "cjs", // CommonJS format required for Lambda handlers
         outfile: outputPath,
         external: [

@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // eslint-disable-next-line import/order
 import {
   createAPIGatewayEventV2,
-  createMockCallback,
   createMockContext,
 } from "../../utils/__tests__/test-helpers";
 
@@ -44,7 +43,6 @@ import { handler } from "../index";
 
 describe("get-api-models handler", () => {
   const mockContext = createMockContext();
-  const mockCallback = createMockCallback();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -82,7 +80,7 @@ describe("get-api-models handler", () => {
       rawPath: "/api/models",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -135,7 +133,7 @@ describe("get-api-models handler", () => {
       rawPath: "/api/models",
     });
 
-    const result = await handler(event, mockContext, mockCallback);
+    const result = await handler(event, mockContext);
 
     expect(result).toEqual({
       statusCode: 200,
@@ -166,7 +164,7 @@ describe("get-api-models handler", () => {
       rawPath: "/api/models",
     });
 
-    const result = await handler(event, mockContext, mockCallback);
+    const result = await handler(event, mockContext);
 
     expect(result).toEqual({
       statusCode: 200,
@@ -214,7 +212,7 @@ describe("get-api-models handler", () => {
       rawPath: "/api/models",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -269,7 +267,7 @@ describe("get-api-models handler", () => {
       rawPath: "/api/models",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -297,7 +295,7 @@ describe("get-api-models handler", () => {
       rawPath: "/api/models",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;

@@ -5,6 +5,9 @@
   "type": "module",
   "main": "index.js",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "repository": "https://github.com/djinilabs/helpmaton",
   "author": "Djini Labs, Gordon & Teixeira Lda.",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -63,6 +66,7 @@
     "generate:openapi": "pnpm exec tsx scripts/generate-openapi.ts",
     "test:openrouter-rerank": "pnpm exec tsx scripts/test-openrouter-rerank-via-chat.ts",
     "cleanup-ecr": "node scripts/cleanup-ecr-images.mjs",
+    "export:svg-to-png": "node scripts/export-svg-to-png.mjs",
     "cleanup-ecr:dry-run": "node scripts/cleanup-ecr-images.mjs --dry-run",
     "cleanup-ecr:execute": "node scripts/cleanup-ecr-images.mjs --execute",
     "clean:local": "rm -rf apps/backend/dist apps/backend/public apps/frontend/dist .pnpm-store node_modules && pnpm install",
@@ -119,6 +123,7 @@
     "gray-matter": "^4.0.3",
     "jose": "^6.1.3",
     "nanoid": "^5.0.9",
+    "sharp": "^0.34.5",
     "node-gyp": "^12.1.0",
     "npm-run-all2": "^8.0.4",
     "swagger-jsdoc": "^6.2.8",
