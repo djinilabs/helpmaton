@@ -6465,9 +6465,9 @@
         },
         "deepseek/deepseek-r1-0528": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.75,
-            "cachedInput": 0.04
+            "input": 0.44999999999999996,
+            "output": 2.1500000000000004,
+            "cachedInput": 0.045
           },
           "capabilities": {
             "input_modalities": [
@@ -7083,7 +7083,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32000
+          "context_length": 40960
         },
         "qwen/qwen3-14b": {
           "usd": {
@@ -7815,9 +7815,9 @@
         },
         "deepseek/deepseek-chat-v3-0324": {
           "usd": {
-            "input": 0.19,
-            "output": 0.87,
-            "cachedInput": 0.019000000000000003
+            "input": 0.19999999999999998,
+            "output": 0.77,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -12963,9 +12963,9 @@
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.3,
-            "output": 1.1,
-            "cachedInput": 0.03
+            "input": 0.295,
+            "output": 1.2,
+            "cachedInput": 0.0295
           },
           "capabilities": {
             "input_modalities": [
@@ -13546,5 +13546,5 @@
       }
     }
   },
-  "lastUpdated": "2026-02-27T00:20:30.131Z"
+  "lastUpdated": "2026-02-28T00:16:41.529Z"
 }
