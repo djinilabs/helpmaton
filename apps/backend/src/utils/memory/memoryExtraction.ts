@@ -28,15 +28,21 @@ import {
   DEFAULT_MEMORY_EXTRACTION_PROMPT,
 } from "./memoryExtractionPrompt";
 
-/** Max consecutive extraction attempts; on parse/validation failure we refeed the error and retry. */
+/** Max consecutive extraction attempts; on parse/validation failure we feed the error back and retry. */
 const MAX_MEMORY_EXTRACTION_ATTEMPTS = 2;
 
-/** Max length of validation error included in refeed message to avoid huge context. */
+/** Max length of validation error included in the feed-back message to avoid huge context. */
 const RETRY_ERROR_MESSAGE_MAX_LENGTH = 500;
 
-/** Coerce string or number to string; LLMs sometimes return numbers for object (e.g. quantities). */
+/** Max length of response preview in parse-failure logs. */
+const RESPONSE_PREVIEW_MAX_LENGTH = 300;
+
+/** Coerce string or finite number to string; LLMs sometimes return numbers for object (e.g. quantities). */
 const stringOrNumberSchema = z
-  .union([z.string(), z.number()])
+  .union([
+    z.string(),
+    z.number().refine(Number.isFinite, { message: "number must be finite" }),
+  ])
   .transform((v) => String(v))
   .refine((s) => s.length >= 1, { message: "value must be non-empty" });
 
@@ -102,6 +108,16 @@ function buildRetryUserMessage(parseError: unknown): string {
   return `Your previous response failed validation: ${errMsg}. Return a valid JSON object with keys "summary" and "memory_operations". Ensure every subject, predicate, and object value is a string (not a number).`;
 }
 
+/** Throws the standard exhausted-retries error for empty/no-result so writeMemory can tag Sentry consistently. */
+function throwExhaustedEmptyResponse(): never {
+  throw new Error(
+    `Memory extraction failed after ${MAX_MEMORY_EXTRACTION_ATTEMPTS} attempts`,
+    {
+      cause: new Error("Memory extraction returned empty response"),
+    },
+  );
+}
+
 function parseExtractionResponse(text: string): MemoryExtractionResult {
   const parsed = parseJsonWithFallback<unknown>(text);
   const result = MemoryExtractionResponseSchema.parse(parsed);
@@ -116,6 +132,12 @@ function parseExtractionResponse(text: string): MemoryExtractionResult {
   return { summary, memoryOperations };
 }
 
+/**
+ * Extracts summary and memory operations from conversation text via the LLM.
+ * On parse/validation failure, feeds the error back and retries up to MAX_MEMORY_EXTRACTION_ATTEMPTS.
+ * Charges for every LLM response (including empty or parse failure); refunds only when the provider
+ * completely fails (no response / non-OK status, i.e. generateText throws).
+ */
 export async function extractConversationMemory(params: {
   workspaceId: string;
   agentId: string;
@@ -149,7 +171,7 @@ export async function extractConversationMemory(params: {
   const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
   const usesByok = workspaceKey !== null;
 
-  // Retry loop: on empty response or parse/validation failure we refeed the error and try again (up to MAX_MEMORY_EXTRACTION_ATTEMPTS).
+  // Retry loop: on empty response or parse/validation failure we feed the error back and try again (up to MAX_MEMORY_EXTRACTION_ATTEMPTS).
   for (let attempt = 1; attempt <= MAX_MEMORY_EXTRACTION_ATTEMPTS; attempt++) {
     if (attempt > 1) {
       console.warn("[Memory Extraction] Retrying after parse/validation failure", {
@@ -258,7 +280,7 @@ export async function extractConversationMemory(params: {
         ];
         continue;
       }
-      throw new Error("Memory extraction returned empty response");
+      throwExhaustedEmptyResponse();
     }
 
     // Charge for every LLM response; only refund when the provider completely fails (generateText threw).
@@ -356,7 +378,7 @@ export async function extractConversationMemory(params: {
         ];
         continue;
       }
-      throw new Error("Memory extraction returned empty response");
+      throwExhaustedEmptyResponse();
     }
 
     try {
@@ -368,7 +390,7 @@ export async function extractConversationMemory(params: {
         attempt,
         maxAttempts: MAX_MEMORY_EXTRACTION_ATTEMPTS,
         error: errorMessage,
-        responsePreview: resultText.substring(0, 300),
+        responsePreview: resultText.substring(0, RESPONSE_PREVIEW_MAX_LENGTH),
       });
       if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
         messages = [

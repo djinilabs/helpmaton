@@ -161,6 +161,48 @@ describe("memoryExtraction", () => {
     expect(mockGenerateText).toHaveBeenCalledTimes(1);
   });
 
+  it("retries when first response has invalid object value (e.g. null)", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Bad",
+          memory_operations: [
+            {
+              operation: "ADD",
+              subject: "User",
+              predicate: "value",
+              object: NaN,
+              confidence: 1,
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Ok",
+          memory_operations: [
+            {
+              operation: "ADD",
+              subject: "User",
+              predicate: "value",
+              object: "3",
+              confidence: 1,
+            },
+          ],
+        }),
+      });
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: value is 3.",
+    });
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(result?.memoryOperations[0].object).toBe("3");
+  });
+
   it("accepts numeric object (and subject/predicate) from LLM and coerces to string", async () => {
     mockGenerateText.mockResolvedValue({
       text: JSON.stringify({
@@ -332,15 +374,23 @@ describe("memoryExtraction", () => {
   it("throws after max attempts when both responses are empty", async () => {
     mockGenerateText.mockResolvedValue({ text: "" });
 
-    await expect(
-      extractConversationMemory({
-        workspaceId: "workspace-1",
-        agentId: "agent-1",
-        conversationId: "conversation-1",
-        conversationText: "User: Hello",
-      }),
-    ).rejects.toThrow("Memory extraction returned empty response");
+    const err = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hello",
+    }).then(
+      () => null,
+      (e: unknown) => e,
+    );
 
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toMatch(/failed after 2 attempts/);
+    expect((err as Error).cause).toBeInstanceOf(Error);
+    expect((err as Error).cause).toHaveProperty(
+      "message",
+      "Memory extraction returned empty response",
+    );
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
   });
 
