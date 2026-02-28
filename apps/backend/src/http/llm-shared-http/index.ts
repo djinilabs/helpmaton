@@ -1,7 +1,6 @@
 import type {
   APIGatewayProxyEvent,
   APIGatewayProxyEventV2,
-  Callback,
   Context,
   ScheduledEvent,
   SQSEvent,
@@ -235,8 +234,6 @@ function buildHttpNotFound() {
 export const handler = async (...args: unknown[]) => {
   const event = args[0];
   const context = resolveContext(args);
-  const callback =
-    typeof args[2] === "function" ? (args[2] as Callback) : undefined;
 
   if (isSqsEvent(event)) {
     const queueHandler = resolveQueueHandler(event);
@@ -246,7 +243,7 @@ export const handler = async (...args: unknown[]) => {
         `[llm-shared-http] Unknown SQS queue for event: ${queueName ?? "unknown"}`,
       );
     }
-    return await queueHandler(event, context, callback);
+    return await queueHandler(event);
   }
 
   if (isScheduledEvent(event)) {
@@ -254,7 +251,7 @@ export const handler = async (...args: unknown[]) => {
     if (!scheduleHandler) {
       throw new Error("[llm-shared-http] Unknown scheduled event");
     }
-    return await scheduleHandler(event, context, callback);
+    return await scheduleHandler(event);
   }
 
   if (isHttpEvent(event)) {
@@ -262,7 +259,7 @@ export const handler = async (...args: unknown[]) => {
     if (!httpHandler) {
       return buildHttpNotFound();
     }
-    return await httpHandler(event, context, callback);
+    return await httpHandler(event, context);
   }
 
   throw new Error("[llm-shared-http] Unsupported event type");

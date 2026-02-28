@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
   createAPIGatewayEventV2,
-  createMockCallback,
   createMockContext,
 } from "../../utils/__tests__/test-helpers";
 
@@ -49,8 +48,6 @@ const getHandler = async () => {
 
 describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
   const mockContext = createMockContext();
-  const mockCallback = createMockCallback();
-
   beforeEach(() => {
     vi.clearAllMocks();
     mockRandomUUID.mockReturnValue("ff028639-8bb4-43f0-87fa-0618dada653c");
@@ -91,7 +88,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     });
 
     const handler = await getHandler();
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -145,7 +142,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     });
 
     const handler = await getHandler();
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -184,7 +181,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     });
 
     const handler = await getHandler();
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -224,7 +221,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     });
 
     const handler = await getHandler();
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;

@@ -467,7 +467,7 @@ describe("container-images plugin", () => {
         Type: "AWS::Serverless::Function",
         Properties: {
           Handler: "index.handler",
-          Runtime: "nodejs20.x",
+          Runtime: "nodejs24.x",
           CodeUri: "s3://bucket/key.zip",
         },
       };
@@ -501,7 +501,7 @@ describe("container-images plugin", () => {
         Type: "AWS::Lambda::Function",
         Properties: {
           Handler: "index.handler",
-          Runtime: "nodejs20.x",
+          Runtime: "nodejs24.x",
           Code: {
             S3Bucket: "bucket",
             S3Key: "key.zip",
@@ -588,7 +588,7 @@ describe("container-images plugin", () => {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
             },
           },
         },
@@ -728,7 +728,7 @@ describe("container-images plugin", () => {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
             },
           },
         },
@@ -776,7 +776,7 @@ describe("container-images plugin", () => {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
             },
           },
         },
@@ -825,7 +825,7 @@ describe("container-images plugin", () => {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
             },
           },
         },
@@ -874,21 +874,21 @@ describe("container-images plugin", () => {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
             },
           },
           AgentTemporalGrainQueueQueueLambda: {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
             },
           },
           AggregateTokenUsageScheduledLambda: {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
             },
           },
         },
@@ -948,7 +948,7 @@ describe("container-images plugin", () => {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
               Events: {
                 StreamEvent: {
                   Type: "Api",
@@ -964,7 +964,7 @@ describe("container-images plugin", () => {
             Type: "AWS::Serverless::Function",
             Properties: {
               Handler: "index.handler",
-              Runtime: "nodejs20.x",
+              Runtime: "nodejs24.x",
               Timeout: 900,
               Events: {
                 WebhookEvent: {

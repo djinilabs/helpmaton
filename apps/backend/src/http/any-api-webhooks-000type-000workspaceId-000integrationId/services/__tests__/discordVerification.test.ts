@@ -100,7 +100,10 @@ describe("verifyDiscordSignature", () => {
   });
 
   it("should accept request with timestamp exactly 5 minutes old", () => {
-    const fiveMinutesAgo = Math.floor((Date.now() / 1000) - 300).toString();
+    // Use fixed request time and fake clock so age is exactly 300s at verification time.
+    // Without this, CI can run verification 1+ seconds later and reject (301 > 300).
+    const requestTime = 1_000_000;
+    const fiveMinutesAgo = String(requestTime);
     const signature = createValidSignature(keypair.secretKey, fiveMinutesAgo, body);
     const event = createAPIGatewayEventV2({
       headers: {
@@ -110,8 +113,14 @@ describe("verifyDiscordSignature", () => {
       body,
     });
 
-    const result = verifyDiscordSignature(event, publicKeyHex);
-    expect(result).toBe(true);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date((requestTime + 300) * 1000));
+    try {
+      const result = verifyDiscordSignature(event, publicKeyHex);
+      expect(result).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("should reject invalid public key length (not 32 bytes / 64 hex chars)", () => {

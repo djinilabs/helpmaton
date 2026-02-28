@@ -4,7 +4,6 @@ import packageJson from "../../../../../../package.json";
 // eslint-disable-next-line import/order
 import {
   createAPIGatewayEventV2,
-  createMockCallback,
   createMockContext,
 } from "../../utils/__tests__/test-helpers";
 
@@ -19,7 +18,6 @@ import { handler } from "../index";
 
 describe("get-api-version handler", () => {
   const mockContext = createMockContext();
-  const mockCallback = createMockCallback();
 
   it("should return the current product version", async () => {
     const event = createAPIGatewayEventV2({
@@ -27,7 +25,7 @@ describe("get-api-version handler", () => {
       rawPath: "/api/version",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;

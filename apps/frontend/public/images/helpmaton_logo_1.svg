@@ -1,9 +1,13 @@
-<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
-  <g stroke="black" stroke-width="20" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M100,100 L400,100 L420,300 L350,450 L150,450 L80,300 Z" fill="#778899"/>
-    <rect x="130" y="180" width="240" height="150" rx="20" fill="#D3D3D3"/>
-    <circle cx="180" cy="250" r="30" fill="#FFFF00"/>
-    <circle cx="320" cy="250" r="30" fill="#FFFF00"/>
-    <polygon points="200,330 300,330 280,480 250,500 220,480" fill="#4682B4"/>
+<svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
+
+ <g>
+  <title>Layer 1</title>
+  <g id="svg_1" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" stroke="black">
+   <path id="svg_2" fill="#778899" d="m100,100l300,0l20,200l-70,150l-200,0l-70,-150l20,-200z"/>
+   <rect id="svg_3" fill="#D3D3D3" rx="20" height="150" width="240" y="180" x="130"/>
+   <circle id="svg_4" fill="#FFFF00" r="30" cy="250" cx="180"/>
+   <circle id="svg_5" fill="#FFFF00" r="30" cy="250" cx="320"/>
+   <polygon id="svg_6" fill="#4682B4" points="200,330 300,330 280,480 250,500 220,480"/>
   </g>
+ </g>
 </svg>

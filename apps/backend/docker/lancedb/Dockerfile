@@ -1,6 +1,6 @@
 # LanceDB Docker image for Lambda functions
 # Single-stage build - no build tools needed, LanceDB ships pre-compiled binaries!
-FROM public.ecr.aws/lambda/nodejs:20
+FROM public.ecr.aws/lambda/nodejs:24
 
 # Build argument for dist source directory
 # Defaults to apps/backend/dist for backward compatibility

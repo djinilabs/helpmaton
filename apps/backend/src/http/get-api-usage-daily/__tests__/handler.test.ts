@@ -5,7 +5,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   createAPIGatewayEventV2,
   createMockContext,
-  createMockCallback,
   createMockDatabase,
 } from "../../utils/__tests__/test-helpers";
 
@@ -52,8 +51,6 @@ import { handler } from "../index";
 
 describe("get-api-usage-daily handler", () => {
   const mockContext = createMockContext();
-  const mockCallback = createMockCallback();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -227,7 +224,7 @@ describe("get-api-usage-daily handler", () => {
       },
     });
 
-    const result = await handler(event, mockContext, mockCallback);
+    const result = await handler(event, mockContext);
 
     expect(mockRequireSession).toHaveBeenCalledWith(event);
     expect(mockDatabase).toHaveBeenCalledTimes(1);
@@ -280,7 +277,7 @@ describe("get-api-usage-daily handler", () => {
       rawPath: "/api/usage/daily",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -301,7 +298,7 @@ describe("get-api-usage-daily handler", () => {
       rawPath: "/api/usage/daily",
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -335,7 +332,7 @@ describe("get-api-usage-daily handler", () => {
       },
     });
 
-    const result = (await handler(event, mockContext, mockCallback)) as {
+    const result = (await handler(event, mockContext)) as {
       statusCode: number;
       headers: Record<string, string>;
       body: string;
@@ -407,7 +404,7 @@ describe("get-api-usage-daily handler", () => {
       // No date parameters
     });
 
-    const result = await handler(event, mockContext, mockCallback);
+    const result = await handler(event, mockContext);
 
     // Should query for 31 days (default: last 30 days + today = 31 days inclusive)
     expect(mockQueryUsageStats).toHaveBeenCalledTimes(31);
@@ -474,7 +471,7 @@ describe("get-api-usage-daily handler", () => {
       },
     });
 
-    const result = await handler(event, mockContext, mockCallback);
+    const result = await handler(event, mockContext);
 
     // Should not call queryUsageStats when there are no workspaces
     expect(mockQueryUsageStats).not.toHaveBeenCalled();
@@ -558,7 +555,7 @@ describe("get-api-usage-daily handler", () => {
       },
     });
 
-    const result = await handler(event, mockContext, mockCallback);
+    const result = await handler(event, mockContext);
 
     expect(mockQueryUsageStats).toHaveBeenCalledTimes(1);
     expect(mockMergeUsageStats).toHaveBeenCalledTimes(1);
@@ -742,7 +739,7 @@ describe("get-api-usage-daily handler", () => {
       },
     });
 
-    const result = await handler(event, mockContext, mockCallback);
+    const result = await handler(event, mockContext);
 
     // Should query stats for 3 workspaces
     expect(mockQueryUsageStats).toHaveBeenCalledTimes(3);

@@ -479,6 +479,6 @@ timeout 900
 
 @typescript
 build dist
-base-runtime nodejs20.x
+base-runtime nodejs24.x
 esbuild-config ../../esbuild-config.cjs
 
