@@ -23,11 +23,21 @@ const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_IMAGES_DIR = path.join(ROOT, "apps", "frontend", "public", "images");
 const SIZE = 1200;
 
+/** Normalize thrown value to a string (JS allows throw of non-Error values). */
+function formatThrown(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+
 function parseArgs() {
   const args = process.argv.slice(2);
   let dir = DEFAULT_IMAGES_DIR;
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--dir" && args[i + 1]) {
+    if (args[i] === "--dir") {
+      const next = args[i + 1];
+      if (!next || next.startsWith("-")) {
+        console.error("--dir requires a path argument.");
+        process.exit(1);
+      }
       dir = path.resolve(process.cwd(), args[++i]);
       break;
     }
@@ -73,7 +83,7 @@ async function main() {
       const pngPath = await convertSvgToPng(svgPath);
       console.log(`  ${name} -> ${path.basename(pngPath)}`);
     } catch (err) {
-      console.error(`  ${name}: ${err.message}`);
+      console.error(`  ${name}: ${formatThrown(err)}`);
       failed++;
     }
   }
@@ -85,4 +95,12 @@ async function main() {
   console.log(`\nDone. ${svgFiles.length} PNG(s) written.`);
 }
 
-main();
+// Handle rejections so unhandled promise rejection does not leave exit code undefined.
+main().catch((err) => {
+  if (err instanceof Error && err.stack) {
+    console.error(err.stack);
+  } else {
+    console.error(formatThrown(err));
+  }
+  process.exit(1);
+});
