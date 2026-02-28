@@ -285,6 +285,50 @@ describe("memoryExtraction", () => {
     expect(result?.memoryOperations).toHaveLength(0);
   });
 
+  it("charges for empty response then retries (no refund on parse/empty)", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: "" })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          summary: "Ok",
+          memory_operations: [],
+        }),
+      });
+    mockValidateCreditsAndLimitsAndReserve
+      .mockResolvedValueOnce({
+        reservationId: "res-1",
+        reservedAmount: 100,
+        workspace: { creditBalance: 0, currency: "usd" },
+      })
+      .mockResolvedValueOnce({
+        reservationId: "res-2",
+        reservedAmount: 100,
+        workspace: { creditBalance: 0, currency: "usd" },
+      });
+    mockExtractTokenUsageAndCosts.mockReturnValue({
+      tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+      openrouterGenerationId: "gen-1",
+      openrouterGenerationIds: ["gen-1"],
+      provisionalCostUsd: 100,
+    });
+
+    const context = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+
+    const result = await extractConversationMemory({
+      workspaceId: "workspace-1",
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      conversationText: "User: Hi",
+      context,
+    });
+
+    expect(result?.summary).toBe("Ok");
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockAdjustCreditsAfterLLMCall).toHaveBeenCalledTimes(2);
+  });
+
   it("throws after max attempts when both responses are empty", async () => {
     mockGenerateText.mockResolvedValue({ text: "" });
 

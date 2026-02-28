@@ -230,6 +230,21 @@ export async function extractConversationMemory(params: {
     }
 
     if (!result) {
+      if (reservationId && context) {
+        await cleanupReservationOnError(
+          db,
+          reservationId,
+          workspaceId,
+          agentId,
+          "openrouter",
+          resolvedModelName,
+          new Error("Memory extraction returned no result"),
+          true,
+          usesByok,
+          "memory-extraction",
+          context,
+        );
+      }
       if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
         messages = [
           ...messages,
@@ -245,24 +260,8 @@ export async function extractConversationMemory(params: {
       }
       throw new Error("Memory extraction returned empty response");
     }
-    const resultText = result.text.trim();
-    if (!resultText) {
-      if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
-        messages = [
-          ...messages,
-          { role: "assistant", content: result.text },
-          {
-            role: "user",
-            content: buildRetryUserMessage(
-              new Error("Memory extraction returned empty response"),
-            ),
-          },
-        ];
-        continue;
-      }
-      throw new Error("Memory extraction returned empty response");
-    }
 
+    // Charge for every LLM response; only refund when the provider completely fails (generateText threw).
     const extractionResult = extractTokenUsageAndCosts(
       result,
       undefined,
@@ -341,6 +340,24 @@ export async function extractConversationMemory(params: {
       agentId,
       "memory-extraction",
     );
+
+    const resultText = result.text.trim();
+    if (!resultText) {
+      if (attempt < MAX_MEMORY_EXTRACTION_ATTEMPTS) {
+        messages = [
+          ...messages,
+          { role: "assistant", content: result.text },
+          {
+            role: "user",
+            content: buildRetryUserMessage(
+              new Error("Memory extraction returned empty response"),
+            ),
+          },
+        ];
+        continue;
+      }
+      throw new Error("Memory extraction returned empty response");
+    }
 
     try {
       return parseExtractionResponse(resultText);
