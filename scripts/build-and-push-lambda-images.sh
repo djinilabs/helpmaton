@@ -123,6 +123,27 @@ fi
 
 print_success "Found ${#IMAGE_NAMES[@]} unique image(s) to build: ${IMAGE_NAMES[*]}"
 
+# Apply ECR lifecycle policy: keep only the last 3 images per image type to reduce storage costs
+print_status "Applying ECR lifecycle policy (keep last 3 images per type)..."
+LIFECYCLE_RULES=()
+PRIORITY=1
+for NAME in "${IMAGE_NAMES[@]}"; do
+    LIFECYCLE_RULES+=("{\"rulePriority\":${PRIORITY},\"description\":\"Keep last 3 ${NAME} images\",\"selection\":{\"tagStatus\":\"tagged\",\"tagPrefixList\":[\"${NAME}-\"],\"countType\":\"imageCountMoreThan\",\"countNumber\":3},\"action\":{\"type\":\"expire\"}}")
+    PRIORITY=$((PRIORITY + 1))
+done
+# Build JSON array and wrap in rules object
+RULES_JSON=$(IFS=,; echo "${LIFECYCLE_RULES[*]}")
+LIFECYCLE_JSON="{\"rules\":[${RULES_JSON}]}"
+if aws ecr put-lifecycle-policy \
+    --repository-name "${REPOSITORY_NAME}" \
+    --region "${REGION}" \
+    --lifecycle-policy-text "${LIFECYCLE_JSON}" \
+    > /dev/null 2>&1; then
+    print_success "Lifecycle policy applied: keep last 3 images per tag prefix (${IMAGE_NAMES[*]})"
+else
+    print_warning "Failed to apply lifecycle policy (repository may not exist yet). Continuing..."
+fi
+
 # Check if dist directory exists (required for building)
 if [ ! -d "apps/backend/dist" ]; then
     print_error "dist directory not found. Please run 'pnpm build:backend' first."

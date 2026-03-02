@@ -142,3 +142,4 @@
    - Build tools removed from final image
    - Package manager caches cleaned after installation
    - `@container-images` entries can include a group token (e.g., `llm-shared`) to merge routes/queues/schedules into a single Lambda using `http/<group>/index.handler`
+   - **ECR retention**: Build script applies lifecycle policy (keep last 3 images per image type, e.g. `lancedb-*`, `puppeteer-*`); cleanup script/workflow default retention 3 to reduce storage costs

@@ -19,7 +19,7 @@ on:
       production_retention:
         description: "Number of production images to keep"
         required: false
-        default: "5"
+        default: "3"
         type: string
       min_age_hours:
         description: "Minimum image age in hours before deletion"
@@ -71,9 +71,8 @@ jobs:
             RETENTION="${{ github.event.inputs.production_retention }}"
             MIN_AGE="${{ github.event.inputs.min_age_hours }}"
           else
-            # For scheduled runs, default to dry-run for safety
-            DRY_RUN="true"
-            RETENTION="5"
+            DRY_RUN="false"
+            RETENTION="3"
             MIN_AGE="12"
           fi
 

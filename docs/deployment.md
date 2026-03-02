@@ -417,12 +417,12 @@ Images are automatically built and pushed to ECR during deployment. The build sc
 
 ### ECR Repository
 
-The ECR repository is automatically created by the container-images plugin if it doesn't exist. The repository:
+The ECR repository is created by `scripts/build-and-push-lambda-images.sh` if it doesn't exist. On each build the script applies a lifecycle policy. The repository:
 
 - Name: `helpmaton-lambda-images`
 - Region: `eu-west-2`
 - Image scanning: Enabled on push
-- Lifecycle policy: Keeps last 10 images per tag
+- Lifecycle policy: Keeps last **3** images per image type (e.g. `lancedb-*`, `puppeteer-*`) to reduce storage costs
 
 ### Image URI Format
 

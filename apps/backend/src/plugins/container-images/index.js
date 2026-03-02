@@ -434,16 +434,25 @@ function ensureEcrRepository(resources, repositoryName) {
           rules: [
             {
               rulePriority: 1,
-              description: "Keep last 10 images per tag",
+              description: "Keep last 3 lancedb images",
               selection: {
                 tagStatus: "tagged",
-                tagPrefixList: ["latest"],
+                tagPrefixList: ["lancedb-"],
                 countType: "imageCountMoreThan",
-                countNumber: 10,
+                countNumber: 3,
               },
-              action: {
-                type: "expire",
+              action: { type: "expire" },
+            },
+            {
+              rulePriority: 2,
+              description: "Keep last 3 puppeteer images",
+              selection: {
+                tagStatus: "tagged",
+                tagPrefixList: ["puppeteer-"],
+                countType: "imageCountMoreThan",
+                countNumber: 3,
               },
+              action: { type: "expire" },
             },
           ],
         }),

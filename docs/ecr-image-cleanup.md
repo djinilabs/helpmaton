@@ -35,7 +35,7 @@ The cleanup script uses multiple layers of protection to ensure safety:
 3. **Production Retention**
 
    - Keeps last N production images for rollback capability
-   - Default: 15 images (~2 months of daily deploys)
+   - Default: 3 images (reduced for cost; increase if you need more rollback history)
    - Configurable via `PRODUCTION_IMAGE_RETENTION_COUNT`
 
 4. **Open PR Check**
@@ -109,7 +109,7 @@ The cleanup runs automatically via GitHub Actions:
 2. Click "Run workflow"
 3. Configure parameters:
    - **Dry run**: `true` (simulate) or `false` (execute)
-   - **Production retention**: Number of images to keep (default: 15)
+   - **Production retention**: Number of images to keep (default: 3)
    - **Minimum age**: Hours before image can be deleted (default: 24)
 
 ## Configuration
@@ -121,7 +121,7 @@ The cleanup runs automatically via GitHub Actions:
 | `ECR_REPOSITORY_NAME`              | ECR repository name                 | `helpmaton-lambda-images` |
 | `PRODUCTION_STACK_NAME`            | Production CloudFormation stack     | `HelpmatonProduction`     |
 | `PR_STACK_PREFIX`                  | Prefix for PR stacks                | `HelpmatonStagingPR`      |
-| `PRODUCTION_IMAGE_RETENTION_COUNT` | Number of production images to keep | `15`                      |
+| `PRODUCTION_IMAGE_RETENTION_COUNT` | Number of production images to keep | `3`                       |
 | `MIN_IMAGE_AGE_HOURS`              | Minimum image age before deletion   | `24`                      |
 | `AWS_REGION`                       | AWS region                          | `eu-west-2`               |
 | `GITHUB_TOKEN`                     | GitHub API token (for PR checks)    | Required                  |
@@ -130,19 +130,14 @@ The cleanup runs automatically via GitHub Actions:
 
 ### Recommended Settings
 
-**Initial deployment** (first month):
+**To minimize ECR costs** (current defaults):
 
-- Production retention: 15 images
-- Minimum age: 24 hours
-- Dry-run: true
-- Frequency: Daily
+- Production retention: 3 images
+- Minimum age: 12-24 hours
+- Dry-run: true for scheduled runs; set to false when manually executing cleanup
+- Frequency: Daily (scheduled dry-run); run manually with execute when needed
 
-**Production (after validation)**:
-
-- Production retention: 15-20 images
-- Minimum age: 24-48 hours
-- Dry-run: false (for manual triggers only)
-- Frequency: Daily
+In addition, the build script applies an ECR lifecycle policy so the repository keeps only the last 3 images per image type (`lancedb-*`, `puppeteer-*`).
 
 ## Safety Features
 
@@ -164,7 +159,7 @@ The script builds a complete set of protected images by:
 | Image deleted during deployment | 24-hour minimum age prevents deletion of recent images      |
 | PR deployment in progress       | Query current stack state; in-use images are protected      |
 | Failed deployment               | 24-hour age + open PR check keeps failed deployment images  |
-| Production rollback needed      | Keep last N production images (15+) for rollback capability |
+| Production rollback needed      | Keep last N production images (default 3) for rollback capability |
 | Manual deployment               | Protected set includes ALL currently deployed images        |
 | Unknown image patterns          | Conservative approach: keep unrecognized patterns           |
 
@@ -206,7 +201,7 @@ Deletion Candidates:
   ...
 
 Configuration:
-  Production retention:   15 images
+  Production retention:   3 images
   Minimum image age:      24 hours
   Region:                 eu-west-2
   Dry run:                true
@@ -310,7 +305,7 @@ Estimated with unlimited growth:
 
 Estimated steady state:
 
-- ~50 active images (15 production + 35 active PRs)
+- ~50 active images (3 production + many PR images; ECR lifecycle + cleanup keep counts low)
 - 50 × 500MB = 25GB storage
 - At $0.10/GB-month = $2.50/month
 
