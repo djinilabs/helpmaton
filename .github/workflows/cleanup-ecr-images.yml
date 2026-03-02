@@ -65,13 +65,17 @@ jobs:
       - name: Set cleanup parameters
         id: params
         run: |
-          # Determine dry-run mode
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          # Scheduled runs: execute cleanup (delete images). Manual: use workflow inputs.
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            DRY_RUN="false"
+            RETENTION="3"
+            MIN_AGE="12"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             DRY_RUN="${{ github.event.inputs.dry_run }}"
             RETENTION="${{ github.event.inputs.production_retention }}"
             MIN_AGE="${{ github.event.inputs.min_age_hours }}"
           else
-            DRY_RUN="false"
+            DRY_RUN="true"
             RETENTION="3"
             MIN_AGE="12"
           fi
