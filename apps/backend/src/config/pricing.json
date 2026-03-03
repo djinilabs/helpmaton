@@ -10263,9 +10263,9 @@
         },
         "meta-llama/llama-3.2-3b-instruct": {
           "usd": {
-            "input": 0.02,
-            "output": 0.02,
-            "cachedInput": 0.002
+            "input": 0.051,
+            "output": 0.33999999999999997,
+            "cachedInput": 0.0051
           },
           "capabilities": {
             "input_modalities": [
@@ -10295,7 +10295,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 80000
         },
         "meta-llama/llama-3.2-1b-instruct": {
           "usd": {
@@ -12890,9 +12890,9 @@
         },
         "z-ai/glm-5": {
           "usd": {
-            "input": 0.95,
-            "output": 2.5500000000000003,
-            "cachedInput": 0.095
+            "input": 0.7999999999999999,
+            "output": 2.56,
+            "cachedInput": 0.08
           },
           "capabilities": {
             "input_modalities": [
@@ -12927,7 +12927,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 204800
+          "context_length": 202752
         },
         "stepfun/step-3.5-flash": {
           "usd": {
@@ -13247,7 +13247,7 @@
         "qwen/qwen3.5-35b-a3b": {
           "usd": {
             "input": 0.25,
-            "output": 2,
+            "output": 1,
             "cachedInput": 0.025
           },
           "capabilities": {
@@ -13542,9 +13542,41 @@
             "image": true
           },
           "context_length": 65536
+        },
+        "upstage/solar-pro-3": {
+          "usd": {
+            "input": 0.15,
+            "output": 0.6,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 128000
         }
       }
     }
   },
-  "lastUpdated": "2026-02-28T00:16:41.529Z"
+  "lastUpdated": "2026-03-03T00:19:44.402Z"
 }
