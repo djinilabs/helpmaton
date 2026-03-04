@@ -8,11 +8,10 @@ on:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
-    # Security: Explicit permissions - only what's needed
+    # Security: Explicit permissions - only what's needed (no id-token; using static AWS creds)
     permissions:
       contents: read
       pull-requests: read
-      id-token: write
 
     concurrency:
       group: nightly-cleanup-closed-prs
@@ -29,28 +28,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
 
+      # GH_TOKEN must not be set here: gh refuses to store credentials when it is set
       - name: Authenticate GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$GH_TOKEN" | gh auth login --with-token
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
       - name: Run cleanup of closed PR stacks
-        env:
-          # Provide token so gh CLI is authenticated non-interactively
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          bash scripts/cleanup-closed-prs.sh --force
+        run: bash scripts/cleanup-closed-prs.sh --force
 
       - name: Run cleanup of CloudWatch log groups for closed PRs
-        env:
-          # Provide token so gh CLI is authenticated non-interactively
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          bash scripts/cleanup-pr-log-groups.sh --force
+        run: bash scripts/cleanup-pr-log-groups.sh --force
 
       - name: Run cleanup of API Gateway API Keys for closed PRs
-        env:
-          # Provide token so gh CLI is authenticated non-interactively
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          bash scripts/cleanup-pr-api-keys.sh --force
+        run: bash scripts/cleanup-pr-api-keys.sh --force
