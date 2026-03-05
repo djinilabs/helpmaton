@@ -3070,9 +3070,9 @@
         },
         "z-ai/glm-4.6": {
           "usd": {
-            "input": 0.35,
-            "output": 1.71,
-            "cachedInput": 0.034999999999999996
+            "input": 0.39,
+            "output": 1.9,
+            "cachedInput": 0.03900000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -3110,7 +3110,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 202752
+          "context_length": 204800
         },
         "z-ai/glm-4.6:exacto": {
           "usd": {
@@ -13655,5 +13655,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-04T00:18:53.092Z"
+  "lastUpdated": "2026-03-05T00:19:13.506Z"
 }
