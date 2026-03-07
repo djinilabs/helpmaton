@@ -539,9 +539,9 @@
         },
         "z-ai/glm-4.7": {
           "usd": {
-            "input": 0.3,
-            "output": 1.4,
-            "cachedInput": 0.03
+            "input": 0.38,
+            "output": 1.9800000000000002,
+            "cachedInput": 0.038000000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -5264,9 +5264,9 @@
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.11,
+            "output": 0.6,
+            "cachedInput": 0.011000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -5301,7 +5301,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "z-ai/glm-4-32b": {
           "usd": {
@@ -13768,5 +13768,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-06T00:23:40.312Z"
+  "lastUpdated": "2026-03-07T00:18:35.998Z"
 }
