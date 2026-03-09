@@ -8244,9 +8244,9 @@
         },
         "google/gemma-3-27b-it": {
           "usd": {
-            "input": 0.04,
-            "output": 0.15,
-            "cachedInput": 0.004
+            "input": 0.03,
+            "output": 0.11,
+            "cachedInput": 0.003
           },
           "capabilities": {
             "input_modalities": [
@@ -13768,5 +13768,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-07T00:18:35.998Z"
+  "lastUpdated": "2026-03-09T00:19:05.013Z"
 }
