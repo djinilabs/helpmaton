@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.25,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.025
+            "input": 0.26,
+            "output": 0.38,
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -2954,9 +2954,9 @@
         },
         "qwen/qwen3-vl-30b-a3b-thinking": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.13,
+            "output": 1.56,
+            "cachedInput": 0.013000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -3370,9 +3370,9 @@
         },
         "qwen/qwen3-vl-235b-a22b-thinking": {
           "usd": {
-            "input": 0,
-            "output": 0,
-            "cachedInput": 0
+            "input": 0.26,
+            "output": 2.6,
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -3775,9 +3775,9 @@
         },
         "qwen/qwen3-next-80b-a3b-thinking": {
           "usd": {
-            "input": 0.15,
-            "output": 1.2,
-            "cachedInput": 0.015
+            "input": 0.0975,
+            "output": 0.78,
+            "cachedInput": 0.009750000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -3812,7 +3812,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 128000
+          "context_length": 131072
         },
         "qwen/qwen3-next-80b-a3b-instruct:free": {
           "usd": {
@@ -13843,9 +13843,116 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "openrouter/hunter-alpha": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "openrouter/healer-alpha": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "nvidia/nemotron-3-super-120b-a12b:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-03-11T00:16:24.069Z"
+  "lastUpdated": "2026-03-12T00:16:51.155Z"
 }
