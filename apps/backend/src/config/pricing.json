@@ -12963,9 +12963,9 @@
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.27,
-            "output": 0.95,
-            "cachedInput": 0.027000000000000003
+            "input": 0.25,
+            "output": 1.2,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -14026,5 +14026,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-14T00:18:19.806Z"
+  "lastUpdated": "2026-03-15T00:22:09.640Z"
 }
