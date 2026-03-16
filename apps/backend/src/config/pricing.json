@@ -14022,9 +14022,73 @@
             "image": false
           },
           "context_length": 2000000
+        },
+        "z-ai/glm-5-turbo": {
+          "usd": {
+            "input": 0.96,
+            "output": 3.1999999999999997,
+            "cachedInput": 0.096
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 202752
+        },
+        "minimax/minimax-m2.5:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "temperature",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 196608
         }
       }
     }
   },
-  "lastUpdated": "2026-03-15T00:22:09.640Z"
+  "lastUpdated": "2026-03-16T00:22:14.321Z"
 }
