@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.26,
-            "output": 0.38,
-            "cachedInput": 0.026000000000000002
+            "input": 0.255,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.025500000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -9227,9 +9227,9 @@
         },
         "microsoft/phi-4": {
           "usd": {
-            "input": 0.06,
+            "input": 0.065,
             "output": 0.14,
-            "cachedInput": 0.006
+            "cachedInput": 0.006500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -12927,7 +12927,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 202752
+          "context_length": 80000
         },
         "stepfun/step-3.5-flash": {
           "usd": {
@@ -12963,9 +12963,9 @@
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.25,
+            "input": 0.19999999999999998,
             "output": 1.2,
-            "cachedInput": 0.025
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -14086,9 +14086,115 @@
             "image": false
           },
           "context_length": 196608
+        },
+        "openai/gpt-5.4-nano": {
+          "usd": {
+            "input": 0.19999999999999998,
+            "output": 1.25,
+            "cachedInput": 0.02
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "openai/gpt-5.4-mini": {
+          "usd": {
+            "input": 0.75,
+            "output": 4.5,
+            "cachedInput": 0.07500000000000001
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "mistralai/mistral-small-2603": {
+          "usd": {
+            "input": 0.15,
+            "output": 0.6,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-03-17T00:20:21.032Z"
+  "lastUpdated": "2026-03-18T00:21:03.823Z"
 }
