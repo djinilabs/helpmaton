@@ -539,9 +539,9 @@
         },
         "z-ai/glm-4.7": {
           "usd": {
-            "input": 0.38,
-            "output": 1.9800000000000002,
-            "cachedInput": 0.038000000000000006
+            "input": 0.39999999999999997,
+            "output": 1.75,
+            "cachedInput": 0.04
           },
           "capabilities": {
             "input_modalities": [
@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.255,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.025500000000000002
+            "input": 0.26,
+            "output": 0.38,
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -3886,7 +3886,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "meituan/longcat-flash-chat": {
           "usd": {
@@ -4246,9 +4246,9 @@
         },
         "qwen/qwen3-30b-a3b-thinking-2507": {
           "usd": {
-            "input": 0.051,
-            "output": 0.33999999999999997,
-            "cachedInput": 0.0051
+            "input": 0.08,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.008
           },
           "capabilities": {
             "input_modalities": [
@@ -4280,7 +4280,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 131072
         },
         "x-ai/grok-code-fast-1": {
           "usd": {
@@ -5264,9 +5264,9 @@
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
           "usd": {
-            "input": 0.11,
-            "output": 0.6,
-            "cachedInput": 0.011000000000000001
+            "input": 0.14950000000000002,
+            "output": 1.495,
+            "cachedInput": 0.014950000000000003
           },
           "capabilities": {
             "input_modalities": [
@@ -5301,7 +5301,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 131072
         },
         "z-ai/glm-4-32b": {
           "usd": {
@@ -6102,9 +6102,9 @@
         },
         "mistralai/mistral-small-3.2-24b-instruct": {
           "usd": {
-            "input": 0.06,
-            "output": 0.18,
-            "cachedInput": 0.006
+            "input": 0.075,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.0075
           },
           "capabilities": {
             "input_modalities": [
@@ -6138,7 +6138,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 128000
         },
         "minimax/minimax-m1": {
           "usd": {
@@ -8244,9 +8244,9 @@
         },
         "google/gemma-3-27b-it": {
           "usd": {
-            "input": 0.03,
-            "output": 0.11,
-            "cachedInput": 0.003
+            "input": 0.08,
+            "output": 0.16,
+            "cachedInput": 0.008
           },
           "capabilities": {
             "input_modalities": [
@@ -8280,7 +8280,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 128000
+          "context_length": 131072
         },
         "thedrummer/skyfall-36b-v2": {
           "usd": {
@@ -8418,7 +8418,7 @@
         "qwen/qwq-32b": {
           "usd": {
             "input": 0.15,
-            "output": 0.39999999999999997,
+            "output": 0.58,
             "cachedInput": 0.015
           },
           "capabilities": {
@@ -8454,7 +8454,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 131072
         },
         "google/gemini-2.0-flash-lite-001": {
           "usd": {
@@ -9501,7 +9501,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 128000
+          "context_length": 65536
         },
         "meta-llama/llama-3.3-70b-instruct": {
           "usd": {
@@ -14192,9 +14192,148 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "xiaomi/mimo-v2-omni": {
+          "usd": {
+            "input": 0.39999999999999997,
+            "output": 2,
+            "cachedInput": 0.04
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "audio",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "xiaomi/mimo-v2-pro": {
+          "usd": {
+            "input": 1,
+            "output": 3,
+            "cachedInput": 0.1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "minimax/minimax-m2.7": {
+          "usd": {
+            "input": 0.3,
+            "output": 1.2,
+            "cachedInput": 0.03
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 204800
+        },
+        "nvidia/nemotron-3-super-120b-a12b": {
+          "usd": {
+            "input": 0.3,
+            "output": 0.8999999999999999,
+            "cachedInput": 0.03
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 8000
         }
       }
     }
   },
-  "lastUpdated": "2026-03-18T00:21:03.823Z"
+  "lastUpdated": "2026-03-19T00:21:05.513Z"
 }
