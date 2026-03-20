@@ -539,9 +539,9 @@
         },
         "z-ai/glm-4.7": {
           "usd": {
-            "input": 0.39999999999999997,
+            "input": 0.39,
             "output": 1.75,
-            "cachedInput": 0.04
+            "cachedInput": 0.03900000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -3591,7 +3591,7 @@
         "deepseek/deepseek-v3.1-terminus": {
           "usd": {
             "input": 0.21,
-            "output": 0.7899999999999999,
+            "output": 0.78,
             "cachedInput": 0.021
           },
           "capabilities": {
@@ -14300,9 +14300,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.3,
-            "output": 0.8999999999999999,
-            "cachedInput": 0.03
+            "input": 0.09999999999999999,
+            "output": 0.5,
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -14330,10 +14330,10 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 8000
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-03-19T00:21:05.513Z"
+  "lastUpdated": "2026-03-20T00:20:18.358Z"
 }
