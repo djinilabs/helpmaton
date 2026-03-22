@@ -4968,7 +4968,7 @@
         "openai/gpt-oss-20b": {
           "usd": {
             "input": 0.03,
-            "output": 0.14,
+            "output": 0.11,
             "cachedInput": 0.003
           },
           "capabilities": {
@@ -10439,9 +10439,9 @@
         },
         "mistralai/pixtral-12b": {
           "usd": {
-            "input": 0.09999999999999999,
-            "output": 0.09999999999999999,
-            "cachedInput": 0.01
+            "input": 0.1,
+            "output": 0.1,
+            "cachedInput": 0.010000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -10474,7 +10474,8 @@
             "tool_calling": true,
             "structured_output": true,
             "image": false
-          }
+          },
+          "context_length": 32768
         },
         "cohere/command-r-08-2024": {
           "usd": {
@@ -14335,5 +14336,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-21T00:18:12.733Z"
+  "lastUpdated": "2026-03-22T00:20:25.408Z"
 }
