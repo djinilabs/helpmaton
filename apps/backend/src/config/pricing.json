@@ -3591,7 +3591,7 @@
         "deepseek/deepseek-v3.1-terminus": {
           "usd": {
             "input": 0.21,
-            "output": 0.78,
+            "output": 0.7899999999999999,
             "cachedInput": 0.021
           },
           "capabilities": {
@@ -5903,9 +5903,9 @@
         },
         "tngtech/deepseek-r1t2-chimera": {
           "usd": {
-            "input": 0.25,
-            "output": 0.85,
-            "cachedInput": 0.025
+            "input": 0.3,
+            "output": 1.1,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -14336,5 +14336,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-22T00:20:25.408Z"
+  "lastUpdated": "2026-03-23T00:22:01.925Z"
 }
