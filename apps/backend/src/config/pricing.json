@@ -14026,9 +14026,9 @@
         },
         "z-ai/glm-5-turbo": {
           "usd": {
-            "input": 0.96,
-            "output": 3.1999999999999997,
-            "cachedInput": 0.096
+            "input": 1.2,
+            "output": 4,
+            "cachedInput": 0.12
           },
           "capabilities": {
             "input_modalities": [
@@ -14336,5 +14336,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-23T00:22:01.925Z"
+  "lastUpdated": "2026-03-24T00:17:58.704Z"
 }
