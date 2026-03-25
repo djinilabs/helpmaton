@@ -1076,9 +1076,9 @@
         },
         "nex-agi/deepseek-v3.1-nex-n1": {
           "usd": {
-            "input": 0.27,
-            "output": 1,
-            "cachedInput": 0.027000000000000003
+            "input": 0.135,
+            "output": 0.5,
+            "cachedInput": 0.013500000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -5625,9 +5625,9 @@
         },
         "moonshotai/kimi-k2": {
           "usd": {
-            "input": 0.55,
-            "output": 2.2,
-            "cachedInput": 0.05500000000000001
+            "input": 0.5700000000000001,
+            "output": 2.3,
+            "cachedInput": 0.05700000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -5661,7 +5661,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131000
+          "context_length": 131072
         },
         "mistralai/devstral-medium": {
           "usd": {
@@ -14336,5 +14336,5 @@
       }
     }
   },
-  "lastUpdated": "2026-03-24T00:17:58.704Z"
+  "lastUpdated": "2026-03-25T00:20:43.736Z"
 }
