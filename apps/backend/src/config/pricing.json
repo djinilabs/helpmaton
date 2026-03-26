@@ -14332,9 +14332,46 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "reka/reka-edge": {
+          "usd": {
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.02
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "presence_penalty",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 16384
         }
       }
     }
   },
-  "lastUpdated": "2026-03-25T00:20:43.736Z"
+  "lastUpdated": "2026-03-26T00:22:27.968Z"
 }
