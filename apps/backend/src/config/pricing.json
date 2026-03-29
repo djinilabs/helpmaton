@@ -12531,9 +12531,9 @@
         },
         "moonshotai/kimi-k2.5": {
           "usd": {
-            "input": 0.44999999999999996,
+            "input": 0.42,
             "output": 2.2,
-            "cachedInput": 0.045
+            "cachedInput": 0.042
           },
           "capabilities": {
             "input_modalities": [
@@ -12964,9 +12964,9 @@
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.19999999999999998,
-            "output": 1.17,
-            "cachedInput": 0.02
+            "input": 0.19,
+            "output": 1.15,
+            "cachedInput": 0.019000000000000003
           },
           "capabilities": {
             "input_modalities": [
@@ -14369,9 +14369,48 @@
             "image": false
           },
           "context_length": 16384
+        },
+        "kwaipilot/kat-coder-pro-v2": {
+          "usd": {
+            "input": 0.3,
+            "output": 1.2,
+            "cachedInput": 0.03
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 256000
         }
       }
     }
   },
-  "lastUpdated": "2026-03-27T00:22:14.656Z"
+  "lastUpdated": "2026-03-29T00:22:47.371Z"
 }
