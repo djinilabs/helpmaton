@@ -14408,9 +14408,106 @@
             "image": false
           },
           "context_length": 256000
+        },
+        "google/lyria-3-pro-preview": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text",
+              "audio"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "response_format",
+              "seed",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "google/lyria-3-clip-preview": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text",
+              "audio"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "response_format",
+              "seed",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "qwen/qwen3.6-plus-preview:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-03-29T00:22:47.371Z"
+  "lastUpdated": "2026-03-31T00:23:00.016Z"
 }
