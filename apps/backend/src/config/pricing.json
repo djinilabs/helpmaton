@@ -12532,7 +12532,7 @@
         "moonshotai/kimi-k2.5": {
           "usd": {
             "input": 0.3827,
-            "output": 1.9089999999999998,
+            "output": 1.72,
             "cachedInput": 0.03827
           },
           "capabilities": {
@@ -12965,7 +12965,7 @@
         "minimax/minimax-m2.5": {
           "usd": {
             "input": 0.118,
-            "output": 1,
+            "output": 0.9900000000000001,
             "cachedInput": 0.0118
           },
           "capabilities": {
@@ -14792,9 +14792,51 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "google/gemma-4-26b-a4b-it": {
+          "usd": {
+            "input": 0.13,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.013000000000000001
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-04-03T00:22:34.457Z"
+  "lastUpdated": "2026-04-04T00:21:35.307Z"
 }
