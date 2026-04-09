@@ -496,9 +496,9 @@
         },
         "minimax/minimax-m2.1": {
           "usd": {
-            "input": 0.27,
+            "input": 0.29,
             "output": 0.95,
-            "cachedInput": 0.027000000000000003
+            "cachedInput": 0.028999999999999998
           },
           "capabilities": {
             "input_modalities": [
@@ -2100,9 +2100,9 @@
         },
         "moonshotai/kimi-k2-thinking": {
           "usd": {
-            "input": 0.47,
-            "output": 2,
-            "cachedInput": 0.047
+            "input": 0.6,
+            "output": 2.5,
+            "cachedInput": 0.06
           },
           "capabilities": {
             "input_modalities": [
@@ -2139,7 +2139,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "amazon/nova-premier-v1": {
           "usd": {
@@ -4096,7 +4096,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "moonshotai/kimi-k2-0905:exacto": {
           "usd": {
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 1.26,
-            "output": 3.9600000000000004,
-            "cachedInput": 0.126
+            "input": 1.395,
+            "output": 4.4,
+            "cachedInput": 0.1395
           },
           "capabilities": {
             "input_modalities": [
@@ -14983,9 +14983,46 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "qwen/qwen3.6-plus": {
+          "usd": {
+            "input": 0.325,
+            "output": 1.95,
+            "cachedInput": 0.0325
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-04-08T00:24:22.561Z"
+  "lastUpdated": "2026-04-09T00:19:57.938Z"
 }
