@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 1.395,
-            "output": 4.4,
-            "cachedInput": 0.1395
+            "input": 1.26,
+            "output": 3.9600000000000004,
+            "cachedInput": 0.126
           },
           "capabilities": {
             "input_modalities": [
@@ -15024,5 +15024,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-09T00:19:57.938Z"
+  "lastUpdated": "2026-04-10T00:23:18.791Z"
 }
