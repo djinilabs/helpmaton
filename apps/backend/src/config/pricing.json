@@ -4968,7 +4968,7 @@
         "openai/gpt-oss-20b": {
           "usd": {
             "input": 0.03,
-            "output": 0.11,
+            "output": 0.14,
             "cachedInput": 0.003
           },
           "capabilities": {
@@ -10331,9 +10331,9 @@
         },
         "meta-llama/llama-3.2-11b-vision-instruct": {
           "usd": {
-            "input": 0.049,
-            "output": 0.049,
-            "cachedInput": 0.004900000000000001
+            "input": 0.245,
+            "output": 0.245,
+            "cachedInput": 0.0245
           },
           "capabilities": {
             "input_modalities": [
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.13,
+            "input": 0.12,
             "output": 0.39999999999999997,
-            "cachedInput": 0.013000000000000001
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 1.26,
-            "output": 3.9600000000000004,
-            "cachedInput": 0.126
+            "input": 0.95,
+            "output": 3.15,
+            "cachedInput": 0.095
           },
           "capabilities": {
             "input_modalities": [
@@ -15024,5 +15024,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-10T00:23:18.791Z"
+  "lastUpdated": "2026-04-11T00:22:41.054Z"
 }
