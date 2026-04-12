@@ -6574,7 +6574,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 200000
+          "context_length": 1000000
         },
         "google/gemma-3n-e4b-it:free": {
           "usd": {
@@ -7925,9 +7925,9 @@
         },
         "mistralai/mistral-small-3.1-24b-instruct": {
           "usd": {
-            "input": 0.03,
-            "output": 0.11,
-            "cachedInput": 0.003
+            "input": 0.35,
+            "output": 0.56,
+            "cachedInput": 0.034999999999999996
           },
           "capabilities": {
             "input_modalities": [
@@ -7959,7 +7959,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 128000
         },
         "allenai/olmo-2-0325-32b-instruct": {
           "usd": {
@@ -15024,5 +15024,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-11T00:22:41.054Z"
+  "lastUpdated": "2026-04-12T00:25:05.768Z"
 }
