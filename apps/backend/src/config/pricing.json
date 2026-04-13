@@ -6465,9 +6465,9 @@
         },
         "deepseek/deepseek-r1-0528": {
           "usd": {
-            "input": 0.44999999999999996,
+            "input": 0.5,
             "output": 2.1500000000000004,
-            "cachedInput": 0.045
+            "cachedInput": 0.05
           },
           "capabilities": {
             "input_modalities": [
@@ -12680,9 +12680,9 @@
         },
         "qwen/qwen3-coder-next": {
           "usd": {
-            "input": 0.12,
-            "output": 0.75,
-            "cachedInput": 0.012
+            "input": 0.15,
+            "output": 0.7999999999999999,
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -15024,5 +15024,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-12T00:25:05.768Z"
+  "lastUpdated": "2026-04-13T00:25:49.409Z"
 }
