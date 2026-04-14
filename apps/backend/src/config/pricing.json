@@ -14297,7 +14297,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 204800
+          "context_length": 196608
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
@@ -14718,9 +14718,9 @@
         },
         "google/gemma-4-31b-it": {
           "usd": {
-            "input": 0.14,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.014000000000000002
+            "input": 0.13,
+            "output": 0.38,
+            "cachedInput": 0.013000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.12,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.012
+            "input": 0.08,
+            "output": 0.35,
+            "cachedInput": 0.008
           },
           "capabilities": {
             "input_modalities": [
@@ -15020,9 +15020,40 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "openrouter/elephant-alpha": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-04-13T00:25:49.409Z"
+  "lastUpdated": "2026-04-14T00:28:32.192Z"
 }
