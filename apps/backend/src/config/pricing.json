@@ -8599,9 +8599,9 @@
         },
         "meta-llama/llama-guard-3-8b": {
           "usd": {
-            "input": 0.02,
-            "output": 0.06,
-            "cachedInput": 0.002
+            "input": 0.48,
+            "output": 0.03,
+            "cachedInput": 0.048
           },
           "capabilities": {
             "input_modalities": [
@@ -15055,5 +15055,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-14T00:28:32.192Z"
+  "lastUpdated": "2026-04-15T00:28:42.759Z"
 }
