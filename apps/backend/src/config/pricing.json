@@ -6610,9 +6610,9 @@
         },
         "google/gemma-3n-e4b-it": {
           "usd": {
-            "input": 0.02,
-            "output": 0.04,
-            "cachedInput": 0.002
+            "input": 0.06,
+            "output": 0.12,
+            "cachedInput": 0.006
           },
           "capabilities": {
             "input_modalities": [
@@ -15051,9 +15051,38 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "meta-llama/llama-guard-4-12b:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "seed",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 163840
         }
       }
     }
   },
-  "lastUpdated": "2026-04-15T00:28:42.759Z"
+  "lastUpdated": "2026-04-16T00:28:51.240Z"
 }
