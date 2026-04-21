@@ -539,9 +539,9 @@
         },
         "z-ai/glm-4.7": {
           "usd": {
-            "input": 0.39,
-            "output": 1.75,
-            "cachedInput": 0.03900000000000001
+            "input": 0.38,
+            "output": 1.74,
+            "cachedInput": 0.038000000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.25899999999999995,
-            "output": 0.42,
-            "cachedInput": 0.025899999999999996
+            "input": 0.252,
+            "output": 0.378,
+            "cachedInput": 0.0252
           },
           "capabilities": {
             "input_modalities": [
@@ -1512,7 +1512,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 163840
+          "context_length": 131072
         },
         "prime-intellect/intellect-3": {
           "usd": {
@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1000000
+          "context_length": 1048576
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -12531,9 +12531,9 @@
         },
         "moonshotai/kimi-k2.5": {
           "usd": {
-            "input": 0.3827,
-            "output": 1.72,
-            "cachedInput": 0.03827
+            "input": 0.44,
+            "output": 2,
+            "cachedInput": 0.044000000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -12964,9 +12964,9 @@
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.118,
-            "output": 0.9900000000000001,
-            "cachedInput": 0.0118
+            "input": 0.15,
+            "output": 1.2,
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 0.95,
-            "output": 3.15,
-            "cachedInput": 0.095
+            "input": 1.0499999999999998,
+            "output": 3.5,
+            "cachedInput": 0.10499999999999998
           },
           "capabilities": {
             "input_modalities": [
@@ -15114,9 +15114,50 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "moonshotai/kimi-k2.6": {
+          "usd": {
+            "input": 0.6,
+            "output": 2.8,
+            "cachedInput": 0.06
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-04-19T00:26:22.380Z"
+  "lastUpdated": "2026-04-21T00:27:55.283Z"
 }
