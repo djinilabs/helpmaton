@@ -5264,9 +5264,9 @@
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
           "usd": {
-            "input": 0.13,
-            "output": 0.6,
-            "cachedInput": 0.013000000000000001
+            "input": 0.14950000000000002,
+            "output": 1.495,
+            "cachedInput": 0.014950000000000003
           },
           "capabilities": {
             "input_modalities": [
@@ -5301,7 +5301,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 131072
         },
         "z-ai/glm-4-32b": {
           "usd": {
@@ -14796,7 +14796,7 @@
         "google/gemma-4-26b-a4b-it": {
           "usd": {
             "input": 0.07,
-            "output": 0.35,
+            "output": 0.33999999999999997,
             "cachedInput": 0.007000000000000001
           },
           "capabilities": {
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.7999999999999999,
+            "input": 0.75,
             "output": 3.5,
-            "cachedInput": 0.08
+            "cachedInput": 0.07500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -15265,9 +15265,113 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "xiaomi/mimo-v2.5-pro": {
+          "usd": {
+            "input": 1,
+            "output": 3,
+            "cachedInput": 0.1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "xiaomi/mimo-v2.5": {
+          "usd": {
+            "input": 0.39999999999999997,
+            "output": 2,
+            "cachedInput": 0.04
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "audio",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "arcee-ai/trinity-large-preview": {
+          "usd": {
+            "input": 0.15,
+            "output": 0.44999999999999996,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "max_tokens",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 131000
         }
       }
     }
   },
-  "lastUpdated": "2026-04-22T00:24:33.962Z"
+  "lastUpdated": "2026-04-23T00:30:11.105Z"
 }
