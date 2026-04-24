@@ -11051,9 +11051,9 @@
         },
         "mistralai/mistral-nemo": {
           "usd": {
-            "input": 0.02,
-            "output": 0.04,
-            "cachedInput": 0.002
+            "input": 0.01,
+            "output": 0.03,
+            "cachedInput": 0.001
           },
           "capabilities": {
             "input_modalities": [
@@ -12891,9 +12891,9 @@
         },
         "z-ai/glm-5": {
           "usd": {
-            "input": 0.65,
+            "input": 0.6,
             "output": 2.08,
-            "cachedInput": 0.065
+            "cachedInput": 0.06
           },
           "capabilities": {
             "input_modalities": [
@@ -12965,7 +12965,7 @@
         "minimax/minimax-m2.5": {
           "usd": {
             "input": 0.15,
-            "output": 1.2,
+            "output": 1.15,
             "cachedInput": 0.015
           },
           "capabilities": {
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.07,
-            "output": 0.33999999999999997,
-            "cachedInput": 0.007000000000000001
+            "input": 0.06,
+            "output": 0.33,
+            "cachedInput": 0.006
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.75,
-            "output": 3.5,
-            "cachedInput": 0.07500000000000001
+            "input": 0.7448,
+            "output": 4.655,
+            "cachedInput": 0.07448
           },
           "capabilities": {
             "input_modalities": [
@@ -15154,7 +15154,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 256000
         },
         "openai/gpt-5.4-image-2": {
           "usd": {
@@ -15369,9 +15369,115 @@
             "image": false
           },
           "context_length": 131000
+        },
+        "inclusionai/ling-2.6-1t:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "tencent/hy3-preview:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "presence_penalty",
+              "reasoning",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "baidu/qianfan-ocr-fast:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "seed",
+              "stop",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 65536
         }
       }
     }
   },
-  "lastUpdated": "2026-04-23T00:30:11.105Z"
+  "lastUpdated": "2026-04-24T00:29:32.291Z"
 }
