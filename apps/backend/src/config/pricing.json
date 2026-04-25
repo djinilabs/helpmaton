@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1000000
+          "context_length": 1048576
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -12680,9 +12680,9 @@
         },
         "qwen/qwen3-coder-next": {
           "usd": {
-            "input": 0.15,
+            "input": 0.14,
             "output": 0.7999999999999999,
-            "cachedInput": 0.015
+            "cachedInput": 0.014000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -15475,9 +15475,157 @@
             "image": false
           },
           "context_length": 65536
+        },
+        "openai/gpt-5.5-pro": {
+          "usd": {
+            "input": 30,
+            "output": 180,
+            "cachedInput": 3
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1050000
+        },
+        "openai/gpt-5.5": {
+          "usd": {
+            "input": 5,
+            "output": 30,
+            "cachedInput": 0.5
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1050000
+        },
+        "deepseek/deepseek-v4-pro": {
+          "usd": {
+            "input": 1.74,
+            "output": 3.48,
+            "cachedInput": 0.17400000000000002
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "deepseek/deepseek-v4-flash": {
+          "usd": {
+            "input": 0.14,
+            "output": 0.28,
+            "cachedInput": 0.014000000000000002
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-04-24T00:29:32.291Z"
+  "lastUpdated": "2026-04-25T00:26:03.248Z"
 }
