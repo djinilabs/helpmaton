@@ -5369,7 +5369,7 @@
         "qwen/qwen3-coder": {
           "usd": {
             "input": 0.22,
-            "output": 1,
+            "output": 1.7999999999999998,
             "cachedInput": 0.022000000000000002
           },
           "capabilities": {
@@ -15546,9 +15546,9 @@
         },
         "deepseek/deepseek-v4-pro": {
           "usd": {
-            "input": 1.74,
-            "output": 3.48,
-            "cachedInput": 0.17400000000000002
+            "input": 0.435,
+            "output": 0.87,
+            "cachedInput": 0.043500000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -15627,5 +15627,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-25T00:26:03.248Z"
+  "lastUpdated": "2026-04-26T00:28:03.439Z"
 }
