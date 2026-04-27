@@ -10368,9 +10368,9 @@
         },
         "qwen/qwen-2.5-72b-instruct": {
           "usd": {
-            "input": 0.12,
-            "output": 0.39,
-            "cachedInput": 0.012
+            "input": 0.36,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.036
           },
           "capabilities": {
             "input_modalities": [
@@ -15627,5 +15627,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-26T00:28:03.439Z"
+  "lastUpdated": "2026-04-27T00:28:53.134Z"
 }
