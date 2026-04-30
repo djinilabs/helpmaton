@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1048576
+          "context_length": 1000000
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -11052,7 +11052,7 @@
         "mistralai/mistral-nemo": {
           "usd": {
             "input": 0.02,
-            "output": 0.04,
+            "output": 0.03,
             "cachedInput": 0.002
           },
           "capabilities": {
@@ -16259,5 +16259,5 @@
       }
     }
   },
-  "lastUpdated": "2026-04-29T00:33:04.348Z"
+  "lastUpdated": "2026-04-30T00:32:56.383Z"
 }
