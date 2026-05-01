@@ -4852,7 +4852,7 @@
         "openai/gpt-oss-120b": {
           "usd": {
             "input": 0.039,
-            "output": 0.19,
+            "output": 0.18,
             "cachedInput": 0.0039000000000000003
           },
           "capabilities": {
@@ -12680,9 +12680,9 @@
         },
         "qwen/qwen3-coder-next": {
           "usd": {
-            "input": 0.14,
+            "input": 0.12,
             "output": 0.7999999999999999,
-            "cachedInput": 0.014000000000000002
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.7448,
-            "output": 4.655,
-            "cachedInput": 0.07448
+            "input": 0.74,
+            "output": 3.49,
+            "cachedInput": 0.074
           },
           "capabilities": {
             "input_modalities": [
@@ -15154,7 +15154,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 256000
+          "context_length": 262142
         },
         "openai/gpt-5.4-image-2": {
           "usd": {
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.7448,
-            "output": 4.655,
-            "cachedInput": 0.07448
+            "input": 0.74,
+            "output": 3.49,
+            "cachedInput": 0.074
           },
           "capabilities": {
             "input_modalities": [
@@ -15813,7 +15813,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 256000
+          "context_length": 262142
         },
         "~google/gemini-flash-latest": {
           "usd": {
@@ -16255,9 +16255,123 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "x-ai/grok-4.3": {
+          "usd": {
+            "input": 1.25,
+            "output": 2.5,
+            "cachedInput": 0.125
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "ibm-granite/granite-4.1-8b": {
+          "usd": {
+            "input": 0.049999999999999996,
+            "output": 0.09999999999999999,
+            "cachedInput": 0.005
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 131072
+        },
+        "openrouter/owl-alpha": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logit_bias",
+              "max_tokens",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048756
         }
       }
     }
   },
-  "lastUpdated": "2026-04-30T00:32:56.383Z"
+  "lastUpdated": "2026-05-01T00:34:46.577Z"
 }
