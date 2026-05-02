@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1000000
+          "context_length": 1048576
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -14544,9 +14544,9 @@
         },
         "x-ai/grok-4.20": {
           "usd": {
-            "input": 2,
-            "output": 6,
-            "cachedInput": 0.2
+            "input": 1.25,
+            "output": 2.5,
+            "cachedInput": 0.125
           },
           "capabilities": {
             "input_modalities": [
@@ -16373,5 +16373,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-01T00:34:46.577Z"
+  "lastUpdated": "2026-05-02T00:32:38.185Z"
 }
