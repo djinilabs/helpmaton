@@ -16081,9 +16081,9 @@
         },
         "qwen/qwen3.6-27b": {
           "usd": {
-            "input": 0.325,
-            "output": 3.25,
-            "cachedInput": 0.0325
+            "input": 0.32,
+            "output": 3.1999999999999997,
+            "cachedInput": 0.032
           },
           "capabilities": {
             "input_modalities": [
@@ -16122,7 +16122,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 256000
+          "context_length": 262144
         },
         "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
           "usd": {
@@ -16373,5 +16373,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-02T00:32:38.185Z"
+  "lastUpdated": "2026-05-03T00:32:03.036Z"
 }
