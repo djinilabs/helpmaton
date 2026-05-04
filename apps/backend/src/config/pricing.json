@@ -3590,9 +3590,9 @@
         },
         "deepseek/deepseek-v3.1-terminus": {
           "usd": {
-            "input": 0.21,
-            "output": 0.7899999999999999,
-            "cachedInput": 0.021
+            "input": 0.27,
+            "output": 0.95,
+            "cachedInput": 0.027000000000000003
           },
           "capabilities": {
             "input_modalities": [
@@ -7006,9 +7006,9 @@
         },
         "qwen/qwen3-30b-a3b": {
           "usd": {
-            "input": 0.08,
-            "output": 0.28,
-            "cachedInput": 0.008
+            "input": 0.09,
+            "output": 0.44999999999999996,
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1048576
+          "context_length": 1000000
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -16373,5 +16373,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-03T00:32:03.036Z"
+  "lastUpdated": "2026-05-04T00:32:31.024Z"
 }
