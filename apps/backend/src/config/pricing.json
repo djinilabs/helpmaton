@@ -12892,7 +12892,7 @@
         "z-ai/glm-5": {
           "usd": {
             "input": 0.6,
-            "output": 2.08,
+            "output": 1.92,
             "cachedInput": 0.06
           },
           "capabilities": {
@@ -16407,9 +16407,82 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "openai/gpt-chat-latest": {
+          "usd": {
+            "input": 5,
+            "output": 30,
+            "cachedInput": 0.5
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "top_logprobs"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "microsoft/phi-4-mini-instruct": {
+          "usd": {
+            "input": 0.08,
+            "output": 0.35,
+            "cachedInput": 0.008
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "max_tokens",
+              "presence_penalty",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 128000
         }
       }
     }
   },
-  "lastUpdated": "2026-05-05T00:32:10.788Z"
+  "lastUpdated": "2026-05-06T00:31:25.063Z"
 }
