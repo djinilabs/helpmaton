@@ -4394,9 +4394,9 @@
         },
         "deepseek/deepseek-chat-v3.1": {
           "usd": {
-            "input": 0.15,
-            "output": 0.75,
-            "cachedInput": 0.015
+            "input": 0.21,
+            "output": 0.7899999999999999,
+            "cachedInput": 0.021
           },
           "capabilities": {
             "input_modalities": [
@@ -4433,7 +4433,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 163840
         },
         "openai/gpt-4o-audio-preview": {
           "usd": {
@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1000000
+          "context_length": 1048576
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -14718,9 +14718,9 @@
         },
         "google/gemma-4-31b-it": {
           "usd": {
-            "input": 0.13,
-            "output": 0.38,
-            "cachedInput": 0.013000000000000001
+            "input": 0.12,
+            "output": 0.37,
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 1.0499999999999998,
-            "output": 3.5,
-            "cachedInput": 0.10499999999999998
+            "input": 0.98,
+            "output": 3.08,
+            "cachedInput": 0.098
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.75,
+            "input": 0.74,
             "output": 3.5,
-            "cachedInput": 0.07500000000000001
+            "cachedInput": 0.074
           },
           "capabilities": {
             "input_modalities": [
@@ -15154,7 +15154,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 32768
         },
         "openai/gpt-5.4-image-2": {
           "usd": {
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.75,
+            "input": 0.74,
             "output": 3.5,
-            "cachedInput": 0.07500000000000001
+            "cachedInput": 0.074
           },
           "capabilities": {
             "input_modalities": [
@@ -15813,7 +15813,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 32768
         },
         "~google/gemini-flash-latest": {
           "usd": {
@@ -16657,9 +16657,41 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "arcee-ai/trinity-large-thinking:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-05-11T00:34:26.643Z"
+  "lastUpdated": "2026-05-12T00:33:11.563Z"
 }
