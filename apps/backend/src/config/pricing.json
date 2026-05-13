@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1048576
+          "context_length": 1000000
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -12532,7 +12532,7 @@
         "moonshotai/kimi-k2.5": {
           "usd": {
             "input": 0.39999999999999997,
-            "output": 1.9800000000000002,
+            "output": 1.9,
             "cachedInput": 0.04
           },
           "capabilities": {
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.29900000000000004,
+            "input": 0.28,
             "output": 1.2,
-            "cachedInput": 0.029900000000000006
+            "cachedInput": 0.028000000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 0.98,
-            "output": 3.08,
-            "cachedInput": 0.098
+            "input": 1.0499999999999998,
+            "output": 3.5,
+            "cachedInput": 0.10499999999999998
           },
           "capabilities": {
             "input_modalities": [
@@ -15154,7 +15154,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 262142
         },
         "openai/gpt-5.4-image-2": {
           "usd": {
@@ -15813,7 +15813,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 262142
         },
         "~google/gemini-flash-latest": {
           "usd": {
@@ -16689,9 +16689,79 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "anthropic/claude-opus-4.7-fast": {
+          "usd": {
+            "input": 30,
+            "output": 150,
+            "cachedInput": 3
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "perceptron/perceptron-mk1": {
+          "usd": {
+            "input": 0.15,
+            "output": 1.5,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "structured_outputs",
+              "temperature",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 32768
         }
       }
     }
   },
-  "lastUpdated": "2026-05-12T00:33:11.563Z"
+  "lastUpdated": "2026-05-13T00:36:08.650Z"
 }
