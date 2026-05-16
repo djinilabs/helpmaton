@@ -2498,7 +2498,7 @@
         "ibm-granite/granite-4.0-h-micro": {
           "usd": {
             "input": 0.017,
-            "output": 0.11,
+            "output": 0.112,
             "cachedInput": 0.0017000000000000001
           },
           "capabilities": {
@@ -7925,9 +7925,9 @@
         },
         "mistralai/mistral-small-3.1-24b-instruct": {
           "usd": {
-            "input": 0.35,
-            "output": 0.56,
-            "cachedInput": 0.034999999999999996
+            "input": 0.351,
+            "output": 0.5549999999999999,
+            "cachedInput": 0.0351
           },
           "capabilities": {
             "input_modalities": [
@@ -8599,9 +8599,9 @@
         },
         "meta-llama/llama-guard-3-8b": {
           "usd": {
-            "input": 0.48,
+            "input": 0.48400000000000004,
             "output": 0.03,
-            "cachedInput": 0.048
+            "cachedInput": 0.048400000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -10263,9 +10263,9 @@
         },
         "meta-llama/llama-3.2-3b-instruct": {
           "usd": {
-            "input": 0.051,
-            "output": 0.33999999999999997,
-            "cachedInput": 0.0051
+            "input": 0.0509,
+            "output": 0.335,
+            "cachedInput": 0.005090000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -10300,7 +10300,7 @@
         "meta-llama/llama-3.2-1b-instruct": {
           "usd": {
             "input": 0.027,
-            "output": 0.19999999999999998,
+            "output": 0.201,
             "cachedInput": 0.0027
           },
           "capabilities": {
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.26,
+            "input": 0.27899999999999997,
             "output": 1.2,
-            "cachedInput": 0.026000000000000002
+            "cachedInput": 0.027899999999999998
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.126,
-            "output": 0.252,
-            "cachedInput": 0.0126
+            "input": 0.112,
+            "output": 0.224,
+            "cachedInput": 0.011200000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -15622,7 +15622,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1048576
+          "context_length": 1048575
         },
         "openai/whisper-1": {
           "usd": {
@@ -16221,9 +16221,9 @@
         },
         "inclusionai/ling-2.6-flash": {
           "usd": {
-            "input": 0.08,
-            "output": 0.24,
-            "cachedInput": 0.008
+            "input": 0.01,
+            "output": 0.03,
+            "cachedInput": 0.001
           },
           "capabilities": {
             "input_modalities": [
@@ -16822,9 +16822,47 @@
             "image": false
           },
           "context_length": 65536
+        },
+        "inclusionai/ring-2.6-1t": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.625,
+            "cachedInput": 0.0075
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-05-15T00:34:50.480Z"
+  "lastUpdated": "2026-05-16T00:32:47.371Z"
 }
