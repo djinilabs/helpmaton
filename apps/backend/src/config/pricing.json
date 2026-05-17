@@ -535,7 +535,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 196608
+          "context_length": 204800
         },
         "z-ai/glm-4.7": {
           "usd": {
@@ -2388,7 +2388,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 196608
+          "context_length": 204800
         },
         "qwen/qwen3-vl-32b-instruct": {
           "usd": {
@@ -2425,7 +2425,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "liquid/lfm2-8b-a1b": {
           "usd": {
@@ -2677,7 +2677,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 256000
         },
         "qwen/qwen3-vl-8b-instruct": {
           "usd": {
@@ -2717,7 +2717,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 256000
         },
         "openai/gpt-5-image": {
           "usd": {
@@ -3032,7 +3032,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "openai/gpt-5-pro": {
           "usd": {
@@ -3812,7 +3812,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "qwen/qwen3-next-80b-a3b-instruct:free": {
           "usd": {
@@ -4544,7 +4544,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 120000
+          "context_length": 131072
         },
         "baidu/ernie-4.5-vl-28b-a3b": {
           "usd": {
@@ -4582,7 +4582,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 30000
+          "context_length": 131072
         },
         "z-ai/glm-4.5v": {
           "usd": {
@@ -4852,7 +4852,7 @@
         "openai/gpt-oss-120b": {
           "usd": {
             "input": 0.039,
-            "output": 0.18,
+            "output": 0.19,
             "cachedInput": 0.0039000000000000003
           },
           "capabilities": {
@@ -5301,7 +5301,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "z-ai/glm-4-32b": {
           "usd": {
@@ -5364,7 +5364,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 262000
+          "context_length": 1048576
         },
         "qwen/qwen3-coder": {
           "usd": {
@@ -5406,7 +5406,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 1048576
         },
         "qwen/qwen3-coder:exacto": {
           "usd": {
@@ -6028,7 +6028,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 123000
+          "context_length": 131072
         },
         "baidu/ernie-4.5-300b-a47b": {
           "usd": {
@@ -6063,7 +6063,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 123000
+          "context_length": 131072
         },
         "inception/mercury": {
           "usd": {
@@ -7042,7 +7042,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 40960
+          "context_length": 131072
         },
         "qwen/qwen3-8b": {
           "usd": {
@@ -7083,7 +7083,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 40960
+          "context_length": 131072
         },
         "qwen/qwen3-14b": {
           "usd": {
@@ -7123,7 +7123,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 40960
+          "context_length": 131702
         },
         "qwen/qwen3-32b": {
           "usd": {
@@ -7165,7 +7165,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 40960
+          "context_length": 131072
         },
         "qwen/qwen3-235b-a22b": {
           "usd": {
@@ -7771,7 +7771,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 327680
+          "context_length": 10000000
         },
         "qwen/qwen2.5-vl-32b-instruct": {
           "usd": {
@@ -8914,7 +8914,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32000
+          "context_length": 131072
         },
         "qwen/qwen-plus": {
           "usd": {
@@ -9085,7 +9085,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 128000
         },
         "perplexity/sonar": {
           "usd": {
@@ -9195,7 +9195,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 64000
+          "context_length": 163840
         },
         "minimax/minimax-01": {
           "usd": {
@@ -9501,7 +9501,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 65536
+          "context_length": 131072
         },
         "meta-llama/llama-3.3-70b-instruct": {
           "usd": {
@@ -9818,7 +9818,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 128000
         },
         "raifle/sorcererlm-8x22b": {
           "usd": {
@@ -9958,7 +9958,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 16384
+          "context_length": 32768
         },
         "anthropic/claude-3.5-sonnet": {
           "usd": {
@@ -10096,7 +10096,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 131072
         },
         "nvidia/llama-3.1-nemotron-70b-instruct": {
           "usd": {
@@ -10295,7 +10295,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 80000
+          "context_length": 131072
         },
         "meta-llama/llama-3.2-1b-instruct": {
           "usd": {
@@ -10327,7 +10327,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 60000
+          "context_length": 131072
         },
         "meta-llama/llama-3.2-11b-vision-instruct": {
           "usd": {
@@ -10403,7 +10403,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 131072
         },
         "neversleep/llama-3.1-lumimaid-8b": {
           "usd": {
@@ -10942,7 +10942,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 16384
+          "context_length": 131072
         },
         "meta-llama/llama-3.1-405b-instruct:free": {
           "usd": {
@@ -11052,7 +11052,7 @@
         "mistralai/mistral-nemo": {
           "usd": {
             "input": 0.02,
-            "output": 0.03,
+            "output": 0.04,
             "cachedInput": 0.002
           },
           "capabilities": {
@@ -11670,7 +11670,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 65535
+          "context_length": 65536
         },
         "openai/gpt-4-turbo": {
           "usd": {
@@ -12143,7 +12143,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 2824
+          "context_length": 4096
         },
         "openai/gpt-3.5-turbo-16k": {
           "usd": {
@@ -12998,7 +12998,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 196608
+          "context_length": 204800
         },
         "qwen/qwen3-4b": {
           "usd": {
@@ -13431,7 +13431,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 32768
+          "context_length": 128000
         },
         "google/gemini-3.1-pro-preview-customtools": {
           "usd": {
@@ -13470,7 +13470,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1048576
+          "context_length": 1048756
         },
         "bytedance-seed/seed-2.0-mini": {
           "usd": {
@@ -13542,7 +13542,7 @@
             "structured_output": true,
             "image": true
           },
-          "context_length": 65536
+          "context_length": 131072
         },
         "upstage/solar-pro-3": {
           "usd": {
@@ -13950,7 +13950,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 1000000
         },
         "x-ai/grok-4.20-multi-agent-beta": {
           "usd": {
@@ -14086,7 +14086,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 196608
+          "context_length": 204800
         },
         "openai/gpt-5.4-nano": {
           "usd": {
@@ -14297,13 +14297,13 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 196608
+          "context_length": 204800
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.09,
-            "output": 0.44999999999999996,
-            "cachedInput": 0.009
+            "input": 0.09999999999999999,
+            "output": 0.5,
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -14331,7 +14331,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 1000000
         },
         "reka/reka-edge": {
           "usd": {
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.06,
-            "output": 0.33,
-            "cachedInput": 0.006
+            "input": 0.07,
+            "output": 0.33999999999999997,
+            "cachedInput": 0.007000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -15154,7 +15154,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262142
+          "context_length": 262144
         },
         "openai/gpt-5.4-image-2": {
           "usd": {
@@ -15622,7 +15622,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1048575
+          "context_length": 1048576
         },
         "openai/whisper-1": {
           "usd": {
@@ -15813,7 +15813,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262142
+          "context_length": 262144
         },
         "~google/gemini-flash-latest": {
           "usd": {
@@ -16479,7 +16479,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 128000
+          "context_length": 131072
         },
         "baidu/cobuddy:free": {
           "usd": {
@@ -16864,5 +16864,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-16T00:32:47.371Z"
+  "lastUpdated": "2026-05-17T00:35:14.530Z"
 }
