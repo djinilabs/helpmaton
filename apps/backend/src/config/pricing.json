@@ -4852,7 +4852,7 @@
         "openai/gpt-oss-120b": {
           "usd": {
             "input": 0.039,
-            "output": 0.19,
+            "output": 0.18,
             "cachedInput": 0.0039000000000000003
           },
           "capabilities": {
@@ -11052,7 +11052,7 @@
         "mistralai/mistral-nemo": {
           "usd": {
             "input": 0.02,
-            "output": 0.04,
+            "output": 0.03,
             "cachedInput": 0.002
           },
           "capabilities": {
@@ -14301,9 +14301,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.09999999999999999,
-            "output": 0.5,
-            "cachedInput": 0.01
+            "input": 0.09,
+            "output": 0.44999999999999996,
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.07,
-            "output": 0.33999999999999997,
-            "cachedInput": 0.007000000000000001
+            "input": 0.06,
+            "output": 0.33,
+            "cachedInput": 0.006
           },
           "capabilities": {
             "input_modalities": [
@@ -16864,5 +16864,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-17T00:35:14.530Z"
+  "lastUpdated": "2026-05-18T00:36:51.421Z"
 }
