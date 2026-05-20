@@ -13247,9 +13247,9 @@
         },
         "qwen/qwen3.5-35b-a3b": {
           "usd": {
-            "input": 0.14,
+            "input": 0.13899999999999998,
             "output": 1,
-            "cachedInput": 0.014000000000000002
+            "cachedInput": 0.0139
           },
           "capabilities": {
             "input_modalities": [
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 0.98,
-            "output": 3.08,
-            "cachedInput": 0.098
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
           },
           "capabilities": {
             "input_modalities": [
@@ -14912,7 +14912,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 202752
+          "context_length": 202800
         },
         "google/gemma-4-26b-a4b-it:free": {
           "usd": {
@@ -15817,9 +15817,9 @@
         },
         "~google/gemini-flash-latest": {
           "usd": {
-            "input": 0.5,
-            "output": 3,
-            "cachedInput": 0.05
+            "input": 1.5,
+            "output": 9,
+            "cachedInput": 0.15000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -16860,9 +16860,48 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "google/gemini-3.5-flash": {
+          "usd": {
+            "input": 1.5,
+            "output": 9,
+            "cachedInput": 0.15000000000000002
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-05-18T00:36:51.421Z"
+  "lastUpdated": "2026-05-20T00:39:26.799Z"
 }
