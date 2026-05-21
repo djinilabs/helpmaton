@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1048576
+          "context_length": 1000000
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -16003,9 +16003,9 @@
         },
         "qwen/qwen3.6-35b-a3b": {
           "usd": {
-            "input": 0.15,
+            "input": 0.149,
             "output": 1,
-            "cachedInput": 0.015
+            "cachedInput": 0.0149
           },
           "capabilities": {
             "input_modalities": [
@@ -16551,9 +16551,9 @@
         },
         "inclusionai/ling-2.6-1t": {
           "usd": {
-            "input": 0.3,
-            "output": 2.5,
-            "cachedInput": 0.03
+            "input": 0.075,
+            "output": 0.625,
+            "cachedInput": 0.0075
           },
           "capabilities": {
             "input_modalities": [
@@ -16899,9 +16899,49 @@
             "image": false
           },
           "context_length": 1048576
+        },
+        "x-ai/grok-build-0.1": {
+          "usd": {
+            "input": 1,
+            "output": 2,
+            "cachedInput": 0.1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 256000
         }
       }
     }
   },
-  "lastUpdated": "2026-05-20T00:39:26.799Z"
+  "lastUpdated": "2026-05-21T00:39:28.747Z"
 }
