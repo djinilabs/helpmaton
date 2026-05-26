@@ -9298,9 +9298,9 @@
         },
         "deepseek/deepseek-chat": {
           "usd": {
-            "input": 0.32,
-            "output": 0.8899999999999999,
-            "cachedInput": 0.032
+            "input": 0.2288,
+            "output": 0.9144,
+            "cachedInput": 0.02288
           },
           "capabilities": {
             "input_modalities": [
@@ -9332,7 +9332,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 163840
+          "context_length": 131072
         },
         "sao10k/l3.3-euryale-70b": {
           "usd": {
@@ -16980,5 +16980,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-23T00:37:06.684Z"
+  "lastUpdated": "2026-05-26T00:37:18.315Z"
 }
