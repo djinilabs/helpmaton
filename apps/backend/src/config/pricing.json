@@ -5225,9 +5225,9 @@
         },
         "z-ai/glm-4.5-air": {
           "usd": {
-            "input": 0.13,
-            "output": 0.85,
-            "cachedInput": 0.013000000000000001
+            "input": 0.125,
+            "output": 0.84,
+            "cachedInput": 0.0125
           },
           "capabilities": {
             "input_modalities": [
@@ -15268,9 +15268,9 @@
         },
         "xiaomi/mimo-v2.5-pro": {
           "usd": {
-            "input": 1,
-            "output": 3,
-            "cachedInput": 0.1
+            "input": 0.435,
+            "output": 0.87,
+            "cachedInput": 0.043500000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -15303,9 +15303,9 @@
         },
         "xiaomi/mimo-v2.5": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 2,
-            "cachedInput": 0.04
+            "input": 0.14,
+            "output": 0.28,
+            "cachedInput": 0.014000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -16082,7 +16082,7 @@
         "qwen/qwen3.6-27b": {
           "usd": {
             "input": 0.3,
-            "output": 3.1999999999999997,
+            "output": 2,
             "cachedInput": 0.03
           },
           "capabilities": {
@@ -16217,7 +16217,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 262144
         },
         "inclusionai/ling-2.6-flash": {
           "usd": {
@@ -16942,9 +16942,9 @@
         },
         "qwen/qwen3.7-max": {
           "usd": {
-            "input": 2.5,
-            "output": 7.5,
-            "cachedInput": 0.25
+            "input": 1.25,
+            "output": 3.75,
+            "cachedInput": 0.125
           },
           "capabilities": {
             "input_modalities": [
@@ -16980,5 +16980,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-26T00:37:18.315Z"
+  "lastUpdated": "2026-05-27T00:39:23.093Z"
 }
