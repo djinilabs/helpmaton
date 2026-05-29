@@ -5226,7 +5226,7 @@
         "z-ai/glm-4.5-air": {
           "usd": {
             "input": 0.125,
-            "output": 0.84,
+            "output": 0.85,
             "cachedInput": 0.0125
           },
           "capabilities": {
@@ -14086,7 +14086,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 204800
         },
         "openai/gpt-5.4-nano": {
           "usd": {
@@ -16625,9 +16625,9 @@
         },
         "tencent/hy3-preview": {
           "usd": {
-            "input": 0.06599999999999999,
-            "output": 0.26,
-            "cachedInput": 0.006599999999999999
+            "input": 0.063,
+            "output": 0.21,
+            "cachedInput": 0.0063
           },
           "capabilities": {
             "input_modalities": [
@@ -17005,9 +17005,117 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "stepfun/step-3.7-flash": {
+          "usd": {
+            "input": 0.19999999999999998,
+            "output": 1.15,
+            "cachedInput": 0.02
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 256000
+        },
+        "anthropic/claude-opus-4.8-fast": {
+          "usd": {
+            "input": 10,
+            "output": 50,
+            "cachedInput": 1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "anthropic/claude-opus-4.8": {
+          "usd": {
+            "input": 5,
+            "output": 25,
+            "cachedInput": 0.5
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-05-28T00:35:47.000Z"
+  "lastUpdated": "2026-05-29T00:41:28.578Z"
 }
