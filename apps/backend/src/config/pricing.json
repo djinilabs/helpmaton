@@ -8695,7 +8695,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 1000000
+          "context_length": 1048576
         },
         "qwen/qwen-vl-plus": {
           "usd": {
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.73,
-            "output": 3.49,
-            "cachedInput": 0.073
+            "input": 0.684,
+            "output": 3.42,
+            "cachedInput": 0.0684
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.09999999999999999,
-            "output": 0.19999999999999998,
-            "cachedInput": 0.01
+            "input": 0.0983,
+            "output": 0.1966,
+            "cachedInput": 0.00983
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.73,
-            "output": 3.49,
-            "cachedInput": 0.073
+            "input": 0.684,
+            "output": 3.42,
+            "cachedInput": 0.0684
           },
           "capabilities": {
             "input_modalities": [
@@ -17117,5 +17117,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-29T00:41:28.578Z"
+  "lastUpdated": "2026-05-30T00:37:32.203Z"
 }
