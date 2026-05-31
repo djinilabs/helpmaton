@@ -4967,9 +4967,9 @@
         },
         "openai/gpt-oss-20b": {
           "usd": {
-            "input": 0.03,
+            "input": 0.029,
             "output": 0.14,
-            "cachedInput": 0.003
+            "cachedInput": 0.0029000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -5264,9 +5264,9 @@
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
           "usd": {
-            "input": 0.14950000000000002,
-            "output": 1.495,
-            "cachedInput": 0.014950000000000003
+            "input": 0.09999999999999999,
+            "output": 0.09999999999999999,
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -13247,9 +13247,9 @@
         },
         "qwen/qwen3.5-35b-a3b": {
           "usd": {
-            "input": 0.13899999999999998,
+            "input": 0.14,
             "output": 1,
-            "cachedInput": 0.0139
+            "cachedInput": 0.014000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.27899999999999997,
+            "input": 0.26,
             "output": 1.2,
-            "cachedInput": 0.027899999999999998
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -17117,5 +17117,5 @@
       }
     }
   },
-  "lastUpdated": "2026-05-30T00:37:32.203Z"
+  "lastUpdated": "2026-05-31T00:40:13.565Z"
 }
