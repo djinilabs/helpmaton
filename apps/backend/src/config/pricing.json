@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.252,
-            "output": 0.378,
-            "cachedInput": 0.0252
+            "input": 0.2288,
+            "output": 0.3432,
+            "cachedInput": 0.02288
           },
           "capabilities": {
             "input_modalities": [
@@ -5118,9 +5118,9 @@
         },
         "qwen/qwen3-30b-a3b-instruct-2507": {
           "usd": {
-            "input": 0.09,
-            "output": 0.3,
-            "cachedInput": 0.009
+            "input": 0.0428,
+            "output": 0.1716,
+            "cachedInput": 0.00428
           },
           "capabilities": {
             "input_modalities": [
@@ -5151,7 +5151,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 131072
         },
         "z-ai/glm-4.5": {
           "usd": {
@@ -9298,9 +9298,9 @@
         },
         "deepseek/deepseek-chat": {
           "usd": {
-            "input": 0.2288,
-            "output": 0.9144,
-            "cachedInput": 0.02288
+            "input": 0.20020000000000002,
+            "output": 0.8000999999999999,
+            "cachedInput": 0.020020000000000003
           },
           "capabilities": {
             "input_modalities": [
@@ -12892,7 +12892,7 @@
         "z-ai/glm-5": {
           "usd": {
             "input": 0.6,
-            "output": 1.92,
+            "output": 2.08,
             "cachedInput": 0.06
           },
           "capabilities": {
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.26,
+            "input": 0.27899999999999997,
             "output": 1.2,
-            "cachedInput": 0.026000000000000002
+            "cachedInput": 0.027899999999999998
           },
           "capabilities": {
             "input_modalities": [
@@ -17113,9 +17113,43 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "minimax/minimax-m3": {
+          "usd": {
+            "input": 0.3,
+            "output": 1.2,
+            "cachedInput": 0.03
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-06-01T00:42:15.909Z"
+  "lastUpdated": "2026-06-02T00:44:13.143Z"
 }
