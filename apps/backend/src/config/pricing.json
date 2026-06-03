@@ -16825,9 +16825,9 @@
         },
         "inclusionai/ring-2.6-1t": {
           "usd": {
-            "input": 0.3,
-            "output": 2.5,
-            "cachedInput": 0.03
+            "input": 0.075,
+            "output": 0.625,
+            "cachedInput": 0.0075
           },
           "capabilities": {
             "input_modalities": [
@@ -17151,5 +17151,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-02T00:44:13.143Z"
+  "lastUpdated": "2026-06-03T00:49:28.865Z"
 }
