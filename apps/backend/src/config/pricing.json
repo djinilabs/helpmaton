@@ -12892,7 +12892,7 @@
         "z-ai/glm-5": {
           "usd": {
             "input": 0.6,
-            "output": 2.08,
+            "output": 1.92,
             "cachedInput": 0.06
           },
           "capabilities": {
@@ -17147,9 +17147,47 @@
             "image": false
           },
           "context_length": 1048576
+        },
+        "qwen/qwen3.7-plus": {
+          "usd": {
+            "input": 0.39999999999999997,
+            "output": 1.5999999999999999,
+            "cachedInput": 0.04
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-06-03T00:49:28.865Z"
+  "lastUpdated": "2026-06-04T00:49:12.014Z"
 }
