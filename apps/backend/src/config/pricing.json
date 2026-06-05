@@ -5118,9 +5118,9 @@
         },
         "qwen/qwen3-30b-a3b-instruct-2507": {
           "usd": {
-            "input": 0.0428,
-            "output": 0.1716,
-            "cachedInput": 0.00428
+            "input": 0.04815,
+            "output": 0.19305,
+            "cachedInput": 0.004815
           },
           "capabilities": {
             "input_modalities": [
@@ -10906,7 +10906,7 @@
         "meta-llama/llama-3.1-8b-instruct": {
           "usd": {
             "input": 0.02,
-            "output": 0.049999999999999996,
+            "output": 0.03,
             "cachedInput": 0.002
           },
           "capabilities": {
@@ -17185,9 +17185,113 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "nvidia/nemotron-3.5-content-safety:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "seed",
+              "temperature",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 128000
+        },
+        "nvidia/nemotron-3-ultra-550b-a55b:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "seed",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "nvidia/nemotron-3-ultra-550b-a55b": {
+          "usd": {
+            "input": 0.5,
+            "output": 2.5,
+            "cachedInput": 0.05
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-06-04T00:49:12.014Z"
+  "lastUpdated": "2026-06-05T00:41:55.494Z"
 }
