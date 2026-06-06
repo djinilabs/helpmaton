@@ -14719,7 +14719,7 @@
         "google/gemma-4-31b-it": {
           "usd": {
             "input": 0.12,
-            "output": 0.37,
+            "output": 0.36,
             "cachedInput": 0.012
           },
           "capabilities": {
@@ -17293,5 +17293,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-05T00:41:55.494Z"
+  "lastUpdated": "2026-06-06T00:39:49.965Z"
 }
