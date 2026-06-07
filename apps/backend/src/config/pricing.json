@@ -11566,9 +11566,9 @@
         },
         "meta-llama/llama-3-8b-instruct": {
           "usd": {
-            "input": 0.04,
-            "output": 0.04,
-            "cachedInput": 0.004
+            "input": 0.14,
+            "output": 0.14,
+            "cachedInput": 0.014000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -17293,5 +17293,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-06T00:39:49.965Z"
+  "lastUpdated": "2026-06-07T00:41:53.283Z"
 }
