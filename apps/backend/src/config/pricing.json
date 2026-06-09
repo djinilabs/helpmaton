@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.684,
-            "output": 3.42,
-            "cachedInput": 0.0684
+            "input": 0.6799999999999999,
+            "output": 3.41,
+            "cachedInput": 0.06799999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.684,
-            "output": 3.42,
-            "cachedInput": 0.0684
+            "input": 0.6799999999999999,
+            "output": 3.41,
+            "cachedInput": 0.06799999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -17289,9 +17289,50 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "nex-agi/nex-n2-pro:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-06-08T00:43:32.467Z"
+  "lastUpdated": "2026-06-09T00:37:24.903Z"
 }
