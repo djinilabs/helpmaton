@@ -12965,7 +12965,7 @@
         "minimax/minimax-m2.5": {
           "usd": {
             "input": 0.15,
-            "output": 1.15,
+            "output": 0.8999999999999999,
             "cachedInput": 0.015
           },
           "capabilities": {
@@ -14054,7 +14054,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 202752
+          "context_length": 262144
         },
         "minimax/minimax-m2.5:free": {
           "usd": {
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.27899999999999997,
-            "output": 1.2,
-            "cachedInput": 0.027899999999999998
+            "input": 0.27,
+            "output": 1.08,
+            "cachedInput": 0.027000000000000003
           },
           "capabilities": {
             "input_modalities": [
@@ -17330,9 +17330,79 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "~anthropic/claude-fable-latest": {
+          "usd": {
+            "input": 10,
+            "output": 50,
+            "cachedInput": 1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "anthropic/claude-fable-5": {
+          "usd": {
+            "input": 10,
+            "output": 50,
+            "cachedInput": 1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-06-09T00:37:24.903Z"
+  "lastUpdated": "2026-06-10T00:43:37.367Z"
 }
