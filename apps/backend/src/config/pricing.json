@@ -7853,7 +7853,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 163840
         },
         "openai/o1-pro": {
           "usd": {
@@ -9121,9 +9121,9 @@
         },
         "deepseek/deepseek-r1-distill-llama-70b": {
           "usd": {
-            "input": 0.7,
+            "input": 0.7999999999999999,
             "output": 0.7999999999999999,
-            "cachedInput": 0.06999999999999999
+            "cachedInput": 0.08
           },
           "capabilities": {
             "input_modalities": [
@@ -9158,7 +9158,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 131072
+          "context_length": 128000
         },
         "deepseek/deepseek-r1": {
           "usd": {
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.27,
-            "output": 1.08,
-            "cachedInput": 0.027000000000000003
+            "input": 0.25,
+            "output": 1,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -14719,7 +14719,7 @@
         "google/gemma-4-31b-it": {
           "usd": {
             "input": 0.12,
-            "output": 0.36,
+            "output": 0.35,
             "cachedInput": 0.012
           },
           "capabilities": {
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.6799999999999999,
-            "output": 3.41,
-            "cachedInput": 0.06799999999999999
+            "input": 0.67,
+            "output": 3.39,
+            "cachedInput": 0.067
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.0983,
-            "output": 0.1966,
-            "cachedInput": 0.00983
+            "input": 0.098,
+            "output": 0.196,
+            "cachedInput": 0.009800000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.6799999999999999,
-            "output": 3.41,
-            "cachedInput": 0.06799999999999999
+            "input": 0.67,
+            "output": 3.39,
+            "cachedInput": 0.067
           },
           "capabilities": {
             "input_modalities": [
@@ -16003,9 +16003,9 @@
         },
         "qwen/qwen3.6-35b-a3b": {
           "usd": {
-            "input": 0.14,
+            "input": 0.15,
             "output": 1,
-            "cachedInput": 0.014000000000000002
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -17150,9 +17150,9 @@
         },
         "qwen/qwen3.7-plus": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.5999999999999999,
-            "cachedInput": 0.04
+            "input": 0.32,
+            "output": 1.28,
+            "cachedInput": 0.032
           },
           "capabilities": {
             "input_modalities": [
@@ -17404,5 +17404,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-11T00:43:31.448Z"
+  "lastUpdated": "2026-06-12T00:45:42.430Z"
 }
