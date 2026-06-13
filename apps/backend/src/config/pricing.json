@@ -8880,9 +8880,9 @@
         },
         "qwen/qwen2.5-vl-72b-instruct": {
           "usd": {
-            "input": 0.25,
-            "output": 0.75,
-            "cachedInput": 0.025
+            "input": 0.7999999999999999,
+            "output": 1,
+            "cachedInput": 0.08
           },
           "capabilities": {
             "input_modalities": [
@@ -12531,9 +12531,9 @@
         },
         "moonshotai/kimi-k2.5": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.9,
-            "cachedInput": 0.04
+            "input": 0.375,
+            "output": 2.025,
+            "cachedInput": 0.037500000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.67,
-            "output": 3.39,
-            "cachedInput": 0.067
+            "input": 0.6799999999999999,
+            "output": 3.41,
+            "cachedInput": 0.06799999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.67,
-            "output": 3.39,
-            "cachedInput": 0.067
+            "input": 0.6799999999999999,
+            "output": 3.41,
+            "cachedInput": 0.06799999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -16081,9 +16081,9 @@
         },
         "qwen/qwen3.6-27b": {
           "usd": {
-            "input": 0.28900000000000003,
-            "output": 2.4,
-            "cachedInput": 0.028900000000000006
+            "input": 0.28850000000000003,
+            "output": 3.17,
+            "cachedInput": 0.028850000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -17400,9 +17400,50 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "moonshotai/kimi-k2.7-code": {
+          "usd": {
+            "input": 0.95,
+            "output": 4,
+            "cachedInput": 0.095
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-06-12T00:45:42.430Z"
+  "lastUpdated": "2026-06-13T00:44:57.103Z"
 }
