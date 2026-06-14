@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.098,
-            "output": 0.196,
-            "cachedInput": 0.009800000000000001
+            "input": 0.09,
+            "output": 0.18,
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.95,
-            "output": 4,
-            "cachedInput": 0.095
+            "input": 0.75,
+            "output": 3.5,
+            "cachedInput": 0.07500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -17445,5 +17445,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-13T00:44:57.103Z"
+  "lastUpdated": "2026-06-14T00:44:01.155Z"
 }
