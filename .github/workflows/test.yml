@@ -49,9 +49,9 @@ jobs:
         run: corepack enable
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 10.28.2
+          version: 11.6.0
 
       - name: Get pnpm store directory
         shell: bash
