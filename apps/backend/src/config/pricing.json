@@ -5225,9 +5225,9 @@
         },
         "z-ai/glm-4.5-air": {
           "usd": {
-            "input": 0.125,
+            "input": 0.13,
             "output": 0.85,
-            "cachedInput": 0.0125
+            "cachedInput": 0.013000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.098,
-            "output": 0.196,
-            "cachedInput": 0.009800000000000001
+            "input": 0.09,
+            "output": 0.18,
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -16625,9 +16625,9 @@
         },
         "tencent/hy3-preview": {
           "usd": {
-            "input": 0.063,
-            "output": 0.21,
-            "cachedInput": 0.0063
+            "input": 0.06599999999999999,
+            "output": 0.26,
+            "cachedInput": 0.006599999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -17252,7 +17252,7 @@
         "nvidia/nemotron-3-ultra-550b-a55b": {
           "usd": {
             "input": 0.5,
-            "output": 2.5,
+            "output": 2.2,
             "cachedInput": 0.05
           },
           "capabilities": {
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.75,
+            "input": 0.74,
             "output": 3.5,
-            "cachedInput": 0.07500000000000001
+            "cachedInput": 0.074
           },
           "capabilities": {
             "input_modalities": [
@@ -17441,9 +17441,50 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "z-ai/glm-5.2": {
+          "usd": {
+            "input": 1.4,
+            "output": 4.4,
+            "cachedInput": 0.13999999999999999
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-06-16T00:50:35.092Z"
+  "lastUpdated": "2026-06-17T00:45:21.966Z"
 }
