@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.74,
-            "output": 3.5,
-            "cachedInput": 0.074
+            "input": 0.6799999999999999,
+            "output": 3.41,
+            "cachedInput": 0.06799999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -17656,5 +17656,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-19T00:49:50.373Z"
+  "lastUpdated": "2026-06-20T00:40:45.121Z"
 }
