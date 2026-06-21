@@ -14649,9 +14649,9 @@
         },
         "arcee-ai/trinity-large-thinking": {
           "usd": {
-            "input": 0.22,
-            "output": 0.85,
-            "cachedInput": 0.022000000000000002
+            "input": 0.25,
+            "output": 0.7999999999999999,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.67,
+            "input": 0.66,
             "output": 3.5,
-            "cachedInput": 0.067
+            "cachedInput": 0.066
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.67,
+            "input": 0.66,
             "output": 3.5,
-            "cachedInput": 0.067
+            "cachedInput": 0.066
           },
           "capabilities": {
             "input_modalities": [
@@ -16625,9 +16625,9 @@
         },
         "tencent/hy3-preview": {
           "usd": {
-            "input": 0.06599999999999999,
-            "output": 0.26,
-            "cachedInput": 0.006599999999999999
+            "input": 0.063,
+            "output": 0.21,
+            "cachedInput": 0.0063
           },
           "capabilities": {
             "input_modalities": [
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.6799999999999999,
-            "output": 3.41,
-            "cachedInput": 0.06799999999999999
+            "input": 0.612,
+            "output": 3.0690000000000004,
+            "cachedInput": 0.061200000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -17656,5 +17656,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-20T00:40:45.121Z"
+  "lastUpdated": "2026-06-21T00:44:42.928Z"
 }
