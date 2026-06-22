@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 1.2,
-            "output": 4.1,
-            "cachedInput": 0.12
+            "input": 1,
+            "output": 4,
+            "cachedInput": 0.1
           },
           "capabilities": {
             "input_modalities": [
@@ -17652,9 +17652,42 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "nex-agi/nex-n2-pro": {
+          "usd": {
+            "input": 0.5,
+            "output": 2.5,
+            "cachedInput": 0.05
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "reasoning",
+              "temperature",
+              "top_k",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-06-21T00:44:42.928Z"
+  "lastUpdated": "2026-06-22T00:44:20.060Z"
 }
