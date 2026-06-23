@@ -15118,7 +15118,7 @@
         "moonshotai/kimi-k2.6": {
           "usd": {
             "input": 0.66,
-            "output": 3.5,
+            "output": 3.41,
             "cachedInput": 0.066
           },
           "capabilities": {
@@ -15772,7 +15772,7 @@
         "~moonshotai/kimi-latest": {
           "usd": {
             "input": 0.66,
-            "output": 3.5,
+            "output": 3.41,
             "cachedInput": 0.066
           },
           "capabilities": {
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 1,
-            "output": 4,
-            "cachedInput": 0.1
+            "input": 0.98,
+            "output": 3.08,
+            "cachedInput": 0.098
           },
           "capabilities": {
             "input_modalities": [
@@ -17689,5 +17689,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-22T00:44:20.060Z"
+  "lastUpdated": "2026-06-23T00:40:56.414Z"
 }
