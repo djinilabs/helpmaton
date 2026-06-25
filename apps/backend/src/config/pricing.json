@@ -17685,9 +17685,40 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "sakana/fugu-ultra": {
+          "usd": {
+            "input": 5,
+            "output": 30,
+            "cachedInput": 0.5
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "reasoning",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "web_search_options"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-06-24T00:35:49.133Z"
+  "lastUpdated": "2026-06-25T00:40:55.682Z"
 }
