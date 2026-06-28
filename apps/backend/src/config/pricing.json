@@ -16081,9 +16081,9 @@
         },
         "qwen/qwen3.6-27b": {
           "usd": {
-            "input": 0.28850000000000003,
-            "output": 2.65,
-            "cachedInput": 0.028850000000000004
+            "input": 0.2596,
+            "output": 2.3850000000000002,
+            "cachedInput": 0.02596
           },
           "capabilities": {
             "input_modalities": [
@@ -17720,5 +17720,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-27T00:39:21.208Z"
+  "lastUpdated": "2026-06-28T00:39:56.581Z"
 }
