@@ -14,16 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Use PAT to allow commits to trigger other workflows
           # GITHUB_TOKEN commits don't trigger workflows (security feature)
           token: ${{ secrets.WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 10.28.2
+          version: 11.9.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
