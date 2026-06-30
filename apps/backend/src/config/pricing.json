@@ -12932,9 +12932,9 @@
         },
         "stepfun/step-3.5-flash": {
           "usd": {
-            "input": 0.09,
+            "input": 0.09999999999999999,
             "output": 0.3,
-            "cachedInput": 0.009
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 0.98,
-            "output": 3.08,
-            "cachedInput": 0.098
+            "input": 0.975,
+            "output": 4.300000000000001,
+            "cachedInput": 0.0975
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.66,
-            "output": 3.41,
-            "cachedInput": 0.066
+            "input": 0.55,
+            "output": 3.1999999999999997,
+            "cachedInput": 0.05500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.66,
-            "output": 3.41,
-            "cachedInput": 0.066
+            "input": 0.55,
+            "output": 3.1999999999999997,
+            "cachedInput": 0.05500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.95,
+            "input": 0.94,
             "output": 3,
-            "cachedInput": 0.095
+            "cachedInput": 0.094
           },
           "capabilities": {
             "input_modalities": [
@@ -17720,5 +17720,5 @@
       }
     }
   },
-  "lastUpdated": "2026-06-28T00:39:56.581Z"
+  "lastUpdated": "2026-06-30T00:39:50.401Z"
 }
