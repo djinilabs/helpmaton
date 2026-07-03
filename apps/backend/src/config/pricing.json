@@ -2681,9 +2681,9 @@
         },
         "qwen/qwen3-vl-8b-instruct": {
           "usd": {
-            "input": 0.08,
-            "output": 0.5,
-            "cachedInput": 0.008
+            "input": 0.117,
+            "output": 0.45499999999999996,
+            "cachedInput": 0.011700000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.55,
-            "output": 3.1999999999999997,
-            "cachedInput": 0.05500000000000001
+            "input": 0.66,
+            "output": 3.41,
+            "cachedInput": 0.066
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.09,
+            "input": 0.08900000000000001,
             "output": 0.18,
-            "cachedInput": 0.009
+            "cachedInput": 0.008900000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.55,
-            "output": 3.1999999999999997,
-            "cachedInput": 0.05500000000000001
+            "input": 0.66,
+            "output": 3.41,
+            "cachedInput": 0.066
           },
           "capabilities": {
             "input_modalities": [
@@ -17785,9 +17785,69 @@
             "image": true
           },
           "context_length": 65536
+        },
+        "poolside/laguna-xs-2.1:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "temperature",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "poolside/laguna-xs-2.1": {
+          "usd": {
+            "input": 0.06,
+            "output": 0.12,
+            "cachedInput": 0.006
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "temperature",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-07-02T00:40:01.277Z"
+  "lastUpdated": "2026-07-03T00:33:17.087Z"
 }
