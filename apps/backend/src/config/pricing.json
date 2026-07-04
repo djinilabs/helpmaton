@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 0.975,
-            "output": 4.300000000000001,
-            "cachedInput": 0.0975
+            "input": 0.966,
+            "output": 3.036,
+            "cachedInput": 0.0966
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.08900000000000001,
+            "input": 0.09,
             "output": 0.18,
-            "cachedInput": 0.008900000000000002
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.9299999999999999,
-            "output": 3,
-            "cachedInput": 0.093
+            "input": 0.9099999999999999,
+            "output": 2.8600000000000003,
+            "cachedInput": 0.091
           },
           "capabilities": {
             "input_modalities": [
@@ -17849,5 +17849,5 @@
       }
     }
   },
-  "lastUpdated": "2026-07-03T00:33:17.087Z"
+  "lastUpdated": "2026-07-04T02:24:10.496Z"
 }
