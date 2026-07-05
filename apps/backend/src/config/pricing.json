@@ -14301,9 +14301,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.08499999999999999,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.008499999999999999
+            "input": 0.08,
+            "output": 0.44999999999999996,
+            "cachedInput": 0.008
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.9099999999999999,
-            "output": 2.8600000000000003,
-            "cachedInput": 0.091
+            "input": 0.742,
+            "output": 2.332,
+            "cachedInput": 0.0742
           },
           "capabilities": {
             "input_modalities": [
@@ -17849,5 +17849,5 @@
       }
     }
   },
-  "lastUpdated": "2026-07-04T02:24:10.496Z"
+  "lastUpdated": "2026-07-05T02:33:07.575Z"
 }
