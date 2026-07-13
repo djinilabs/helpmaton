@@ -3071,7 +3071,7 @@
         "z-ai/glm-4.6": {
           "usd": {
             "input": 0.43,
-            "output": 1.74,
+            "output": 1.75,
             "cachedInput": 0.043000000000000003
           },
           "capabilities": {
@@ -3110,7 +3110,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 202752
+          "context_length": 200000
         },
         "z-ai/glm-4.6:exacto": {
           "usd": {
@@ -5523,7 +5523,7 @@
         "qwen/qwen3-235b-a22b-2507": {
           "usd": {
             "input": 0.09,
-            "output": 0.09999999999999999,
+            "output": 0.55,
             "cachedInput": 0.009
           },
           "capabilities": {
@@ -7695,9 +7695,9 @@
         },
         "meta-llama/llama-4-maverick": {
           "usd": {
-            "input": 0.15,
-            "output": 0.6,
-            "cachedInput": 0.015
+            "input": 0.19999999999999998,
+            "output": 0.7999999999999999,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -8880,9 +8880,9 @@
         },
         "qwen/qwen2.5-vl-72b-instruct": {
           "usd": {
-            "input": 0.7999999999999999,
-            "output": 1,
-            "cachedInput": 0.08
+            "input": 0.25,
+            "output": 0.75,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.7,
-            "output": 2.2,
-            "cachedInput": 0.06999999999999999
+            "input": 0.42,
+            "output": 1.32,
+            "cachedInput": 0.042
           },
           "capabilities": {
             "input_modalities": [
@@ -18358,5 +18358,5 @@
       }
     }
   },
-  "lastUpdated": "2026-07-12T02:08:24.560Z"
+  "lastUpdated": "2026-07-13T02:10:25.764Z"
 }
