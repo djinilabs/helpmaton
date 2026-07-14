@@ -4394,9 +4394,9 @@
         },
         "deepseek/deepseek-chat-v3.1": {
           "usd": {
-            "input": 0.21,
-            "output": 0.7899999999999999,
-            "cachedInput": 0.021
+            "input": 0.25,
+            "output": 0.95,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -4851,9 +4851,9 @@
         },
         "openai/gpt-oss-120b": {
           "usd": {
-            "input": 0.036,
-            "output": 0.18,
-            "cachedInput": 0.0036
+            "input": 0.03,
+            "output": 0.15,
+            "cachedInput": 0.003
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.077,
-            "output": 0.154,
-            "cachedInput": 0.0077
+            "input": 0.09,
+            "output": 0.18,
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -16081,9 +16081,9 @@
         },
         "qwen/qwen3.6-27b": {
           "usd": {
-            "input": 0.28500000000000003,
+            "input": 0.28900000000000003,
             "output": 2.4,
-            "cachedInput": 0.028500000000000004
+            "cachedInput": 0.028900000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.72,
-            "output": 3.5,
-            "cachedInput": 0.072
+            "input": 0.719,
+            "output": 3.49,
+            "cachedInput": 0.0719
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.42,
-            "output": 1.32,
-            "cachedInput": 0.042
+            "input": 0.9299999999999999,
+            "output": 3,
+            "cachedInput": 0.093
           },
           "capabilities": {
             "input_modalities": [
@@ -18358,5 +18358,5 @@
       }
     }
   },
-  "lastUpdated": "2026-07-13T02:10:25.764Z"
+  "lastUpdated": "2026-07-14T01:56:03.669Z"
 }
