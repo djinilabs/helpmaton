@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.9299999999999999,
-            "output": 3,
-            "cachedInput": 0.093
+            "input": 0.9072,
+            "output": 2.8512,
+            "cachedInput": 0.09072000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -18354,9 +18354,81 @@
             "image": false
           },
           "context_length": 128000
+        },
+        "kwaipilot/kat-coder-air-v2.5": {
+          "usd": {
+            "input": 0.15,
+            "output": 0.6,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 256000
+        },
+        "kwaipilot/kat-coder-pro-v2.5": {
+          "usd": {
+            "input": 0.74,
+            "output": 2.96,
+            "cachedInput": 0.074
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 256000
         }
       }
     }
   },
-  "lastUpdated": "2026-07-14T01:56:03.669Z"
+  "lastUpdated": "2026-07-15T01:52:03.893Z"
 }
