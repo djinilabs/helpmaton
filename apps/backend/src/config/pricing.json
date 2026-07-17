@@ -7087,9 +7087,9 @@
         },
         "qwen/qwen3-14b": {
           "usd": {
-            "input": 0.12,
+            "input": 0.09999999999999999,
             "output": 0.24,
-            "cachedInput": 0.012
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -8244,9 +8244,9 @@
         },
         "google/gemma-3-27b-it": {
           "usd": {
-            "input": 0.08,
-            "output": 0.44999999999999996,
-            "cachedInput": 0.008
+            "input": 0.09999999999999999,
+            "output": 0.3,
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -10263,9 +10263,9 @@
         },
         "meta-llama/llama-3.2-3b-instruct": {
           "usd": {
-            "input": 0.049999999999999996,
-            "output": 0.33,
-            "cachedInput": 0.005
+            "input": 0.0509,
+            "output": 0.335,
+            "cachedInput": 0.005090000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -11051,9 +11051,9 @@
         },
         "mistralai/mistral-nemo": {
           "usd": {
-            "input": 0.02,
-            "output": 0.04,
-            "cachedInput": 0.002
+            "input": 0.019000000000000003,
+            "output": 0.03,
+            "cachedInput": 0.0019000000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -13073,9 +13073,9 @@
         },
         "qwen/qwen3.5-397b-a17b": {
           "usd": {
-            "input": 0.44999999999999996,
-            "output": 3,
-            "cachedInput": 0.045
+            "input": 0.39,
+            "output": 2.34,
+            "cachedInput": 0.03900000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.25,
+            "output": 1,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.66,
-            "output": 3.41,
-            "cachedInput": 0.066
+            "input": 0.95,
+            "output": 4,
+            "cachedInput": 0.095
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 0.66,
-            "output": 3.41,
-            "cachedInput": 0.066
+            "input": 3,
+            "output": 15,
+            "cachedInput": 0.30000000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -15813,7 +15813,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 1048576
         },
         "~google/gemini-flash-latest": {
           "usd": {
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.719,
-            "output": 3.49,
-            "cachedInput": 0.0719
+            "input": 0.75,
+            "output": 3.5,
+            "cachedInput": 0.07500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.9646,
-            "output": 3.0316,
-            "cachedInput": 0.09646
+            "input": 1.218,
+            "output": 3.8279999999999994,
+            "cachedInput": 0.1218
           },
           "capabilities": {
             "input_modalities": [
@@ -18426,9 +18426,85 @@
             "image": false
           },
           "context_length": 256000
+        },
+        "moonshotai/kimi-k3": {
+          "usd": {
+            "input": 3,
+            "output": 15,
+            "cachedInput": 0.30000000000000004
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "meta/muse-spark-1.1": {
+          "usd": {
+            "input": 1.25,
+            "output": 4.25,
+            "cachedInput": 0.125
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "repetition_penalty",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-07-16T02:02:53.207Z"
+  "lastUpdated": "2026-07-17T02:06:28.449Z"
 }
