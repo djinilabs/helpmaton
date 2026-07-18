@@ -269,9 +269,9 @@
         },
         "z-ai/glm-4.7-flash": {
           "usd": {
-            "input": 0.06,
+            "input": 0.060500000000000005,
             "output": 0.39999999999999997,
-            "cachedInput": 0.006
+            "cachedInput": 0.006050000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -305,7 +305,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 202752
+          "context_length": 200000
         },
         "openai/gpt-5.2-codex": {
           "usd": {
@@ -7006,9 +7006,9 @@
         },
         "qwen/qwen3-30b-a3b": {
           "usd": {
-            "input": 0.12,
-            "output": 0.5,
-            "cachedInput": 0.012
+            "input": 0.13,
+            "output": 0.52,
+            "cachedInput": 0.013000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -7087,9 +7087,9 @@
         },
         "qwen/qwen3-14b": {
           "usd": {
-            "input": 0.09999999999999999,
+            "input": 0.12,
             "output": 0.24,
-            "cachedInput": 0.01
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -12185,9 +12185,9 @@
         },
         "mancer/weaver": {
           "usd": {
-            "input": 0.75,
-            "output": 1,
-            "cachedInput": 0.07500000000000001
+            "input": 0.5,
+            "output": 0.75,
+            "cachedInput": 0.05
           },
           "capabilities": {
             "input_modalities": [
@@ -13286,9 +13286,9 @@
         },
         "qwen/qwen3.5-27b": {
           "usd": {
-            "input": 0.195,
-            "output": 1.56,
-            "cachedInput": 0.019500000000000003
+            "input": 0.26,
+            "output": 2.6,
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.75,
-            "output": 3.5,
-            "cachedInput": 0.07500000000000001
+            "input": 1,
+            "output": 4.4,
+            "cachedInput": 0.1
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 1.218,
-            "output": 3.8279999999999994,
-            "cachedInput": 0.1218
+            "input": 0.42,
+            "output": 1.32,
+            "cachedInput": 0.042
           },
           "capabilities": {
             "input_modalities": [
@@ -18502,9 +18502,50 @@
             "image": false
           },
           "context_length": 1048576
+        },
+        "thinkingmachines/inkling": {
+          "usd": {
+            "input": 1,
+            "output": 4.05,
+            "cachedInput": 0.1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "reasoning_effort",
+              "repetition_penalty",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-07-17T02:06:28.449Z"
+  "lastUpdated": "2026-07-18T01:55:20.685Z"
 }
