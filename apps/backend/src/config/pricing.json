@@ -5264,9 +5264,9 @@
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
           "usd": {
-            "input": 0.14950000000000002,
-            "output": 1.495,
-            "cachedInput": 0.014950000000000003
+            "input": 0.3,
+            "output": 3,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -7087,9 +7087,9 @@
         },
         "qwen/qwen3-14b": {
           "usd": {
-            "input": 0.22749999999999998,
-            "output": 0.9099999999999999,
-            "cachedInput": 0.02275
+            "input": 0.12,
+            "output": 0.24,
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -12892,7 +12892,7 @@
         "z-ai/glm-5": {
           "usd": {
             "input": 0.95,
-            "output": 3.15,
+            "output": 2.5500000000000003,
             "cachedInput": 0.095
           },
           "capabilities": {
@@ -12928,7 +12928,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 202752
+          "context_length": 204800
         },
         "stepfun/step-3.5-flash": {
           "usd": {
@@ -14301,9 +14301,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.21,
-            "output": 0.45499999999999996,
-            "cachedInput": 0.021
+            "input": 0.08499999999999999,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.008499999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.25899999999999995,
-            "output": 0.814,
-            "cachedInput": 0.025899999999999996
+            "input": 0.2716,
+            "output": 0.8535999999999999,
+            "cachedInput": 0.027160000000000004
           },
           "capabilities": {
             "input_modalities": [
@@ -18547,5 +18547,5 @@
       }
     }
   },
-  "lastUpdated": "2026-07-19T02:06:22.602Z"
+  "lastUpdated": "2026-07-20T02:27:08.358Z"
 }
