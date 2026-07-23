@@ -269,9 +269,9 @@
         },
         "z-ai/glm-4.7-flash": {
           "usd": {
-            "input": 0.060500000000000005,
+            "input": 0.06,
             "output": 0.39999999999999997,
-            "cachedInput": 0.006050000000000001
+            "cachedInput": 0.006
           },
           "capabilities": {
             "input_modalities": [
@@ -2994,9 +2994,9 @@
         },
         "qwen/qwen3-vl-30b-a3b-instruct": {
           "usd": {
-            "input": 0.13,
-            "output": 0.52,
-            "cachedInput": 0.013000000000000001
+            "input": 0.15,
+            "output": 0.6,
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -3851,9 +3851,9 @@
         },
         "qwen/qwen3-next-80b-a3b-instruct": {
           "usd": {
-            "input": 0.09999999999999999,
-            "output": 1.1,
-            "cachedInput": 0.01
+            "input": 0.15,
+            "output": 1.2,
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -7087,9 +7087,9 @@
         },
         "qwen/qwen3-14b": {
           "usd": {
-            "input": 0.12,
-            "output": 0.24,
-            "cachedInput": 0.012
+            "input": 0.22749999999999998,
+            "output": 0.9099999999999999,
+            "cachedInput": 0.02275
           },
           "capabilities": {
             "input_modalities": [
@@ -10263,9 +10263,9 @@
         },
         "meta-llama/llama-3.2-3b-instruct": {
           "usd": {
-            "input": 0.0509,
-            "output": 0.335,
-            "cachedInput": 0.005090000000000001
+            "input": 0.049999999999999996,
+            "output": 0.33,
+            "cachedInput": 0.005
           },
           "capabilities": {
             "input_modalities": [
@@ -14719,7 +14719,7 @@
         "google/gemma-4-31b-it": {
           "usd": {
             "input": 0.12,
-            "output": 0.37,
+            "output": 0.35,
             "cachedInput": 0.012
           },
           "capabilities": {
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.07,
-            "output": 0.33999999999999997,
-            "cachedInput": 0.007000000000000001
+            "input": 0.12,
+            "output": 0.35,
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.09380000000000001,
-            "output": 0.18760000000000002,
-            "cachedInput": 0.009380000000000001
+            "input": 0.098,
+            "output": 0.196,
+            "cachedInput": 0.009800000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -16081,9 +16081,9 @@
         },
         "qwen/qwen3.6-27b": {
           "usd": {
-            "input": 0.44999999999999996,
-            "output": 2.7,
-            "cachedInput": 0.045
+            "input": 0.6,
+            "output": 3.5999999999999996,
+            "cachedInput": 0.06
           },
           "capabilities": {
             "input_modalities": [
@@ -17251,9 +17251,9 @@
         },
         "nvidia/nemotron-3-ultra-550b-a55b": {
           "usd": {
-            "input": 0.6,
-            "output": 3.5999999999999996,
-            "cachedInput": 0.06
+            "input": 0.5,
+            "output": 2.2,
+            "cachedInput": 0.05
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.8246,
-            "output": 2.5915999999999997,
-            "cachedInput": 0.08246
+            "input": 0.7644000000000001,
+            "output": 2.4024,
+            "cachedInput": 0.07644000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -18727,5 +18727,5 @@
       }
     }
   },
-  "lastUpdated": "2026-07-22T02:03:27.106Z"
+  "lastUpdated": "2026-07-23T02:10:19.823Z"
 }
