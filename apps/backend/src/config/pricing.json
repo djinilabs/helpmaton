@@ -2352,9 +2352,9 @@
         },
         "minimax/minimax-m2": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.255,
+            "output": 1.02,
+            "cachedInput": 0.025500000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -3851,9 +3851,9 @@
         },
         "qwen/qwen3-next-80b-a3b-instruct": {
           "usd": {
-            "input": 0.15,
-            "output": 1.2,
-            "cachedInput": 0.015
+            "input": 0.09999999999999999,
+            "output": 1.1,
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -4967,9 +4967,9 @@
         },
         "openai/gpt-oss-20b": {
           "usd": {
-            "input": 0.029,
-            "output": 0.14,
-            "cachedInput": 0.0029000000000000002
+            "input": 0.03,
+            "output": 0.13,
+            "cachedInput": 0.003
           },
           "capabilities": {
             "input_modalities": [
@@ -5368,9 +5368,9 @@
         },
         "qwen/qwen3-coder": {
           "usd": {
-            "input": 0.38,
-            "output": 1.55,
-            "cachedInput": 0.038000000000000006
+            "input": 0.3,
+            "output": 1,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.25,
+            "output": 1,
+            "cachedInput": 0.025
           },
           "capabilities": {
             "input_modalities": [
@@ -14301,9 +14301,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.08,
-            "output": 0.44999999999999996,
-            "cachedInput": 0.008
+            "input": 0.08499999999999999,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.008499999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -14718,9 +14718,9 @@
         },
         "google/gemma-4-31b-it": {
           "usd": {
-            "input": 0.09999999999999999,
-            "output": 0.35,
-            "cachedInput": 0.01
+            "input": 0.14,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.014000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.098,
-            "output": 0.196,
-            "cachedInput": 0.009800000000000001
+            "input": 0.09380000000000001,
+            "output": 0.18760000000000002,
+            "cachedInput": 0.009380000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -16081,9 +16081,9 @@
         },
         "qwen/qwen3.6-27b": {
           "usd": {
-            "input": 0.288,
+            "input": 0.28900000000000003,
             "output": 2.4,
-            "cachedInput": 0.0288
+            "cachedInput": 0.028900000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -17251,9 +17251,9 @@
         },
         "nvidia/nemotron-3-ultra-550b-a55b": {
           "usd": {
-            "input": 0.5,
-            "output": 2.2,
-            "cachedInput": 0.05
+            "input": 0.6,
+            "output": 3.5999999999999996,
+            "cachedInput": 0.06
           },
           "capabilities": {
             "input_modalities": [
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.82,
-            "output": 3.75,
-            "cachedInput": 0.082
+            "input": 0.78,
+            "output": 3.5,
+            "cachedInput": 0.07800000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.7826000000000001,
-            "output": 2.4596,
-            "cachedInput": 0.07826000000000001
+            "input": 0.8190000000000001,
+            "output": 2.574,
+            "cachedInput": 0.08190000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -17886,9 +17886,9 @@
         },
         "tencent/hy3": {
           "usd": {
-            "input": 0.14,
-            "output": 0.58,
-            "cachedInput": 0.014000000000000002
+            "input": 0.13199999999999998,
+            "output": 0.5279999999999999,
+            "cachedInput": 0.013199999999999998
           },
           "capabilities": {
             "input_modalities": [
@@ -18762,9 +18762,83 @@
             "image": false
           },
           "context_length": 262144
+        },
+        "anthropic/claude-opus-5-fast": {
+          "usd": {
+            "input": 10,
+            "output": 50,
+            "cachedInput": 1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "anthropic/claude-opus-5": {
+          "usd": {
+            "input": 5,
+            "output": 25,
+            "cachedInput": 0.5
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_completion_tokens",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
         }
       }
     }
   },
-  "lastUpdated": "2026-07-24T02:06:47.374Z"
+  "lastUpdated": "2026-07-25T02:06:10.370Z"
 }
