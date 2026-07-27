@@ -7006,9 +7006,9 @@
         },
         "qwen/qwen3-30b-a3b": {
           "usd": {
-            "input": 0.13,
-            "output": 0.52,
-            "cachedInput": 0.013000000000000001
+            "input": 0.12,
+            "output": 0.5,
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -10263,9 +10263,9 @@
         },
         "meta-llama/llama-3.2-3b-instruct": {
           "usd": {
-            "input": 0.0509,
-            "output": 0.335,
-            "cachedInput": 0.005090000000000001
+            "input": 0.049999999999999996,
+            "output": 0.33,
+            "cachedInput": 0.005
           },
           "capabilities": {
             "input_modalities": [
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.78,
+            "input": 0.73,
             "output": 3.5,
-            "cachedInput": 0.07800000000000001
+            "cachedInput": 0.073
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.7195999999999999,
-            "output": 2.2616,
-            "cachedInput": 0.07196
+            "input": 0.6692,
+            "output": 2.1032,
+            "cachedInput": 0.06692000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -18840,5 +18840,5 @@
       }
     }
   },
-  "lastUpdated": "2026-07-26T02:10:46.530Z"
+  "lastUpdated": "2026-07-27T02:24:31.849Z"
 }
