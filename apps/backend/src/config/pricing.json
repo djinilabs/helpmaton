@@ -2645,9 +2645,9 @@
         },
         "qwen/qwen3-vl-8b-thinking": {
           "usd": {
-            "input": 0.117,
-            "output": 1.365,
-            "cachedInput": 0.011700000000000002
+            "input": 0.18,
+            "output": 2.0999999999999996,
+            "cachedInput": 0.018
           },
           "capabilities": {
             "input_modalities": [
@@ -2954,9 +2954,9 @@
         },
         "qwen/qwen3-vl-30b-a3b-thinking": {
           "usd": {
-            "input": 0.13,
-            "output": 1.56,
-            "cachedInput": 0.013000000000000001
+            "input": 0.19999999999999998,
+            "output": 2.4,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -3370,9 +3370,9 @@
         },
         "qwen/qwen3-vl-235b-a22b-thinking": {
           "usd": {
-            "input": 0.26,
-            "output": 2.6,
-            "cachedInput": 0.026000000000000002
+            "input": 0.39999999999999997,
+            "output": 4,
+            "cachedInput": 0.04
           },
           "capabilities": {
             "input_modalities": [
@@ -3775,9 +3775,9 @@
         },
         "qwen/qwen3-next-80b-a3b-thinking": {
           "usd": {
-            "input": 0.0975,
-            "output": 0.78,
-            "cachedInput": 0.009750000000000002
+            "input": 0.15,
+            "output": 1.2,
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -3950,9 +3950,9 @@
         },
         "qwen/qwen-plus-2025-07-28:thinking": {
           "usd": {
-            "input": 0.26,
-            "output": 0.78,
-            "cachedInput": 0.026000000000000002
+            "input": 0.39999999999999997,
+            "output": 1.2,
+            "cachedInput": 0.04
           },
           "capabilities": {
             "input_modalities": [
@@ -4246,9 +4246,9 @@
         },
         "qwen/qwen3-30b-a3b-thinking-2507": {
           "usd": {
-            "input": 0.13,
-            "output": 1.56,
-            "cachedInput": 0.013000000000000001
+            "input": 0.19999999999999998,
+            "output": 2.4,
+            "cachedInput": 0.02
           },
           "capabilities": {
             "input_modalities": [
@@ -4968,7 +4968,7 @@
         "openai/gpt-oss-20b": {
           "usd": {
             "input": 0.03,
-            "output": 0.14,
+            "output": 0.13,
             "cachedInput": 0.003
           },
           "capabilities": {
@@ -12680,9 +12680,9 @@
         },
         "qwen/qwen3-coder-next": {
           "usd": {
-            "input": 0.11,
-            "output": 0.7999999999999999,
-            "cachedInput": 0.011000000000000001
+            "input": 0.18,
+            "output": 0.8999999999999999,
+            "cachedInput": 0.018
           },
           "capabilities": {
             "input_modalities": [
@@ -14718,9 +14718,9 @@
         },
         "google/gemma-4-31b-it": {
           "usd": {
-            "input": 0.14,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.014000000000000002
+            "input": 0.09999999999999999,
+            "output": 0.33999999999999997,
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.14,
-            "output": 0.42,
-            "cachedInput": 0.014000000000000002
+            "input": 0.15,
+            "output": 0.6,
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -16942,9 +16942,9 @@
         },
         "qwen/qwen3.7-max": {
           "usd": {
-            "input": 1.475,
-            "output": 4.425,
-            "cachedInput": 0.14750000000000002
+            "input": 1.25,
+            "output": 3.75,
+            "cachedInput": 0.125
           },
           "capabilities": {
             "input_modalities": [
@@ -17251,9 +17251,9 @@
         },
         "nvidia/nemotron-3-ultra-550b-a55b": {
           "usd": {
-            "input": 0.6,
-            "output": 3.5999999999999996,
-            "cachedInput": 0.06
+            "input": 0.5,
+            "output": 2.2,
+            "cachedInput": 0.05
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.7322,
-            "output": 2.3012,
-            "cachedInput": 0.07322
+            "input": 0.7616,
+            "output": 2.3935999999999997,
+            "cachedInput": 0.07616
           },
           "capabilities": {
             "input_modalities": [
@@ -18874,9 +18874,1046 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "google/gemini-3.6-flash:batch": {
+          "usd": {
+            "input": 0.75,
+            "output": 3.75,
+            "cachedInput": 0.07500000000000001
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "google/gemini-3.5-flash-lite:batch": {
+          "usd": {
+            "input": 0.15,
+            "output": 1.25,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "anthropic/claude-sonnet-5:batch": {
+          "usd": {
+            "input": 1,
+            "output": 5,
+            "cachedInput": 0.1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "anthropic/claude-fable-5:batch": {
+          "usd": {
+            "input": 5,
+            "output": 25,
+            "cachedInput": 0.5
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "minimax/minimax-m3:batch": {
+          "usd": {
+            "input": 0.15,
+            "output": 0.6,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 524288
+        },
+        "anthropic/claude-opus-4.8:batch": {
+          "usd": {
+            "input": 2.5,
+            "output": 12.5,
+            "cachedInput": 0.25
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "google/gemini-3.5-flash:batch": {
+          "usd": {
+            "input": 0.75,
+            "output": 4.5,
+            "cachedInput": 0.07500000000000001
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "google/gemini-3.1-flash-lite:batch": {
+          "usd": {
+            "input": 0.125,
+            "output": 0.75,
+            "cachedInput": 0.0125
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "openai/gpt-5.5:batch": {
+          "usd": {
+            "input": 2.5,
+            "output": 15,
+            "cachedInput": 0.25
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1050000
+        },
+        "anthropic/claude-opus-4.7:batch": {
+          "usd": {
+            "input": 2.5,
+            "output": 12.5,
+            "cachedInput": 0.25
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "openai/gpt-5.4-nano:batch": {
+          "usd": {
+            "input": 0.09999999999999999,
+            "output": 0.625,
+            "cachedInput": 0.01
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "openai/gpt-5.4-mini:batch": {
+          "usd": {
+            "input": 0.375,
+            "output": 2.25,
+            "cachedInput": 0.037500000000000006
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "openai/gpt-5.4:batch": {
+          "usd": {
+            "input": 1.25,
+            "output": 7.5,
+            "cachedInput": 0.125
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1050000
+        },
+        "google/gemini-3.1-pro-preview:batch": {
+          "usd": {
+            "input": 1,
+            "output": 6,
+            "cachedInput": 0.1
+          },
+          "capabilities": {
+            "input_modalities": [
+              "audio",
+              "file",
+              "image",
+              "text",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "anthropic/claude-opus-4.6:batch": {
+          "usd": {
+            "input": 2.5,
+            "output": 12.5,
+            "cachedInput": 0.25
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "google/gemini-3-flash-preview:batch": {
+          "usd": {
+            "input": 0.25,
+            "output": 1.5,
+            "cachedInput": 0.025
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "openai/gpt-5.2:batch": {
+          "usd": {
+            "input": 0.875,
+            "output": 7,
+            "cachedInput": 0.08750000000000001
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "anthropic/claude-opus-4.5:batch": {
+          "usd": {
+            "input": 2.5,
+            "output": 12.5,
+            "cachedInput": 0.25
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "verbosity"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 200000
+        },
+        "openai/gpt-5.1:batch": {
+          "usd": {
+            "input": 0.625,
+            "output": 5,
+            "cachedInput": 0.0625
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "anthropic/claude-haiku-4.5:batch": {
+          "usd": {
+            "input": 0.5,
+            "output": 2.5,
+            "cachedInput": 0.05
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 200000
+        },
+        "anthropic/claude-sonnet-4.5:batch": {
+          "usd": {
+            "input": 1.5,
+            "output": 7.5,
+            "cachedInput": 0.15000000000000002
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "openai/gpt-5:batch": {
+          "usd": {
+            "input": 0.625,
+            "output": 5,
+            "cachedInput": 0.0625
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "openai/gpt-5-mini:batch": {
+          "usd": {
+            "input": 0.125,
+            "output": 1,
+            "cachedInput": 0.0125
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "openai/gpt-5-nano:batch": {
+          "usd": {
+            "input": 0.024999999999999998,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.0025
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 400000
+        },
+        "anthropic/claude-opus-4.1:batch": {
+          "usd": {
+            "input": 7.5,
+            "output": 37.5,
+            "cachedInput": 0.75
+          },
+          "capabilities": {
+            "input_modalities": [
+              "image",
+              "text",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 200000
+        },
+        "google/gemini-2.5-flash-lite:batch": {
+          "usd": {
+            "input": 0.049999999999999996,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.005
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "google/gemini-2.5-flash:batch": {
+          "usd": {
+            "input": 0.15,
+            "output": 1.25,
+            "cachedInput": 0.015
+          },
+          "capabilities": {
+            "input_modalities": [
+              "file",
+              "image",
+              "text",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "google/gemini-2.5-pro:batch": {
+          "usd": {
+            "input": 0.625,
+            "output": 5,
+            "cachedInput": 0.0625
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file",
+              "audio",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-07-28T01:59:27.290Z"
+  "lastUpdated": "2026-07-29T02:02:05.631Z"
 }
