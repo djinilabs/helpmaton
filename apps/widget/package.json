@@ -9,22 +9,22 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@ai-sdk/react": "^3.0.0",
-    "ai": "^6.0.0",
-    "react-shadow-dom-retarget-events": "^1.0.0",
-    "@tanstack/react-query": "^5.90.9"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "@ai-sdk/react": "^3.0.240",
+    "ai": "^6.0.238",
+    "react-shadow-dom-retarget-events": "^1.1.0",
+    "@tanstack/react-query": "^5.101.4"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "typescript": "^5.0.0",
-    "vite": "^7.2.2",
-    "@vitejs/plugin-react": "^5.0.0",
-    "vitest": "^4.0.0",
-    "@testing-library/react": "^16.0.0",
-    "@testing-library/jest-dom": "^6.0.0",
-    "jsdom": "^28.0.0"
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "@vitejs/plugin-react": "^5.2.0",
+    "vitest": "^4.1.10",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "jsdom": "^28.1.0"
   }
 }
