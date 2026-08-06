@@ -5522,9 +5522,9 @@
         },
         "qwen/qwen3-235b-a22b-2507": {
           "usd": {
-            "input": 0.14950000000000002,
-            "output": 0.5980000000000001,
-            "cachedInput": 0.014950000000000003
+            "input": 0.09,
+            "output": 0.55,
+            "cachedInput": 0.009
           },
           "capabilities": {
             "input_modalities": [
@@ -12964,9 +12964,9 @@
         },
         "minimax/minimax-m2.5": {
           "usd": {
-            "input": 0.15,
+            "input": 0.22,
             "output": 0.8999999999999999,
-            "cachedInput": 0.015
+            "cachedInput": 0.022000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -13574,7 +13574,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 128000
+          "context_length": 131072
         },
         "openai/gpt-5.3-chat": {
           "usd": {
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 0.966,
-            "output": 3.036,
-            "cachedInput": 0.0966
+            "input": 0.952,
+            "output": 2.992,
+            "cachedInput": 0.0952
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.14,
-            "output": 0.28,
-            "cachedInput": 0.014000000000000002
+            "input": 0.0882,
+            "output": 0.1764,
+            "cachedInput": 0.00882
           },
           "capabilities": {
             "input_modalities": [
@@ -17403,9 +17403,9 @@
         },
         "moonshotai/kimi-k2.7-code": {
           "usd": {
-            "input": 0.73,
+            "input": 0.7,
             "output": 3.5,
-            "cachedInput": 0.073
+            "cachedInput": 0.06999999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -20087,9 +20087,88 @@
             "image": false
           },
           "context_length": 1000000
+        },
+        "meta/muse-spark-1.2": {
+          "usd": {
+            "input": 1.25,
+            "output": 4.25,
+            "cachedInput": 0.125
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "repetition_penalty",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "inclusionai/ling-3.0-flash": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.22,
+            "cachedInput": 0.0075
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "seed",
+              "stop",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 131072
         }
       }
     }
   },
-  "lastUpdated": "2026-08-05T01:57:03.588Z"
+  "lastUpdated": "2026-08-06T02:00:23.793Z"
 }
