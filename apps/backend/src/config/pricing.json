@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.26899999999999996,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.026899999999999997
+            "input": 0.26,
+            "output": 0.38,
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -14301,9 +14301,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.3,
-            "output": 0.8999999999999999,
-            "cachedInput": 0.03
+            "input": 0.08499999999999999,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.008499999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.5700000000000001,
-            "output": 2.4,
-            "cachedInput": 0.05700000000000001
+            "input": 0.5795,
+            "output": 2.44,
+            "cachedInput": 0.05795
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.0882,
-            "output": 0.1764,
-            "cachedInput": 0.00882
+            "input": 0.14,
+            "output": 0.28,
+            "cachedInput": 0.014000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 2.9000000000000004,
+            "input": 2.5,
             "output": 14,
-            "cachedInput": 0.29000000000000004
+            "cachedInput": 0.25
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.546,
-            "output": 1.716,
-            "cachedInput": 0.05460000000000001
+            "input": 0.4326,
+            "output": 1.3596000000000001,
+            "cachedInput": 0.04326
           },
           "capabilities": {
             "input_modalities": [
@@ -18505,9 +18505,9 @@
         },
         "thinkingmachines/inkling": {
           "usd": {
-            "input": 1,
+            "input": 0.95,
             "output": 4.05,
-            "cachedInput": 0.1
+            "cachedInput": 0.095
           },
           "capabilities": {
             "input_modalities": [
@@ -19958,9 +19958,9 @@
         },
         "thinkingmachines/inkling-small": {
           "usd": {
-            "input": 0.5,
+            "input": 0.44999999999999996,
             "output": 1.2,
-            "cachedInput": 0.05
+            "cachedInput": 0.045
           },
           "capabilities": {
             "input_modalities": [
@@ -21363,5 +21363,5 @@
       }
     }
   },
-  "lastUpdated": "2026-08-07T02:22:29.088Z"
+  "lastUpdated": "2026-08-08T01:08:57.179Z"
 }
