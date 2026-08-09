@@ -13073,9 +13073,9 @@
         },
         "qwen/qwen3.5-397b-a17b": {
           "usd": {
-            "input": 0.39,
-            "output": 2.34,
-            "cachedInput": 0.03900000000000001
+            "input": 0.5,
+            "output": 3.5999999999999996,
+            "cachedInput": 0.05
           },
           "capabilities": {
             "input_modalities": [
@@ -14269,9 +14269,9 @@
         },
         "minimax/minimax-m2.7": {
           "usd": {
-            "input": 0.27,
-            "output": 1.08,
-            "cachedInput": 0.027000000000000003
+            "input": 0.3,
+            "output": 1.2,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -14301,9 +14301,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.08499999999999999,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.008499999999999999
+            "input": 0.3,
+            "output": 0.8999999999999999,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -15771,9 +15771,9 @@
         },
         "~moonshotai/kimi-latest": {
           "usd": {
-            "input": 2.5,
+            "input": 2.8,
             "output": 14,
-            "cachedInput": 0.25
+            "cachedInput": 0.27999999999999997
           },
           "capabilities": {
             "input_modalities": [
@@ -16003,9 +16003,9 @@
         },
         "qwen/qwen3.6-35b-a3b": {
           "usd": {
-            "input": 0.14,
+            "input": 0.15,
             "output": 1,
-            "cachedInput": 0.014000000000000002
+            "cachedInput": 0.015
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.4326,
-            "output": 1.3596000000000001,
-            "cachedInput": 0.04326
+            "input": 0.098,
+            "output": 0.308,
+            "cachedInput": 0.009800000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -20002,9 +20002,9 @@
         },
         "~deepseek/deepseek-v4-flash-latest": {
           "usd": {
-            "input": 0.09,
-            "output": 0.18,
-            "cachedInput": 0.009
+            "input": 0.079996,
+            "output": 0.252,
+            "cachedInput": 0.0079996
           },
           "capabilities": {
             "input_modalities": [
@@ -21363,5 +21363,5 @@
       }
     }
   },
-  "lastUpdated": "2026-08-08T01:08:57.179Z"
+  "lastUpdated": "2026-08-09T01:13:48.586Z"
 }
