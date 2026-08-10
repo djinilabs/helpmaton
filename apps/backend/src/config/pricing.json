@@ -1473,9 +1473,9 @@
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
-            "input": 0.26,
-            "output": 0.38,
-            "cachedInput": 0.026000000000000002
+            "input": 0.26899999999999996,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.026899999999999997
           },
           "capabilities": {
             "input_modalities": [
@@ -7087,9 +7087,9 @@
         },
         "qwen/qwen3-14b": {
           "usd": {
-            "input": 0.22749999999999998,
-            "output": 0.9099999999999999,
-            "cachedInput": 0.02275
+            "input": 0.12,
+            "output": 0.24,
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -7696,7 +7696,7 @@
         "meta-llama/llama-4-maverick": {
           "usd": {
             "input": 0.19999999999999998,
-            "output": 0.7999999999999999,
+            "output": 0.696,
             "cachedInput": 0.02
           },
           "capabilities": {
@@ -12264,9 +12264,9 @@
         },
         "gryphe/mythomax-l2-13b": {
           "usd": {
-            "input": 0.08,
-            "output": 0.11,
-            "cachedInput": 0.008
+            "input": 0.06,
+            "output": 0.06,
+            "cachedInput": 0.006
           },
           "capabilities": {
             "input_modalities": [
@@ -13073,9 +13073,9 @@
         },
         "qwen/qwen3.5-397b-a17b": {
           "usd": {
-            "input": 0.5,
-            "output": 3.5999999999999996,
-            "cachedInput": 0.05
+            "input": 0.39,
+            "output": 2.34,
+            "cachedInput": 0.03900000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -14301,9 +14301,9 @@
         },
         "nvidia/nemotron-3-super-120b-a12b": {
           "usd": {
-            "input": 0.3,
-            "output": 0.8999999999999999,
-            "cachedInput": 0.03
+            "input": 0.08499999999999999,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.008499999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -14795,9 +14795,9 @@
         },
         "google/gemma-4-26b-a4b-it": {
           "usd": {
-            "input": 0.07,
-            "output": 0.33999999999999997,
-            "cachedInput": 0.007000000000000001
+            "input": 0.12,
+            "output": 0.39999999999999997,
+            "cachedInput": 0.012
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.098,
-            "output": 0.308,
-            "cachedInput": 0.009800000000000001
+            "input": 0.07,
+            "output": 0.22,
+            "cachedInput": 0.007000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -21363,5 +21363,5 @@
       }
     }
   },
-  "lastUpdated": "2026-08-09T01:13:48.586Z"
+  "lastUpdated": "2026-08-10T01:15:14.882Z"
 }
