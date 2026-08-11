@@ -5082,7 +5082,7 @@
         "qwen/qwen3-coder-30b-a3b-instruct": {
           "usd": {
             "input": 0.07,
-            "output": 0.27,
+            "output": 0.28,
             "cachedInput": 0.007000000000000001
           },
           "capabilities": {
@@ -13073,9 +13073,9 @@
         },
         "qwen/qwen3.5-397b-a17b": {
           "usd": {
-            "input": 0.39,
-            "output": 2.34,
-            "cachedInput": 0.03900000000000001
+            "input": 0.5,
+            "output": 3.5999999999999996,
+            "cachedInput": 0.05
           },
           "capabilities": {
             "input_modalities": [
@@ -14873,9 +14873,9 @@
         },
         "z-ai/glm-5.1": {
           "usd": {
-            "input": 0.952,
-            "output": 2.992,
-            "cachedInput": 0.0952
+            "input": 1.4,
+            "output": 4.4,
+            "cachedInput": 0.13999999999999999
           },
           "capabilities": {
             "input_modalities": [
@@ -15117,9 +15117,9 @@
         },
         "moonshotai/kimi-k2.6": {
           "usd": {
-            "input": 0.5795,
-            "output": 2.44,
-            "cachedInput": 0.05795
+            "input": 0.95,
+            "output": 4,
+            "cachedInput": 0.095
           },
           "capabilities": {
             "input_modalities": [
@@ -15546,9 +15546,9 @@
         },
         "deepseek/deepseek-v4-pro": {
           "usd": {
-            "input": 0.435,
-            "output": 0.87,
-            "cachedInput": 0.043500000000000004
+            "input": 0.64432,
+            "output": 1.28864,
+            "cachedInput": 0.064432
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.07,
-            "output": 0.22,
-            "cachedInput": 0.007000000000000001
+            "input": 0.76,
+            "output": 2.42,
+            "cachedInput": 0.07600000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -19914,9 +19914,9 @@
         },
         "deepseek/deepseek-v4-flash-0731": {
           "usd": {
-            "input": 0.09,
+            "input": 0.08,
             "output": 0.18,
-            "cachedInput": 0.009
+            "cachedInput": 0.008
           },
           "capabilities": {
             "input_modalities": [
@@ -20002,9 +20002,9 @@
         },
         "~deepseek/deepseek-v4-flash-latest": {
           "usd": {
-            "input": 0.079996,
-            "output": 0.252,
-            "cachedInput": 0.0079996
+            "input": 0.0798,
+            "output": 0.1596,
+            "cachedInput": 0.00798
           },
           "capabilities": {
             "input_modalities": [
@@ -21359,9 +21359,86 @@
             "image": false
           },
           "context_length": 16385
+        },
+        "upstage/solar-pro4": {
+          "usd": {
+            "input": 0.03,
+            "output": 0.12,
+            "cachedInput": 0.003
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 524288
+        },
+        "meta/muse-glimmer-30b": {
+          "usd": {
+            "input": 0.35,
+            "output": 1.5,
+            "cachedInput": 0.034999999999999996
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "reasoning_effort",
+              "repetition_penalty",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 131072
         }
       }
     }
   },
-  "lastUpdated": "2026-08-10T01:15:14.882Z"
+  "lastUpdated": "2026-08-11T01:13:31.374Z"
 }
