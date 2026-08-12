@@ -3070,9 +3070,9 @@
         },
         "z-ai/glm-4.6": {
           "usd": {
-            "input": 0.5,
-            "output": 2,
-            "cachedInput": 0.05
+            "input": 0.55,
+            "output": 2.2,
+            "cachedInput": 0.05500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -3410,9 +3410,9 @@
         },
         "qwen/qwen3-vl-235b-a22b-instruct": {
           "usd": {
-            "input": 0.21,
-            "output": 1.9,
-            "cachedInput": 0.021
+            "input": 0.26,
+            "output": 1.04,
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -3591,7 +3591,7 @@
         "deepseek/deepseek-v3.1-terminus": {
           "usd": {
             "input": 0.27,
-            "output": 1,
+            "output": 0.95,
             "cachedInput": 0.027000000000000003
           },
           "capabilities": {
@@ -4851,9 +4851,9 @@
         },
         "openai/gpt-oss-120b": {
           "usd": {
-            "input": 0.037,
+            "input": 0.03,
             "output": 0.16999999999999998,
-            "cachedInput": 0.0037
+            "cachedInput": 0.003
           },
           "capabilities": {
             "input_modalities": [
@@ -15546,9 +15546,9 @@
         },
         "deepseek/deepseek-v4-pro": {
           "usd": {
-            "input": 0.64432,
-            "output": 1.28864,
-            "cachedInput": 0.064432
+            "input": 0.63168,
+            "output": 1.26336,
+            "cachedInput": 0.063168
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.76,
-            "output": 2.42,
-            "cachedInput": 0.07600000000000001
+            "input": 0.5586,
+            "output": 1.7556,
+            "cachedInput": 0.05586
           },
           "capabilities": {
             "input_modalities": [
@@ -20002,9 +20002,9 @@
         },
         "~deepseek/deepseek-v4-flash-latest": {
           "usd": {
-            "input": 0.0798,
-            "output": 0.1596,
-            "cachedInput": 0.00798
+            "input": 0.072,
+            "output": 0.144,
+            "cachedInput": 0.0072
           },
           "capabilities": {
             "input_modalities": [
@@ -21436,9 +21436,196 @@
             "image": false
           },
           "context_length": 131072
+        },
+        "liquid/lfm-2.5-2.6b:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logprobs",
+              "max_completion_tokens",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 128000
+        },
+        "nvidia/nemotron-3.5-lightning": {
+          "usd": {
+            "input": 0.09999999999999999,
+            "output": 0.25,
+            "cachedInput": 0.01
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logit_bias",
+              "logprobs",
+              "max_tokens",
+              "min_p",
+              "presence_penalty",
+              "reasoning",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "top_k",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": false,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "nvidia/nemotron-3.5-lightning:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "seed",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 1000000
+        },
+        "sakana/sakana-namazu": {
+          "usd": {
+            "input": 0.95,
+            "output": 4,
+            "cachedInput": 0.095
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "file"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "reasoning",
+              "reasoning_effort",
+              "structured_outputs",
+              "tool_choice",
+              "tools",
+              "web_search_options"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": false,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "bytedance-seed/seed-2.0-code": {
+          "usd": {
+            "input": 0.5,
+            "output": 3,
+            "cachedInput": 0.05
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
         }
       }
     }
   },
-  "lastUpdated": "2026-08-11T01:13:31.374Z"
+  "lastUpdated": "2026-08-12T01:21:14.668Z"
 }
