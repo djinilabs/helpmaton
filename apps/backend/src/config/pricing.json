@@ -2994,9 +2994,9 @@
         },
         "qwen/qwen3-vl-30b-a3b-instruct": {
           "usd": {
-            "input": 0.15,
-            "output": 0.6,
-            "cachedInput": 0.015
+            "input": 0.13,
+            "output": 0.52,
+            "cachedInput": 0.013000000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -3070,9 +3070,9 @@
         },
         "z-ai/glm-4.6": {
           "usd": {
-            "input": 0.5,
-            "output": 2,
-            "cachedInput": 0.05
+            "input": 0.55,
+            "output": 2.2,
+            "cachedInput": 0.05500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -3851,9 +3851,9 @@
         },
         "qwen/qwen3-next-80b-a3b-instruct": {
           "usd": {
-            "input": 0.09,
+            "input": 0.09999999999999999,
             "output": 1.1,
-            "cachedInput": 0.009
+            "cachedInput": 0.01
           },
           "capabilities": {
             "input_modalities": [
@@ -9195,7 +9195,7 @@
             "structured_output": false,
             "image": false
           },
-          "context_length": 163840
+          "context_length": 64000
         },
         "minimax/minimax-01": {
           "usd": {
@@ -9958,7 +9958,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 16384
+          "context_length": 32768
         },
         "anthropic/claude-3.5-sonnet": {
           "usd": {
@@ -13073,9 +13073,9 @@
         },
         "qwen/qwen3.5-397b-a17b": {
           "usd": {
-            "input": 0.44999999999999996,
-            "output": 3,
-            "cachedInput": 0.045
+            "input": 0.5,
+            "output": 3.5999999999999996,
+            "cachedInput": 0.05
           },
           "capabilities": {
             "input_modalities": [
@@ -15817,9 +15817,9 @@
         },
         "~google/gemini-flash-latest": {
           "usd": {
-            "input": 1.5,
-            "output": 7.5,
-            "cachedInput": 0.15000000000000002
+            "input": 0.375,
+            "output": 1.875,
+            "cachedInput": 0.037500000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 0.5,
-            "output": 3.15,
-            "cachedInput": 0.05
+            "input": 0.63,
+            "output": 1.9800000000000002,
+            "cachedInput": 0.063
           },
           "capabilities": {
             "input_modalities": [
@@ -18646,9 +18646,9 @@
         },
         "google/gemini-3.6-flash": {
           "usd": {
-            "input": 1.5,
-            "output": 7.5,
-            "cachedInput": 0.15000000000000002
+            "input": 0.75,
+            "output": 3.75,
+            "cachedInput": 0.07500000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -18877,9 +18877,9 @@
         },
         "google/gemini-3.6-flash:batch": {
           "usd": {
-            "input": 0.75,
-            "output": 3.75,
-            "cachedInput": 0.07500000000000001
+            "input": 0.375,
+            "output": 1.875,
+            "cachedInput": 0.037500000000000006
           },
           "capabilities": {
             "input_modalities": [
@@ -19914,9 +19914,9 @@
         },
         "deepseek/deepseek-v4-flash-0731": {
           "usd": {
-            "input": 0.08,
-            "output": 0.18,
-            "cachedInput": 0.008
+            "input": 0.14,
+            "output": 0.28,
+            "cachedInput": 0.014000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -21703,7 +21703,7 @@
             "structured_output": true,
             "image": false
           },
-          "context_length": 262144
+          "context_length": 1010000
         },
         "deepseek/deepseek-v4-pro-0813": {
           "usd": {
@@ -21784,9 +21784,87 @@
             "image": false
           },
           "context_length": 500000
+        },
+        "google/gemini-3.7-flash": {
+          "usd": {
+            "input": 0.375,
+            "output": 1.875,
+            "cachedInput": 0.037500000000000006
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
+        },
+        "google/gemini-3.7-flash:batch": {
+          "usd": {
+            "input": 0.1875,
+            "output": 0.9375,
+            "cachedInput": 0.018750000000000003
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video",
+              "file",
+              "audio"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "reasoning_effort",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "tool_choice",
+              "tools"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 1048576
         }
       }
     }
   },
-  "lastUpdated": "2026-08-13T01:23:25.303Z"
+  "lastUpdated": "2026-08-14T01:22:41.850Z"
 }
