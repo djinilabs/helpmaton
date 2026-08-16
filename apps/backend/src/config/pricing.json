@@ -3950,9 +3950,9 @@
         },
         "qwen/qwen-plus-2025-07-28:thinking": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.2,
-            "cachedInput": 0.04
+            "input": 0.26,
+            "output": 0.78,
+            "cachedInput": 0.026000000000000002
           },
           "capabilities": {
             "input_modalities": [
@@ -15583,9 +15583,9 @@
         },
         "deepseek/deepseek-v4-flash": {
           "usd": {
-            "input": 0.08245999999999999,
-            "output": 0.16491999999999998,
-            "cachedInput": 0.008246
+            "input": 0.06426,
+            "output": 0.12852,
+            "cachedInput": 0.006426
           },
           "capabilities": {
             "input_modalities": [
@@ -16081,9 +16081,9 @@
         },
         "qwen/qwen3.6-27b": {
           "usd": {
-            "input": 0.6,
-            "output": 3.5999999999999996,
-            "cachedInput": 0.06
+            "input": 0.3,
+            "output": 2,
+            "cachedInput": 0.03
           },
           "capabilities": {
             "input_modalities": [
@@ -16625,9 +16625,9 @@
         },
         "tencent/hy3-preview": {
           "usd": {
-            "input": 0.063,
-            "output": 0.21,
-            "cachedInput": 0.0063
+            "input": 0.18,
+            "output": 0.6,
+            "cachedInput": 0.018
           },
           "capabilities": {
             "input_modalities": [
@@ -17444,9 +17444,9 @@
         },
         "z-ai/glm-5.2": {
           "usd": {
-            "input": 1.19,
-            "output": 3.74,
-            "cachedInput": 0.119
+            "input": 0.46199999999999997,
+            "output": 1.452,
+            "cachedInput": 0.0462
           },
           "capabilities": {
             "input_modalities": [
@@ -20002,9 +20002,9 @@
         },
         "~deepseek/deepseek-v4-flash-latest": {
           "usd": {
-            "input": 0.0798,
-            "output": 0.1596,
-            "cachedInput": 0.00798
+            "input": 0.0675,
+            "output": 0.135,
+            "cachedInput": 0.006750000000000001
           },
           "capabilities": {
             "input_modalities": [
@@ -21862,9 +21862,87 @@
             "image": false
           },
           "context_length": 1048576
+        },
+        "qwen/qwen3.8-27b": {
+          "usd": {
+            "input": 0.44999999999999996,
+            "output": 3.1999999999999997,
+            "cachedInput": 0.045
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image",
+              "video"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "frequency_penalty",
+              "include_reasoning",
+              "logprobs",
+              "max_tokens",
+              "presence_penalty",
+              "reasoning",
+              "reasoning_effort",
+              "repetition_penalty",
+              "response_format",
+              "seed",
+              "stop",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_k",
+              "top_logprobs",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 262144
+        },
+        "dots-studio/dots-3-note-preview:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          },
+          "capabilities": {
+            "input_modalities": [
+              "text",
+              "image"
+            ],
+            "output_modalities": [
+              "text"
+            ],
+            "supported_parameters": [
+              "include_reasoning",
+              "max_tokens",
+              "reasoning",
+              "response_format",
+              "structured_outputs",
+              "temperature",
+              "tool_choice",
+              "tools",
+              "top_p"
+            ],
+            "rerank": false,
+            "text_generation": true,
+            "image_generation": false,
+            "tool_calling": true,
+            "structured_output": true,
+            "image": false
+          },
+          "context_length": 512000
         }
       }
     }
   },
-  "lastUpdated": "2026-08-15T00:53:45.676Z"
+  "lastUpdated": "2026-08-16T00:56:20.560Z"
 }
