@@ -1,29 +1,9 @@
 name: E2E Tests
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  workflow_call:
-    inputs:
-      pr_number:
-        description: "PR number to test against"
-        required: true
-        type: string
-      base_url:
-        description: "Base URL to test against"
-        required: false
-        type: string
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR number to test against"
-        required: false
-        type: string
-      base_url:
-        description: "Base URL to test against"
-        required: false
-        type: string
   push:
-    branches:
-      - main
+    branches: ["__workflows-disabled__"]
 
 jobs:
   test-e2e:

@@ -16,10 +16,10 @@
 # 401/403: see docs/tweet-on-pr-setup.md (credentials, whitespace, regenerate tokens).
 name: Tweet on new PR
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  pull_request:
-    types: [opened, reopened]
-    branches: [main]
+  push:
+    branches: ["__workflows-disabled__"]
 
 permissions:
   contents: read

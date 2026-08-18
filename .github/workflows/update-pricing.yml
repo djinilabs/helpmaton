@@ -1,10 +1,9 @@
 name: Update Pricing
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  schedule:
-    # Run daily at midnight UTC
-    - cron: "0 0 * * *"
-  workflow_dispatch: # Allow manual triggering
+  push:
+    branches: ["__workflows-disabled__"]
 
 permissions:
   contents: write # Required to push commits

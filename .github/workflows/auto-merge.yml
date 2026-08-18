@@ -1,15 +1,9 @@
 name: Auto Merge
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  workflow_run:
-    workflows: ["Deploy PR", "E2E Tests"]
-    types:
-      - completed
-    branches:
-      - "**" # Run for all branches (PRs)
-  schedule:
-    # Run every hour at minute 30 to check for PRs ready to merge (fallback)
-    - cron: "30 * * * *" # Every hour at minute 30
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   auto-merge:

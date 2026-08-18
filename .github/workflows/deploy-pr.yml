@@ -1,14 +1,9 @@
 name: Deploy PR
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR number to deploy"
-        required: true
-        type: string
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   build-docker-images:

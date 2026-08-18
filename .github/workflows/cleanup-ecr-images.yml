@@ -1,31 +1,9 @@
 name: Cleanup ECR Images
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  # Scheduled cleanup - Daily at 2 AM UTC
-  schedule:
-    - cron: "0 2 * * *"
-
-  # Manual trigger with parameters
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Dry run mode (true = simulate only, false = actually delete)"
-        required: false
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
-      production_retention:
-        description: "Number of production images to keep"
-        required: false
-        default: "3"
-        type: string
-      min_age_hours:
-        description: "Minimum image age in hours before deletion"
-        required: false
-        default: "12"
-        type: string
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   cleanup:

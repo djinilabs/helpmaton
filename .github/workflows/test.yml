@@ -1,11 +1,9 @@
 name: Tests
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  pull_request:
-    types: [opened, synchronize]
   push:
-    branches:
-      - main
+    branches: ["__workflows-disabled__"]
 
 jobs:
   test:

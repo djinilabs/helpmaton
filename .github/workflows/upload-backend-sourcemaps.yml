@@ -1,10 +1,9 @@
 name: Upload Backend Sourcemaps
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  workflow_run:
-    workflows: ["Deploy Prod"]
-    types:
-      - completed
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   upload-backend-sourcemaps:

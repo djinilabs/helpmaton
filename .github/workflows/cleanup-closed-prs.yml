@@ -1,9 +1,9 @@
 name: Nightly Cleanup Closed PR Stacks
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  schedule:
-    - cron: "0 * * * *" # Every hour at minute 0
-  workflow_dispatch:
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   cleanup:

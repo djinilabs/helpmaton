@@ -2,6 +2,8 @@
 
 ## Current Status
 
+- **AWS + GitHub teardown (2026-08-18)**: Production AWS leftovers wiped. All `.github/workflows/*.yml` triggers replaced with `push` to `__workflows-disabled__`. Copilot/CodeQL are GitHub-managed (`dynamic/…`) and have no workflow files.
+
 - **NotFoundError insertBefore (Sentry, production agent page, 2026-03-05)**: Production error "Failed to execute 'insertBefore' on 'Node': The node before which the new node is to be inserted is not a child of this node" on Chrome Mobile, during UI clicks (buttons/labels/checkboxes). **Cause**: Typically external DOM mutation (e.g. Google Translate wrapping/moving nodes) so React's tree and real DOM get out of sync. **Fix**: Added `class="notranslate"` and `translate="no"` on `<html>` in `apps/frontend/index.html` to opt out of translation and reduce this class of errors. Error was caught by ErrorBoundary on agent page.
 
 - **Cleanup closed PRs workflow – review and improve (2026-03-04)**: (1) **gh auth**: Authenticate step must not set `GH_TOKEN` in env so `gh auth login --with-token` stores credentials; added comment. (2) **Redundant env**: Removed `GH_TOKEN` from the three script steps—gh is already authenticated for the job. (3) **Permissions**: Dropped `id-token: write` (workflow uses static AWS creds, not OIDC).

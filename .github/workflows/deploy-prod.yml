@@ -1,19 +1,9 @@
 name: Deploy Prod
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  workflow_run:
-    workflows: ["E2E Tests"]
-    types:
-      - completed
-    branches:
-      - main
-  workflow_dispatch:
-    inputs:
-      skip_e2e:
-        description: "Skip E2E check (for emergency deployments)"
-        required: false
-        default: false
-        type: boolean
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   deploy:

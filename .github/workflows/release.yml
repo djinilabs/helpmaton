@@ -2,18 +2,10 @@
 # Tweet uses the same X API v2 setup as tweet-on-pr (same secrets). See docs/tweet-on-pr-setup.md.
 name: Release
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  workflow_dispatch:
-    inputs:
-      release_type:
-        description: "Bump type: patch (x.y.Z), minor (x.Y.0), or major (X.0.0)"
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-        default: patch
+  push:
+    branches: ["__workflows-disabled__"]
 
 permissions:
   contents: write

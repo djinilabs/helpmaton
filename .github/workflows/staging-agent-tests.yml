@@ -1,18 +1,9 @@
 name: Staging Agent Tests
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  workflow_call:
-    inputs:
-      pr_number:
-        description: "PR number to run staging tests against"
-        required: true
-        type: string
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR number to run staging tests against"
-        required: true
-        type: string
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   run-staging-agent-tests:

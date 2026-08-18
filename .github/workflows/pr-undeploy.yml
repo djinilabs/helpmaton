@@ -1,12 +1,9 @@
 name: Undeploy PR
 
+# DISABLED 2026-08-18 after production teardown. Do not re-enable.
 on:
-  pull_request:
-    types: [closed]
-    # Security: Don't run if workflow files are modified
-    paths-ignore:
-      - ".github/workflows/**"
-      - ".github/actions/**"
+  push:
+    branches: ["__workflows-disabled__"]
 
 jobs:
   undeploy:
